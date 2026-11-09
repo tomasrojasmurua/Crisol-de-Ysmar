@@ -67,7 +67,7 @@ jobs:
           path: apps/client/dist
       - name: Publicar el servidor (solo main)
         if: steps.creds.outputs.ready == 'true' && github.ref == 'refs/heads/main'
-        run: pnpm --filter @crisol/server deploy
+        run: pnpm --filter @crisol/server run deploy
       - name: Publicar el juego web (main o vista previa del PR)
         if: steps.creds.outputs.ready == 'true'
         working-directory: apps/server
