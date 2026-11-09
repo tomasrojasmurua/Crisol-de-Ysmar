@@ -130,7 +130,9 @@ function startChannel(
   const pace =
     (wizard.statuses.quickened ? rules.statuses.quickened.castMultiplier : 1) *
     (wizard.statuses.sluggish ? rules.statuses.sluggish.castMultiplier : 1);
-  const castTicks = Math.max(1, Math.round(baseTicks * wizard.mods.castTime * pace));
+  // Nada sale más rápido que un tejido de 1 elemento sin ayudas: el rival siempre ve el aviso.
+  const floor = rules.weave.castTicksByLength[0];
+  const castTicks = Math.max(floor, Math.round(baseTicks * wizard.mods.castTime * pace));
   // Con la Combustión, cada conjuro quema a quien lo teje.
   const combusting = wizard.statuses.combusting;
   if (combusting) {
