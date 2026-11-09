@@ -1,4 +1,5 @@
 import type { ElementId } from './elements';
+import type { Vec2 } from './math/vec2';
 import type { SpellForm } from './weaving/weave';
 
 /** `empowered` lo da un santuario: más daño por un rato. */
@@ -29,6 +30,8 @@ export interface Camp {
 export interface MapLayout {
   readonly obstacles: readonly Obstacle[];
   readonly camps: readonly Camp[];
+  /** Donde despierta el Guardián; sin guarida no hay Guardián. */
+  readonly guardianLair: Vec2 | null;
 }
 
 export interface GameRules {
@@ -114,6 +117,31 @@ export interface BeastRules {
   /** Daño extra por cada Esencia, en conjuros que usan ese elemento. */
   readonly essenceDamagePerStack: number;
   readonly maxEssence: number;
+  /** Bestias por campamento. */
+  readonly packSize: number;
+  /** Pasos hasta que un campamento vacío se vuelve a poblar. */
+  readonly respawnTicks: number;
+  readonly guardian: GuardianRules;
+}
+
+/** Lo que una bestia necesita para moverse y pelear. */
+export interface BeastStats {
+  readonly maxHp: number;
+  readonly radius: number;
+  readonly moveSpeed: number;
+  readonly damage: number;
+  readonly attackRange: number;
+  readonly attackCooldownTicks: number;
+  readonly aggroTicks: number;
+  readonly leash: number;
+}
+
+/** El Guardián: una bestia enorme que despierta en la plaza a mitad de la Caza. */
+export interface GuardianRules extends BeastStats {
+  /** Paso de la ronda en que despierta. */
+  readonly spawnTick: number;
+  /** Esencia que da de cada elemento a quien lo vence. */
+  readonly essenceReward: number;
 }
 
 /** Santuarios de la Convergencia: se disputan parándose encima. */

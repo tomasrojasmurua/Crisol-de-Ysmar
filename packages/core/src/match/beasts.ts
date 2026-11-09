@@ -1,7 +1,8 @@
 import { dealDamage } from '../combat/hit';
+import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
 import { add, distance, length, normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
-import type { GameRules } from '../rules';
+import type { BeastStats, GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { placeInArena } from './obstacles';
 import { isAlive, wizardById } from './queries';
@@ -11,37 +12,118 @@ import type { Beast, EntityId, MatchState } from './state';
 /** Pasos entre cambios de rumbo cuando la bestia deambula. */
 const WANDER_TICKS = 90;
 
-/** Al empezar la ronda, las bestias aparecen repartidas por la arena, una por elemento en ronda. */
+/** Cómo se acomoda una manada alrededor del centro del campamento. */
+const PACK_SPREAD = 1.4;
+
+/** Lo que pesa al pelear: el Guardián usa sus propios números. */
+export function beastStats(beast: Beast, rules: GameRules): BeastStats {
+  return beast.guardian ? rules.beasts.guardian : rules.beasts;
+}
+
+function createBeast(
+  state: MatchState,
+  rules: GameRules,
+  home: Vec2,
+  element: ElementId,
+  camp: number | null,
+  guardian: boolean,
+): Beast {
+  const stats = guardian ? rules.beasts.guardian : rules.beasts;
+  const pos = placeInArena(home, stats.radius, rules);
+  const beast: Beast = {
+    id: state.nextEntityId++,
+    element,
+    camp,
+    guardian,
+    maxHp: stats.maxHp,
+    home: pos,
+    pos,
+    facing: { x: 0, z: 1 },
+    hp: stats.maxHp,
+    targetId: null,
+    aggroTicks: 0,
+    attackCooldown: 0,
+    velocity: ZERO,
+  };
+  state.beasts.push(beast);
+  return beast;
+}
+
+/** Puebla un campamento con su manada, repartida en círculo y mirando hacia afuera. */
+function spawnPack(state: MatchState, rules: GameRules, index: number): void {
+  const camp = rules.map.camps[index];
+  if (!camp) return;
+  const size = rules.beasts.packSize;
+  const outward = Math.atan2(camp.z, camp.x);
+  for (let k = 0; k < size; k++) {
+    const angle = outward + (k / size) * Math.PI * 2 + Math.PI / 2;
+    const spread = size > 1 ? PACK_SPREAD : 0;
+    createBeast(
+      state,
+      rules,
+      { x: camp.x + Math.cos(angle) * spread, z: camp.z + Math.sin(angle) * spread },
+      camp.element,
+      index,
+      false,
+    );
+  }
+}
+
+/** Al empezar la ronda: una manada por campamento, o bestias sueltas si el mapa no tiene. */
 export function spawnBeasts(state: MatchState, rules: GameRules): void {
+  const camps = rules.map.camps;
+  if (camps.length > 0) {
+    camps.forEach((_, i) => {
+      spawnPack(state, rules, i);
+    });
+    return;
+  }
   withRng(state, (rng) => {
-    // Con campamentos en el mapa, cada uno tiene su bestia; si no, se reparten en ronda.
-    const camps = rules.map.camps;
-    const count = camps.length > 0 ? camps.length : rules.beasts.count;
+    const count = rules.beasts.count;
     const offset = rng.next() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
-      const camp = camps[i];
       const angle = offset + (i / count) * Math.PI * 2 + (rng.next() - 0.5) * 0.4;
       const r = rules.arenaRadius * (0.3 + rng.next() * 0.35);
-      const home = placeInArena(
-        camp ? { x: camp.x, z: camp.z } : { x: Math.cos(angle) * r, z: Math.sin(angle) * r },
-        rules.beasts.radius,
+      const element = ELEMENT_IDS[i % ELEMENT_IDS.length] ?? 'brasa';
+      createBeast(
+        state,
         rules,
-      );
-      const element = camp?.element ?? ELEMENT_IDS[i % ELEMENT_IDS.length] ?? 'brasa';
-      state.beasts.push({
-        id: state.nextEntityId++,
+        { x: Math.cos(angle) * r, z: Math.sin(angle) * r },
         element,
-        home,
-        pos: home,
-        facing: { x: 0, z: 1 },
-        hp: rules.beasts.maxHp,
-        targetId: null,
-        aggroTicks: 0,
-        attackCooldown: 0,
-        velocity: ZERO,
-      });
+        null,
+        false,
+      );
     }
   });
+}
+
+/**
+ * Campamentos vacíos que vuelven a poblarse y el Guardián que despierta. Un campamento que
+ * quedó fuera de la zona ya no se repuebla.
+ */
+function repopulate(state: MatchState, rules: GameRules): void {
+  rules.map.camps.forEach((camp, i) => {
+    const occupied = state.beasts.some((b) => b.camp === i);
+    const due = state.campRespawn[i] ?? -1;
+    if (occupied) {
+      state.campRespawn[i] = -1;
+    } else if (due < 0) {
+      state.campRespawn[i] = state.tick + rules.beasts.respawnTicks;
+    } else if (state.tick >= due && Math.hypot(camp.x, camp.z) < state.zoneRadius) {
+      spawnPack(state, rules, i);
+      state.campRespawn[i] = -1;
+    }
+  });
+
+  const lair = rules.map.guardianLair;
+  if (lair && !state.guardianAwake && state.tick >= rules.beasts.guardian.spawnTick) {
+    state.guardianAwake = true;
+    withRng(state, (rng) => {
+      const element = ELEMENT_IDS[Math.floor(rng.next() * ELEMENT_IDS.length)] ?? 'brasa';
+      const guardian = createBeast(state, rules, lair, element, null, true);
+      state.events.push({ type: 'guardianAwake', beastId: guardian.id });
+    });
+  }
 }
 
 export function beastById(state: MatchState, id: EntityId | null): Beast | undefined {
@@ -62,30 +144,33 @@ export function damageBeast(
   if (beast.hp <= 0 || amount <= 0) return;
   beast.hp = Math.max(0, beast.hp - amount);
   beast.targetId = sourceId;
-  beast.aggroTicks = rules.beasts.aggroTicks;
+  beast.aggroTicks = beastStats(beast, rules).aggroTicks;
   state.events.push({ type: 'beastHit', beastId: beast.id, sourceId, amount });
   if (beast.hp > 0) return;
 
   const killer = wizardById(state, sourceId);
   if (killer && isAlive(killer)) {
-    killer.essence[beast.element] = Math.min(
-      rules.beasts.maxEssence,
-      killer.essence[beast.element] + 1,
-    );
+    // El Guardián da Esencia de todos los elementos; una bestia común, la suya.
+    const reward = beast.guardian ? rules.beasts.guardian.essenceReward : 1;
+    for (const element of beast.guardian ? ELEMENT_IDS : [beast.element]) {
+      killer.essence[element] = Math.min(rules.beasts.maxEssence, killer.essence[element] + reward);
+    }
   }
   state.events.push({
     type: 'beastSlain',
     beastId: beast.id,
     element: beast.element,
     killerId: killer ? killer.id : null,
+    guardian: beast.guardian,
   });
 }
 
 /** Avanza las bestias: deambulan cerca de su guarida o persiguen y muerden a quien las atacó. */
 export function updateBeasts(state: MatchState, rules: GameRules): void {
   state.beasts = state.beasts.filter((beast) => beast.hp > 0);
-  const config = rules.beasts;
+  repopulate(state, rules);
   for (const beast of state.beasts) {
+    const config = beastStats(beast, rules);
     if (beast.attackCooldown > 0) beast.attackCooldown--;
     const target = wizardById(state, beast.targetId);
     const chasing =
@@ -119,7 +204,7 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
     const direction = normalize(offset);
     beast.velocity = scale(direction, step * TICK_RATE);
     if (step > 0) {
-      beast.pos = placeInArena(add(beast.pos, scale(direction, step)), rules.beasts.radius, rules);
+      beast.pos = placeInArena(add(beast.pos, scale(direction, step)), config.radius, rules);
       beast.facing = direction;
     } else if (target && chasing) {
       beast.facing = normalize(sub(target.pos, beast.pos), beast.facing);

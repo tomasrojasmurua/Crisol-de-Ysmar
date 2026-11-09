@@ -113,6 +113,11 @@ export type SpellEntity = Projectile | Wall | Trap;
 export interface Beast {
   readonly id: EntityId;
   readonly element: ElementId;
+  /** Campamento al que pertenece (índice en `rules.map.camps`), o null. */
+  readonly camp: number | null;
+  /** El Guardián de la plaza: más grande, más fuerte y con más premio. */
+  readonly guardian: boolean;
+  readonly maxHp: number;
   readonly home: Vec2;
   pos: Vec2;
   facing: Vec2;
@@ -155,7 +160,9 @@ export type GameEvent =
       readonly beastId: EntityId;
       readonly element: ElementId;
       readonly killerId: EntityId | null;
+      readonly guardian: boolean;
     }
+  | { readonly type: 'guardianAwake'; readonly beastId: EntityId }
   | { readonly type: 'markBeast'; readonly wizardId: EntityId; readonly beastId: EntityId }
   | { readonly type: 'shrinesAppear' }
   | { readonly type: 'shrineClaimed'; readonly shrineId: EntityId; readonly team: number }
@@ -186,6 +193,9 @@ export interface MatchState {
   wizards: Wizard[];
   spells: SpellEntity[];
   beasts: Beast[];
+  /** Paso en que cada campamento vacío se vuelve a poblar; -1 si está poblado. */
+  campRespawn: number[];
+  guardianAwake: boolean;
   shrines: Shrine[];
   /** Lo que pasó en el último paso: el cliente lo usa para efectos y sonido. */
   events: GameEvent[];

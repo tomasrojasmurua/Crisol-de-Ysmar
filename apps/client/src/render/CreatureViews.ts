@@ -33,7 +33,7 @@ export class CreatureViews {
       alive.add(beast.id);
       let view = this.beasts.get(beast.id);
       if (!view) {
-        view = new BeastView(beast.element);
+        view = new BeastView(beast.element, beast.guardian);
         this.beasts.set(beast.id, view);
         this.scene.add(view.group);
       }

@@ -11,7 +11,7 @@ import { stepMatch } from './step';
 
 /** Una hilera de rocas entre los dos magos, con paso solo por los extremos. */
 const wall: Obstacle[] = [-4, -2, 0, 2, 4].map((x) => ({ x, z: 0, radius: 1.1, kind: 'rock' }));
-const rules: GameRules = { ...TEST_RULES, map: { obstacles: wall, camps: [] } };
+const rules: GameRules = { ...TEST_RULES, map: { obstacles: wall, camps: [], guardianLair: null } };
 
 function duel(): MatchState {
   return createMatch(

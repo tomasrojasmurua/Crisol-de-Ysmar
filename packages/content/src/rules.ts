@@ -85,7 +85,7 @@ export const GAME_RULES: GameRules = {
     spectre: { moveMultiplier: 0.8, hauntRange: 7, hauntCooldownTicks: 240 },
   },
   beasts: {
-    // Una por elemento en cada ronda.
+    // Solo en mapas sin campamentos: una por elemento.
     count: 5,
     maxHp: 45,
     radius: 0.6,
@@ -98,6 +98,22 @@ export const GAME_RULES: GameRules = {
     // Cada Esencia suma 12% de daño a los conjuros con ese elemento, hasta 3.
     essenceDamagePerStack: 0.12,
     maxEssence: 3,
+    // Dos bestias por campamento; un campamento vacío vuelve a poblarse en 75 segundos.
+    packSize: 2,
+    respawnTicks: 75 * 30,
+    // El Guardián despierta en la plaza al minuto de Caza.
+    guardian: {
+      maxHp: 260,
+      radius: 1.3,
+      moveSpeed: 3.4,
+      damage: 16,
+      attackRange: 1.1,
+      attackCooldownTicks: 42,
+      aggroTicks: 240,
+      leash: 8,
+      spawnTick: 60 * 30,
+      essenceReward: 1,
+    },
   },
   shrines: {
     count: 2,

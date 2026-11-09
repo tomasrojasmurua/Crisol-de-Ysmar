@@ -6,7 +6,7 @@ import type { GameRules } from '../rules';
  */
 export const TEST_RULES: GameRules = {
   arenaRadius: 16,
-  map: { obstacles: [], camps: [] },
+  map: { obstacles: [], camps: [], guardianLair: null },
   wizard: { maxHp: 100, moveSpeed: 6, radius: 0.5, channelMoveMultiplier: 0.5 },
   weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90 },
   forms: {
@@ -73,6 +73,20 @@ export const TEST_RULES: GameRules = {
     leash: 10,
     essenceDamagePerStack: 0.5,
     maxEssence: 2,
+    packSize: 1,
+    respawnTicks: 300,
+    guardian: {
+      maxHp: 120,
+      radius: 1.1,
+      moveSpeed: 3,
+      damage: 12,
+      attackRange: 1,
+      attackCooldownTicks: 45,
+      aggroTicks: 150,
+      leash: 7,
+      spawnTick: 600,
+      essenceReward: 1,
+    },
   },
   shrines: { count: 2, radius: 1.5, captureTicks: 60, healFraction: 0.5 },
 };

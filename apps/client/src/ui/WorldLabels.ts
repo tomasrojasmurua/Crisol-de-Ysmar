@@ -1,10 +1,19 @@
-import { type GameRules, isSpectre, type MatchState, TICK_RATE, type Vec2 } from '@crisol/core';
+import {
+  type Beast,
+  type GameRules,
+  isSpectre,
+  type MatchState,
+  TICK_RATE,
+  type Vec2,
+} from '@crisol/core';
 import * as THREE from 'three';
 import { el } from './dom';
 import type { WizardBadge } from './Hud';
 
 const LABEL_HEIGHT = 2.55;
 const BEAST_LABEL_RANGE = 26;
+/** Alto de la franja superior de la interfaz, en píxeles. */
+const HUD_TOP = 96;
 const EDGE_MARGIN = 28;
 
 interface Label {
@@ -115,9 +124,8 @@ export class WorldLabels {
   updateBeasts(
     state: MatchState,
     camera: THREE.Camera,
-    beastName: (element: string) => string,
+    beastName: (beast: Beast) => string,
     beastColor: (element: string) => string,
-    rules: GameRules,
   ): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -126,9 +134,9 @@ export class WorldLabels {
       present.add(beast.id);
       let label = this.beastLabels.get(beast.id);
       if (!label) {
-        const root = el('div', 'world-label beast');
+        const root = el('div', `world-label beast${beast.guardian ? ' guardian' : ''}`);
         root.style.setProperty('--team', beastColor(beast.element));
-        const name = el('span', 'world-label-name', beastName(beast.element));
+        const name = el('span', 'world-label-name', beastName(beast));
         const bar = el('div', 'world-label-bar');
         const fill = el('div', 'world-label-fill');
         bar.append(fill);
@@ -137,20 +145,22 @@ export class WorldLabels {
         label = { root, name, fill, arrow: root };
         this.beastLabels.set(beast.id, label);
       }
-      this.projected.set(beast.pos.x, 1.7, beast.pos.z).project(camera);
+      this.projected.set(beast.pos.x, beast.guardian ? 3.6 : 1.7, beast.pos.z).project(camera);
       const x = ((this.projected.x + 1) / 2) * width;
       const y = ((1 - this.projected.y) / 2) * height;
       const onScreen = this.projected.z < 1 && x > 0 && x < width && y > 0 && y < height;
-      const interesting = beast.hp < rules.beasts.maxHp || beast.targetId !== null;
+      const interesting = beast.hp < beast.maxHp || beast.targetId !== null;
       // Las bestias de campamentos lejanos no llenan la pantalla de nombres.
       const near =
         Math.hypot(camera.position.x - beast.pos.x, camera.position.z - beast.pos.z) <
         BEAST_LABEL_RANGE;
-      label.root.hidden = !onScreen || !near;
+      // Arriba de todo está el reloj de la ronda: ahí el nombre estorbaría.
+      const underHud = y < HUD_TOP;
+      label.root.hidden = !onScreen || !near || underHud;
       label.root.classList.toggle('calm', !interesting);
       if (onScreen) {
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-        label.fill.style.width = `${(beast.hp / rules.beasts.maxHp) * 100}%`;
+        label.fill.style.width = `${(beast.hp / beast.maxHp) * 100}%`;
       }
     }
     for (const [id, label] of this.beastLabels) {

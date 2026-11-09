@@ -225,7 +225,13 @@ export class BotController implements Controller {
     // En un mapa grande vale la pena cruzar la jungla hasta un campamento.
     let bestDistance = 30;
     for (const beast of state.beasts) {
-      const d = distance(beast.pos, self.pos);
+      let d = distance(beast.pos, self.pos);
+      if (beast.guardian) {
+        // El Guardián muerde fuerte: solo se lo enfrenta con buena vida, pero vale el viaje.
+        const healthy = self.hp / self.maxHp;
+        if (healthy < (beast.targetId === self.id ? 0.4 : 0.7)) continue;
+        d /= 2;
+      }
       if (d < bestDistance) {
         best = beast;
         bestDistance = d;

@@ -51,10 +51,12 @@ export * as vec2 from './math/vec2';
 export { affinityPatch, combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';
 export type {
   BeastRules,
+  BeastStats,
   Camp,
   DeathRules,
   FormBase,
   GameRules,
+  GuardianRules,
   MapLayout,
   ModifierRules,
   Obstacle,
