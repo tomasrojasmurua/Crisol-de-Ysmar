@@ -1,4 +1,4 @@
-import { applyHit } from '../../combat/hit';
+import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { isHiddenFrom, wizardById } from '../../match/queries';
 import type { MatchState, Summon, Wizard } from '../../match/state';
@@ -31,9 +31,20 @@ export function enemySummonAt(
   return undefined;
 }
 
-/** Daña una invocación. El Pararrayos no cuenta daño: cae con cierta cantidad de golpes. */
+/**
+ * Daña una invocación. El Pararrayos no cuenta daño: cae con cierta cantidad de golpes.
+ * El Muñeco vudú no se rompe: el golpe lo recibe el rival marcado.
+ */
 export function damageSummon(state: MatchState, summon: Summon, amount: number): void {
   if (summon.hp <= 0 || amount <= 0) return;
+  if (summon.summon === 'voodooDoll') {
+    const victim = wizardById(state, summon.targetId);
+    if (victim && victim.hp > 0) {
+      state.events.push({ type: 'zap', from: summon.pos, to: victim.pos });
+      dealDamage(state, victim, summon.ownerId, amount, 'mark');
+    }
+    return;
+  }
   summon.hp = Math.max(0, summon.hp - (summon.summon === 'lightningRod' ? 1 : amount));
   if (summon.hp === 0) {
     state.events.push({ type: 'summonGone', summon: summon.summon, pos: summon.pos });
@@ -87,6 +98,34 @@ export function updateSummon(state: MatchState, summon: Summon, rules: GameRules
       return true;
     case 'sentinel':
       return true;
+    case 'mushroom':
+      updateMushroom(state, summon, rules);
+      return true;
+    case 'voodooDoll': {
+      const victim = wizardById(state, summon.targetId);
+      return victim !== undefined && victim.hp > 0;
+    }
+  }
+}
+
+/**
+ * Hongo gigante: guarda su vida en `cooldown` para notar los golpes; cuando lo golpean,
+ * suelta esporas que frenan a los rivales cercanos.
+ */
+function updateMushroom(state: MatchState, mushroom: Summon, rules: GameRules): void {
+  if (mushroom.hp >= mushroom.cooldown) return;
+  mushroom.cooldown = mushroom.hp;
+  const spell = rules.spells.giantMushroom;
+  state.events.push({
+    type: 'burst',
+    spell: 'giantMushroom',
+    pos: mushroom.pos,
+    radius: spell.sporeRadius,
+  });
+  for (const wizard of state.wizards) {
+    if (wizard.team === mushroom.team || wizard.hp <= 0) continue;
+    if (distance(wizard.pos, mushroom.pos) > spell.sporeRadius + rules.wizard.radius) continue;
+    applyStatus(state, wizard, 'slow', mushroom.ownerId, rules, spell.slowTicks);
   }
 }
 

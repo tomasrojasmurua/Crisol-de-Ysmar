@@ -1,5 +1,6 @@
 import type { GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
+import { fourthBlink } from './FourthSpellEffects';
 import { greatBlink, lineStrike } from './GreatSpellEffects';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
@@ -36,6 +37,10 @@ const SHAKERS: ReadonlySet<SpellId> = new Set([
   'cauldron',
   'iceAge',
   'rootCatapult',
+  'eruption',
+  'solarGrenade',
+  'pollen',
+  'emberSeed',
 ]);
 
 /**
@@ -111,6 +116,7 @@ export class EffectsView {
           break;
         case 'blink':
           if (greatBlink(this, this.particles, event.spell, event.from, event.to)) break;
+          if (fourthBlink(this, this.particles, event.spell, event.from, event.to)) break;
           if (event.spell === 'shadowStep')
             shadowStepped(this, this.particles, event.from, event.to);
           else blinked(this, this.particles, event.from, event.to);

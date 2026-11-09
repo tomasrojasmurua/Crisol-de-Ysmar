@@ -1,6 +1,7 @@
 import type { GameRules, SpellEntity, Summon, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { createField, createGuidedBolt, updateField, updateGuidedBolt } from './FourthSpellViews';
 import {
   createDrown,
   createFireRain,
@@ -66,6 +67,8 @@ export interface SpellWorld {
   readonly wizard: (id: number) => Wizard | undefined;
   /** Posición interpolada de un mago. */
   readonly wizardPos: (id: number) => Position | undefined;
+  /** El equipo de quien mira: lo escondido del rival (la Mandrágora) no se dibuja. */
+  readonly viewerTeam?: number;
 }
 
 /** Arma la vista de un Señuelo: un mago igual a quien lo lanzó. */
@@ -164,6 +167,18 @@ export class SpellViews {
         return createAura(spell);
       case 'grownTree':
         return createGrownTree(spell);
+      case 'field':
+        return createField(spell);
+      case 'guidedBolt':
+        return createGuidedBolt();
+      case 'bond':
+        return createTether();
+      case 'stepper':
+      case 'echo':
+      case 'deferred':
+      case 'boon':
+        // Se ven en sus efectos: los saltos, el segundo hechizo, los golpes.
+        return new THREE.Group();
     }
   }
 
@@ -320,6 +335,20 @@ export class SpellViews {
         return;
       case 'grownTree':
         updateGrownTree(view, spell, particles);
+        return;
+      case 'field':
+        updateField(view, spell, time, particles, world.viewerTeam);
+        return;
+      case 'guidedBolt':
+        updateGuidedBolt(view, spell, world.positionOf(spell), time, particles);
+        return;
+      case 'bond':
+        updateTether(view, world.wizardPos(spell.aId), world.wizardPos(spell.bId), time, particles);
+        return;
+      case 'stepper':
+      case 'echo':
+      case 'deferred':
+      case 'boon':
         return;
     }
   }

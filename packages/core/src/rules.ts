@@ -14,6 +14,11 @@ import type { SpellRules } from './spells/spellRules';
  * contagia) y `linked` (sus golpes curan a un aliado). La tercera suma la información
  * (`insight`, `hunting`, `tracked`), el sigilo (`unseen`, `shrouded`, `disguised`, `shadowed`,
  * `leeching`) y las transformaciones (`magma`, `surfing`, `deepRooted`, `panther`).
+ * La cuarta tanda suma el control (`stunned`, `halted`, `muted`, `hexed`, `forgetful`, `robbed`),
+ * las defensas (`untouchable`, `thorny`, `emberSeed`, `depth`, `rebirth`, `attracting`,
+ * `mirroring`, `wailing`, `oath`, `grafted`), el desgaste (`scalded`, `rotting`, `withered`,
+ * `grounded`), las marcas (`ashHunger`, `vengeful`), el ritmo (`kindled`, `forged`,
+ * `overcharged`, `propelled`, `dewy`, `echoing`, `steering`) y la Esencia (`harvesting`).
  */
 export type StatusId =
   | 'burn'
@@ -51,7 +56,37 @@ export type StatusId =
   | 'magma'
   | 'surfing'
   | 'deepRooted'
-  | 'panther';
+  | 'panther'
+  | 'stunned'
+  | 'halted'
+  | 'untouchable'
+  | 'scalded'
+  | 'thorny'
+  | 'emberSeed'
+  | 'kindled'
+  | 'withered'
+  | 'grounded'
+  | 'ashHunger'
+  | 'vengeful'
+  | 'hexed'
+  | 'oath'
+  | 'grafted'
+  | 'rotting'
+  | 'depth'
+  | 'rebirth'
+  | 'forged'
+  | 'overcharged'
+  | 'propelled'
+  | 'dewy'
+  | 'echoing'
+  | 'robbed'
+  | 'forgetful'
+  | 'muted'
+  | 'attracting'
+  | 'mirroring'
+  | 'wailing'
+  | 'steering'
+  | 'harvesting';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -91,6 +126,36 @@ export const STATUS_IDS: readonly StatusId[] = [
   'surfing',
   'deepRooted',
   'panther',
+  'stunned',
+  'halted',
+  'untouchable',
+  'scalded',
+  'thorny',
+  'emberSeed',
+  'kindled',
+  'withered',
+  'grounded',
+  'ashHunger',
+  'vengeful',
+  'hexed',
+  'oath',
+  'grafted',
+  'rotting',
+  'depth',
+  'rebirth',
+  'forged',
+  'overcharged',
+  'propelled',
+  'dewy',
+  'echoing',
+  'robbed',
+  'forgetful',
+  'muted',
+  'attracting',
+  'mirroring',
+  'wailing',
+  'steering',
+  'harvesting',
 ];
 
 /**
@@ -229,6 +294,83 @@ export interface GameRules {
       readonly damage: number;
       readonly reach: number;
       readonly intervalTicks: number;
+    };
+    /** Aturdido: no se mueve ni teje (Cortocircuito, Círculo de tótems, Rayo de enlace). */
+    readonly stunned: { readonly ticks: number };
+    /** Instante: detenido en el tiempo; no actúa, no recibe daño ni estados. */
+    readonly halted: { readonly ticks: number };
+    /** Mil pasos: no recibe daño ni estados dañinos. */
+    readonly untouchable: { readonly ticks: number };
+    /** Escaldar: no puede tener escudos. */
+    readonly scalded: { readonly ticks: number };
+    /** Ortiga: quien le pega recibe de vuelta una parte. */
+    readonly thorny: { readonly ticks: number; readonly reflect: number };
+    /** Semilla de fuego: al recibir un golpe, explota alrededor. */
+    readonly emberSeed: {
+      readonly ticks: number;
+      readonly damage: number;
+      readonly radius: number;
+    };
+    /** Junto a la Hoguera: sus elementos descansan más rápido. */
+    readonly kindled: { readonly ticks: number; readonly restMultiplier: number };
+    /** Dentro de Marchitar: sus elementos no descansan. */
+    readonly withered: { readonly ticks: number };
+    /** Dentro del Diluvio: no salta ni se teletransporta. */
+    readonly grounded: { readonly ticks: number };
+    /** Hambre de ceniza: si cae o queda muy herido, quien lo marcó descansa y se cura. */
+    readonly ashHunger: { readonly ticks: number; readonly threshold: number };
+    /** Venganza: si cae o queda muy herido, el rival marcado recibe daño. */
+    readonly vengeful: {
+      readonly ticks: number;
+      readonly threshold: number;
+      readonly damage: number;
+    };
+    /** Mal de ojo: sus botones de elementos cambian de lugar (lo resuelve su pantalla). */
+    readonly hexed: { readonly ticks: number };
+    /** Juramento: él y el marcado no pueden hacerse daño. */
+    readonly oath: { readonly ticks: number };
+    /** Injerto: el daño que recibe se reparte con su aliado. */
+    readonly grafted: { readonly ticks: number; readonly share: number };
+    /** Podredumbre: cada curación le hace daño. */
+    readonly rotting: { readonly ticks: number };
+    /** Profundidad: el daño no llega de golpe, se reparte en el tiempo. */
+    readonly depth: { readonly ticks: number; readonly spreadTicks: number };
+    /** Renacer: si cae, vuelve ahí mismo con parte de la vida. */
+    readonly rebirth: { readonly ticks: number; readonly hpFraction: number };
+    /** Forja: su próximo hechizo de daño pega más. */
+    readonly forged: { readonly ticks: number; readonly damageMultiplier: number };
+    /** Sobrecarga: sus próximos hechizos salen sin canalizar. */
+    readonly overcharged: { readonly ticks: number; readonly charges: number };
+    /** Propulsión: cada hechizo que lanza le da un salto corto que deja fuego. */
+    readonly propelled: {
+      readonly ticks: number;
+      readonly distance: number;
+      readonly leapTicks: number;
+    };
+    /** Rocío: cada hechizo que lanza cura a su equipo cercano. */
+    readonly dewy: { readonly ticks: number; readonly heal: number; readonly radius: number };
+    /** Eco ardiente: su próximo hechizo sale dos veces. */
+    readonly echoing: { readonly ticks: number; readonly delayTicks: number };
+    /** Hurto: su próximo hechizo se lo queda quien lo marcó. */
+    readonly robbed: { readonly ticks: number };
+    /** Bruma del olvido: no puede repetir su último hechizo. */
+    readonly forgetful: { readonly ticks: number };
+    /** Lamento: sus hechizos no hacen daño. */
+    readonly muted: { readonly ticks: number };
+    /** Pararrayos humano: atrae los proyectiles rivales y los vuelve escudo. */
+    readonly attracting: { readonly ticks: number; readonly radius: number; readonly pull: number };
+    /** Espejo de agua: devuelve los proyectiles a quien los lanzó. */
+    readonly mirroring: { readonly ticks: number };
+    /** Llanto del abismo: los proyectiles cercanos quedan flotando. */
+    readonly wailing: { readonly ticks: number; readonly radius: number };
+    /** Relámpago guiado: quieto mientras dirige el rayo. */
+    readonly steering: { readonly ticks: number };
+    /** Cosecha de almas: sus golpes fuertes y las caídas cercanas le dan Esencia. */
+    readonly harvesting: {
+      readonly ticks: number;
+      readonly radius: number;
+      readonly minHit: number;
+      readonly maxStacks: number;
     };
   };
   readonly interactions: {

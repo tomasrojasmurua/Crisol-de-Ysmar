@@ -13,6 +13,20 @@ import type {
 import { add, distance, distanceToSegment, length, normalize, scale, sub } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import {
+  attractProjectile,
+  catchProjectile,
+  holdProjectile,
+  siphonHit,
+  touchTriggers,
+  updateBond,
+  updateBoon,
+  updateDeferred,
+  updateField,
+  updateGuidedBolt,
+  updateStepper,
+} from './kit/greatFieldUpdates';
+import { updateEcho } from './kit/greatReactions';
 import { insideStormEye, updateAura, updateBubble } from './kit/greatSupport';
 import { updateGrownTree } from './kit/greatThird';
 import {
@@ -101,6 +115,20 @@ function updateSpell(
       return updateGrownTree(spell);
     case 'summon':
       return updateSummon(state, spell, rules);
+    case 'field':
+      return updateField(state, spell, rules);
+    case 'guidedBolt':
+      return updateGuidedBolt(state, spell, rules);
+    case 'stepper':
+      return updateStepper(state, spell, rules);
+    case 'echo':
+      return updateEcho(spell);
+    case 'deferred':
+      return updateDeferred(state, spell);
+    case 'bond':
+      return updateBond(state, spell, rules);
+    case 'boon':
+      return updateBoon(state, spell);
   }
 }
 
@@ -110,10 +138,21 @@ function updateProjectile(
   walls: readonly Wall[],
   rules: GameRules,
 ): boolean {
+  // Flotando en el Llanto del abismo, no avanza.
+  if (holdProjectile(state, projectile, rules)) return true;
   deflectInBlizzard(state, projectile, rules);
+  attractProjectile(state, projectile, rules);
   const step = scale(projectile.velocity, 1 / TICK_RATE);
   projectile.pos = add(projectile.pos, step);
   projectile.travelled += length(step);
+  touchTriggers(
+    state,
+    projectile.team,
+    projectile.pos,
+    projectile.radius,
+    projectile.payload.weave,
+    rules,
+  );
   const radius = projectile.radius;
   // La Llama negra no se detiene en muros, invocaciones ni árboles.
   const pierce = projectile.trait === 'pierce';
@@ -144,9 +183,14 @@ function updateProjectile(
   for (const wizard of state.wizards) {
     if (wizard.team === projectile.team || wizard.hp <= 0) continue;
     if (distance(wizard.pos, projectile.pos) <= radius + rules.wizard.radius) {
+      const caught = catchProjectile(state, projectile, wizard);
+      if (caught === 'absorbed') return false;
+      if (caught === 'returned') return true;
       if (projectile.payload.blastRadius > 0) return impact(state, projectile, rules, false);
       if (projectile.trait === 'pull') pullCaster(state, projectile, wizard, rules);
       applyHit(state, wizard, projectile.ownerId, projectile.payload, rules);
+      if (projectile.payload.spell === 'siphon')
+        siphonHit(state, projectile.ownerId, wizard, rules);
       return false;
     }
   }
@@ -179,7 +223,7 @@ function pullCaster(
   rules: GameRules,
 ): void {
   const caster = wizardById(state, projectile.ownerId);
-  if (!caster || caster.hp <= 0 || victim.statuses.stasis) return;
+  if (!caster || caster.hp <= 0 || victim.statuses.stasis || caster.statuses.grounded) return;
   const from = caster.pos;
   const back = normalize(sub(from, victim.pos), scale(projectile.velocity, -1));
   const beside = rules.spells.darkComet.beside;

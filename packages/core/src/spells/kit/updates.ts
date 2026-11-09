@@ -1,4 +1,4 @@
-import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
+import { applyHit, applyStatus, dealDamage, healWizard } from '../../combat/hit';
 import { HARMFUL_STATUSES } from '../../combat/statuses';
 import { lineBlocked } from '../../match/obstacles';
 import { wizardById } from '../../match/queries';
@@ -30,11 +30,11 @@ export function updateZone(state: MatchState, zone: Zone, rules: GameRules): boo
     const ally = wizard.team === zone.team;
     switch (zone.effect) {
       case 'spring':
-        if (ally) heal(wizard, rules.spells.spring.healPerSecond / TICK_RATE);
+        if (ally) healWizard(state, wizard, rules.spells.spring.healPerSecond / TICK_RATE);
         break;
       case 'healingRain':
         if (ally) {
-          heal(wizard, rules.spells.healingRain.healPerSecond / TICK_RATE);
+          healWizard(state, wizard, rules.spells.healingRain.healPerSecond / TICK_RATE);
           for (const id of HARMFUL_STATUSES) delete wizard.statuses[id];
         }
         break;
@@ -60,10 +60,6 @@ export function updateZone(state: MatchState, zone: Zone, rules: GameRules): boo
 }
 
 const ZONE_STATUS = { burn: 'burn', blizzard: 'slow', spores: 'weak', mist: 'sluggish' } as const;
-
-function heal(wizard: { hp: number; maxHp: number }, amount: number): void {
-  wizard.hp = Math.min(wizard.maxHp, wizard.hp + amount);
-}
 
 /** La Corriente: apura a los aliados que van a favor del río y frena a los rivales dentro. */
 export function updateCurrent(state: MatchState, current: Current, rules: GameRules): boolean {
@@ -103,7 +99,7 @@ export function updateTether(state: MatchState, tether: Tether, rules: GameRules
   if (lineBlocked(caster.pos, target.pos, rules.map.obstacles)) return false;
   const before = target.hp;
   dealDamage(state, target, caster.id, tether.payload.damage / TICK_RATE, tether.payload.form);
-  caster.hp = Math.min(caster.maxHp, caster.hp + (before - target.hp));
+  healWizard(state, caster, before - target.hp);
   return --tether.ticksLeft > 0;
 }
 

@@ -14,7 +14,7 @@ export function applyHit(
   rules: GameRules,
   damageScale = 1,
 ): void {
-  if (target.hp <= 0 || target.statuses.stasis) {
+  if (target.hp <= 0 || target.statuses.stasis || target.statuses.halted) {
     return;
   }
   const before = target.hp;
@@ -22,7 +22,7 @@ export function applyHit(
   const dealt = before - target.hp;
   const caster = wizardById(state, sourceId);
   if (caster && caster.hp > 0 && caster.mods.lifesteal > 0) {
-    caster.hp = Math.min(caster.maxHp, caster.hp + dealt * caster.mods.lifesteal);
+    healWizard(state, caster, dealt * caster.mods.lifesteal);
   }
   for (const status of payload.statuses) {
     applyStatus(state, target, status, sourceId, rules);
@@ -37,13 +37,20 @@ export function dealDamage(
   form: HitForm,
   /** La Llama negra no se detiene en escudos. */
   pierce = false,
+  /** Un golpe que ya pasó por la Profundidad o el Injerto: no se vuelve a desviar. */
+  settled = false,
 ): void {
   let amount = damage;
-  if (amount <= 0 || target.hp <= 0 || target.statuses.stasis) {
+  const s = target.statuses;
+  if (amount <= 0 || target.hp <= 0 || s.stasis || s.halted || s.untouchable) {
     return;
   }
-  // El Ácido hace que todo pegue más.
-  amount *= target.statuses.exposed?.power ?? 1;
+  if (sworn(state, target, sourceId)) return;
+  if (!settled) {
+    // El Ácido hace que todo pegue más (una sola vez, aunque el golpe se reparta).
+    amount *= s.exposed?.power ?? 1;
+    if (divert(state, target, sourceId, amount, form, pierce)) return;
+  }
   // Recibir daño rompe el Velo, aunque lo ataje la coraza, y despierta de la Pesadilla.
   delete target.statuses.veiled;
   delete target.statuses.asleep;
@@ -79,11 +86,13 @@ export function applyStatus(
   rules: GameRules,
   ticks: number = rules.statuses[status].ticks,
 ): void {
-  // Dentro del Ataúd helado no entra ningún estado, y con la Purificación no entra ninguno dañino.
-  if (target.statuses.stasis) {
+  // Dentro del Ataúd helado o detenido en el tiempo no entra ningún estado; con la Purificación
+  // o los Mil pasos no entra ninguno dañino.
+  if (target.statuses.stasis || target.statuses.halted) {
     return;
   }
-  if (target.statuses.warded && HARMFUL_STATUSES.includes(status)) {
+  const shielded = target.statuses.warded || target.statuses.untouchable;
+  if (shielded && HARMFUL_STATUSES.includes(status)) {
     return;
   }
   if (immuneTo(target, status)) {
@@ -99,6 +108,9 @@ export function applyStatus(
     sourceId,
     ...(status === 'exposed' ? { power: rules.statuses.exposed.damageMultiplier } : {}),
     ...(status === 'leeching' ? { power: rules.statuses.leeching.lifesteal } : {}),
+    ...(status === 'depth' ? { power: rules.statuses.depth.spreadTicks } : {}),
+    ...(status === 'grafted' ? { power: rules.statuses.grafted.share } : {}),
+    ...(status === 'overcharged' ? { power: rules.statuses.overcharged.charges } : {}),
   };
 }
 
@@ -108,7 +120,7 @@ function leech(state: MatchState, sourceId: number, dealt: number): void {
   const source = wizardById(state, sourceId);
   const share = source?.statuses.leeching?.power;
   if (!source || source.hp <= 0 || share === undefined) return;
-  source.hp = Math.min(source.maxHp, source.hp + dealt * share);
+  healWizard(state, source, dealt * share);
 }
 
 /** Vínculo vital: lo que pega quien está vinculado cura lo mismo a su aliado vivo más cercano. */
@@ -126,5 +138,63 @@ function shareWithLink(state: MatchState, sourceId: number, dealt: number): void
       bestDistance = d;
     }
   }
-  if (best) best.hp = Math.min(best.maxHp, best.hp + dealt);
+  if (best) healWizard(state, best, dealt);
+}
+
+/**
+ * Cura a un mago hasta su máximo. Con la Podredumbre, la curación le hace daño en su lugar.
+ * Toda curación pasa por aquí.
+ */
+export function healWizard(state: MatchState, wizard: Wizard, amount: number): void {
+  if (amount <= 0 || wizard.hp <= 0) return;
+  const rot = wizard.statuses.rotting;
+  if (rot) {
+    dealDamage(state, wizard, rot.sourceId, amount, 'mark', true, true);
+    return;
+  }
+  wizard.hp = Math.min(wizard.maxHp, wizard.hp + amount);
+}
+
+/** Juramento: quien juró y su marcado no se pueden hacer daño. */
+function sworn(state: MatchState, target: Wizard, sourceId: number): boolean {
+  if (target.statuses.oath?.targetId === sourceId) return true;
+  const source = wizardById(state, sourceId);
+  return source?.statuses.oath?.targetId === target.id;
+}
+
+/**
+ * La Profundidad reparte el golpe en el tiempo y el Injerto lo divide con el aliado unido.
+ * Devuelve true si el golpe ya se resolvió por otro camino.
+ */
+function divert(
+  state: MatchState,
+  target: Wizard,
+  sourceId: number,
+  amount: number,
+  form: HitForm,
+  pierce: boolean,
+): boolean {
+  const depth = target.statuses.depth;
+  if (depth?.power) {
+    const ticks = Math.max(1, Math.round(depth.power));
+    state.spells.push({
+      kind: 'deferred',
+      id: state.nextEntityId++,
+      ownerId: sourceId,
+      team: wizardById(state, sourceId)?.team ?? -1,
+      targetId: target.id,
+      perTick: amount / ticks,
+      ticksLeft: ticks,
+    });
+    return true;
+  }
+  const graft = target.statuses.grafted;
+  const partner = graft ? wizardById(state, graft.targetId ?? null) : undefined;
+  if (graft && partner && partner.hp > 0 && partner.statuses.grafted?.targetId === target.id) {
+    const share = graft.power ?? 0.5;
+    dealDamage(state, partner, sourceId, amount * share, form, pierce, true);
+    dealDamage(state, target, sourceId, amount * (1 - share), form, pierce, true);
+    return true;
+  }
+  return false;
 }

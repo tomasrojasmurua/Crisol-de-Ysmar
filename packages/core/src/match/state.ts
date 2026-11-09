@@ -72,6 +72,27 @@ export interface Wizard {
   shield: number;
   /** Todo el daño recibido en la ronda: la Ignición mide cuánto creció. */
   damageTaken: number;
+  /** El último tejido que salió: lo leen el Reflejo, el Estruendo y la Bruma del olvido. */
+  lastWeave: Weave | null;
+  /** Un hechizo ajeno guardado (Reflejo, Hurto): sale en su próximo lanzamiento. */
+  held: HeldSpell | null;
+  /** Dónde estuvo y con cuánta vida, cada medio segundo: el Retroceso vuelve atrás. */
+  past: PastSample[];
+  /** Los hechizos de una vez por ronda que ya usó (Renacer, Transfusión). */
+  spent: SpellId[];
+}
+
+/** Un hechizo copiado o robado que espera su turno. */
+export interface HeldSpell {
+  readonly spell: SpellId;
+  readonly weave: Weave;
+  ticksLeft: number;
+}
+
+export interface PastSample {
+  readonly x: number;
+  readonly z: number;
+  readonly hp: number;
 }
 
 /** Lo que lleva un conjuro al salir: se arma una vez a partir del tejido. */
@@ -97,8 +118,9 @@ export type ProjectileTrait = 'pierce' | 'pull';
 export interface Projectile {
   readonly kind: 'projectile';
   readonly id: EntityId;
-  readonly ownerId: EntityId;
-  readonly team: number;
+  /** El Espejo de agua y el Llanto del abismo le cambian de dueño. */
+  ownerId: EntityId;
+  team: number;
   pos: Vec2;
   /** La Ventisca puede desviarlo una vez. */
   velocity: Vec2;
@@ -108,6 +130,8 @@ export interface Projectile {
   readonly maxRange: number;
   readonly payload: SpellPayload;
   readonly trait: ProjectileTrait | null;
+  /** Flotando en el Llanto del abismo: quién lo retiene y a qué velocidad saldrá. */
+  held?: { readonly byId: EntityId; readonly speed: number } | null;
 }
 
 export interface Wall {
@@ -433,7 +457,9 @@ export type SummonKind =
   | 'shadowTwin'
   | 'carnivore'
   | 'mirage'
-  | 'sentinel';
+  | 'sentinel'
+  | 'mushroom'
+  | 'voodooDoll';
 
 export interface Summon {
   readonly kind: 'summon';
@@ -454,7 +480,8 @@ export interface Summon {
   targetId: EntityId | null;
   /** Lugar en el grupo: cada Chispa errante gira en su propio ángulo. */
   readonly slot: number;
-  readonly payload: SpellPayload;
+  /** Fertilizar lo cambia por un rato. */
+  payload: SpellPayload;
 }
 
 /** Brote de árbol: un árbol nuevo en la jungla, hasta que termine la ronda. */
@@ -467,6 +494,117 @@ export interface GrownTree {
   readonly radius: number;
   /** Crece de a poco: el dibujo lo usa. */
   age: number;
+}
+
+/**
+ * Lo que la cuarta tanda deja en el campo, con un dibujo propio cada uno: un volcán, una nube,
+ * una fogata, un camino de hielo, un cable, nenúfares, tótems o una planta escondida.
+ * `points` guarda los extremos de una línea (Pista de hielo, Tirolesa) o los puntos de un grupo
+ * (Nenúfares, Círculo de tótems).
+ */
+export type FieldMode =
+  | 'volcano'
+  | 'monsoon'
+  | 'smoke'
+  | 'bonfire'
+  | 'wither'
+  | 'deluge'
+  | 'growth'
+  | 'pollen'
+  | 'solarOrb'
+  | 'iceTrack'
+  | 'zipline'
+  | 'lilyPads'
+  | 'shadowMark'
+  | 'totems'
+  | 'mandrake';
+
+export interface Field {
+  readonly kind: 'field';
+  readonly mode: FieldMode;
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  readonly points: readonly Vec2[];
+  readonly durationTicks: number;
+  ticksLeft: number;
+  /** Pasos hasta el próximo rayo, roca o lo que toque. */
+  cooldown: number;
+  /** Quienes ya lo usaron y siguen encima: no lo vuelven a usar hasta salir. */
+  inside: EntityId[];
+  readonly payload: SpellPayload;
+}
+
+/** Relámpago guiado: un rayo que avanza hacia donde lo lleva el dedo de quien lo lanzó. */
+export interface GuidedBolt {
+  readonly kind: 'guidedBolt';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  pos: Vec2;
+  dir: Vec2;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** Mil pasos: saltos de rival en rival, golpeando a cada uno una vez. */
+export interface Stepper {
+  readonly kind: 'stepper';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  hopsLeft: number;
+  ticksToNext: number;
+  readonly struck: EntityId[];
+  readonly payload: SpellPayload;
+}
+
+/** Eco ardiente: el mismo hechizo vuelve a salir, desde el mismo lugar, un momento después. */
+export interface Echo {
+  readonly kind: 'echo';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly spell: SpellId;
+  readonly weave: Weave;
+  readonly aim: Vec2;
+  readonly pos: Vec2;
+  ticksLeft: number;
+}
+
+/** Profundidad: un golpe que llega de a poco. */
+export interface Deferred {
+  readonly kind: 'deferred';
+  readonly id: EntityId;
+  /** Quien dio el golpe. */
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  readonly perTick: number;
+  ticksLeft: number;
+}
+
+/** Rayo de enlace: une a dos magos; si se separan mucho, ambos quedan aturdidos. */
+export interface Bond {
+  readonly kind: 'bond';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly aId: EntityId;
+  readonly bId: EntityId;
+  ticksLeft: number;
+}
+
+/** Fertilizar: las invocaciones tocadas pegan más por un rato; guarda su daño de antes. */
+export interface Boon {
+  readonly kind: 'boon';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  ticksLeft: number;
+  readonly summons: readonly { readonly id: EntityId; readonly damage: number }[];
 }
 
 export type SpellEntity =
@@ -491,7 +629,14 @@ export type SpellEntity =
   | Bubble
   | Aura
   | GrownTree
-  | Summon;
+  | Summon
+  | Field
+  | GuidedBolt
+  | Stepper
+  | Echo
+  | Deferred
+  | Bond
+  | Boon;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
 export interface Beast {

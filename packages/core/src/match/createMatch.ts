@@ -56,6 +56,10 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
       fallen: null,
       shield: 0,
       damageTaken: 0,
+      lastWeave: null,
+      held: null,
+      past: [],
+      spent: [],
     };
   });
 

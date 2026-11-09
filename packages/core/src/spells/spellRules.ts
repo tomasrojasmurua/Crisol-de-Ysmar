@@ -435,6 +435,199 @@ export interface SpellRules {
   readonly deepRoots: Record<string, never>;
   /** Umbra → Raíz → Tormenta: Eres una pantera: rápida, con zarpazos que roban vida, pero no tejes (estado `panther`). */
   readonly shadowPanther: Record<string, never>;
+
+  // Grandes hechizos, cuarta tanda: terreno, detonadores, tiempo, copias, contrahechizos y más.
+
+  /** Brasa → Brasa → Marea: un volcán que corta el paso y lanza rocas ardientes alrededor. */
+  readonly eruption: {
+    readonly range: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly damage: number;
+    readonly rockRadius: number;
+    readonly rockDelayTicks: number;
+    readonly intervalTicks: number;
+    readonly throwRadius: number;
+  };
+  /** Brasa → Tormenta → Brasa: una esfera que explota cuando un hechizo tuyo la toca. */
+  readonly solarGrenade: {
+    readonly range: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly damage: number;
+    readonly blastRadius: number;
+  };
+  /** Brasa → Tormenta → Tormenta: cada hechizo te da un salto corto (estado `propelled`). */
+  readonly propulsion: Record<string, never>;
+  /** Brasa → Tormenta → Marea: una tormenta que lanza rayos a los rivales adentro. */
+  readonly monsoon: AreaSpell & { readonly damage: number; readonly intervalTicks: number };
+  /** Brasa → Marea → Brasa: tu próximo hechizo de daño pega el doble (estado `forged`). */
+  readonly forge: Record<string, never>;
+  /** Brasa → Marea → Tormenta: vapor que rompe escudos y no deja tenerlos (estado `scalded`). */
+  readonly scald: ConeSpell;
+  /** Brasa → Raíz → Brasa: una semilla que explota al recibir un golpe (estado `emberSeed`). */
+  readonly emberSeed: { readonly range: number; readonly coneDot: number };
+  /** Brasa → Raíz → Marea: una columna de humo que nadie atraviesa con la vista. */
+  readonly bonfireSmoke: AreaSpell;
+  /** Brasa → Raíz → Raíz: una fogata donde tu equipo descansa los elementos (estado `kindled`). */
+  readonly bonfire: AreaSpell;
+  /** Brasa → Umbra → Raíz: si el marcado cae o queda muy herido, descansas y te curas. */
+  readonly ashHunger: { readonly range: number; readonly coneDot: number; readonly heal: number };
+  /** Brasa → Umbra → Umbra: tu próximo hechizo sale dos veces (estado `echoing`). */
+  readonly burningEcho: Record<string, never>;
+  /** Tormenta → Brasa → Brasa: tus próximos hechizos salen sin canalizar (estado `overcharged`). */
+  readonly overload: Record<string, never>;
+  /** Tormenta → Brasa → Tormenta: atraes los proyectiles y te dan escudo (estado `attracting`). */
+  readonly humanRod: Record<string, never>;
+  /** Tormenta → Brasa → Raíz: cancela el tejido del rival y lo aturde. */
+  readonly shortCircuit: { readonly range: number; readonly stunTicks: number };
+  /** Tormenta → Brasa → Umbra: cansa el último elemento que usaron los rivales cercanos. */
+  readonly thunderclap: { readonly radius: number; readonly fatigueTicks: number };
+  /** Tormenta → Tormenta → Raíz: tres tótems unidos por rayos que aturden a quien cruza. */
+  readonly totemCircle: {
+    readonly range: number;
+    readonly spread: number;
+    readonly durationTicks: number;
+    readonly stunTicks: number;
+    readonly halfWidth: number;
+  };
+  /** Tormenta → Tormenta → Umbra: intocable, saltas golpeando a los rivales cercanos. */
+  readonly thousandSteps: {
+    readonly damage: number;
+    readonly range: number;
+    readonly hops: number;
+    readonly intervalTicks: number;
+  };
+  /** Tormenta → Marea → Marea: un camino de hielo donde todos se deslizan sin girar. */
+  readonly iceTrack: {
+    readonly length: number;
+    readonly halfWidth: number;
+    readonly durationTicks: number;
+    readonly slideSpeed: number;
+  };
+  /** Tormenta → Marea → Umbra: una ráfaga que apaga invocaciones, trampas y zonas rivales. */
+  readonly gale: { readonly range: number; readonly coneDot: number };
+  /** Tormenta → Raíz → Brasa: un rayo que diriges mientras te quedas quieto. */
+  readonly guidedBolt: {
+    readonly damage: number;
+    readonly speed: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    /** Cuánto gira hacia el dedo en cada paso, de 0 a 1. */
+    readonly turnRate: number;
+  };
+  /** Tormenta → Raíz → Tormenta: un cable por el que tu equipo viaja rápido. */
+  readonly zipline: {
+    readonly length: number;
+    readonly durationTicks: number;
+    readonly speed: number;
+    readonly grab: number;
+  };
+  /** Tormenta → Raíz → Marea: tu equipo y tus invocaciones actúan más rápido adentro. */
+  readonly acceleratedGrowth: AreaSpell;
+  /** Tormenta → Raíz → Raíz: activa a la vez tus trampas, esferas e invocaciones cercanas. */
+  readonly powerGrid: { readonly radius: number; readonly damage: number; readonly reach: number };
+  /** Tormenta → Umbra → Brasa: vuelves a donde estabas hace 3 s, con la vida de entonces. */
+  readonly rewind: { readonly sampleTicks: number; readonly samples: number };
+  /** Tormenta → Umbra → Marea: el rival queda detenido en el tiempo (estado `halted`). */
+  readonly instant: { readonly range: number; readonly coneDot: number };
+  /** Tormenta → Umbra → Raíz: une a dos rivales; si se separan, quedan aturdidos. */
+  readonly linkBolt: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly durationTicks: number;
+    readonly maxGap: number;
+    readonly stunTicks: number;
+  };
+  /** Marea → Tormenta → Brasa: si acierta, robas una Esencia o, si no tiene, descanso. */
+  readonly siphon: ProjectileSpell;
+  /** Marea → Tormenta → Marea: nadie salta ni se teletransporta adentro (estado `grounded`). */
+  readonly deluge: AreaSpell;
+  /** Marea → Tormenta → Umbra: copias el último hechizo del rival para lanzarlo tú. */
+  readonly reflection: { readonly heldTicks: number };
+  /** Marea → Marea → Umbra: devuelves los proyectiles (estado `mirroring`). */
+  readonly waterMirror: Record<string, never>;
+  /** Marea → Raíz → Tormenta: hojas en el suelo; tocando una saltas a otra. */
+  readonly lilyPads: {
+    readonly count: number;
+    readonly spread: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+  };
+  /** Marea → Raíz → Umbra: si caes pronto, vuelves (estado `rebirth`). Una vez por ronda. */
+  readonly rebirth: Record<string, never>;
+  /** Marea → Umbra → Marea: el daño te llega de a poco (estado `depth`). */
+  readonly depth: Record<string, never>;
+  /** Marea → Umbra → Umbra: vacía el tejido rival y no deja repetir (estado `forgetful`). */
+  readonly oblivionMist: { readonly radius: number };
+  /** Raíz → Brasa → Tormenta: polen que explota si lo toca un hechizo con Brasa. */
+  readonly pollen: AreaSpell & { readonly damage: number };
+  /** Raíz → Brasa → Marea: un hongo que tapa la vista y suelta esporas al golpearlo. */
+  readonly giantMushroom: SummonSpell & {
+    readonly range: number;
+    readonly sporeRadius: number;
+    readonly slowTicks: number;
+  };
+  /** Raíz → Brasa → Umbra: quien te pega recibe la mitad de vuelta (estado `thorny`). */
+  readonly nettle: Record<string, never>;
+  /** Raíz → Marea → Brasa: tus invocaciones cercanas tienen más vida y daño un rato. */
+  readonly fertilize: {
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly multiplier: number;
+  };
+  /** Raíz → Marea → Tormenta: cada hechizo que lanzas cura a tu equipo (estado `dewy`). */
+  readonly dew: Record<string, never>;
+  /** Raíz → Marea → Marea: secas el agua cercana y te curas por cada cosa. */
+  readonly drought: { readonly radius: number; readonly healPerItem: number };
+  /** Raíz → Marea → Raíz: el daño que recibe tu aliado o tú se reparte (estado `grafted`). */
+  readonly graft: { readonly range: number; readonly coneDot: number };
+  /** Raíz → Marea → Umbra: las curaciones del rival le hacen daño (estado `rotting`). */
+  readonly rot: { readonly range: number; readonly coneDot: number };
+  /** Raíz → Umbra → Raíz: los rivales adentro no descansan (estado `withered`). */
+  readonly wither: AreaSpell;
+  /** Raíz → Umbra → Umbra: te quedas el próximo hechizo del rival (estado `robbed`). */
+  readonly pickpocket: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly heldTicks: number;
+  };
+  /** Umbra → Brasa → Brasa: si al rival le queda poca vida, cae al instante. */
+  readonly fatalShadow: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly threshold: number;
+  };
+  /** Umbra → Brasa → Marea: los botones del rival cambian de lugar (estado `hexed`). */
+  readonly evilEye: { readonly range: number; readonly coneDot: number };
+  /** Umbra → Brasa → Umbra: tú y el rival no pueden hacerse daño (estado `oath`). */
+  readonly oath: { readonly range: number; readonly coneDot: number };
+  /** Umbra → Tormenta → Brasa: lanzas tu sombra y puedes teletransportarte a ella. */
+  readonly thrownShadow: { readonly distance: number; readonly durationTicks: number };
+  /** Umbra → Marea → Brasa: los rivales del cono no hacen daño (estado `muted`). */
+  readonly lament: { readonly range: number; readonly coneDot: number };
+  /** Umbra → Marea → Marea: los proyectiles cercanos quedan flotando (estado `wailing`). */
+  readonly abyssWail: Record<string, never>;
+  /** Umbra → Marea → Umbra: si tienes menos vida que el rival, intercambian el porcentaje. */
+  readonly transfusion: { readonly range: number; readonly coneDot: number };
+  /** Umbra → Raíz → Brasa: un muñeco: el daño que le haces lo recibe el rival marcado. */
+  readonly voodooDoll: SummonSpell & {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly distance: number;
+  };
+  /** Umbra → Raíz → Marea: golpes fuertes y caídas cercanas te dan Esencia (estado `harvesting`). */
+  readonly soulHarvest: Record<string, never>;
+  /** Umbra → Raíz → Raíz: una planta escondida que silencia y revela a quien la pisa. */
+  readonly mandrake: {
+    readonly range: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly armTicks: number;
+    readonly silenceTicks: number;
+  };
+  /** Umbra → Umbra → Raíz: si caes o quedas muy herido, el marcado recibe daño (estado `vengeful`). */
+  readonly vengeance: { readonly range: number; readonly coneDot: number };
 }
 
 /** Un golpe con aviso: cae en un círculo tras unos pasos. */

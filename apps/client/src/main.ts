@@ -584,9 +584,13 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
   const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
   spells.sync(state.spells, {
     positionOf: (spell) =>
-      spell.kind === 'projectile' || spell.kind === 'summon' || spell.kind === 'sweeper'
+      spell.kind === 'projectile' ||
+      spell.kind === 'summon' ||
+      spell.kind === 'sweeper' ||
+      spell.kind === 'guidedBolt'
         ? current.interpolated(spell.id, spell.pos, alpha)
         : { x: 0, z: 0 },
+    viewerTeam: player.team,
     time,
     delta,
     wizard: wizardOf,

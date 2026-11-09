@@ -1,4 +1,4 @@
-import { applyStatus, dealDamage } from '../combat/hit';
+import { applyStatus, dealDamage, healWizard } from '../combat/hit';
 import { distance, length, normalize, sub } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { isHiddenFrom } from './queries';
@@ -58,6 +58,6 @@ function claw(state: MatchState, panther: Wizard, rules: GameRules): void {
   panther.facing = normalize(sub(prey.pos, panther.pos), panther.facing);
   const before = prey.hp;
   dealDamage(state, prey, panther.id, spec.damage, 'mark');
-  panther.hp = Math.min(panther.maxHp, panther.hp + (before - prey.hp));
+  healWizard(state, panther, before - prey.hp);
   state.events.push({ type: 'burst', spell: 'shadowPanther', pos: prey.pos, radius: 0.9 });
 }

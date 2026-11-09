@@ -21,6 +21,31 @@ import {
   castMeteor,
 } from './kit/greatBrasa';
 import {
+  castAcceleratedGrowth,
+  castBonfire,
+  castBonfireSmoke,
+  castDeluge,
+  castDrought,
+  castEruption,
+  castFertilize,
+  castGale,
+  castGiantMushroom,
+  castGuidedBolt,
+  castIceTrack,
+  castLilyPads,
+  castMandrake,
+  castMonsoon,
+  castPollen,
+  castPowerGrid,
+  castScald,
+  castSolarGrenade,
+  castThousandSteps,
+  castThrownShadow,
+  castTotemCircle,
+  castWither,
+  castZipline,
+} from './kit/greatGround';
+import {
   castCauldron,
   castDrown,
   castIceAge,
@@ -28,7 +53,42 @@ import {
   castSteamJet,
   castTidalWave,
 } from './kit/greatMarea';
+import {
+  castAbyssWail,
+  castAshHunger,
+  castBurningEcho,
+  castDepth,
+  castDew,
+  castEmberSeed,
+  castEvilEye,
+  castFatalShadow,
+  castForge,
+  castGraft,
+  castHumanRod,
+  castInstant,
+  castLament,
+  castLinkBolt,
+  castNettle,
+  castOath,
+  castOblivionMist,
+  castOverload,
+  castPickpocket,
+  castPropulsion,
+  castRebirth,
+  castReflection,
+  castRewind,
+  castRot,
+  castShortCircuit,
+  castSiphon,
+  castSoulHarvest,
+  castThunderclap,
+  castTransfusion,
+  castVengeance,
+  castVoodooDoll,
+  castWaterMirror,
+} from './kit/greatMind';
 import { castRootCatapult, castSowing, castThornRing, castTreeStride } from './kit/greatRaiz';
+import { afterCast, MOBILITY } from './kit/greatReactions';
 import {
   castAncientTree,
   castAshBird,
@@ -215,6 +275,61 @@ const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   surf: castSurf,
   deepRoots: castDeepRoots,
   shadowPanther: castShadowPanther,
+  eruption: castEruption,
+  solarGrenade: castSolarGrenade,
+  propulsion: castPropulsion,
+  monsoon: castMonsoon,
+  forge: castForge,
+  scald: castScald,
+  emberSeed: castEmberSeed,
+  bonfireSmoke: castBonfireSmoke,
+  bonfire: castBonfire,
+  ashHunger: castAshHunger,
+  burningEcho: castBurningEcho,
+  overload: castOverload,
+  humanRod: castHumanRod,
+  shortCircuit: castShortCircuit,
+  thunderclap: castThunderclap,
+  totemCircle: castTotemCircle,
+  thousandSteps: castThousandSteps,
+  iceTrack: castIceTrack,
+  gale: castGale,
+  guidedBolt: castGuidedBolt,
+  zipline: castZipline,
+  acceleratedGrowth: castAcceleratedGrowth,
+  powerGrid: castPowerGrid,
+  rewind: castRewind,
+  instant: castInstant,
+  linkBolt: castLinkBolt,
+  siphon: castSiphon,
+  deluge: castDeluge,
+  reflection: castReflection,
+  waterMirror: castWaterMirror,
+  lilyPads: castLilyPads,
+  rebirth: castRebirth,
+  depth: castDepth,
+  oblivionMist: castOblivionMist,
+  pollen: castPollen,
+  giantMushroom: castGiantMushroom,
+  nettle: castNettle,
+  fertilize: castFertilize,
+  dew: castDew,
+  drought: castDrought,
+  graft: castGraft,
+  rot: castRot,
+  wither: castWither,
+  pickpocket: castPickpocket,
+  fatalShadow: castFatalShadow,
+  evilEye: castEvilEye,
+  oath: castOath,
+  thrownShadow: castThrownShadow,
+  lament: castLament,
+  abyssWail: castAbyssWail,
+  transfusion: castTransfusion,
+  voodooDoll: castVoodooDoll,
+  soulHarvest: castSoulHarvest,
+  mandrake: castMandrake,
+  vengeance: castVengeance,
 };
 
 /** Hechizos que no delatan a quien está con Velo. */
@@ -244,6 +359,28 @@ const QUIET: ReadonlySet<SpellId> = new Set([
   'weaveIllusion',
   'borrowedShadow',
   'sentinel',
+  'propulsion',
+  'forge',
+  'bonfire',
+  'burningEcho',
+  'overload',
+  'humanRod',
+  'rewind',
+  'reflection',
+  'waterMirror',
+  'lilyPads',
+  'rebirth',
+  'depth',
+  'nettle',
+  'dew',
+  'graft',
+  'emberSeed',
+  'soulHarvest',
+  'mandrake',
+  'thrownShadow',
+  'zipline',
+  'abyssWail',
+  'acceleratedGrowth',
 ]);
 
 /** Los hechizos que viajan: el apuntado automático se adelanta al rival según su velocidad. */
@@ -253,10 +390,11 @@ function leadSpeedOf(spell: SpellId, rules: GameRules): number {
   if (spell === 'blinding') return rules.spells.blinding.speed;
   if (spell === 'blackFlame') return rules.spells.blackFlame.speed;
   if (spell === 'darkComet') return rules.spells.darkComet.speed;
+  if (spell === 'siphon') return rules.spells.siphon.speed;
   return 0;
 }
 
-/** Hace salir un hechizo ya canalizado. */
+/** Hace salir un hechizo ya canalizado. `fromEcho` es la segunda salida del Eco ardiente. */
 export function castSpell(
   state: MatchState,
   caster: Wizard,
@@ -264,17 +402,27 @@ export function castSpell(
   weave: Weave,
   rawAim: Vec2,
   rules: GameRules,
+  fromEcho = false,
 ): void {
+  // Dentro del Diluvio no se salta ni se teletransporta.
+  if (caster.statuses.grounded && MOBILITY.has(spell)) {
+    state.events.push({ type: 'fizzle', wizardId: caster.id });
+    caster.lastWeave = weave;
+    return;
+  }
   // Atacar desde el Velo lo rompe, y ese hechizo pega más. Moverse o curarse no lo rompe.
   const breaksVeil = caster.statuses.veiled !== undefined && !QUIET.has(spell);
   if (breaksVeil) delete caster.statuses.veiled;
-  const bonus = breaksVeil ? rules.statuses.veiled.damageMultiplier : 1;
+  // Con el Lamento encima, los hechizos salen pero no hacen daño.
+  const muted = caster.statuses.muted ? 0 : 1;
+  const bonus = (breaksVeil ? rules.statuses.veiled.damageMultiplier : 1) * muted;
   const aim = resolveAim(state, caster, rawAim, rules, leadSpeedOf(spell, rules));
   const form = SPELL_FORM_BY_ELEMENT[weave[0] ?? 'brasa'];
   state.events.push({ type: 'release', wizardId: caster.id, form, spell });
   // Con Raíces profundas, todo llega más lejos.
   const reach = caster.statuses.deepRooted ? farRules(rules) : rules;
   CASTERS[spell]({ state, caster, spell, weave, aim, rules: reach, bonus });
+  afterCast(state, caster, spell, weave, aim, rules, fromEcho);
 }
 
 const FAR = new WeakMap<GameRules, GameRules>();

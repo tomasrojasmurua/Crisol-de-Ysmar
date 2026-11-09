@@ -27,7 +27,7 @@ Cómo trabajamos:
 Dónde quedamos: main está al día hasta el PR #17. Hay 70 de 125 Grandes hechizos y el multijugador
 todavía no existe. Yo ya aprobé el plan de debilidades: el siguiente cambio es dejar el 1v1 en la
 plaza sin jungla y pausar familiares, Guardián y el modo 3 Vidas. Después queda la tanda 4 de Grandes
-hechizos (docs/traspaso/tanda-4-pendiente.md) y luego el Hito 2 (multijugador).
+hechizos (docs/traspaso/tanda-4.md) y luego el Hito 2 (multijugador).
 
 Cuando termines de leer, confírmame en pocas líneas qué entendiste del estado actual y propón por
 dónde partir.

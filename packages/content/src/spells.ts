@@ -312,4 +312,133 @@ export const SPELL_RULES: GameRules['spells'] = {
   deepRoots: {},
   // Umbra → Raíz → Tormenta · Pantera de sombra: la velocidad y los zarpazos los da el estado `panther`.
   shadowPanther: {},
+
+  // Grandes hechizos, cuarta tanda: terreno, detonadores, tiempo, copias, contrahechizos y más.
+
+  // Brasa → Brasa → Marea · Erupción: volcán de 1,4 m por 6 s a 8 m; cada 0,7 s una roca de 15 que quema, a hasta 5 m.
+  eruption: {
+    range: 8,
+    radius: 1.4,
+    durationTicks: 180,
+    damage: 15,
+    rockRadius: 1.3,
+    rockDelayTicks: 15,
+    intervalTicks: 20,
+    throwRadius: 5,
+  },
+  // Brasa → Tormenta → Brasa · Granada solar: una esfera por 6 s a 8 m; explota con 40 en 3 m si la toca un hechizo tuyo.
+  solarGrenade: { range: 8, radius: 0.6, durationTicks: 180, damage: 40, blastRadius: 3 },
+  // Brasa → Tormenta → Tormenta · Propulsión: la duración y el salto los da el estado `propelled`.
+  propulsion: {},
+  // Brasa → Tormenta → Marea · Monzón: tormenta de 6 m por 5 s a 8 m; un rayo de 12 por segundo a cada rival adentro.
+  monsoon: { range: 8, radius: 6, durationTicks: 150, damage: 12, intervalTicks: 30 },
+  // Brasa → Marea → Brasa · Forja: el doble de daño lo da el estado `forged`.
+  forge: {},
+  // Brasa → Marea → Tormenta · Escaldar: cono de 6 m; 10, rompe escudos y no deja tener otros (estado `scalded`).
+  scald: { damage: 10, range: 6, coneDot: 0.5 },
+  // Brasa → Raíz → Brasa · Semilla de fuego: sobre un aliado a 10 m o sobre ti; la explosión la da el estado `emberSeed`.
+  emberSeed: { range: 10, coneDot: 0.6 },
+  // Brasa → Raíz → Marea · Humo de hoguera: columna de 4 m por 8 s a 6 m.
+  bonfireSmoke: { range: 6, radius: 4, durationTicks: 240 },
+  // Brasa → Raíz → Raíz · Hoguera: fogata de 3 m por 20 s a tus pies (el descanso lo da `kindled`).
+  bonfire: { range: 0, radius: 3, durationTicks: 600 },
+  // Brasa → Umbra → Raíz · Hambre de ceniza: marca a 10 m; si cae o baja de 25%, descansas todo y recuperas 30.
+  ashHunger: { range: 10, coneDot: 0.6, heal: 30 },
+  // Brasa → Umbra → Umbra · Eco ardiente: la espera la da el estado `echoing`.
+  burningEcho: {},
+  // Tormenta → Brasa → Brasa · Sobrecarga: las cargas las da el estado `overcharged`.
+  overload: {},
+  // Tormenta → Brasa → Tormenta · Pararrayos humano: el alcance lo da el estado `attracting`.
+  humanRod: {},
+  // Tormenta → Brasa → Raíz · Cortocircuito: si el rival a 8 m teje, se le cancela y queda 1 s aturdido.
+  shortCircuit: { range: 8, stunTicks: 30 },
+  // Tormenta → Brasa → Umbra · Estruendo: a 6 m, el último elemento que usó cada rival queda 5 s cansado.
+  thunderclap: { radius: 6, fatigueTicks: 150 },
+  // Tormenta → Tormenta → Raíz · Círculo de tótems: triángulo de 3 m a 6 m por 6 s; cruzar una línea aturde 0,8 s.
+  totemCircle: { range: 6, spread: 3, durationTicks: 180, stunTicks: 24, halfWidth: 0.35 },
+  // Tormenta → Tormenta → Umbra · Mil pasos: intocable 1,5 s; 4 saltos de 14 entre rivales a 8 m.
+  thousandSteps: { damage: 14, range: 8, hops: 4, intervalTicks: 9 },
+  // Tormenta → Marea → Marea · Pista de hielo: 12 m por 6 s; quien entra se desliza a 12 m/s hasta el final.
+  iceTrack: { length: 12, halfWidth: 1.2, durationTicks: 180, slideSpeed: 12 },
+  // Tormenta → Marea → Umbra · Vendaval: cono de 9 m que apaga invocaciones, trampas y zonas rivales.
+  gale: { range: 9, coneDot: 0.5 },
+  // Tormenta → Raíz → Brasa · Relámpago guiado: 35 de daño; lo diriges 2 s mientras te quedas quieto.
+  guidedBolt: { damage: 35, speed: 11, radius: 0.5, durationTicks: 60, turnRate: 0.15 },
+  // Tormenta → Raíz → Tormenta · Tirolesa: cable de 14 m por 8 s; se viaja a 20 m/s.
+  zipline: { length: 14, durationTicks: 240, speed: 20, grab: 0.8 },
+  // Tormenta → Raíz → Marea · Crecimiento acelerado: 5 m por 4 s a tus pies (teje con `quickened`, corre con `haste`).
+  acceleratedGrowth: { range: 0, radius: 5, durationTicks: 120 },
+  // Tormenta → Raíz → Raíz · Red eléctrica: activa lo tuyo a 12 m; cada invocación da un rayo de 12 a 6 m.
+  powerGrid: { radius: 12, damage: 12, reach: 6 },
+  // Tormenta → Umbra → Brasa · Retroceso: se guarda dónde estabas cada 0,5 s; vuelves al de hace 3 s.
+  rewind: { sampleTicks: 15, samples: 6 },
+  // Tormenta → Umbra → Marea · Instante: rival a 9 m; la duración la da el estado `halted`.
+  instant: { range: 9, coneDot: 0.7 },
+  // Tormenta → Umbra → Raíz · Rayo de enlace: 4 s; si se separan a más de 6 m, el rival queda 1 s aturdido.
+  linkBolt: { range: 9, coneDot: 0.6, durationTicks: 120, maxGap: 6, stunTicks: 30 },
+  // Marea → Tormenta → Brasa · Sifón: dardo de 8; si acierta, roba una Esencia o un descanso.
+  siphon: { damage: 8, speed: 18, range: 12, radius: 0.3 },
+  // Marea → Tormenta → Marea · Diluvio: 8 m por 6 s a 6 m; nadie salta ni se teletransporta (estado `grounded`).
+  deluge: { range: 6, radius: 8, durationTicks: 180 },
+  // Marea → Tormenta → Umbra · Reflejo: el hechizo copiado espera 8 s tu próximo lanzamiento.
+  reflection: { heldTicks: 240 },
+  // Marea → Marea → Umbra · Espejo de agua: la duración la da el estado `mirroring`.
+  waterMirror: {},
+  // Marea → Raíz → Tormenta · Nenúfares: cuatro hojas en rombo de 10 m por 10 s.
+  lilyPads: { count: 4, spread: 5, radius: 0.7, durationTicks: 300 },
+  // Marea → Raíz → Umbra · Renacer: la duración y la vida las da el estado `rebirth`.
+  rebirth: {},
+  // Marea → Umbra → Marea · Profundidad: la duración y el reparto los da el estado `depth`.
+  depth: {},
+  // Marea → Umbra → Umbra · Bruma del olvido: a 6 m; el olvido lo da el estado `forgetful`.
+  oblivionMist: { radius: 6 },
+  // Raíz → Brasa → Tormenta · Polen: nube de 5 m por 6 s a 7 m; con Brasa explota con 50.
+  pollen: { range: 7, radius: 5, durationTicks: 180, damage: 50 },
+  // Raíz → Brasa → Marea · Hongo gigante: 80 de vida por 10 s a 6 m; al golpearlo frena 1,5 s a quien esté a 3 m.
+  giantMushroom: {
+    hp: 80,
+    radius: 1.5,
+    durationTicks: 300,
+    range: 6,
+    sporeRadius: 3,
+    slowTicks: 45,
+  },
+  // Raíz → Brasa → Umbra · Ortiga: la duración y la devolución las da el estado `thorny`.
+  nettle: {},
+  // Raíz → Marea → Brasa · Fertilizar: tus invocaciones a 8 m, el doble de vida y daño por 6 s.
+  fertilize: { radius: 8, durationTicks: 180, multiplier: 2 },
+  // Raíz → Marea → Tormenta · Rocío: la duración y la cura las da el estado `dewy`.
+  dew: {},
+  // Raíz → Marea → Marea · Sequía: seca todo a 8 m y te cura 8 por cada cosa.
+  drought: { radius: 8, healPerItem: 8 },
+  // Raíz → Marea → Raíz · Injerto: un aliado a 10 m; el reparto lo da el estado `grafted`.
+  graft: { range: 10, coneDot: 0.6 },
+  // Raíz → Marea → Umbra · Podredumbre: rival a 9 m; la duración la da el estado `rotting`.
+  rot: { range: 9, coneDot: 0.7 },
+  // Raíz → Umbra → Raíz · Marchitar: 6 m por 6 s a 7 m (estado `withered`).
+  wither: { range: 7, radius: 6, durationTicks: 180 },
+  // Raíz → Umbra → Umbra · Hurto: rival a 10 m; lo robado espera 8 s tu próximo lanzamiento.
+  pickpocket: { range: 10, coneDot: 0.6, heldTicks: 240 },
+  // Umbra → Brasa → Brasa · Sombra fatal: rival a 10 m con menos de 25% de vida.
+  fatalShadow: { range: 10, coneDot: 0.7, threshold: 0.25 },
+  // Umbra → Brasa → Marea · Mal de ojo: rival a 10 m; la duración la da el estado `hexed`.
+  evilEye: { range: 10, coneDot: 0.7 },
+  // Umbra → Brasa → Umbra · Juramento: rival a 9 m; la duración la da el estado `oath`.
+  oath: { range: 9, coneDot: 0.7 },
+  // Umbra → Tormenta → Brasa · Sombra lanzada: a 10 m; 4 s para tocar ✦ sin tejer y aparecer en ella.
+  thrownShadow: { distance: 10, durationTicks: 120 },
+  // Umbra → Marea → Brasa · Lamento: cono de 6 m; lo mudo lo da el estado `muted`.
+  lament: { range: 6, coneDot: 0.5 },
+  // Umbra → Marea → Marea · Llanto del abismo: la duración y el alcance los da el estado `wailing`.
+  abyssWail: {},
+  // Umbra → Marea → Umbra · Transfusión: rival a 10 m; una vez por ronda.
+  transfusion: { range: 10, coneDot: 0.6 },
+  // Umbra → Raíz → Brasa · Muñeco vudú: a 3 m por 6 s; el rival marcado a 10 m recibe lo que le pegues.
+  voodooDoll: { hp: 1000, radius: 0.5, durationTicks: 180, range: 10, coneDot: 0.6, distance: 3 },
+  // Umbra → Raíz → Marea · Cosecha de almas: la duración y los golpes los da el estado `harvesting`.
+  soulHarvest: {},
+  // Umbra → Raíz → Raíz · Mandrágora: escondida a 6 m por 30 s; se arma en 1 s y silencia 2 s.
+  mandrake: { range: 6, radius: 0.7, durationTicks: 900, armTicks: 30, silenceTicks: 60 },
+  // Umbra → Umbra → Raíz · Venganza: rival a 12 m; el golpe lo da el estado `vengeful`.
+  vengeance: { range: 12, coneDot: 0.6 },
 };

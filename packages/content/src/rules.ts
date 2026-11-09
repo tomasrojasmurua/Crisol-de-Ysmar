@@ -80,6 +80,66 @@ export const GAME_RULES: GameRules = {
     surfing: { ticks: 150, moveMultiplier: 1.8 },
     deepRooted: { ticks: 120, rangeMultiplier: 1.5 },
     panther: { ticks: 180, moveMultiplier: 1.5, damage: 12, reach: 1.8, intervalTicks: 20 },
+    // Aturdido: 1 segundo sin moverse ni tejer (cada hechizo da su tiempo).
+    stunned: { ticks: 30 },
+    // Instante: 1,5 segundos detenido en el tiempo.
+    halted: { ticks: 45 },
+    // Mil pasos: 1,5 segundos intocable.
+    untouchable: { ticks: 45 },
+    // Escaldar: 4 segundos sin escudos.
+    scalded: { ticks: 120 },
+    // Ortiga: 6 segundos devolviendo la mitad del daño.
+    thorny: { ticks: 180, reflect: 0.5 },
+    // Semilla de fuego: 8 segundos; al recibir un golpe, 40 en 3 m.
+    emberSeed: { ticks: 240, damage: 40, radius: 3 },
+    // Hoguera: los elementos descansan el doble de rápido mientras se esté cerca.
+    kindled: { ticks: 6, restMultiplier: 2 },
+    // Marchitar: los elementos no descansan mientras se esté dentro.
+    withered: { ticks: 6 },
+    // Diluvio: no se salta ni se teletransporta mientras se esté dentro.
+    grounded: { ticks: 6 },
+    // Hambre de ceniza: 8 segundos; se cumple si cae o baja de 25% de vida.
+    ashHunger: { ticks: 240, threshold: 0.25 },
+    // Venganza: 6 segundos; si cae o baja de 20%, el marcado recibe 45.
+    vengeful: { ticks: 180, threshold: 0.2, damage: 45 },
+    // Mal de ojo: 5 segundos con los botones cambiados de lugar.
+    hexed: { ticks: 150 },
+    // Juramento: 3 segundos sin poder hacerse daño.
+    oath: { ticks: 90 },
+    // Injerto: 6 segundos repartiendo el daño mitad y mitad.
+    grafted: { ticks: 180, share: 0.5 },
+    // Podredumbre: 5 segundos en que curarse hace daño.
+    rotting: { ticks: 150 },
+    // Profundidad: 5 segundos; cada golpe llega repartido en los 5 siguientes.
+    depth: { ticks: 150, spreadTicks: 150 },
+    // Renacer: 6 segundos; si cae, vuelve con 40% de vida.
+    rebirth: { ticks: 180, hpFraction: 0.4 },
+    // Forja: 6 segundos para que el próximo hechizo de daño pegue el doble.
+    forged: { ticks: 180, damageMultiplier: 2 },
+    // Sobrecarga: los próximos 3 hechizos en 5 segundos salen con el aviso mínimo.
+    overcharged: { ticks: 150, charges: 3 },
+    // Propulsión: 4 segundos; cada hechizo da un salto de 3 m que deja fuego.
+    propelled: { ticks: 120, distance: 3, leapTicks: 6 },
+    // Rocío: 6 segundos; cada hechizo cura 8 a tu equipo a 8 m.
+    dewy: { ticks: 180, heal: 8, radius: 8 },
+    // Eco ardiente: 10 segundos para que el próximo hechizo salga dos veces, la segunda 1 s después.
+    echoing: { ticks: 300, delayTicks: 30 },
+    // Hurto: 6 segundos para robarle el próximo hechizo.
+    robbed: { ticks: 180 },
+    // Bruma del olvido: 6 segundos sin poder repetir el último hechizo.
+    forgetful: { ticks: 180 },
+    // Lamento: 3 segundos en que sus hechizos no hacen daño.
+    muted: { ticks: 90 },
+    // Pararrayos humano: 3 segundos atrayendo proyectiles a 6 m.
+    attracting: { ticks: 90, radius: 6, pull: 0.25 },
+    // Espejo de agua: 3 segundos devolviendo proyectiles.
+    mirroring: { ticks: 90 },
+    // Llanto del abismo: 5 segundos reteniendo los proyectiles a 3 m.
+    wailing: { ticks: 150, radius: 3 },
+    // Relámpago guiado: quieto mientras dirige el rayo.
+    steering: { ticks: 60 },
+    // Cosecha de almas: 15 segundos; golpes de 15 o más dan Esencia (hasta 3), y las caídas a 10 m también.
+    harvesting: { ticks: 450, radius: 10, minHit: 15, maxStacks: 3 },
   },
   interactions: {
     tideExtinguishesBurn: true,
