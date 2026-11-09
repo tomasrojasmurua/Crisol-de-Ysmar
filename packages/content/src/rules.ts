@@ -139,6 +139,8 @@ export const GAME_RULES: GameRules = {
     // Relámpago guiado: quieto mientras dirige el rayo.
     steering: { ticks: 60 },
     // Cosecha de almas: 15 segundos; golpes de 15 o más dan Esencia (hasta 3), y las caídas a 10 m también.
+    // Cortocircuito armado: 2 segundos esperando que un rival cercano teja.
+    primed: { ticks: 60 },
     harvesting: { ticks: 450, radius: 10, minHit: 15, maxStacks: 3 },
   },
   interactions: {

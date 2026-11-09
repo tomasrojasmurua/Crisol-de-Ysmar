@@ -346,6 +346,7 @@ export const TEST_RULES: GameRules = {
     mirroring: { ticks: 90 },
     wailing: { ticks: 150, radius: 3 },
     steering: { ticks: 60 },
+    primed: { ticks: 60 },
     harvesting: { ticks: 450, radius: 10, minHit: 15, maxStacks: 3 },
   },
   interactions: { tideExtinguishesBurn: true },

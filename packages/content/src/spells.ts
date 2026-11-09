@@ -350,7 +350,7 @@ export const SPELL_RULES: GameRules['spells'] = {
   overload: {},
   // Tormenta → Brasa → Tormenta · Pararrayos humano: el alcance lo da el estado `attracting`.
   humanRod: {},
-  // Tormenta → Brasa → Raíz · Cortocircuito: si el rival a 8 m teje, se le cancela y queda 1 s aturdido.
+  // Tormenta → Brasa → Raíz · Cortocircuito: armado 2 s; el primer rival a 8 m que teja pierde su hechizo y queda 1 s aturdido.
   shortCircuit: { range: 8, stunTicks: 30 },
   // Tormenta → Brasa → Umbra · Estruendo: a 6 m, el último elemento que usó cada rival queda 5 s cansado.
   thunderclap: { radius: 6, fatigueTicks: 150 },

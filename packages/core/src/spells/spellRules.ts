@@ -479,7 +479,7 @@ export interface SpellRules {
   readonly overload: Record<string, never>;
   /** Tormenta → Brasa → Tormenta: atraes los proyectiles y te dan escudo (estado `attracting`). */
   readonly humanRod: Record<string, never>;
-  /** Tormenta → Brasa → Raíz: cancela el tejido del rival y lo aturde. */
+  /** Tormenta → Brasa → Raíz: armado un rato, cancela el tejido del rival y lo aturde (estado `primed`). */
   readonly shortCircuit: { readonly range: number; readonly stunTicks: number };
   /** Tormenta → Brasa → Umbra: cansa el último elemento que usaron los rivales cercanos. */
   readonly thunderclap: { readonly radius: number; readonly fatigueTicks: number };

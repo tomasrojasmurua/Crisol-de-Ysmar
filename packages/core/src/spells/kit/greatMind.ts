@@ -1,4 +1,4 @@
-import { applyStatus, dealDamage } from '../../combat/hit';
+import { applyStatus, dealDamage, healWizard } from '../../combat/hit';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { currentTarget, isAlive, wizardById } from '../../match/queries';
 import { withRng } from '../../match/random';
@@ -217,7 +217,10 @@ export function castInstant(ctx: CastContext): void {
   ctx.state.events.push({ type: 'burst', spell: 'instant', pos: rival.pos, radius: 1.2 });
 }
 
-/** Sombra fatal: si al rival le queda poca vida, cae al instante; si no, no pasa nada. */
+/**
+ * Sombra fatal: si al rival le queda poca vida, cae al instante; si no, no pasa nada.
+ * Con la Profundidad cae de a poco y alcanza a curarse; el Renacer, el Juramento y Mil pasos lo salvan.
+ */
 export function castFatalShadow(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.fatalShadow;
@@ -228,10 +231,15 @@ export function castFatalShadow(ctx: CastContext): void {
     return;
   }
   state.events.push({ type: 'burst', spell: 'fatalShadow', pos: rival.pos, radius: 1.4 });
-  dealDamage(state, rival, caster.id, rival.hp, 'mark', true, true);
+  // Atraviesa escudos, pero no la Profundidad ni el Injerto: con ellos, se puede salvar.
+  dealDamage(state, rival, caster.id, rival.hp, 'mark', true);
 }
 
-/** Transfusión: si tienes menos vida que el rival, intercambian el porcentaje. Una vez por ronda. */
+/**
+ * Transfusión: si tienes menos vida que el rival, intercambian el porcentaje. Una vez por ronda.
+ * Respeta las defensas: con el Juramento, Mil pasos o el Instante no sale; con la Profundidad, lo
+ * que pierde el rival le llega de a poco; con la Podredumbre, lo que ganas te hace daño.
+ */
 export function castTransfusion(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.transfusion;
@@ -239,22 +247,50 @@ export function castTransfusion(ctx: CastContext): void {
   if (!rival) return;
   const mine = caster.hp / caster.maxHp;
   const theirs = rival.hp / rival.maxHp;
-  if (mine >= theirs || rival.statuses.halted || rival.statuses.stasis) {
+  const r = rival.statuses;
+  const sworn = r.oath?.targetId === caster.id || caster.statuses.oath?.targetId === rival.id;
+  if (mine >= theirs || r.halted || r.stasis || r.untouchable || sworn) {
     fizzle(ctx);
     return;
   }
   if (!oncePerRound(ctx)) return;
-  caster.hp = theirs * caster.maxHp;
-  rival.hp = Math.max(1, mine * rival.maxHp);
+  const gain = theirs * caster.maxHp - caster.hp;
+  const loss = rival.hp - Math.max(1, mine * rival.maxHp);
+  healWizard(state, caster, gain);
+  const depth = r.depth;
+  if (depth?.power) {
+    const ticks = Math.max(1, Math.round(depth.power));
+    state.spells.push({
+      kind: 'deferred',
+      id: nextId(state),
+      ownerId: caster.id,
+      team: caster.team,
+      targetId: rival.id,
+      perTick: loss / ticks,
+      ticksLeft: ticks,
+    });
+  } else {
+    rival.hp -= loss;
+  }
   state.events.push({ type: 'zap', from: rival.pos, to: caster.pos });
   state.events.push({ type: 'burst', spell: 'transfusion', pos: caster.pos, radius: 1.2 });
 }
 
 // Contrahechizos.
 
-/** Cortocircuito: si el rival cercano está tejiendo, su hechizo se cancela y queda aturdido. */
+/**
+ * Cortocircuito: queda armado un rato; el primer rival cercano que esté tejiendo (o empiece a
+ * tejer) pierde su hechizo y queda aturdido. Lo descarga `discharge`, al final de cada paso.
+ */
 export function castShortCircuit(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
+  applyStatus(state, caster, 'primed', caster.id, rules);
+  state.events.push({ type: 'burst', spell: 'shortCircuit', pos: caster.pos, radius: 1.2 });
+}
+
+/** El Cortocircuito armado salta con el primer rival que teje a su alcance. */
+export function discharge(state: MatchState, caster: Wizard, rules: GameRules): void {
+  if (!caster.statuses.primed || !isAlive(caster)) return;
   const spell = rules.spells.shortCircuit;
   const weaving = (w: Wizard): boolean =>
     w.team !== caster.team &&
@@ -268,10 +304,8 @@ export function castShortCircuit(ctx: CastContext): void {
       : state.wizards
           .filter(weaving)
           .sort((a, b) => distance(a.pos, caster.pos) - distance(b.pos, caster.pos))[0];
-  if (!victim) {
-    fizzle(ctx);
-    return;
-  }
+  if (!victim) return;
+  delete caster.statuses.primed;
   victim.weave = [];
   victim.channel = null;
   applyStatus(state, victim, 'stunned', caster.id, rules, spell.stunTicks);

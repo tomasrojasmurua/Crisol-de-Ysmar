@@ -9,6 +9,7 @@ import type { GameRules } from '../../rules';
 import { SPELL_FORM_BY_ELEMENT, type SpellForm, type Weave } from '../../weaving/weave';
 import { SPELL_IDS, SPELL_WEAVES, type SpellId, spellOf } from '../catalog';
 import { spellPayload } from '../payload';
+import { discharge } from './greatMind';
 import { hitArea } from './shared';
 
 /**
@@ -166,7 +167,7 @@ const ELEMENT_BY_FORM: Readonly<Record<SpellForm, ElementId>> = Object.fromEntri
 ) as Record<SpellForm, ElementId>;
 
 /**
- * Lo que responde a los golpes de este paso: la Ortiga devuelve daño, la Semilla de fuego
+ * Lo que responde a lo que pasó en este paso: el Cortocircuito armado salta con quien teje; la Ortiga devuelve daño, la Semilla de fuego
  * explota, la Cosecha de almas junta Esencia, y la Venganza, el Hambre de ceniza y el Renacer
  * miran quién quedó muy herido o cayó. Va al final del paso, antes de contar las caídas.
  */
@@ -191,6 +192,7 @@ export function resolveReactions(state: MatchState, rules: GameRules): void {
   }
   for (const wizard of state.wizards) {
     if (wizard.fallen) continue;
+    discharge(state, wizard, rules);
     avenge(state, wizard, rules);
     feedHunger(state, wizard, rules);
     rise(state, wizard, rules);

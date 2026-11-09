@@ -27,7 +27,7 @@ Valores de partida. "Cono" quiere decir que el hechizo busca al rival hacia dond
 | Brasa → Umbra → Umbra       | **Eco ardiente**          | Tu próximo hechizo en 10 s sale dos veces: la segunda 1 s después y desde el mismo lugar.        |
 | Tormenta → Brasa → Brasa    | **Sobrecarga**            | Tus próximos 3 hechizos en 5 s salen con el aviso mínimo de 0,17 s.                              |
 | Tormenta → Brasa → Tormenta | **Pararrayos humano**     | 3 s: atraes los proyectiles rivales a 6 m y cada uno te da escudo en vez de daño.                |
-| Tormenta → Brasa → Raíz     | **Cortocircuito**         | Si un rival a 8 m está tejiendo, se le cancela y queda 1 s aturdido.                             |
+| Tormenta → Brasa → Raíz     | **Cortocircuito**         | Armado 2 s: el primer rival a 8 m que teja (o ya esté tejiendo) lo pierde y queda 1 s aturdido.  |
 | Tormenta → Brasa → Umbra    | **Estruendo**             | Los rivales a 6 m quedan 5 s cansados del último elemento que usaron.                            |
 | Tormenta → Tormenta → Raíz  | **Círculo de tótems**     | Tres tótems unidos por rayos por 6 s; quien cruza una línea queda 0,8 s aturdido.                |
 | Tormenta → Tormenta → Umbra | **Mil pasos**             | Intocable 1,5 s; saltas 4 veces golpeando con 14 a los rivales a 8 m.                            |
@@ -58,13 +58,13 @@ Valores de partida. "Cono" quiere decir que el hechizo busca al rival hacia dond
 | Raíz → Marea → Umbra        | **Podredumbre**           | 5 s: cada curación que reciba el rival le hace daño.                                             |
 | Raíz → Umbra → Raíz         | **Marchitar**             | Zona de 6 m por 6 s donde los rivales no descansan sus elementos.                                |
 | Raíz → Umbra → Umbra        | **Hurto**                 | El próximo hechizo del rival en 6 s no sale: te lo quedas para tu próximo lanzamiento.           |
-| Umbra → Brasa → Brasa       | **Sombra fatal**          | Si el rival tiene menos de 25% de vida, cae al instante; si no, no pasa nada.                    |
+| Umbra → Brasa → Brasa       | **Sombra fatal**          | Si el rival tiene menos de 25%, cae al instante (con la Profundidad, de a poco); si no, nada.    |
 | Umbra → Brasa → Marea       | **Mal de ojo**            | 5 s: al rival se le corren de lugar los botones de elementos (y las teclas 1-5).                 |
 | Umbra → Brasa → Umbra       | **Juramento**             | 3 s: ni tú ni el rival marcado pueden hacerse daño.                                              |
 | Umbra → Tormenta → Brasa    | **Sombra lanzada**        | Tu sombra vuela 10 m; en 4 s, tocar ✦ sin tejer te lleva a ella.                                 |
 | Umbra → Marea → Brasa       | **Réquiem**               | Cono de 6 m: por 3 s, los hechizos de esos rivales no hacen daño ni queman.                      |
 | Umbra → Marea → Marea       | **Llanto del abismo**     | 5 s: los proyectiles a 3 m quedan flotando; al terminar salen hacia donde miras, ya tuyos.       |
-| Umbra → Marea → Umbra       | **Transfusión**           | Si tienes menos vida que el rival, intercambian el porcentaje. Una vez por ronda.                |
+| Umbra → Marea → Umbra       | **Transfusión**           | Si tienes menos vida que el rival, intercambian el porcentaje. Una vez por ronda. Ver abajo.     |
 | Umbra → Raíz → Brasa        | **Muñeco vudú**           | Un muñeco frente a ti por 6 s: todo el daño que le hagas lo recibe el rival marcado.             |
 | Umbra → Raíz → Marea        | **Cosecha de almas**      | 15 s: cada caída a 10 m te da Esencia, **y también cada golpe tuyo de 15 o más (hasta 3)**.      |
 | Umbra → Raíz → Raíz         | **Mandrágora**            | Planta escondida para el rival; al pisarla grita: silencia 2 s y lo deja a la vista.             |
@@ -96,8 +96,23 @@ el premio de Hambre de ceniza y de Venganza llegaba tarde.
 9. El **Retroceso** necesita recordar dónde estuvo cada mago: guarda 6 muestras (cada 0,5 s) por
    mago. Son 18 números más por mago en el estado que viajará por la red.
 
+## Respuestas a Sombra fatal y Transfusión
+
+Medido con 2.000 duelos de bots, donde solo uno de los dos podía usar el hechizo: quien tiene
+Sombra fatal gana el 51,8% y quien tiene Transfusión el 53% (el Meteoro da 52,5%). No dominan, y se
+les agregaron respuestas (decisión de Tomás):
+
+- Los dos tardan 0,6 s y su tejido se ve: alcanza para un paso, un Destello, esconderse detrás de una
+  roca o meterse en el Ataúd helado (0,3 s).
+- **Sombra fatal** respeta la Profundidad (caes de a poco y alcanzas a curarte) y el Injerto; el
+  Renacer, el Juramento y Mil pasos también salvan.
+- **Transfusión** no sale contra el Juramento, Mil pasos ni el Instante; con la Profundidad, lo que
+  pierde el rival llega de a poco; con la Podredumbre, lo que ganas te hace daño (y puede tumbarte).
+- **Cortocircuito** queda armado 2 s: antes se perdía casi siempre porque tardaba lo mismo que el
+  hechizo que quería cortar.
+
 ## Para decidir jugando
 
 - **Juramento** e **Injerto** son de equipo; en 1v1 Juramento solo sirve para ganar tiempo.
-- **Sombra fatal** y **Transfusión** cambian una ronda de golpe: vigilar si se sienten injustas.
+- **Sombra fatal** y **Transfusión** cambian una ronda de golpe: vigilar si con sus respuestas se sienten justas.
 - **Mal de ojo**: probar si en el celular se entiende o frustra demasiado.

@@ -274,7 +274,7 @@ function fourthOptions(
   const past = self.past[0];
 
   // Cortar, robar u olvidar el conjuro grande que le preparan.
-  add(['tormenta', 'brasa', 'raiz'], 'target', bigCast && d <= 8 ? 4 : 0);
+  add(['tormenta', 'brasa', 'raiz'], 'target', d <= 8 && !me.primed ? (bigCast ? 4 : 0.6) : 0);
   add(['raiz', 'umbra', 'umbra'], 'target', bigCast && d < 10 ? 2.5 : 0);
   add(['marea', 'umbra', 'umbra'], 'target', bigCast && d < 6 ? 3 : 0);
   add(['tormenta', 'umbra', 'marea'], 'target', bigCast && d < 9 ? 2 : 0);

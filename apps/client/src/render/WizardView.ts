@@ -614,6 +614,7 @@ const STATUS_MARKS: readonly {
   { status: 'dewy', color: '#9effc8', height: 1.8, size: 0.6, spin: 1 },
   { status: 'harvesting', color: '#7a5aa0', height: 0.15, size: 1.0, spin: 1 },
   { status: 'steering', color: '#e9f6ff', height: 1.6, size: 0.55, spin: 6 },
+  { status: 'primed', color: '#9fd8ff', height: 1.5, size: 0.75, spin: -6 },
   { status: 'grounded', color: '#5f8fc8', height: 0.1, size: 0.8, spin: 0 },
   { status: 'withered', color: '#6b4a2a', height: 0.1, size: 0.85, spin: 0 },
   { status: 'kindled', color: '#ffb060', height: 0.1, size: 0.75, spin: 0 },

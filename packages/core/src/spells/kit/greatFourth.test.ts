@@ -340,6 +340,54 @@ describe('Grandes hechizos, cuarta tanda: control y contrahechizos', () => {
     expect(wizard(state, 2).statuses.stunned).toBeDefined();
   });
 
+  it('el Cortocircuito queda armado y corta al rival que empieza a tejer después', () => {
+    const state = scene([{ x: 0, z: 6 }]);
+    run(state, CHANNEL + 1, cast(['tormenta', 'brasa', 'raiz']));
+    expect(wizard(state, 1).statuses.primed).toBeDefined();
+    run(state, 20, [], rules, rival([{ kind: 'weave', element: 'brasa' }]));
+    expect(wizard(state, 2).statuses.stunned).toBeDefined();
+    expect(wizard(state, 1).statuses.primed).toBeUndefined();
+  });
+
+  it('la Transfusión respeta el Juramento', () => {
+    const state = scene([{ x: 0, z: 6 }]);
+    wizard(state, 1).hp = 30;
+    wizard(state, 1).statuses.oath = { ticks: 90, sourceId: 2, targetId: 2 };
+    run(state, CHANNEL + 1, cast(['umbra', 'marea', 'umbra']));
+    expect(wizard(state, 1).hp).toBe(30);
+    expect(wizard(state, 1).spent).not.toContain('transfusion');
+  });
+
+  it('con la Podredumbre, lo que gana la Transfusión le hace daño', () => {
+    const state = scene([{ x: 0, z: 6 }]);
+    wizard(state, 1).hp = 50;
+    wizard(state, 1).statuses.rotting = { ticks: 150, sourceId: 2 };
+    run(state, CHANNEL + 1, cast(['umbra', 'marea', 'umbra']));
+    // Ganaba 50 y le duelen 50: cae por su propia Transfusión.
+    expect(wizard(state, 1).hp).toBe(0);
+    expect(wizard(state, 2).hp).toBe(50);
+  });
+
+  it('con la Profundidad, lo que quita la Transfusión llega de a poco', () => {
+    const state = scene([{ x: 0, z: 6 }]);
+    wizard(state, 1).hp = 30;
+    wizard(state, 2).statuses.depth = { ticks: 150, sourceId: 2, power: 150 };
+    run(state, CHANNEL + 1, cast(['umbra', 'marea', 'umbra']));
+    expect(wizard(state, 1).hp).toBe(100);
+    expect(wizard(state, 2).hp).toBeGreaterThan(90);
+    run(state, 150);
+    expect(wizard(state, 2).hp).toBeCloseTo(30, 5);
+  });
+
+  it('con la Profundidad, la Sombra fatal no derriba al instante', () => {
+    const state = scene([{ x: 0, z: 6 }]);
+    wizard(state, 2).hp = 20;
+    wizard(state, 2).statuses.depth = { ticks: 150, sourceId: 2, power: 150 };
+    run(state, CHANNEL + 1, cast(['umbra', 'brasa', 'brasa']));
+    expect(wizard(state, 2).fallen).toBeNull();
+    expect(wizard(state, 2).hp).toBeGreaterThan(19);
+  });
+
   it('el Instante detiene al rival: no actúa ni recibe daño', () => {
     const state = scene([{ x: 0, z: 5 }]);
     run(state, CHANNEL + 1, cast(['tormenta', 'umbra', 'marea']));

@@ -18,7 +18,8 @@ import type { SpellRules } from './spells/spellRules';
  * las defensas (`untouchable`, `thorny`, `emberSeed`, `depth`, `rebirth`, `attracting`,
  * `mirroring`, `wailing`, `oath`, `grafted`), el desgaste (`scalded`, `rotting`, `withered`,
  * `grounded`), las marcas (`ashHunger`, `vengeful`), el ritmo (`kindled`, `forged`,
- * `overcharged`, `propelled`, `dewy`, `echoing`, `steering`) y la Esencia (`harvesting`).
+ * `overcharged`, `propelled`, `dewy`, `echoing`, `steering`) la Esencia (`harvesting`) y el
+ * Cortocircuito armado (`primed`).
  */
 export type StatusId =
   | 'burn'
@@ -86,7 +87,8 @@ export type StatusId =
   | 'mirroring'
   | 'wailing'
   | 'steering'
-  | 'harvesting';
+  | 'harvesting'
+  | 'primed';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -156,6 +158,7 @@ export const STATUS_IDS: readonly StatusId[] = [
   'wailing',
   'steering',
   'harvesting',
+  'primed',
 ];
 
 /**
@@ -372,6 +375,8 @@ export interface GameRules {
       readonly minHit: number;
       readonly maxStacks: number;
     };
+    /** Cortocircuito armado: el primer rival cercano que teja pierde su hechizo. */
+    readonly primed: { readonly ticks: number };
   };
   readonly interactions: {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */
