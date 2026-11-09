@@ -2,6 +2,7 @@ import { applyStatus, dealDamage } from '../combat/hit';
 import { add, clampToCircle, distance, length, normalize, scale, type Vec2 } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { placeInArena } from './obstacles';
 import { currentTarget, enemiesOf, isAlive } from './queries';
 import { spawnShrines } from './shrines';
 import type { MatchState, RoundPhase, Wizard } from './state';
@@ -69,7 +70,7 @@ export function updateFallen(state: MatchState, wizard: Wizard, rules: GameRules
 
   if (fallen.respawnTicks !== null && --fallen.respawnTicks <= 0) {
     standUp(wizard, wizard.maxHp);
-    wizard.pos = respawnPoint(state, wizard);
+    wizard.pos = placeInArena(respawnPoint(state, wizard), rules.wizard.radius, rules);
     state.events.push({ type: 'respawned', wizardId: wizard.id });
     return;
   }

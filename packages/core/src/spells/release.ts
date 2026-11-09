@@ -1,5 +1,6 @@
 import { applyHit } from '../combat/hit';
 import { damageBeast } from '../match/beasts';
+import { lineBlocked } from '../match/obstacles';
 import { currentTarget, enemiesOf } from '../match/queries';
 import type { MatchState, SpellPayload, Wizard } from '../match/state';
 import {
@@ -145,9 +146,11 @@ function releaseMark(
   const range = form.range * payload.rangeMultiplier;
   let best: Wizard | undefined;
   let bestAlignment = form.coneDot;
+  // La marca necesita ver a su blanco: un árbol o una roca en medio la cortan.
+  const seen = (pos: Vec2): boolean => !lineBlocked(caster.pos, pos, rules.map.obstacles);
   for (const enemy of enemiesOf(state, caster)) {
     const toEnemy = sub(enemy.pos, caster.pos);
-    if (length(toEnemy) > range) continue;
+    if (length(toEnemy) > range || !seen(enemy.pos)) continue;
     const alignment = dot(normalize(toEnemy), aim);
     if (alignment >= bestAlignment) {
       best = enemy;
@@ -161,7 +164,7 @@ function releaseMark(
   // Sin rival a la vista, la marca alcanza a una bestia.
   const beast = state.beasts.find((b) => {
     const toBeast = sub(b.pos, caster.pos);
-    return length(toBeast) <= range && dot(normalize(toBeast), aim) >= form.coneDot;
+    return length(toBeast) <= range && dot(normalize(toBeast), aim) >= form.coneDot && seen(b.pos);
   });
   if (beast) {
     state.events.push({ type: 'markBeast', wizardId: caster.id, beastId: beast.id });

@@ -203,3 +203,51 @@ function ring(ctx: CanvasRenderingContext2D, c: number, r: number, x = c, y = c)
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.stroke();
 }
+
+/**
+ * Suelo de la jungla: tierra oscura con manchas de musgo y hojarasca. La textura se repite
+ * sin costuras: cada mancha se dibuja también del otro lado del borde.
+ */
+export function createGroundTexture(): THREE.Texture {
+  const size = 512;
+  const [element, ctx] = canvas(size);
+  const random = seeded(11);
+  ctx.fillStyle = '#262520';
+  ctx.fillRect(0, 0, size, size);
+  const blob = (x: number, y: number, r: number, color: string): void => {
+    ctx.fillStyle = color;
+    for (const ox of [-size, 0, size]) {
+      for (const oy of [-size, 0, size]) {
+        ctx.beginPath();
+        ctx.arc(x + ox, y + oy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+  // Musgo verde azulado y tierra húmeda.
+  for (let i = 0; i < 120; i++) {
+    const moss = random() < 0.55;
+    blob(
+      random() * size,
+      random() * size,
+      10 + random() * 46,
+      moss ? 'rgba(52, 74, 52, 0.16)' : 'rgba(10, 9, 8, 0.22)',
+    );
+  }
+  // Hojarasca: puntitos cálidos.
+  for (let i = 0; i < 900; i++) {
+    const warm = random() < 0.5;
+    blob(
+      random() * size,
+      random() * size,
+      0.8 + random() * 2.2,
+      warm ? 'rgba(110, 82, 52, 0.35)' : 'rgba(70, 90, 60, 0.3)',
+    );
+  }
+  const texture = new THREE.CanvasTexture(element);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}

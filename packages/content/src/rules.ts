@@ -1,11 +1,13 @@
 import type { GameRules } from '@crisol/core';
+import { MAP, MAP_RADIUS } from './map';
 
 /**
  * Todos los números del combate. Valores iniciales del Hito 1: el simulador de balance
  * y las pruebas con amigos dirán cuáles mover. Tiempos en pasos (30 por segundo), distancias en metros.
  */
 export const GAME_RULES: GameRules = {
-  arenaRadius: 16,
+  arenaRadius: MAP_RADIUS,
+  map: MAP,
   wizard: {
     maxHp: 180,
     moveSpeed: 5.5,
@@ -70,8 +72,8 @@ export const GAME_RULES: GameRules = {
     durationTicks: 6 * 60 * 30,
     huntEndTick: 2 * 60 * 30,
     convergenceEndTick: 4 * 60 * 30,
-    convergenceRadius: 10,
-    finalRadius: 3,
+    convergenceRadius: 14,
+    finalRadius: 4,
     zoneDamagePerSecond: 12,
   },
   death: {

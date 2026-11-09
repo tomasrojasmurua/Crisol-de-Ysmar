@@ -1,6 +1,13 @@
 import type { Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 
+/** Distancia detrás del mago, altura y cuánto mira por delante, en metros. */
+const BACK = 7.2;
+const HEIGHT = 7.2;
+const AHEAD = 4;
+/** Más lejos que esto, el rival no gira la cámara: está detrás de la jungla. */
+const FACE_TARGET_RANGE = 18;
+
 /**
  * Cámara sobre el hombro: detrás del mago y mirando hacia su rival, con movimiento suave.
  * En el Hito 1 se comparó con una vista 3/4 y se eligió esta.
@@ -10,28 +17,40 @@ export class CameraRig {
   private readonly desiredLook = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private initialized = false;
+  private heading: THREE.Vector2 | null = null;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   /** Vista del menú: la cámara gira despacio alrededor del Crisol. */
   orbit(timeSeconds: number, deltaSeconds: number): void {
     const angle = timeSeconds * 0.06;
-    this.desiredPosition.set(Math.cos(angle) * 21, 7.5, Math.sin(angle) * 21);
+    this.desiredPosition.set(Math.cos(angle) * 26, 9, Math.sin(angle) * 26);
     this.desiredLook.set(0, 1.5, 0);
     this.blendTowards(deltaSeconds, 2);
   }
 
-  /** `shake` de 0 a 1 sacude la cámara al recibir un golpe fuerte. */
+  /**
+   * `shake` de 0 a 1 sacude la cámara al recibir un golpe fuerte. Si el rival está cerca, el
+   * duelo queda encuadrado cara a cara; si está lejos, la cámara conserva su dirección para que
+   * el joystick no cambie de sentido mientras uno camina por la jungla.
+   */
   update(player: Vec2, target: Vec2 | null, deltaSeconds: number, shake = 0): void {
-    // El duelo queda encuadrado cara a cara.
-    const dir = new THREE.Vector2(
-      (target?.x ?? player.x) - player.x,
-      (target?.z ?? player.z + 1) - player.z,
-    );
-    if (dir.lengthSq() < 1e-4) dir.set(0, 1);
-    dir.normalize();
-    this.desiredPosition.set(player.x - dir.x * 6.5, 4.6, player.z - dir.y * 6.5);
-    this.desiredLook.set(player.x + dir.x * 4, 1.2, player.z + dir.y * 4);
+    if (!this.heading) {
+      // Al empezar la ronda se mira hacia la plaza.
+      this.heading = new THREE.Vector2(-player.x, -player.z);
+      if (this.heading.lengthSq() < 1e-4) this.heading.set(0, 1);
+      this.heading.normalize();
+    }
+    if (target) {
+      const toTarget = new THREE.Vector2(target.x - player.x, target.z - player.z);
+      const distance = toTarget.length();
+      if (distance > 1e-2 && distance < FACE_TARGET_RANGE) {
+        this.heading.copy(toTarget.divideScalar(distance));
+      }
+    }
+    const dir = this.heading;
+    this.desiredPosition.set(player.x - dir.x * BACK, HEIGHT, player.z - dir.y * BACK);
+    this.desiredLook.set(player.x + dir.x * AHEAD, 1.2, player.z + dir.y * AHEAD);
 
     this.blendTowards(deltaSeconds, 6);
     if (shake > 0) {
@@ -44,6 +63,7 @@ export class CameraRig {
   /** Salta sin transición a la próxima posición, por ejemplo al empezar una ronda. */
   snap(): void {
     this.initialized = false;
+    this.heading = null;
   }
 
   private blendTowards(deltaSeconds: number, rate: number): void {
@@ -54,17 +74,20 @@ export class CameraRig {
     this.camera.lookAt(this.look);
   }
 
+  /** Hacia dónde mira la cámara, sobre el suelo. */
+  forward(): Vec2 {
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    const len = Math.hypot(forward.x, forward.z) || 1;
+    return { x: forward.x / len, z: forward.z / len };
+  }
+
   /**
    * Convierte una dirección de pantalla (derecha, arriba) a una dirección en el suelo,
    * según hacia dónde mira la cámara. Así "arriba" en el joystick siempre es "hacia adelante".
    */
   screenToGround(right: number, up: number): Vec2 {
-    const forward = new THREE.Vector3();
-    this.camera.getWorldDirection(forward);
-    const fx = forward.x;
-    const fz = forward.z;
-    const len = Math.hypot(fx, fz) || 1;
-    const f = { x: fx / len, z: fz / len };
+    const f = this.forward();
     // A la derecha de la cámara, mirando hacia adelante.
     const r = { x: -f.z, z: f.x };
     return { x: r.x * right + f.x * up, z: r.z * right + f.z * up };

@@ -4,6 +4,7 @@ import { el } from './dom';
 import type { WizardBadge } from './Hud';
 
 const LABEL_HEIGHT = 2.55;
+const BEAST_LABEL_RANGE = 26;
 const EDGE_MARGIN = 28;
 
 interface Label {
@@ -59,6 +60,7 @@ export class WorldLabels {
     playerTeam: number,
     badges: ReadonlyMap<number, WizardBadge>,
     _rules: GameRules,
+    seen: ReadonlySet<number>,
   ): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -73,8 +75,10 @@ export class WorldLabels {
       const x = ((this.projected.x + 1) / 2) * width;
       const y = ((1 - this.projected.y) / 2) * height;
       const onScreen = !behind && x > 0 && x < width && y > 0 && y < height;
+      // A un rival escondido en la jungla no se le ve el nombre a través de los árboles.
+      const hidden = wizard.team !== playerTeam && !seen.has(wizard.id);
 
-      label.root.hidden = !onScreen;
+      label.root.hidden = !onScreen || hidden;
       if (onScreen) {
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
         label.fill.style.width = `${(wizard.hp / wizard.maxHp) * 100}%`;
@@ -89,8 +93,8 @@ export class WorldLabels {
               : badgeName;
       }
 
-      // Flecha en el borde para rivales vivos fuera de la pantalla.
-      const showArrow = !onScreen && wizard.team !== playerTeam && wizard.hp > 0;
+      // Flecha en el borde para rivales vivos a la vista pero fuera de la pantalla.
+      const showArrow = !onScreen && !hidden && wizard.team !== playerTeam && wizard.hp > 0;
       label.arrow.hidden = !showArrow;
       if (showArrow) {
         let dx = this.projected.x * (behind ? -1 : 1);
@@ -138,7 +142,11 @@ export class WorldLabels {
       const y = ((1 - this.projected.y) / 2) * height;
       const onScreen = this.projected.z < 1 && x > 0 && x < width && y > 0 && y < height;
       const interesting = beast.hp < rules.beasts.maxHp || beast.targetId !== null;
-      label.root.hidden = !onScreen;
+      // Las bestias de campamentos lejanos no llenan la pantalla de nombres.
+      const near =
+        Math.hypot(camera.position.x - beast.pos.x, camera.position.z - beast.pos.z) <
+        BEAST_LABEL_RANGE;
+      label.root.hidden = !onScreen || !near;
       label.root.classList.toggle('calm', !interesting);
       if (onScreen) {
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;

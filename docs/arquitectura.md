@@ -33,7 +33,13 @@ apps/client   apps/server   apps/balance
   mago; `spells/payload.ts` los aplica al lanzar junto con la Esencia y el estado potenciado.
 - La Afinidad viaja en `WizardSetup.affinity` (para dibujarla) y su efecto entra como otro cambio de
   `mods` con `affinityPatch`; los multiplicadores viven en `content/affinity.ts`.
+- El mapa vive en `content/map.ts` (se arma con semilla fija) y llega al núcleo como
+  `rules.map`. `match/obstacles.ts` empuja a los magos fuera de los obstáculos, corta proyectiles
+  y revisa la línea de visión; `ai/navigation.ts` le da a los bots caminos con A* sobre una grilla.
 - `match/series.ts` lleva el mejor de 3 y `match/modes.ts` arma duelo, equipos y todos contra todos.
+- En el cliente, `render/arena/JungleView.ts` dibuja la jungla con mallas instanciadas (lo que
+  queda entre la cámara y tu mago se transparenta), `ui/Minimap.ts` muestra el mapa y
+  `game/Sight.ts` decide qué rivales se ven.
 - En el cliente, `game/LocalMatch.ts` encadena rondas con bots, ofrece Glifos entre rondas y sortea el Presagio y las Afinidades de los bots; la red del Hito 2 reemplazará
   solo a los controladores.
 

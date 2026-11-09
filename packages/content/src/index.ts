@@ -11,6 +11,7 @@ export {
 export { ELEMENTS } from './elements';
 export { BEAST_NAMES, GLYPHS, type Glyph, OMENS, type Omen } from './glyphs';
 export { ALL_WEAVES, spellName, weaveKey } from './grimoire';
+export { MAP, MAP_DECOR, MAP_RADIUS } from './map';
 export { WIZARD_NAMES } from './names';
 export { GAME_RULES } from './rules';
 export {

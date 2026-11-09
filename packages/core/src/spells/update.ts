@@ -1,5 +1,6 @@
 import { applyHit } from '../combat/hit';
 import { damageBeast } from '../match/beasts';
+import { obstacleAt, placeInArena } from '../match/obstacles';
 import { enemiesOf } from '../match/queries';
 import type { MatchState, Projectile, SpellEntity, Trap, Wall, Wizard } from '../match/state';
 import { add, distance, distanceToSegment, length, scale } from '../math/vec2';
@@ -68,6 +69,11 @@ function updateProjectile(
     }
   }
 
+  if (obstacleAt(projectile.pos, radius, rules.map.obstacles)) {
+    state.events.push({ type: 'blocked', pos: projectile.pos });
+    return false;
+  }
+
   const outOfArena = length(projectile.pos) > rules.arenaRadius + 2;
   return projectile.travelled < projectile.maxRange && !outOfArena;
 }
@@ -100,6 +106,8 @@ export function updateLeap(state: MatchState, wizard: Wizard, rules: GameRules):
   }
   if (--leap.ticksLeft > 0) return;
 
+  // El salto pasa por encima de árboles y rocas, pero se aterriza en suelo libre.
+  wizard.pos = placeInArena(wizard.pos, rules.wizard.radius, rules);
   wizard.leap = null;
   for (const enemy of enemiesOf(state, wizard)) {
     if (distance(enemy.pos, wizard.pos) <= rules.forms.leap.impactRadius) {
