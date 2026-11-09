@@ -1,7 +1,9 @@
 # Diseño del juego
 
-El documento de diseño completo vive en Claude:
-[Crisol de Ysmar — Documento de diseño](https://claude.ai/artifact/XHtqacr1RYXWjWLzu5WB7z).
+El documento de diseño original está copiado en
+[traspaso/referencia/diseno-original.md](traspaso/referencia/diseno-original.md), y el de cada hechizo
+en [traspaso/referencia/rediseno-hechizos.md](traspaso/referencia/rediseno-hechizos.md). Lo que sigue
+es lo vigente.
 
 ## Decisiones clave
 
