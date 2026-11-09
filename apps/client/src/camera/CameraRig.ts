@@ -7,6 +7,7 @@ const HEIGHT = 7.2;
 const AHEAD = 4;
 /** Más lejos que esto, el rival no gira la cámara: está detrás de la jungla. */
 const FACE_TARGET_RANGE = 18;
+const MANUAL_HOLD_SECONDS = 4;
 
 /**
  * Cámara sobre el hombro: detrás del mago y mirando hacia su rival, con movimiento suave.
@@ -18,6 +19,8 @@ export class CameraRig {
   private readonly look = new THREE.Vector3();
   private initialized = false;
   private heading: THREE.Vector2 | null = null;
+  /** Segundos que la cámara respeta el giro que hizo el jugador antes de volver a seguir al rival. */
+  private manualHold = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -41,7 +44,8 @@ export class CameraRig {
       if (this.heading.lengthSq() < 1e-4) this.heading.set(0, 1);
       this.heading.normalize();
     }
-    if (target) {
+    this.manualHold = Math.max(0, this.manualHold - deltaSeconds);
+    if (target && this.manualHold === 0) {
       const toTarget = new THREE.Vector2(target.x - player.x, target.z - player.z);
       const distance = toTarget.length();
       if (distance > 1e-2 && distance < FACE_TARGET_RANGE) {
@@ -60,10 +64,18 @@ export class CameraRig {
     }
   }
 
+  /** Gira la cámara alrededor del mago; por un rato no se acomoda sola hacia el rival. */
+  rotate(radians: number): void {
+    if (!this.heading) return;
+    this.heading.rotateAround(new THREE.Vector2(0, 0), radians);
+    this.manualHold = MANUAL_HOLD_SECONDS;
+  }
+
   /** Salta sin transición a la próxima posición, por ejemplo al empezar una ronda. */
   snap(): void {
     this.initialized = false;
     this.heading = null;
+    this.manualHold = 0;
   }
 
   private blendTowards(deltaSeconds: number, rate: number): void {

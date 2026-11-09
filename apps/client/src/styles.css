@@ -39,6 +39,7 @@ body {
 #game {
   position: fixed;
   inset: 0;
+  touch-action: none;
   width: 100%;
   height: 100%;
   display: block;
@@ -1401,25 +1402,22 @@ body {
 
 .hud-discovery {
   position: absolute;
-  top: calc(var(--safe-top) + 96px);
+  top: calc(var(--safe-top) + 92px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 22px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(243, 223, 176, 0.45);
-  background: radial-gradient(ellipse at center, rgba(40, 32, 18, 0.9), rgba(12, 10, 16, 0.88));
-  box-shadow:
-    0 0 30px rgba(243, 223, 176, 0.3),
-    0 10px 30px rgba(0, 0, 0, 0.5);
+  gap: 8px;
+  padding: 5px 14px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 223, 176, 0.35);
+  background: rgba(14, 12, 18, 0.72);
+  box-shadow: 0 0 16px rgba(243, 223, 176, 0.18);
   white-space: nowrap;
 }
 
 .hud-discovery.show {
-  animation: discovery 3.2s ease both;
+  animation: discovery 2.6s ease both;
 }
 
 @keyframes discovery {
@@ -1444,27 +1442,27 @@ body {
 }
 
 .hud-discovery-kicker {
-  font-size: 10px;
-  letter-spacing: 0.3em;
+  font-size: 9px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
 }
 
 .hud-discovery-name {
   font-family: var(--display);
-  font-size: 18px;
+  font-size: 14px;
   color: var(--gold-bright);
   text-shadow: 0 0 14px rgba(243, 223, 176, 0.6);
 }
 
 .hud-discovery-count {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--ink-quiet);
 }
 
 .hud-discovery .weave-orb {
-  width: 13px;
-  height: 13px;
+  width: 9px;
+  height: 9px;
 }
 
 /* Minimapa: arriba a la derecha, redondo como el Crisol. */

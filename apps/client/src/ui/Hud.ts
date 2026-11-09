@@ -126,7 +126,7 @@ export class Hud {
   celebrateDiscovery(name: string, orbs: HTMLElement, known: number, total: number): void {
     query(this.discovery, '.hud-discovery-orbs').replaceChildren(orbs);
     query(this.discovery, '.hud-discovery-name').textContent = name;
-    query(this.discovery, '.hud-discovery-count').textContent = `Grimorio ${known}/${total}`;
+    query(this.discovery, '.hud-discovery-count').textContent = `${known}/${total}`;
     this.discovery.hidden = false;
     this.discovery.classList.remove('show');
     void this.discovery.offsetWidth;
@@ -134,7 +134,7 @@ export class Hud {
     window.clearTimeout(this.discoveryTimer);
     this.discoveryTimer = window.setTimeout(() => {
       this.discovery.hidden = true;
-    }, 3200);
+    }, 2600);
   }
 
   /** El Presagio de la partida queda a la vista bajo el reloj. */
