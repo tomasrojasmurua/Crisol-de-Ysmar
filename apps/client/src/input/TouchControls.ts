@@ -21,7 +21,6 @@ export class TouchControls {
   constructor(
     private readonly root: HTMLElement,
     private readonly input: PlayerInput,
-    private readonly onToggleCamera: () => void,
   ) {
     this.buildJoystick();
     this.buildWeavePad();
@@ -191,8 +190,6 @@ export class TouchControls {
         this.input.push({ type: 'cast', aim: null });
       } else if (key === 'x' || key === 'backspace') {
         this.input.push({ type: 'cancel' });
-      } else if (key === 'c') {
-        this.onToggleCamera();
       }
       this.updateKeyboardMove();
     });

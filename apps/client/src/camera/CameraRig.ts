@@ -1,19 +1,11 @@
 import type { Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 
-export type CameraMode = 'thirdPerson' | 'isometric';
-
-export const CAMERA_LABELS: Record<CameraMode, string> = {
-  thirdPerson: '3ª persona',
-  isometric: 'Vista 3/4',
-};
-
 /**
- * Cámaras intercambiables. Ninguna cambia el juego: solo deciden desde dónde se mira.
- * El cambio entre ellas es suave para poder compararlas en plena pelea.
+ * Cámara sobre el hombro: detrás del mago y mirando hacia su rival, con movimiento suave.
+ * En el Hito 1 se comparó con una vista 3/4 y se eligió esta.
  */
 export class CameraRig {
-  mode: CameraMode = 'thirdPerson';
   private readonly desiredPosition = new THREE.Vector3();
   private readonly desiredLook = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
@@ -21,26 +13,16 @@ export class CameraRig {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
-  toggle(): CameraMode {
-    this.mode = this.mode === 'thirdPerson' ? 'isometric' : 'thirdPerson';
-    return this.mode;
-  }
-
   update(player: Vec2, target: Vec2 | null, deltaSeconds: number): void {
-    if (this.mode === 'thirdPerson') {
-      // Detrás del mago, mirando hacia su rival: el duelo queda encuadrado cara a cara.
-      const dir = new THREE.Vector2(
-        (target?.x ?? player.x) - player.x,
-        (target?.z ?? player.z + 1) - player.z,
-      );
-      if (dir.lengthSq() < 1e-4) dir.set(0, 1);
-      dir.normalize();
-      this.desiredPosition.set(player.x - dir.x * 6.5, 4.6, player.z - dir.y * 6.5);
-      this.desiredLook.set(player.x + dir.x * 4, 1.2, player.z + dir.y * 4);
-    } else {
-      this.desiredPosition.set(player.x, 11, player.z - 7.5);
-      this.desiredLook.set(player.x, 0.5, player.z + 1);
-    }
+    // El duelo queda encuadrado cara a cara.
+    const dir = new THREE.Vector2(
+      (target?.x ?? player.x) - player.x,
+      (target?.z ?? player.z + 1) - player.z,
+    );
+    if (dir.lengthSq() < 1e-4) dir.set(0, 1);
+    dir.normalize();
+    this.desiredPosition.set(player.x - dir.x * 6.5, 4.6, player.z - dir.y * 6.5);
+    this.desiredLook.set(player.x + dir.x * 4, 1.2, player.z + dir.y * 4);
 
     const blend = this.initialized ? 1 - Math.exp(-deltaSeconds * 6) : 1;
     this.initialized = true;

@@ -1,7 +1,7 @@
 import { GAME_RULES } from '@crisol/content';
 import { FixedStepClock, TICK_MS } from '@crisol/core';
 import * as THREE from 'three';
-import { CameraRig } from './camera/cameraRigs';
+import { CameraRig } from './camera/CameraRig';
 import { LocalDuel } from './game/LocalDuel';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { HumanController } from './input/HumanController';
@@ -34,13 +34,11 @@ const human = new HumanController(input, (screen) => rig.screenToGround(screen.r
 const newSeed = (): number => (Math.random() * 2 ** 32) >>> 0;
 const duel = new LocalDuel(rules, human, newSeed());
 
-const toggleCamera = (): void => hud.setCamera(rig.toggle());
-const hud = new Hud(uiRoot, toggleCamera, () => {
+const hud = new Hud(uiRoot, () => {
   duel.restart(newSeed());
   hud.hideResult();
 });
-hud.setCamera(rig.mode);
-const controls = new TouchControls(uiRoot, input, toggleCamera);
+const controls = new TouchControls(uiRoot, input);
 
 const playerView = new WizardView(true, rules);
 const rivalView = new WizardView(false, rules);
