@@ -2,6 +2,7 @@ import { ELEMENT_IDS } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
 import { ELEMENTS } from './elements';
+import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
 import { GAME_RULES } from './rules';
 
 describe('tablas de contenido', () => {
@@ -36,5 +37,19 @@ describe('reglas de combate', () => {
     const [one, two, three] = GAME_RULES.weave.castTicksByLength;
     expect(one).toBeLessThan(two);
     expect(two).toBeLessThan(three);
+  });
+});
+
+describe('Grimorio', () => {
+  it('hay 155 tejidos y cada uno tiene un nombre y una clave únicos', () => {
+    expect(ALL_WEAVES).toHaveLength(155);
+    expect(new Set(ALL_WEAVES.map(spellName)).size).toBe(155);
+    expect(new Set(ALL_WEAVES.map(weaveKey)).size).toBe(155);
+  });
+
+  it('el nombre sigue el orden del tejido', () => {
+    expect(spellName(['brasa'])).toBe('Dardo ígneo');
+    expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Muro de brasas y sombra');
+    expect(spellName(['raiz', 'tormenta', 'tormenta'])).toBe('Trampa de trueno doble');
   });
 });

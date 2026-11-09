@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BotController } from '../ai/bot';
 import type { Intent } from '../controllers/intent';
-import { combineMods } from '../mods';
+import { affinityPatch, combineMods } from '../mods';
 import type { GameRules } from '../rules';
 import { TEST_RULES } from '../testing/rules.fixture';
 import { createMatch, type WizardSetup } from './createMatch';
@@ -138,6 +138,27 @@ describe('Glifos y Presagios', () => {
     expect(player.channel?.ticksLeft).toBe(Math.round(rules.weave.castTicksByLength[1] * 0.5) - 1);
     run(state, 20);
     expect(player.hp).toBeGreaterThan(50);
+  });
+});
+
+describe('Afinidad', () => {
+  it('el hilo propio descansa antes y los opuestos después', () => {
+    const mods = combineMods(affinityPatch('brasa', 0.75, 1.15));
+    expect(mods.fatigue.brasa).toBe(0.75);
+    expect(mods.fatigue.marea).toBe(1.15);
+    expect(mods.fatigue.raiz).toBe(1.15);
+    expect(mods.fatigue.tormenta).toBe(1);
+
+    const state = match([
+      { team: 0, spawn: { x: 0, z: 0 }, mods, affinity: 'brasa' },
+      { team: 1, spawn: { x: 12, z: 0 } },
+    ]);
+    expect(wizard(state, 1).affinity).toBe('brasa');
+    expect(wizard(state, 2).affinity).toBeNull();
+    run(state, 12, brasaForward);
+    const expected = Math.round(rules.weave.fatigueTicks * 0.75) - 12 + 1;
+    expect(wizard(state, 1).fatigue.brasa).toBeLessThanOrEqual(expected);
+    expect(wizard(state, 1).fatigue.brasa).toBeGreaterThan(0);
   });
 });
 

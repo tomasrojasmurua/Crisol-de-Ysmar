@@ -1,5 +1,7 @@
-import type { DeathRule, GameMode } from '@crisol/core';
+import { ELEMENTS } from '@crisol/content';
+import type { DeathRule, ElementId, GameMode } from '@crisol/core';
 import type { MatchOptions } from '../game/LocalMatch';
+import type { Profile } from '../game/Profile';
 import { el, query } from './dom';
 
 interface ModeChoice {
@@ -42,8 +44,18 @@ export class Menu {
   private readonly root: HTMLElement;
   private modeId = 'duel';
   private deathRule: DeathRule = 'spectre';
+  private affinity: ElementId | null = null;
+  private readonly wizardName: HTMLElement;
+  private readonly wizardAffinity: HTMLElement;
+  private readonly wizardButton: HTMLElement;
+  private readonly grimoireCount: HTMLElement;
 
-  constructor(parent: HTMLElement, onPlay: (options: MatchOptions) => void) {
+  constructor(
+    parent: HTMLElement,
+    onPlay: (options: MatchOptions) => void,
+    onWardrobe: () => void,
+    onGrimoire: () => void,
+  ) {
     this.restore();
     this.root = el('div', 'menu');
     this.root.innerHTML = `
@@ -52,6 +64,20 @@ export class Menu {
         <p class="menu-kicker">Un duelo de hechiceros</p>
         <h1>Crisol de Ysmar</h1>
         <p class="menu-tagline">Teje la magia. Lee al rival. Sobrevive al Crisol.</p>
+        <div class="menu-identity">
+          <button type="button" class="menu-wizard">
+            <span class="menu-wizard-sigil"></span>
+            <span class="menu-wizard-text">
+              <strong class="menu-wizard-name"></strong>
+              <span class="menu-wizard-affinity"></span>
+            </span>
+            <span class="menu-wizard-edit">Vestidor</span>
+          </button>
+          <button type="button" class="menu-grimoire">
+            <strong>Grimorio</strong>
+            <span class="menu-grimoire-count"></span>
+          </button>
+        </div>
       </header>
       <section class="menu-panel">
         <h2>Modo</h2>
@@ -61,6 +87,12 @@ export class Menu {
         <button type="button" class="primary menu-play">Entrar al Crisol</button>
       </section>`;
     parent.append(this.root);
+    this.wizardName = query(this.root, '.menu-wizard-name');
+    this.wizardAffinity = query(this.root, '.menu-wizard-affinity');
+    this.wizardButton = query(this.root, '.menu-wizard');
+    this.grimoireCount = query(this.root, '.menu-grimoire-count');
+    this.wizardButton.addEventListener('click', onWardrobe);
+    query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);
 
     const modes = query(this.root, '.menu-modes');
     for (const choice of MODES) {
@@ -95,7 +127,21 @@ export class Menu {
 
   get options(): MatchOptions {
     const choice = MODES.find((m) => m.id === this.modeId) ?? MODES[0];
-    return { mode: choice?.mode ?? { kind: 'duel' }, deathRule: this.deathRule };
+    return {
+      mode: choice?.mode ?? { kind: 'duel' },
+      deathRule: this.deathRule,
+      affinity: this.affinity,
+    };
+  }
+
+  /** Muestra quién eres, tu Afinidad y cuánto llevas del Grimorio. */
+  setIdentity(profile: Profile, known: number, total: number): void {
+    this.affinity = profile.affinity;
+    const element = ELEMENTS.find((e) => e.id === profile.affinity);
+    this.wizardName.textContent = profile.name || 'Hechicero sin nombre';
+    this.wizardAffinity.textContent = element ? `Afinidad: ${element.name}` : 'Sin Afinidad';
+    this.wizardButton.style.setProperty('--element', element?.color ?? '#d8bf8a');
+    this.grimoireCount.textContent = `${known} de ${total}`;
   }
 
   set visible(value: boolean) {

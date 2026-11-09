@@ -168,7 +168,10 @@ export class BotController implements Controller {
     const length = this.rng.int(1, MAX_WEAVE_LENGTH);
     const elements: ElementId[] = [first];
     while (elements.length < length) {
-      elements.push(this.pick(available));
+      // Cada tanto refuerza el conjuro con su propio hilo, que se cansa menos.
+      const own = self.affinity;
+      const preferOwn = own !== null && available.includes(own) && this.rng.next() < 0.35;
+      elements.push(preferOwn && own ? own : this.pick(available));
     }
     return { elements, aimMode };
   }

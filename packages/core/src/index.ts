@@ -47,7 +47,7 @@ export type {
 export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';
-export { combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';
+export { affinityPatch, combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';
 export type {
   BeastRules,
   DeathRules,

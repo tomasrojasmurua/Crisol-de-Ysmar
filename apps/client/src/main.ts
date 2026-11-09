@@ -1,15 +1,36 @@
-import { BEAST_NAMES, ELEMENTS, GAME_RULES, WIZARD_NAMES } from '@crisol/content';
 import {
+  BEAST_NAMES,
+  ELEMENTS,
+  GAME_RULES,
+  ROBE_COLORS,
+  SKIN_TONES,
+  spellName,
+  TRIM_COLORS,
+  WIZARD_NAMES,
+} from '@crisol/content';
+import {
+  createMatch,
   currentTarget,
+  type ElementId,
   FixedStepClock,
   type GameEvent,
   isSpectre,
   SeededRng,
   TICK_MS,
+  type Wizard,
 } from '@crisol/core';
 import * as THREE from 'three';
 import { CameraRig } from './camera/CameraRig';
+import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
+import {
+  type Appearance,
+  loadProfile,
+  lookColor,
+  type Profile,
+  randomAppearance,
+  saveProfile,
+} from './game/Profile';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
@@ -24,10 +45,12 @@ import { teamColorHex } from './render/palette';
 import { PostProcessing } from './render/postprocessing';
 import { SpellViews } from './render/SpellViews';
 import { TargetMarker } from './render/TargetMarker';
-import { WizardView } from './render/WizardView';
+import { type WizardLook, WizardView } from './render/WizardView';
 import { GlyphPicker } from './ui/GlyphPicker';
+import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
 import { Menu } from './ui/Menu';
+import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
 
 const rules = GAME_RULES;
@@ -78,7 +101,25 @@ const hud = new Hud(
   () => startMatch(match?.options ?? menu.options),
   () => showMenu(),
 );
-const menu = new Menu(uiRoot, (options) => startMatch(options));
+let profile = loadProfile();
+const grimoire = new Grimoire();
+const menu = new Menu(
+  uiRoot,
+  (options) => startMatch(options),
+  () => openWardrobe(),
+  () => openGrimoire(),
+);
+const wardrobe = new Wardrobe(
+  uiRoot,
+  (draft) => showPreview(draft),
+  (done) => {
+    profile = done;
+    saveProfile(profile);
+    closeOverlays();
+  },
+  profile,
+);
+const grimoireBook = new GrimoireBook(uiRoot, () => closeOverlays());
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
@@ -95,6 +136,98 @@ const elementName = (element: string): string =>
   ELEMENTS.find((e) => e.id === element)?.name ?? element;
 const beastName = (element: string): string =>
   BEAST_NAMES[element as keyof typeof BEAST_NAMES] ?? 'Bestia';
+
+/** El aspecto de un mago en pantalla: sus piezas, su Afinidad y el color de su bando. */
+function lookOf(
+  look: Appearance,
+  affinity: ElementId | null,
+  teamColor: string,
+  isPlayer: boolean,
+): WizardLook {
+  return {
+    teamColor,
+    isPlayer,
+    robe: lookColor(ROBE_COLORS, look.robe),
+    trim: lookColor(TRIM_COLORS, look.trim),
+    skin: lookColor(SKIN_TONES, look.skin),
+    headwear: look.headwear,
+    focus: look.focus,
+    affinity,
+  };
+}
+
+// ---------- Vestidor y Grimorio ----------
+
+/** El mago del Vestidor: un mago quieto en el centro de la arena que gira despacio. */
+let preview: { view: WizardView; wizard: Wizard } | null = null;
+// Luz de estudio para el Vestidor: una principal cálida y un contraluz frío.
+const previewKey = new THREE.PointLight('#ffe2bd', 0, 14, 1.4);
+const previewRim = new THREE.PointLight('#9fb6ff', 0, 12, 1.4);
+previewKey.position.set(-1.6, 2.8, -2.6);
+previewRim.position.set(1.4, 2.4, 1.8);
+scene.add(previewKey, previewRim);
+
+function showPreview(draft: Profile): void {
+  preview?.view.dispose();
+  const state = createMatch(
+    { seed: 1, deathRule: 'spectre', wizards: [{ team: 0, spawn: { x: 0, z: 0 } }] },
+    rules,
+  );
+  const wizard = state.wizards[0];
+  if (!wizard) return;
+  const view = new WizardView(
+    lookOf(draft.look, draft.affinity, '#e8d7a8', true),
+    rules,
+    particles,
+  );
+  scene.add(view.group);
+  preview = { view, wizard };
+  previewKey.intensity = 22;
+  previewRim.intensity = 14;
+}
+
+function hidePreview(): void {
+  preview?.view.dispose();
+  preview = null;
+  previewKey.intensity = 0;
+  previewRim.intensity = 0;
+}
+
+function openWardrobe(): void {
+  menu.visible = false;
+  wardrobe.show(profile);
+  showPreview(profile);
+}
+
+function openGrimoire(): void {
+  menu.visible = false;
+  grimoireBook.show(grimoire);
+}
+
+function closeOverlays(): void {
+  wardrobe.hide();
+  grimoireBook.hide();
+  hidePreview();
+  menu.setIdentity(profile, grimoire.count, grimoire.total);
+  menu.visible = true;
+}
+
+/** Cámara del Vestidor: el mago a un lado y el panel al otro. */
+function previewCamera(time: number, delta: number): void {
+  if (!preview) return;
+  const { view, wizard } = preview;
+  const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
+  wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
+  view.update(wizard, 0, 0, time, delta, false, rules);
+  const portrait = window.innerWidth < window.innerHeight;
+  if (portrait) {
+    camera.position.set(0, 1.7, -7.2);
+    camera.lookAt(0, -1.3, 0);
+  } else {
+    camera.position.set(-1.1, 1.55, -3.9);
+    camera.lookAt(-1.1, 1.05, 0);
+  }
+}
 
 /** Color del bando de un equipo, a partir de cualquiera de sus magos. */
 function teamColor(team: number): string {
@@ -114,6 +247,10 @@ function showMenu(): void {
   labels.visible = false;
   controls.visible = false;
   hud.hideResult();
+  wardrobe.hide();
+  grimoireBook.hide();
+  hidePreview();
+  menu.setIdentity(profile, grimoire.count, grimoire.total);
 }
 
 function startMatch(options: MatchOptions): void {
@@ -130,16 +267,24 @@ function startMatch(options: MatchOptions): void {
   for (const wizard of current.state.wizards) {
     const isPlayer = wizard.id === PLAYER_ID;
     const name = isPlayer
-      ? 'Tú'
+      ? profile.name || 'Tú'
       : (names.splice(rng.int(0, names.length - 1), 1)[0] ?? 'Hechicero');
     badges.set(wizard.id, { name, color: teamColorHex(wizard.team, player.team, isPlayer, ffa) });
   }
 
   clearWizards();
   for (const wizard of current.state.wizards) {
+    const isPlayer = wizard.id === PLAYER_ID;
+    const look = isPlayer ? profile.look : randomAppearance(rng);
     const view = new WizardView(
-      { teamColor: badges.get(wizard.id)?.color ?? '#ffffff', isPlayer: wizard.id === PLAYER_ID },
+      lookOf(
+        look,
+        current.affinities.get(wizard.id) ?? null,
+        badges.get(wizard.id)?.color ?? '#ffffff',
+        isPlayer,
+      ),
       rules,
+      particles,
     );
     scene.add(view.group);
     wizardViews.set(wizard.id, view);
@@ -155,6 +300,7 @@ function startMatch(options: MatchOptions): void {
   resultShown = false;
   pickerShown = false;
   hud.setOmen(current.omen.name, current.omen.description);
+  hud.setPlayerName(profile.name);
   rig.snap();
 }
 
@@ -166,7 +312,16 @@ function clearWizards(): void {
 /** Avisos de la partida según lo que pasó en el paso. */
 function announceEvents(events: readonly GameEvent[], current: LocalMatch): void {
   for (const event of events) {
-    if (event.type === 'phase') {
+    if (event.type === 'cast' && event.wizardId === PLAYER_ID) {
+      if (grimoire.discover(event.weave)) {
+        hud.celebrateDiscovery(
+          spellName(event.weave),
+          weaveOrbs(event.weave),
+          grimoire.count,
+          grimoire.total,
+        );
+      }
+    } else if (event.type === 'phase') {
       hud.announcePhase(event.phase);
     } else if (event.type === 'defeated' && event.wizardId === PLAYER_ID) {
       const subtitle =
@@ -312,6 +467,9 @@ renderer.setAnimationLoop((now) => {
     }
     updateMatchFlow(current);
     renderMatch(current, alpha, delta);
+  } else if (preview) {
+    previewCamera(elapsed, delta);
+    zone.update(rules.arenaRadius, elapsed);
   } else {
     rig.orbit(elapsed, delta);
     zone.update(rules.arenaRadius, elapsed);
@@ -375,6 +533,8 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
 }
 
 showMenu();
+// La primera vez eliges nombre y personaje.
+if (!profile.name) openWardrobe();
 
 // Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
 if (import.meta.env.DEV) {
