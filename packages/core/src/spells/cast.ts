@@ -413,7 +413,7 @@ export function castSpell(
   // Atacar desde el Velo lo rompe, y ese hechizo pega más. Moverse o curarse no lo rompe.
   const breaksVeil = caster.statuses.veiled !== undefined && !QUIET.has(spell);
   if (breaksVeil) delete caster.statuses.veiled;
-  // Con el Lamento encima, los hechizos salen pero no hacen daño.
+  // Con el Réquiem encima, los hechizos salen pero no hacen daño.
   const muted = caster.statuses.muted ? 0 : 1;
   const bonus = (breaksVeil ? rules.statuses.veiled.damageMultiplier : 1) * muted;
   const aim = resolveAim(state, caster, rawAim, rules, leadSpeedOf(spell, rules));

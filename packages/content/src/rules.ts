@@ -128,7 +128,7 @@ export const GAME_RULES: GameRules = {
     robbed: { ticks: 180 },
     // Bruma del olvido: 6 segundos sin poder repetir el último hechizo.
     forgetful: { ticks: 180 },
-    // Lamento: 3 segundos en que sus hechizos no hacen daño.
+    // Réquiem: 3 segundos en que sus hechizos no hacen daño.
     muted: { ticks: 90 },
     // Pararrayos humano: 3 segundos atrayendo proyectiles a 6 m.
     attracting: { ticks: 90, radius: 6, pull: 0.25 },

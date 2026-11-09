@@ -427,7 +427,7 @@ export const SPELL_RULES: GameRules['spells'] = {
   oath: { range: 9, coneDot: 0.7 },
   // Umbra → Tormenta → Brasa · Sombra lanzada: a 10 m; 4 s para tocar ✦ sin tejer y aparecer en ella.
   thrownShadow: { distance: 10, durationTicks: 120 },
-  // Umbra → Marea → Brasa · Lamento: cono de 6 m; lo mudo lo da el estado `muted`.
+  // Umbra → Marea → Brasa · Réquiem: cono de 6 m; lo mudo lo da el estado `muted`.
   lament: { range: 6, coneDot: 0.5 },
   // Umbra → Marea → Marea · Llanto del abismo: la duración y el alcance los da el estado `wailing`.
   abyssWail: {},

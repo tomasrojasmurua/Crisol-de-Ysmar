@@ -60,7 +60,7 @@ export function empowerPayload(
     multiplier *= rules.statuses.forged.damageMultiplier;
     delete caster.statuses.forged;
   }
-  // Con el Lamento encima no pega: tampoco quema ni maldice.
+  // Con el Réquiem encima no pega: tampoco quema ni maldice.
   if (multiplier === 0) {
     const statuses = payload.statuses.filter((s) => !DAMAGING.has(s));
     return { ...payload, damage: 0, statuses };

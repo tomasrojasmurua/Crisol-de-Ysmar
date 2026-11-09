@@ -62,7 +62,7 @@ Valores de partida. "Cono" quiere decir que el hechizo busca al rival hacia dond
 | Umbra → Brasa → Marea       | **Mal de ojo**            | 5 s: al rival se le corren de lugar los botones de elementos (y las teclas 1-5).                 |
 | Umbra → Brasa → Umbra       | **Juramento**             | 3 s: ni tú ni el rival marcado pueden hacerse daño.                                              |
 | Umbra → Tormenta → Brasa    | **Sombra lanzada**        | Tu sombra vuela 10 m; en 4 s, tocar ✦ sin tejer te lleva a ella.                                 |
-| Umbra → Marea → Brasa       | **Lamento**               | Cono de 6 m: por 3 s, los hechizos de esos rivales no hacen daño ni queman.                      |
+| Umbra → Marea → Brasa       | **Réquiem**               | Cono de 6 m: por 3 s, los hechizos de esos rivales no hacen daño ni queman.                      |
 | Umbra → Marea → Marea       | **Llanto del abismo**     | 5 s: los proyectiles a 3 m quedan flotando; al terminar salen hacia donde miras, ya tuyos.       |
 | Umbra → Marea → Umbra       | **Transfusión**           | Si tienes menos vida que el rival, intercambian el porcentaje. Una vez por ronda.                |
 | Umbra → Raíz → Brasa        | **Muñeco vudú**           | Un muñeco frente a ti por 6 s: todo el daño que le hagas lo recibe el rival marcado.             |
@@ -85,7 +85,8 @@ el premio de Hambre de ceniza y de Venganza llegaba tarde.
 3. **Sombra lanzada** usa ✦ sin tejer para saltar a la sombra.
 4. **Relámpago guiado** se dirige con el joystick: mientras dura, el mago no camina.
 5. **Instante** usa un estado propio (`halted`), igual al Ataúd helado pero sobre el rival.
-6. **Lamento**: además de no hacer daño, los hechizos de quien lo tiene no queman ni maldicen.
+6. **Réquiem** (en el documento, Lamento; se cambió para no confundirlo con el lamento del
+   Espectro): además de no hacer daño, los hechizos de quien lo tiene no queman ni maldicen.
 7. **Mal de ojo** es un estado del núcleo (`hexed`, con cuántos lugares rotan los botones). Lo
    resuelve la pantalla de quien lo sufre, así que con la Sala solo hay que enviar el estado.
    Los bots no lo sienten.
@@ -97,7 +98,6 @@ el premio de Hambre de ceniza y de Venganza llegaba tarde.
 
 ## Para decidir jugando
 
-- **Lamento** se llama igual que el lamento del Espectro. ¿Cambiamos uno de los dos nombres?
 - **Juramento** e **Injerto** son de equipo; en 1v1 Juramento solo sirve para ganar tiempo.
 - **Sombra fatal** y **Transfusión** cambian una ronda de golpe: vigilar si se sienten injustas.
 - **Mal de ojo**: probar si en el celular se entiende o frustra demasiado.

@@ -157,7 +157,7 @@ export const SPELL_NAMES: Readonly<Record<SpellId, string>> = {
   evilEye: 'Mal de ojo',
   oath: 'Juramento',
   thrownShadow: 'Sombra lanzada',
-  lament: 'Lamento',
+  lament: 'Réquiem',
   abyssWail: 'Llanto del abismo',
   transfusion: 'Transfusión',
   voodooDoll: 'Muñeco vudú',

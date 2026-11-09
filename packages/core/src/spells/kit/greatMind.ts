@@ -310,7 +310,7 @@ export function castPickpocket(ctx: CastContext): void {
   ctx.state.events.push({ type: 'zap', from: rival.pos, to: ctx.caster.pos });
 }
 
-/** Lamento: los rivales en un cono no pueden hacer daño con sus hechizos por un rato. */
+/** Réquiem: los rivales en un cono no pueden hacer daño con sus hechizos por un rato. */
 export function castLament(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.lament;

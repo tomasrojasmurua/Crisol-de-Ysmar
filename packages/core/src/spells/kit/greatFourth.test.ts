@@ -358,7 +358,7 @@ describe('Grandes hechizos, cuarta tanda: control y contrahechizos', () => {
     expect(wizard(state, 2).hp).toBe(100);
   });
 
-  it('el Lamento deja al rival sin daño', () => {
+  it('el Réquiem deja al rival sin daño', () => {
     const state = scene([{ x: 0, z: 4 }]);
     run(state, CHANNEL + 1, cast(['umbra', 'marea', 'brasa']));
     run(state, 10, [], rules, rival(cast(['brasa'], { x: 0, z: -1 })));

@@ -355,7 +355,7 @@ export interface GameRules {
     readonly robbed: { readonly ticks: number };
     /** Bruma del olvido: no puede repetir su último hechizo. */
     readonly forgetful: { readonly ticks: number };
-    /** Lamento: sus hechizos no hacen daño. */
+    /** Réquiem: sus hechizos no hacen daño. */
     readonly muted: { readonly ticks: number };
     /** Pararrayos humano: atrae los proyectiles rivales y los vuelve escudo. */
     readonly attracting: { readonly ticks: number; readonly radius: number; readonly pull: number };
