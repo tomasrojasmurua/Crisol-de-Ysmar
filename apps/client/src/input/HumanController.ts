@@ -21,8 +21,10 @@ export class HumanController implements Controller {
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
     // Si el objetivo fijado cae, se pasa solo al enemigo más cercano.
+    // Una bestia fijada a mano se mantiene mientras viva.
+    const huntingBeast = state.beasts.some((b) => b.id === self.lockTarget && b.hp > 0);
     const target = currentTarget(state as MatchState, self as Wizard);
-    if (target && self.lockTarget !== target.id) {
+    if (target && !huntingBeast && self.lockTarget !== target.id) {
       intents.push({ kind: 'lockTarget', targetId: target.id });
     }
 

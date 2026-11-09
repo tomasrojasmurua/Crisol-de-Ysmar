@@ -1,7 +1,8 @@
 import type { ElementId } from './elements';
 import type { SpellForm } from './weaving/weave';
 
-export type StatusId = 'burn' | 'slow' | 'root' | 'curse';
+/** `empowered` lo da un santuario: más daño por un rato. */
+export type StatusId = 'burn' | 'slow' | 'root' | 'curse' | 'empowered';
 
 /**
  * Todos los números que definen el balance. El núcleo solo declara su forma;
@@ -59,6 +60,7 @@ export interface GameRules {
       readonly damagePerSecond: number;
       readonly lifesteal: number;
     };
+    readonly empowered: { readonly ticks: number; readonly damageMultiplier: number };
   };
   readonly interactions: {
     /** Tormenta se conduce por el agua: más daño contra quien está ralentizado. */
@@ -68,6 +70,36 @@ export interface GameRules {
   };
   readonly round: RoundRules;
   readonly death: DeathRules;
+  readonly beasts: BeastRules;
+  readonly shrines: ShrineRules;
+}
+
+/** Bestias neutrales: se cazan en la arena y dejan Esencia de su elemento. */
+export interface BeastRules {
+  /** Cuántas aparecen al empezar cada ronda. */
+  readonly count: number;
+  readonly maxHp: number;
+  readonly radius: number;
+  readonly moveSpeed: number;
+  readonly damage: number;
+  readonly attackRange: number;
+  readonly attackCooldownTicks: number;
+  /** Cuánto persiguen a quien las atacó. */
+  readonly aggroTicks: number;
+  /** Distancia máxima a su guarida antes de volver. */
+  readonly leash: number;
+  /** Daño extra por cada Esencia, en conjuros que usan ese elemento. */
+  readonly essenceDamagePerStack: number;
+  readonly maxEssence: number;
+}
+
+/** Santuarios de la Convergencia: se disputan parándose encima. */
+export interface ShrineRules {
+  readonly count: number;
+  readonly radius: number;
+  readonly captureTicks: number;
+  /** Vida que recupera quien lo toma, como fracción del máximo. */
+  readonly healFraction: number;
 }
 
 /** Ritmo de una ronda: Caza, Convergencia y Duelo final, con una zona que se cierra. */

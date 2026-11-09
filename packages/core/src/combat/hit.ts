@@ -1,7 +1,10 @@
-import type { MatchState, SpellPayload, Wizard } from '../match/state';
+import { wizardById } from '../match/queries';
+import type { GameEvent, MatchState, SpellPayload, Wizard } from '../match/state';
 import type { GameRules, StatusId } from '../rules';
 
-/** Aplica un impacto: daño, interacciones entre elementos y estados. */
+type HitForm = Extract<GameEvent, { type: 'hit' }>['form'];
+
+/** Aplica un impacto: daño, interacciones entre elementos, robo de vida y estados. */
 export function applyHit(
   state: MatchState,
   target: Wizard,
@@ -17,9 +20,14 @@ export function applyHit(
   if (payload.hasStorm && target.statuses.slow) {
     amount *= rules.interactions.stormVsSlowedMultiplier;
   }
+  const dealt = Math.min(target.hp, amount);
   dealDamage(state, target, sourceId, amount, payload.form);
+  const caster = wizardById(state, sourceId);
+  if (caster && caster.hp > 0 && caster.mods.lifesteal > 0) {
+    caster.hp = Math.min(caster.maxHp, caster.hp + dealt * caster.mods.lifesteal);
+  }
   for (const status of payload.statuses) {
-    applyStatus(target, status, sourceId, rules);
+    applyStatus(state, target, status, sourceId, rules);
   }
 }
 
@@ -28,7 +36,7 @@ export function dealDamage(
   target: Wizard,
   sourceId: number,
   amount: number,
-  form: SpellPayload['form'] | 'zone',
+  form: HitForm,
 ): void {
   if (amount <= 0 || target.hp <= 0) {
     return;
@@ -43,7 +51,9 @@ export function dealDamage(
   }
 }
 
+/** Aplica un estado; dura más o menos según los Glifos de quien lo lanzó. */
 export function applyStatus(
+  state: MatchState,
   target: Wizard,
   status: StatusId,
   sourceId: number,
@@ -52,5 +62,10 @@ export function applyStatus(
   if (status === 'slow' && rules.interactions.tideExtinguishesBurn) {
     delete target.statuses.burn;
   }
-  target.statuses[status] = { ticks: rules.statuses[status].ticks, sourceId };
+  const source = wizardById(state, sourceId);
+  const duration = source ? source.mods.statusDuration[status] : 1;
+  target.statuses[status] = {
+    ticks: Math.max(1, Math.round(rules.statuses[status].ticks * duration)),
+    sourceId,
+  };
 }

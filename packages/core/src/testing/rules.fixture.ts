@@ -41,6 +41,7 @@ export const TEST_RULES: GameRules = {
     slow: { ticks: 60, moveMultiplier: 0.5 },
     root: { ticks: 30 },
     curse: { ticks: 90, damagePerSecond: 3, lifesteal: 1 },
+    empowered: { ticks: 300, damageMultiplier: 1.5 },
   },
   interactions: { stormVsSlowedMultiplier: 2, tideExtinguishesBurn: true },
   round: {
@@ -59,4 +60,18 @@ export const TEST_RULES: GameRules = {
     revive: { radius: 1.5, ticks: 60, hpFraction: 0.5 },
     spectre: { moveMultiplier: 0.7, hauntRange: 6, hauntCooldownTicks: 150 },
   },
+  beasts: {
+    count: 0,
+    maxHp: 30,
+    radius: 0.6,
+    moveSpeed: 4,
+    damage: 5,
+    attackRange: 0.6,
+    attackCooldownTicks: 30,
+    aggroTicks: 150,
+    leash: 10,
+    essenceDamagePerStack: 0.5,
+    maxEssence: 2,
+  },
+  shrines: { count: 2, radius: 1.5, captureTicks: 60, healFraction: 0.5 },
 };

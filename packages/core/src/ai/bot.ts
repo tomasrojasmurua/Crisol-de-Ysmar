@@ -2,8 +2,8 @@ import type { Controller, Intent } from '../controllers/intent';
 import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
 import { currentTarget, isAlive } from '../match/queries';
-import { isSpectre } from '../match/round';
-import type { MatchState, Projectile, Wizard } from '../match/state';
+import { isSpectre, roundPhase } from '../match/round';
+import type { Beast, MatchState, Projectile, Shrine, Wizard } from '../match/state';
 import {
   add,
   distance,
@@ -71,16 +71,31 @@ export class BotController implements Controller {
       return [{ kind: 'move', x: 0, z: 0 }];
     }
     const intents: Intent[] = [];
-    if (self.lockTarget !== target.id) {
-      intents.push({ kind: 'lockTarget', targetId: target.id });
+    const beast = this.beastToHunt(state, self, target);
+    const lockId = beast ? beast.id : target.id;
+    if (self.lockTarget !== lockId) {
+      intents.push({ kind: 'lockTarget', targetId: lockId });
     }
     const ally = this.allyToRevive(state, self, target);
-    const move = ally
-      ? this.keepInZone(state, self, normalize(sub(ally.pos, self.pos)))
-      : this.chooseMove(state, self, target);
+    const shrine = ally || beast ? undefined : this.shrineToTake(state, self, target);
+    let move: Vec2;
+    if (ally) {
+      move = this.keepInZone(state, self, normalize(sub(ally.pos, self.pos)));
+    } else if (beast) {
+      move = this.approach(state, self, beast.pos, 5.5);
+    } else if (shrine) {
+      move = this.approach(state, self, shrine.pos, 0.4);
+    } else {
+      move = this.chooseMove(state, self, target);
+    }
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
     if (self.channel || self.leap) {
+      return intents;
+    }
+    if (beast) {
+      const hunt = this.huntAction(self);
+      if (hunt) intents.push(hunt);
       return intents;
     }
     const weaveIntent = this.chooseWeaveAction(state, self, target);
@@ -177,6 +192,66 @@ export class BotController implements Controller {
       move = add(move, scale(side, 2 * away));
     }
     return this.keepInZone(state, self, move);
+  }
+
+  /** Durante la Caza, si no hay rivales cerca, va por la bestia más cercana. */
+  private beastToHunt(
+    state: Readonly<MatchState>,
+    self: Readonly<Wizard>,
+    target: Wizard,
+  ): Beast | undefined {
+    if (roundPhase(state.tick, this.rules) !== 'hunt') return undefined;
+    if (distance(self.pos, target.pos) < 9) return undefined;
+    let best: Beast | undefined;
+    let bestDistance = 12;
+    for (const beast of state.beasts) {
+      const d = distance(beast.pos, self.pos);
+      if (d < bestDistance) {
+        best = beast;
+        bestDistance = d;
+      }
+    }
+    return best;
+  }
+
+  /** En la Convergencia, un santuario cercano vale más que pelear de lejos. */
+  private shrineToTake(
+    state: Readonly<MatchState>,
+    self: Readonly<Wizard>,
+    target: Wizard,
+  ): Shrine | undefined {
+    if (distance(self.pos, target.pos) < 6) return undefined;
+    return state.shrines.find((s) => distance(s.pos, self.pos) < 14);
+  }
+
+  /** Contra una bestia basta un conjuro corto, apuntado solo. */
+  private huntAction(self: Readonly<Wizard>): Intent | null {
+    if (self.weave.length > 0) {
+      return { kind: 'cast', dirX: 0, dirZ: 0 };
+    }
+    if (--this.thinkTicks > 0) return null;
+    this.thinkTicks = this.rng.int(...this.profile.reactionTicks);
+    const element = (['brasa', 'umbra'] as const).find((e) => self.fatigue[e] === 0);
+    return element ? { kind: 'weave', element } : null;
+  }
+
+  private approach(
+    state: Readonly<MatchState>,
+    self: Readonly<Wizard>,
+    goal: Vec2,
+    stopAt: number,
+  ): Vec2 {
+    const offset = sub(goal, self.pos);
+    const d = length(offset);
+    const toward =
+      d > stopAt + 0.5
+        ? normalize(offset)
+        : d < stopAt - 1
+          ? scale(normalize(offset), -1)
+          : { x: 0, z: 0 };
+    const threat = incomingProjectiles(state, self)[0];
+    const dodge = threat ? scale(perpendicular(normalize(threat.velocity)), 1.5) : { x: 0, z: 0 };
+    return this.keepInZone(state, self, add(toward, dodge));
   }
 
   /** Se aleja del borde: de la arena al principio y de la zona cuando se cierra. */

@@ -1,4 +1,4 @@
-import type { GameEvent, MatchState, Wizard } from '@crisol/core';
+import type { GameEvent, MatchState, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
@@ -13,6 +13,7 @@ const HIT_HEIGHT = 1.2;
 const SPECTRE_COLOR = new THREE.Color('#a9b8ff');
 const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
+const SHRINE_COLOR = new THREE.Color('#f0d9a0');
 
 /**
  * Lo que dura un instante: estallidos, ondas, rayos de la marca y columnas al revivir.
@@ -39,7 +40,12 @@ export class EffectsView {
     this.ringGeometry.rotateX(-Math.PI / 2);
   }
 
-  onEvents(events: readonly GameEvent[], state: MatchState): void {
+  /** `placeOf` dice dónde estaba una bestia o un santuario, aunque ya no exista. */
+  onEvents(
+    events: readonly GameEvent[],
+    state: MatchState,
+    placeOf: (id: number) => Vec2 | undefined,
+  ): void {
     const byId = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
     for (const event of events) {
       switch (event.type) {
@@ -87,7 +93,7 @@ export class EffectsView {
           }
           // Los daños por segundo (quemadura, maldición) no generan estallido.
           if (event.amount < 1) break;
-          const color = formColor(event.form);
+          const color = event.form === 'beast' ? ZONE_COLOR : formColor(event.form);
           this.particles.burst(
             target.pos.x,
             HIT_HEIGHT,
@@ -167,9 +173,69 @@ export class EffectsView {
           }
           break;
         }
+        case 'beastHit': {
+          const beast = state.beasts.find((b) => b.id === event.beastId);
+          if (beast) {
+            this.particles.burst(
+              beast.pos.x,
+              0.8,
+              beast.pos.z,
+              glow(elementColor(beast.element), 1.6),
+              12,
+              4,
+              0.4,
+            );
+          }
+          break;
+        }
+        case 'beastSlain': {
+          const place = placeOf(event.beastId);
+          if (!place) break;
+          const color = elementColor(event.element);
+          this.particles.burst(place.x, 0.8, place.z, glow(color, 1.8), 36, 5, 0.5);
+          this.ring(place.x, place.z, color, 2.5, 0.5);
+          // La Esencia vuela hacia quien la cazó.
+          const killer = event.killerId === null ? undefined : byId(event.killerId);
+          if (killer) this.stream(place, killer.pos, color);
+          break;
+        }
+        case 'markBeast': {
+          const caster = byId(event.wizardId);
+          const place = placeOf(event.beastId);
+          if (caster && place) this.beam(caster.pos, place, elementColor('umbra'), 0.35);
+          break;
+        }
+        case 'shrineClaimed': {
+          const place = placeOf(event.shrineId);
+          if (!place) break;
+          this.column(place.x, place.z, SHRINE_COLOR, 1.2);
+          this.ring(place.x, place.z, SHRINE_COLOR, 4, 0.7);
+          this.particles.burst(place.x, 1, place.z, glow(SHRINE_COLOR, 1.6), 40, 5, 0.45);
+          break;
+        }
+        case 'shrinesAppear':
         case 'phase':
           break;
       }
+    }
+  }
+
+  /** Un chorro de partículas de un punto a otro, que llega en medio segundo. */
+  private stream(from: Vec2, to: Vec2, color: THREE.Color): void {
+    const time = 0.55;
+    for (let i = 0; i < 26; i++) {
+      const jitter = () => (Math.random() - 0.5) * 1.2;
+      this.particles.emit({
+        x: from.x + jitter() * 0.3,
+        y: 1,
+        z: from.z + jitter() * 0.3,
+        vx: (to.x - from.x) / time + jitter(),
+        vy: 0.6 + Math.random(),
+        vz: (to.z - from.z) / time + jitter(),
+        color: glow(color, 1.8),
+        life: time,
+        size: 0.35,
+      });
     }
   }
 

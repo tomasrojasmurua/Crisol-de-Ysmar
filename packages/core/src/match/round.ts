@@ -3,6 +3,7 @@ import { add, clampToCircle, distance, length, normalize, scale, type Vec2 } fro
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { currentTarget, enemiesOf, isAlive } from './queries';
+import { spawnShrines } from './shrines';
 import type { MatchState, RoundPhase, Wizard } from './state';
 
 /** Fase de la ronda según el paso. */
@@ -33,6 +34,7 @@ export function updateZone(state: MatchState, rules: GameRules): void {
   const after = roundPhase(state.tick + 1, rules);
   if (before !== after) {
     state.events.push({ type: 'phase', phase: after });
+    if (after === 'convergence') spawnShrines(state, rules);
   }
   state.zoneRadius = zoneRadiusAt(state.tick + 1, rules);
   const damage = rules.round.zoneDamagePerSecond / TICK_RATE;
@@ -66,7 +68,7 @@ export function updateFallen(state: MatchState, wizard: Wizard, rules: GameRules
   if (fallen.hauntCooldown > 0) fallen.hauntCooldown--;
 
   if (fallen.respawnTicks !== null && --fallen.respawnTicks <= 0) {
-    standUp(wizard, rules.wizard.maxHp);
+    standUp(wizard, wizard.maxHp);
     wizard.pos = respawnPoint(state, wizard);
     state.events.push({ type: 'respawned', wizardId: wizard.id });
     return;
@@ -97,7 +99,7 @@ export function haunt(state: MatchState, spectre: Wizard, rules: GameRules): voi
       ? locked
       : enemiesOf(state, spectre).find((e) => distance(e.pos, spectre.pos) <= range);
   if (!target) return;
-  applyStatus(target, 'slow', spectre.id, rules);
+  applyStatus(state, target, 'slow', spectre.id, rules);
   fallen.hauntCooldown = rules.death.spectre.hauntCooldownTicks;
   state.events.push({ type: 'haunt', wizardId: spectre.id, targetId: target.id });
 }
@@ -120,7 +122,7 @@ export function updateRevives(state: MatchState, rules: GameRules): void {
       continue;
     }
     if (++fallen.reviveProgress >= ticks) {
-      standUp(wizard, rules.wizard.maxHp * hpFraction);
+      standUp(wizard, wizard.maxHp * hpFraction);
       state.events.push({ type: 'revived', wizardId: wizard.id, byId: helper.id });
     }
   }

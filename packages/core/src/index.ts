@@ -8,6 +8,7 @@ export {
   neighborsOf,
   opposingOf,
 } from './elements';
+export { beastById } from './match/beasts';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
 export { stateHash } from './match/hash';
 export {
@@ -27,6 +28,7 @@ export {
 } from './match/round';
 export { createSeries, recordRound, type SeriesState } from './match/series';
 export type {
+  Beast,
   DeathRule,
   EntityId,
   Fallen,
@@ -34,6 +36,7 @@ export type {
   MatchState,
   Projectile,
   RoundPhase,
+  Shrine,
   SpellEntity,
   SpellPayload,
   StatusInstance,
@@ -44,17 +47,20 @@ export type {
 export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';
+export { combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';
 export type {
+  BeastRules,
   DeathRules,
   FormBase,
   GameRules,
   ModifierRules,
   RoundRules,
+  ShrineRules,
   StatusId,
 } from './rules';
 export { FixedStepClock, TICK_MS, TICK_RATE } from './sim/fixedStep';
 export { SeededRng } from './sim/rng';
-export { buildPayload } from './spells/payload';
+export { buildPayload, empowerPayload } from './spells/payload';
 export {
   addToWeave,
   baseSpellCount,

@@ -20,6 +20,7 @@ interface Label {
 export class WorldLabels {
   private readonly layer: HTMLElement;
   private readonly labels = new Map<number, Label>();
+  private readonly beastLabels = new Map<number, Label>();
   private readonly projected = new THREE.Vector3();
 
   constructor(parent: HTMLElement) {
@@ -30,6 +31,7 @@ export class WorldLabels {
   reset(badges: ReadonlyMap<number, WizardBadge>, playerId: number): void {
     this.layer.replaceChildren();
     this.labels.clear();
+    this.beastLabels.clear();
     for (const [id, badge] of badges) {
       if (id === playerId) continue;
       const root = el('div', 'world-label');
@@ -56,7 +58,7 @@ export class WorldLabels {
     camera: THREE.Camera,
     playerTeam: number,
     badges: ReadonlyMap<number, WizardBadge>,
-    rules: GameRules,
+    _rules: GameRules,
   ): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -75,7 +77,7 @@ export class WorldLabels {
       label.root.hidden = !onScreen;
       if (onScreen) {
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-        label.fill.style.width = `${(wizard.hp / rules.wizard.maxHp) * 100}%`;
+        label.fill.style.width = `${(wizard.hp / wizard.maxHp) * 100}%`;
         label.root.classList.toggle('fallen', wizard.hp <= 0);
         const respawn = wizard.fallen?.respawnTicks;
         const badgeName = badges.get(wizard.id)?.name ?? '';
@@ -101,6 +103,52 @@ export class WorldLabels {
         const ay = Math.min(height - EDGE_MARGIN, Math.max(EDGE_MARGIN, ((1 - dy) / 2) * height));
         const angle = Math.atan2(-dy, dx);
         label.arrow.style.transform = `translate(${ax}px, ${ay}px) translate(-50%, -50%) rotate(${angle}rad)`;
+      }
+    }
+  }
+
+  /** Nombre y vida de las bestias; solo se muestran cuando están heridas o persiguen a alguien. */
+  updateBeasts(
+    state: MatchState,
+    camera: THREE.Camera,
+    beastName: (element: string) => string,
+    beastColor: (element: string) => string,
+    rules: GameRules,
+  ): void {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const present = new Set<number>();
+    for (const beast of state.beasts) {
+      present.add(beast.id);
+      let label = this.beastLabels.get(beast.id);
+      if (!label) {
+        const root = el('div', 'world-label beast');
+        root.style.setProperty('--team', beastColor(beast.element));
+        const name = el('span', 'world-label-name', beastName(beast.element));
+        const bar = el('div', 'world-label-bar');
+        const fill = el('div', 'world-label-fill');
+        bar.append(fill);
+        root.append(name, bar);
+        this.layer.append(root);
+        label = { root, name, fill, arrow: root };
+        this.beastLabels.set(beast.id, label);
+      }
+      this.projected.set(beast.pos.x, 1.7, beast.pos.z).project(camera);
+      const x = ((this.projected.x + 1) / 2) * width;
+      const y = ((1 - this.projected.y) / 2) * height;
+      const onScreen = this.projected.z < 1 && x > 0 && x < width && y > 0 && y < height;
+      const interesting = beast.hp < rules.beasts.maxHp || beast.targetId !== null;
+      label.root.hidden = !onScreen;
+      label.root.classList.toggle('calm', !interesting);
+      if (onScreen) {
+        label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+        label.fill.style.width = `${(beast.hp / rules.beasts.maxHp) * 100}%`;
+      }
+    }
+    for (const [id, label] of this.beastLabels) {
+      if (!present.has(id)) {
+        label.root.remove();
+        this.beastLabels.delete(id);
       }
     }
   }

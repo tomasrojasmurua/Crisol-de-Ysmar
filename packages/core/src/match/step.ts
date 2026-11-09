@@ -4,10 +4,11 @@ import { ELEMENT_IDS } from '../elements';
 import { add, clampLength, clampToCircle, length, normalize, scale } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
-import { buildPayload } from '../spells/payload';
+import { buildPayload, empowerPayload } from '../spells/payload';
 import { releaseSpell } from '../spells/release';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
+import { updateBeasts } from './beasts';
 import { isAlive, resolveAim } from './queries';
 import {
   decideRoundWinner,
@@ -17,6 +18,7 @@ import {
   updateRevives,
   updateZone,
 } from './round';
+import { updateShrines } from './shrines';
 import type { EntityId, MatchState, Wizard } from './state';
 
 export type IntentsByWizard = ReadonlyMap<EntityId, readonly Intent[]>;
@@ -47,6 +49,8 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, rules: Ga
     }
   }
   updateSpells(state, rules);
+  updateBeasts(state, rules);
+  updateShrines(state, rules);
   updateZone(state, rules);
   processFalls(state, rules);
   updateRevives(state, rules);
@@ -117,10 +121,11 @@ function startChannel(
     return;
   }
   const weave = wizard.weave;
-  const castTicks = rules.weave.castTicksByLength[weave.length - 1] ?? 1;
+  const baseTicks = rules.weave.castTicksByLength[weave.length - 1] ?? 1;
+  const castTicks = Math.max(1, Math.round(baseTicks * wizard.mods.castTime));
   // El cansancio empieza al lanzar: cada elemento usado descansa antes de volver a tejerse.
   for (const element of weave) {
-    wizard.fatigue[element] = rules.weave.fatigueTicks;
+    wizard.fatigue[element] = Math.round(rules.weave.fatigueTicks * wizard.mods.fatigue[element]);
   }
   wizard.channel = { ticksLeft: castTicks, weave, aim };
   wizard.weave = [];
@@ -143,7 +148,8 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
     wizard.facing = resolveAim(state, wizard, channel.aim);
     if (--channel.ticksLeft <= 0) {
       wizard.channel = null;
-      const payload = buildPayload(channel.weave, rules);
+      const base = buildPayload(channel.weave, rules);
+      const payload = base && empowerPayload(base, wizard, rules);
       if (payload) {
         // Los proyectiles apuntados solos se adelantan al rival; el resto va directo.
         const leadSpeed =
@@ -161,7 +167,7 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
     return;
   }
 
-  const speed = rules.wizard.moveSpeed * moveMultiplier(wizard, rules);
+  const speed = rules.wizard.moveSpeed * wizard.mods.moveSpeed * moveMultiplier(wizard, rules);
   const move = scale(wizard.moveInput, speed / TICK_RATE);
   if (length(move) > 0) {
     wizard.pos = clampToCircle(add(wizard.pos, move), rules.arenaRadius - rules.wizard.radius);

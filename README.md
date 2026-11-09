@@ -15,7 +15,13 @@ de WhatsApp, sin instalar nada.
   rivales con tu Lamento y un aliado a tu lado te revive. **Vidas:** 3 por ronda y reapareces en el borde.
 - **Ronda:** hasta 6 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
   Gana el último equipo en pie, o el que tenga más vida si se acaba el tiempo.
-- **Objetivo:** el rival más cercano se fija solo; toca a otro rival en la pantalla para cambiarlo.
+- **Objetivo:** el rival más cercano se fija solo; toca a otro rival o a una bestia para cambiarlo.
+- **Bestias:** cinco criaturas neutrales, una por elemento. Si cazas una ganas su **Esencia**:
+  tus conjuros de ese elemento pegan más fuerte durante la ronda.
+- **Santuarios:** aparecen en la Convergencia. Párate encima sin rivales cerca para tomarlo:
+  recuperas vida y tu magia queda potenciada un rato.
+- **Glifos:** entre rondas eliges 1 de 3 (4 si perdiste). Te acompañan hasta el final de la partida.
+- **Presagio:** cada partida trae uno al azar que cambia las reglas para todos por igual.
 
 - **Pulgar izquierdo:** toca y arrastra en cualquier parte de la mitad izquierda para moverte.
 - **Pulgar derecho:** toca hasta tres elementos para tejer (el orden importa) y luego **✦** para lanzar.

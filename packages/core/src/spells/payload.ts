@@ -1,4 +1,4 @@
-import type { SpellPayload } from '../match/state';
+import type { SpellPayload, Wizard } from '../match/state';
 import type { GameRules, StatusId } from '../rules';
 import { recipeOf, type Weave } from '../weaving/weave';
 
@@ -36,4 +36,27 @@ export function buildPayload(weave: Weave, rules: GameRules): SpellPayload | nul
     rangeMultiplier,
     hasStorm: weave.includes('tormenta'),
   };
+}
+
+/**
+ * El daño final según quién lanza: sus Glifos y Presagio, la Esencia de los elementos
+ * del tejido y la bendición de un santuario.
+ */
+export function empowerPayload(
+  payload: SpellPayload,
+  caster: Wizard,
+  rules: GameRules,
+): SpellPayload {
+  const mods = caster.mods;
+  let multiplier =
+    mods.damage *
+    (mods.damageByLength[payload.weave.length - 1] ?? 1) *
+    mods.formDamage[payload.form];
+  for (const element of new Set(payload.weave)) {
+    multiplier *= 1 + caster.essence[element] * rules.beasts.essenceDamagePerStack;
+  }
+  if (caster.statuses.empowered) {
+    multiplier *= rules.statuses.empowered.damageMultiplier;
+  }
+  return multiplier === 1 ? payload : { ...payload, damage: payload.damage * multiplier };
 }

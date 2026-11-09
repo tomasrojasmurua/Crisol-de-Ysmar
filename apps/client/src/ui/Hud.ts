@@ -1,3 +1,4 @@
+import { ELEMENTS } from '@crisol/content';
 import {
   type GameRules,
   isSpectre,
@@ -18,7 +19,7 @@ export const PHASE_NAMES: Record<RoundPhase, string> = {
 
 const PHASE_HINTS: Record<RoundPhase, string> = {
   hunt: 'La arena está abierta',
-  convergence: 'La Trama empieza a cerrarse',
+  convergence: 'La Trama se cierra · aparecen santuarios',
   final: 'No queda dónde esconderse',
 };
 
@@ -36,6 +37,9 @@ export class Hud {
   private readonly root: HTMLElement;
   private readonly playerFill: HTMLElement;
   private readonly playerLives: HTMLElement;
+  private readonly essence: HTMLElement;
+  private readonly omen: HTMLElement;
+  private lastEssenceKey = '';
   private readonly allies: HTMLElement;
   private readonly roundLabel: HTMLElement;
   private readonly clock: HTMLElement;
@@ -59,6 +63,7 @@ export class Hud {
       <div class="hud-player">
         <div class="hud-name">Tú <span class="hud-lives"></span></div>
         <div class="hud-bar"><div class="hud-fill"></div></div>
+        <div class="hud-essence"></div>
         <div class="hud-allies"></div>
       </div>
       <div class="hud-round">
@@ -67,6 +72,7 @@ export class Hud {
         <div class="hud-phase"></div>
         <div class="hud-score"></div>
       </div>
+      <div class="hud-omen" hidden></div>
       <div class="hud-banner" hidden>
         <div class="hud-banner-title"></div>
         <div class="hud-banner-subtitle"></div>
@@ -85,6 +91,8 @@ export class Hud {
     parent.append(this.root);
     this.playerFill = query(this.root, '.hud-fill');
     this.playerLives = query(this.root, '.hud-lives');
+    this.essence = query(this.root, '.hud-essence');
+    this.omen = query(this.root, '.hud-omen');
     this.allies = query(this.root, '.hud-allies');
     this.roundLabel = query(this.root, '.hud-round-label');
     this.clock = query(this.root, '.hud-clock');
@@ -99,6 +107,13 @@ export class Hud {
     this.resultScore = query(this.root, '.hud-result-score');
     query(this.root, '.rematch').addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
+  }
+
+  /** El Presagio de la partida queda a la vista bajo el reloj. */
+  setOmen(name: string, description: string): void {
+    this.omen.textContent = `Presagio: ${name}`;
+    this.omen.title = description;
+    this.omen.hidden = false;
   }
 
   set visible(value: boolean) {
@@ -122,6 +137,7 @@ export class Hud {
       this.allyRows.set(ally.id, row);
     }
     this.lastScoreKey = '';
+    this.lastEssenceKey = '';
     this.lastHp = -1;
   }
 
@@ -135,19 +151,32 @@ export class Hud {
   ): void {
     if (player.hp !== this.lastHp) {
       this.lastHp = player.hp;
-      this.playerFill.style.width = `${(player.hp / rules.wizard.maxHp) * 100}%`;
-      this.playerFill.classList.toggle('low', player.hp < rules.wizard.maxHp * 0.3);
+      this.playerFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
+      this.playerFill.classList.toggle('low', player.hp < player.maxHp * 0.3);
     }
     this.playerLives.textContent =
       state.deathRule === 'lives'
         ? '◆'.repeat(player.lives) + '◇'.repeat(Math.max(0, rules.death.lives - player.lives))
         : '';
 
+    const essenceKey = ELEMENTS.map((e) => player.essence[e.id]).join(',');
+    if (essenceKey !== this.lastEssenceKey) {
+      this.lastEssenceKey = essenceKey;
+      this.essence.replaceChildren();
+      for (const element of ELEMENTS) {
+        const count = player.essence[element.id];
+        if (count <= 0) continue;
+        const chip = el('span', 'hud-essence-chip', `${element.name} ${'●'.repeat(count)}`);
+        chip.style.setProperty('--essence', element.color);
+        this.essence.append(chip);
+      }
+    }
+
     for (const [id, row] of this.allyRows) {
       const ally = state.wizards.find((w) => w.id === id);
       if (!ally) continue;
       const fill = query(row, '.hud-fill');
-      fill.style.width = `${(ally.hp / rules.wizard.maxHp) * 100}%`;
+      fill.style.width = `${(ally.hp / ally.maxHp) * 100}%`;
       row.classList.toggle('down', ally.hp <= 0);
     }
 

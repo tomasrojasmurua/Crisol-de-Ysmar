@@ -48,14 +48,18 @@ export function resolveAim(
   if (chosen.x !== 0 || chosen.z !== 0) {
     return chosen;
   }
+  // Una bestia fijada a mano tiene prioridad; si no, el rival.
+  const beast = state.beasts.find((b) => b.id === wizard.lockTarget && b.hp > 0);
   const target = currentTarget(state, wizard);
-  if (!target) {
+  if (!beast && !target) {
     return wizard.facing;
   }
-  let aimPoint = target.pos;
+  const targetPos = beast ? beast.pos : (target?.pos ?? wizard.pos);
+  const velocity = beast ? beast.velocity : scale(target?.moveInput ?? { x: 0, z: 0 }, moveSpeed);
+  let aimPoint = targetPos;
   if (leadSpeed > 0) {
-    const time = distance(wizard.pos, target.pos) / leadSpeed;
-    aimPoint = add(target.pos, scale(target.moveInput, moveSpeed * time));
+    const time = distance(wizard.pos, targetPos) / leadSpeed;
+    aimPoint = add(targetPos, scale(velocity, time));
   }
   return normalize(sub(aimPoint, wizard.pos), wizard.facing);
 }

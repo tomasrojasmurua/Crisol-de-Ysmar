@@ -748,3 +748,226 @@ body {
   color: #c9d3ff;
   box-shadow: 0 0 22px rgba(169, 184, 255, 0.4);
 }
+
+/* ---------- Esencia y Presagio en el HUD ---------- */
+
+.hud-essence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hud-essence:empty {
+  display: none;
+}
+
+.hud-essence-chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--essence);
+  background: color-mix(in srgb, var(--essence) 14%, rgba(10, 9, 14, 0.7));
+  border: 1px solid color-mix(in srgb, var(--essence) 45%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--essence) 35%, transparent);
+  animation: chip-in 0.4s ease both;
+}
+
+@keyframes chip-in {
+  from {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.hud-omen {
+  position: absolute;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  max-width: 28vw;
+  text-align: right;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.8;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* ---------- Bestias ---------- */
+
+.world-label.beast .world-label-name {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.world-label.beast .world-label-bar {
+  width: 40px;
+  height: 4px;
+}
+
+.world-label.beast {
+  transition: opacity 0.3s ease;
+}
+
+.world-label.beast.calm {
+  opacity: 0;
+}
+
+/* ---------- Elección de Glifo ---------- */
+
+.glyph-picker {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: radial-gradient(ellipse at center, rgba(12, 10, 22, 0.7), rgba(7, 7, 12, 0.95));
+  pointer-events: auto;
+  animation: fade-in 0.5s ease both;
+}
+
+.glyph-picker h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(22px, 4.5vw, 34px);
+  letter-spacing: 0.14em;
+  color: var(--gold-bright);
+  text-shadow: 0 0 24px rgba(243, 223, 176, 0.45);
+}
+
+.glyph-subtitle {
+  margin: 4px 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+}
+
+.glyph-cards {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+#ui .glyph-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 150px;
+  min-height: 170px;
+  padding: 16px 12px 14px;
+  border-radius: 16px;
+  font: inherit;
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+  background:
+    radial-gradient(
+      circle at 50% 22%,
+      color-mix(in srgb, var(--glyph) 28%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(180deg, rgba(26, 22, 36, 0.95), rgba(12, 10, 18, 0.95));
+  border: 1px solid color-mix(in srgb, var(--glyph) 55%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    0 0 18px color-mix(in srgb, var(--glyph) 25%, transparent);
+  animation: card-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+#ui .glyph-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+#ui .glyph-card:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+#ui .glyph-card:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+#ui .glyph-card:active {
+  transform: scale(0.96);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+    0 0 32px color-mix(in srgb, var(--glyph) 60%, transparent);
+}
+
+@keyframes card-in {
+  from {
+    transform: translateY(24px) scale(0.92);
+    opacity: 0;
+  }
+}
+
+.glyph-sigil {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--glyph);
+  border: 1px solid color-mix(in srgb, var(--glyph) 60%, transparent);
+  background: rgba(0, 0, 0, 0.35);
+  text-shadow: 0 0 12px var(--glyph);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--glyph) 35%, transparent);
+}
+
+.glyph-name {
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  color: var(--gold-bright);
+}
+
+.glyph-text {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-quiet);
+}
+
+.glyph-owned {
+  margin: 14px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  opacity: 0.8;
+}
+
+.glyph-owned:empty {
+  display: none;
+}
+
+@media (max-height: 430px) {
+  .glyph-subtitle {
+    margin-bottom: 8px;
+  }
+
+  #ui .glyph-card {
+    width: 140px;
+    min-height: 0;
+    padding: 10px 10px 12px;
+  }
+
+  .glyph-sigil {
+    width: 36px;
+    height: 36px;
+    font-size: 19px;
+  }
+}
