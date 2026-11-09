@@ -16,8 +16,9 @@ export const GAME_RULES: GameRules = {
     channelMoveMultiplier: 0.45,
   },
   weave: {
-    // 1 elemento: 0,1 s · 2 elementos: 0,3 s · 3 elementos: 0,6 s
-    castTicksByLength: [3, 9, 18],
+    // 1 elemento: 0,17 s · 2 elementos: 0,3 s · 3 elementos: 0,6 s.
+    // Ningún tejido sale en menos de 0,15 s: el rival alcanza a ver el aviso aunque haya lag.
+    castTicksByLength: [5, 9, 18],
     fatigueTicks: 90,
   },
   spells: SPELL_RULES,
@@ -74,10 +75,10 @@ export const GAME_RULES: GameRules = {
     // Mejor de 3, con tope de 5 por si hay empates.
     roundsToWin: 2,
     maxRounds: 5,
-    // 6 minutos: Caza hasta el 2, Convergencia hasta el 4 y Duelo final hasta el 6.
-    durationTicks: 6 * 60 * 30,
-    huntEndTick: 2 * 60 * 30,
-    convergenceEndTick: 4 * 60 * 30,
+    // 3 minutos: Caza hasta el 1, Convergencia hasta el 2 y Duelo final hasta el 3.
+    durationTicks: 3 * 60 * 30,
+    huntEndTick: 1 * 60 * 30,
+    convergenceEndTick: 2 * 60 * 30,
     convergenceRadius: 14,
     finalRadius: 4,
     zoneDamagePerSecond: 12,
@@ -104,10 +105,10 @@ export const GAME_RULES: GameRules = {
     // Cada Esencia suma 12% de daño a los conjuros con ese elemento, hasta 3.
     essenceDamagePerStack: 0.12,
     maxEssence: 3,
-    // Dos bestias por campamento; un campamento vacío vuelve a poblarse en 75 segundos.
+    // Dos bestias por campamento; un campamento vacío vuelve a poblarse en 45 segundos.
     packSize: 2,
-    respawnTicks: 75 * 30,
-    // El Guardián despierta en la plaza al minuto de Caza.
+    respawnTicks: 45 * 30,
+    // El Guardián despierta en la plaza a los 40 segundos de Caza.
     guardian: {
       maxHp: 260,
       radius: 1.3,
@@ -117,7 +118,7 @@ export const GAME_RULES: GameRules = {
       attackCooldownTicks: 42,
       aggroTicks: 240,
       leash: 8,
-      spawnTick: 60 * 30,
+      spawnTick: 40 * 30,
       essenceReward: 1,
     },
   },

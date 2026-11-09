@@ -13,7 +13,7 @@ de WhatsApp, sin instalar nada.
 
 - **Menú:** eliges el modo y qué pasa al caer. **Espectro:** sigues como espíritu, ralentizas
   rivales con tu Lamento y un aliado a tu lado te revive. **Vidas:** 3 por ronda y reapareces en el borde.
-- **Ronda:** hasta 6 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
+- **Ronda:** hasta 3 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
   Gana el último equipo en pie, o el que tenga más vida si se acaba el tiempo.
 - **Objetivo:** el rival más cercano se fija solo; toca a otro rival o a una bestia para cambiarlo.
 - **Bestias:** cinco criaturas neutrales, una por elemento. Si cazas una ganas su **Esencia**:
