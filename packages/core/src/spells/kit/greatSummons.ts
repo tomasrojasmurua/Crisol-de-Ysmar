@@ -1,8 +1,9 @@
 import { applyHit, applyStatus } from '../../combat/hit';
+import { moveMultiplier } from '../../combat/statuses';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { wizardById } from '../../match/queries';
 import type { MatchState, SpellPayload, Summon, Wizard } from '../../match/state';
-import { add, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
+import { add, distance, length, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
 import { type CastContext, nextId, payloadFor, summon } from './context';
@@ -337,4 +338,13 @@ export function updateCarnivore(state: MatchState, plant: Summon, rules: GameRul
     return true;
   }
   return true;
+}
+
+/** Una copia del Espejismo camina igual que su mago. */
+export function updateMirage(copy: Summon, owner: Wizard, rules: GameRules): void {
+  copy.facing = owner.facing;
+  const speed = rules.wizard.moveSpeed * owner.mods.moveSpeed * moveMultiplier(owner, rules);
+  if (length(owner.moveInput) > 0.05)
+    move(copy, owner.moveInput, speed * length(owner.moveInput), rules);
+  copy.facing = owner.facing;
 }

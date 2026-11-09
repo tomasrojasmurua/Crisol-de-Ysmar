@@ -1,11 +1,13 @@
 import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
 import { canAct } from '../../combat/statuses';
 import { beastStats, damageBeast } from '../../match/beasts';
+import { isBurned } from '../../match/liveMap';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { isHiddenFrom, wizardById } from '../../match/queries';
 import type {
   Drown,
   FireRain,
+  GrownTree,
   MatchState,
   Portal,
   Pyre,
@@ -99,6 +101,7 @@ export function updateSweeper(state: MatchState, sweeper: Sweeper, rules: GameRu
   } else {
     sweep(state, sweeper, rules);
   }
+  if (sweeper.mode === 'wildfire') burnTrees(state, sweeper, rules);
   // El Ave de ceniza da la vuelta a mitad de camino y puede volver a quemar a los mismos.
   if (sweeper.mode === 'bird' && !sweeper.returning && sweeper.travelled >= sweeper.maxRange / 2) {
     sweeper.returning = true;
@@ -106,6 +109,27 @@ export function updateSweeper(state: MatchState, sweeper: Sweeper, rules: GameRu
     sweeper.struck.length = 0;
   }
   return sweeper.travelled < sweeper.maxRange && length(sweeper.pos) <= rules.arenaRadius + 1;
+}
+
+/** El Incendio forestal quema los árboles que toca: no vuelven en lo que queda de la ronda. */
+function burnTrees(state: MatchState, fire: Sweeper, rules: GameRules): void {
+  const side = scale(perpendicular(normalize(fire.velocity)), fire.halfWidth);
+  const a = add(fire.pos, scale(side, -1));
+  const b = add(fire.pos, side);
+  for (const o of rules.map.obstacles) {
+    if (o.kind !== 'tree' || distanceToSegment(o, a, b) > fire.radius + o.radius) continue;
+    const grown = state.spells.find(
+      (s): s is GrownTree => s.kind === 'grownTree' && s.pos.x === o.x && s.pos.z === o.z,
+    );
+    if (grown) {
+      if (grown.age < 0) continue;
+      grown.age = -1;
+    } else {
+      if (isBurned(state, o)) continue;
+      state.burnedTrees.push({ x: o.x, z: o.z });
+    }
+    state.events.push({ type: 'burst', spell: 'forestFire', pos: { x: o.x, z: o.z }, radius: 1.5 });
+  }
 }
 
 /** El Huracán y el Maremoto golpean una sola vez a cada uno que tocan. */

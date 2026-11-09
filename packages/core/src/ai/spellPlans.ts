@@ -205,4 +205,29 @@ function greatOptions(
   add(['marea', 'marea', 'brasa'], 'target', !t.sluggish && mid ? 0.6 : 0);
   add(['umbra', 'umbra', 'umbra'], 'target', !t.blind && d > 6 ? 0.6 : 0);
   add(['umbra', 'marea', 'raiz'], 'target', !t.plague && d < 9 ? 0.8 : 0);
+
+  // Tercera tanda: la jungla, ver, esconderse y transformarse.
+  const me = self.statuses;
+  const transformed = Boolean(me.magma || me.surfing || me.deepRooted || me.panther);
+  add(['brasa', 'tormenta', 'raiz'], 'target', d >= 4 && d < 12 ? 0.6 : 0);
+  add(['raiz', 'brasa', 'raiz'], 'target', threatened && d > 6 ? 0.8 : 0);
+  const beastNear = state.beasts.some(
+    (b) => !b.guardian && b.tamedBy === null && distance(b.pos, self.pos) < 8,
+  );
+  add(['raiz', 'brasa', 'brasa'], 'target', beastNear ? 1.5 : 0);
+  add(['tormenta', 'raiz', 'umbra'], 'target', d > 16 ? 0.8 : 0);
+  add(['raiz', 'tormenta', 'umbra'], 'target', !t.tracked && d >= 8 && d < 14 ? 0.5 : 0);
+  add(['umbra', 'tormenta', 'raiz'], 'away', d > 14 ? 0.4 : 0);
+  add(['tormenta', 'marea', 'brasa'], 'target', d > 10 ? 0.3 : 0);
+  add(['brasa', 'marea', 'umbra'], 'target', near && health < 0.6 ? 1.5 : 0);
+  add(['marea', 'tormenta', 'raiz'], 'target', me.tracked ? 2 : 0);
+  add(['marea', 'umbra', 'tormenta'], 'target', threatened ? 1 : 0);
+  add(['raiz', 'raiz', 'umbra'], 'target', mid ? 0.6 : 0);
+  add(['raiz', 'umbra', 'marea'], 'target', d > 14 ? 0.3 : 0);
+  add(['umbra', 'tormenta', 'umbra'], 'target', mid ? 0.4 : 0);
+  add(['umbra', 'raiz', 'umbra'], 'target', d < 12 && health < 0.5 ? 1 : 0);
+  add(['brasa', 'marea', 'marea'], 'target', !transformed && near ? 1 : 0);
+  add(['marea', 'tormenta', 'tormenta'], 'away', !transformed && near && health < 0.5 ? 1 : 0);
+  add(['raiz', 'tormenta', 'raiz'], 'target', !transformed && d >= 12 && d < 18 ? 0.8 : 0);
+  add(['umbra', 'raiz', 'tormenta'], 'target', !transformed && d < 5 && health > 0.4 ? 1.2 : 0);
 }

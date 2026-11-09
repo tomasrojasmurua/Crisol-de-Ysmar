@@ -388,6 +388,53 @@ export interface SpellRules {
   readonly eclipse: { readonly durationTicks: number };
   /** Umbra → Marea → Raíz: daño en el tiempo que contagia (estado `plague`). */
   readonly plague: { readonly range: number; readonly coneDot: number };
+
+  // Grandes hechizos, tercera tanda: mapa vivo, información, sigilo y transformaciones.
+
+  /** Brasa → Tormenta → Raíz: Un fuego avanza y quema los árboles: abre senderos en la jungla por el resto de la ronda. */
+  readonly forestFire: SweeperSpell & { readonly halfWidth: number };
+  /** Raíz → Brasa → Brasa: La bestia apuntada pelea para ti por un rato. */
+  readonly tameBeast: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly durationTicks: number;
+  };
+  /** Raíz → Brasa → Raíz: Un árbol nuevo que queda toda la ronda; dos por mago como mucho. */
+  readonly treeSprout: {
+    readonly range: number;
+    readonly radius: number;
+    readonly maxPerWizard: number;
+  };
+  /** Tormenta → Marea → Brasa: Ves cuánto le falta a cada elemento del rival para descansar (estado `insight`). */
+  readonly barometer: Record<string, never>;
+  /** Tormenta → Raíz → Umbra: Ves a todos los rivales del mapa y corres más (estado `hunting`). */
+  readonly hunter: Record<string, never>;
+  /** Raíz → Tormenta → Umbra: Marcas al rival apuntado: tu equipo lo ve aunque se meta en la jungla (estado `tracked`). */
+  readonly track: { readonly range: number; readonly coneDot: number };
+  /** Umbra → Tormenta → Raíz: Un ojo de sombra en un punto: tu equipo ve todo a su alrededor. */
+  readonly sentinel: SummonSpell & { readonly range: number; readonly sightRadius: number };
+  /** Brasa → Marea → Umbra: Una niebla donde los rivales no ven y tus golpes te curan (estado `leeching`). */
+  readonly crimsonMist: AreaSpell;
+  /** Marea → Tormenta → Raíz: Te quita marcas y rastros y te saca del minimapa rival (estado `unseen`). */
+  readonly erasingRain: Record<string, never>;
+  /** Marea → Umbra → Tormenta: Tres copias tuyas que se mueven como tú; la verdadera es la que teje. */
+  readonly mirage: SummonSpell & { readonly count: number; readonly spread: number };
+  /** Raíz → Raíz → Umbra: Un bosquecillo: adentro tu equipo es invisible y los rivales quedan débiles. */
+  readonly cursedGrove: AreaSpell;
+  /** Raíz → Umbra → Marea: Tu equipo dentro no aparece en el minimapa rival (estado `unseen`). */
+  readonly mossCarpet: AreaSpell;
+  /** Umbra → Tormenta → Umbra: El rival ve elementos falsos en tu tejido (estado `disguised`). */
+  readonly weaveIllusion: Record<string, never>;
+  /** Umbra → Raíz → Umbra: Eres invisible solo para el rival apuntado (estado `shadowed`). */
+  readonly borrowedShadow: { readonly range: number; readonly coneDot: number };
+  /** Brasa → Marea → Marea: Eres magma: lento, no te frenan ni enraízan y dejas el suelo ardiendo (estado `magma`). */
+  readonly magmaForm: { readonly trailRadius: number; readonly trailTicks: number };
+  /** Marea → Tormenta → Tormenta: Eres una ola: muy rápido y empapas a quien cruzas, pero no tejes (estado `surfing`). */
+  readonly surf: Record<string, never>;
+  /** Raíz → Tormenta → Raíz: Te enraízas: no te mueves ni te controlan y tus hechizos llegan más lejos (estado `deepRooted`). */
+  readonly deepRoots: Record<string, never>;
+  /** Umbra → Raíz → Tormenta: Eres una pantera: rápida, con zarpazos que roban vida, pero no tejes (estado `panther`). */
+  readonly shadowPanther: Record<string, never>;
 }
 
 /** Un golpe con aviso: cae en un círculo tras unos pasos. */

@@ -33,7 +33,7 @@ function halo(color: THREE.Color, size: number): THREE.Sprite {
 /** Las invocaciones de los Grandes hechizos (el Gemelo sombrío se dibuja como un mago). */
 export type GreatSummonKind = Exclude<
   Summon['summon'],
-  'wisp' | 'lightningRod' | 'mossGuardian' | 'decoy' | 'shadowTwin'
+  'wisp' | 'lightningRod' | 'mossGuardian' | 'decoy' | 'shadowTwin' | 'mirage'
 >;
 
 export function createGreatSummon(kind: GreatSummonKind, summon: Summon): THREE.Object3D {
@@ -50,7 +50,34 @@ export function createGreatSummon(kind: GreatSummonKind, summon: Summon): THREE.
       return createTree(summon.radius);
     case 'carnivore':
       return createCarnivore();
+    case 'sentinel':
+      return createSentinel();
   }
+}
+
+/** Centinela: un ojo de sombra que flota y mira alrededor. */
+function createSentinel(): THREE.Object3D {
+  const group = new THREE.Group();
+  const eye = new THREE.Group();
+  eye.position.y = 2.2;
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.32, 16, 12),
+    new THREE.MeshStandardMaterial({ color: '#1a1224', emissive: SHADOW, emissiveIntensity: 0.4 }),
+  );
+  const iris = new THREE.Mesh(
+    new THREE.CircleGeometry(0.15, 16),
+    new THREE.MeshBasicMaterial({ color: glow(SHADOW, 3) }),
+  );
+  iris.position.z = 0.31;
+  const pupil = new THREE.Mesh(
+    new THREE.CircleGeometry(0.06, 12),
+    new THREE.MeshBasicMaterial({ color: '#000' }),
+  );
+  pupil.position.z = 0.315;
+  eye.add(ball, iris, pupil, halo(glow(SHADOW, 0.8), 1.6));
+  group.add(eye);
+  group.userData.eye = eye;
+  return group;
 }
 
 /** Chispa errante: una brasa pequeña con chispas de trueno. */
@@ -357,6 +384,24 @@ export function updateGreatSummon(
           color: glow(ROOT, 1.2),
           life: 2,
           size: 0.25,
+        });
+      }
+      return;
+    }
+    case 'sentinel': {
+      const eye = view.userData.eye as THREE.Group;
+      eye.position.y = 2.2 + Math.sin(time * 1.5 + summon.id) * 0.12;
+      // Mira de un lado a otro, despacio.
+      eye.rotation.y = Math.sin(time * 0.6 + summon.id) * Math.PI;
+      if (Math.random() < 0.2) {
+        particles.emit({
+          x: pos.x + (Math.random() - 0.5) * 0.4,
+          y: eye.position.y - 0.3,
+          z: pos.z + (Math.random() - 0.5) * 0.4,
+          vy: -0.4,
+          color: SHADOW.clone().multiplyScalar(0.6),
+          life: 0.8,
+          size: 0.35,
         });
       }
       return;

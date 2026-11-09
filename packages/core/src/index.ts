@@ -11,6 +11,7 @@ export {
 export { beastById } from './match/beasts';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
 export { stateHash } from './match/hash';
+export { isBurned, liveRules } from './match/liveMap';
 export {
   type GameMode,
   MAX_PLAYERS,
@@ -39,6 +40,7 @@ export type {
   Fallen,
   FireRain,
   GameEvent,
+  GrownTree,
   Ignite,
   MatchState,
   Obsidian,

@@ -273,4 +273,43 @@ export const SPELL_RULES: GameRules['spells'] = {
   eclipse: { durationTicks: 150 },
   // Umbra → Marea → Raíz · Plaga: el daño y el contagio los da el estado `plague`.
   plague: { range: 9, coneDot: 0.7 },
+
+  // Grandes hechizos, tercera tanda: mapa vivo, información, sigilo y transformaciones.
+
+  // Brasa → Tormenta → Raíz · Incendio forestal: 14 m de frente de 3 m; 10 y quema a los rivales, y los árboles que toca no vuelven en la ronda.
+  forestFire: { damage: 10, speed: 7, range: 14, radius: 1.2, halfWidth: 1.6 },
+  // Raíz → Brasa → Brasa · Domar bestia: la bestia apuntada a 10 m pelea para ti 20 s (el Guardián no se doma).
+  tameBeast: { range: 10, coneDot: 0.6, durationTicks: 600 },
+  // Raíz → Brasa → Raíz · Brote de árbol: a 10 m, hasta el fin de la ronda; con un tercero se va el más viejo.
+  treeSprout: { range: 10, radius: 0.8, maxPerWizard: 2 },
+  // Tormenta → Marea → Brasa · Barómetro: la duración la da el estado `insight`.
+  barometer: {},
+  // Tormenta → Raíz → Umbra · Cazador: la duración y la velocidad las da el estado `hunting`.
+  hunter: {},
+  // Raíz → Tormenta → Umbra · Huella: a 14 m; la duración la da el estado `tracked`.
+  track: { range: 14, coneDot: 0.7 },
+  // Umbra → Tormenta → Raíz · Centinela: a 10 m por 60 s; ve todo a 8 m. Se rompe a golpes.
+  sentinel: { hp: 30, radius: 0.4, durationTicks: 1800, range: 10, sightRadius: 8 },
+  // Brasa → Marea → Umbra · Niebla carmesí: 7 m por 5 s a tus pies; adentro los rivales quedan ciegos.
+  crimsonMist: { range: 0, radius: 7, durationTicks: 150 },
+  // Marea → Tormenta → Raíz · Lluvia que borra: la duración la da el estado `unseen`.
+  erasingRain: {},
+  // Marea → Umbra → Tormenta · Espejismo: tres copias por 4 s a 2 m; un golpe las deshace.
+  mirage: { hp: 1, radius: 0.5, durationTicks: 120, count: 3, spread: 2 },
+  // Raíz → Raíz → Umbra · Bosque maldito: 4 m por 6 s (lo invisible lo da `shrouded`).
+  cursedGrove: { range: 8, radius: 4, durationTicks: 180 },
+  // Raíz → Umbra → Marea · Alfombra de musgo: 6 m por 8 s a tus pies.
+  mossCarpet: { range: 0, radius: 6, durationTicks: 240 },
+  // Umbra → Tormenta → Umbra · Ilusión de tejido: la duración la da el estado `disguised`.
+  weaveIllusion: {},
+  // Umbra → Raíz → Umbra · Sombra prestada: a 14 m; la duración la da el estado `shadowed`.
+  borrowedShadow: { range: 14, coneDot: 0.7 },
+  // Brasa → Marea → Marea · Forma de magma: el suelo que pisas arde 3 s en 1 m.
+  magmaForm: { trailRadius: 1, trailTicks: 90 },
+  // Marea → Tormenta → Tormenta · Surf: la duración y la velocidad las da el estado `surfing`.
+  surf: {},
+  // Raíz → Tormenta → Raíz · Raíces profundas: la duración y el alcance los da el estado `deepRooted`.
+  deepRoots: {},
+  // Umbra → Raíz → Tormenta · Pantera de sombra: la velocidad y los zarpazos los da el estado `panther`.
+  shadowPanther: {},
 };

@@ -13,6 +13,7 @@ import {
   type Beast,
   createMatch,
   currentTarget,
+  ELEMENT_IDS,
   type ElementId,
   FixedStepClock,
   type GameEvent,
@@ -526,12 +527,27 @@ renderer.setAnimationLoop((now) => {
     zone.update(rules.arenaRadius, elapsed);
   }
 
+  if (!current) jungle.setBurned([]);
   arena.update(elapsed, delta);
   jungle.update(elapsed, camera.position, current ? current.player.pos : null);
   effects.update(delta);
   particles.update(delta);
   post.render();
 });
+
+/** Un tejido falso, que cambia cada segundo y medio, igual en todas las pantallas. */
+function disguise(wizard: Wizard, tick: number): Wizard {
+  const shift = (Math.floor(tick / 45) + wizard.id) % ELEMENT_IDS.length;
+  const fake = (weave: readonly ElementId[]): ElementId[] =>
+    weave.map(
+      (e, i) => ELEMENT_IDS[(ELEMENT_IDS.indexOf(e) + shift + i) % ELEMENT_IDS.length] ?? e,
+    );
+  return {
+    ...wizard,
+    weave: fake(wizard.weave),
+    channel: wizard.channel ? { ...wizard.channel, weave: fake(wizard.channel.weave) } : null,
+  };
+}
 
 function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
   const state = current.state;
@@ -546,7 +562,12 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     const spectre = isSpectre(state, wizard);
     const hidden =
       veiledFromTeam(state, player.team, wizard.id, rules) || blindedFrom(player, wizard, rules);
-    view.update(wizard, pos.x, pos.z, time, delta, spectre, rules, hidden);
+    // Ilusión de tejido: el rival ve otros elementos en lo que tejes.
+    const shown =
+      wizard.team !== player.team && wizard.statuses.disguised
+        ? disguise(wizard, state.tick)
+        : wizard;
+    view.update(shown, pos.x, pos.z, time, delta, spectre, rules, hidden);
     if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
   }
   const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
@@ -596,7 +617,9 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     badges,
     rules,
     seen,
+    player.statuses.insight !== undefined,
   );
+  jungle.setBurned(state.burnedTrees);
   minimap.update(state, player, rig.forward(), seen, badges, time);
 }
 

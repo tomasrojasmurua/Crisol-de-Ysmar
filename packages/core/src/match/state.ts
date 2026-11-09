@@ -12,6 +12,8 @@ export interface StatusInstance {
   sourceId: EntityId;
   /** La fuerza del estado cuando no es la de siempre (cuánto más daño recibe con el Ácido). */
   readonly power?: number;
+  /** Para quién vale: la Sombra prestada te esconde solo de un rival. */
+  readonly targetId?: EntityId;
 }
 
 export interface Channel {
@@ -141,7 +143,10 @@ export type ZoneEffect =
   | 'spores'
   | 'hotSpring'
   | 'healingRain'
-  | 'mist';
+  | 'mist'
+  | 'crimsonMist'
+  | 'grove'
+  | 'moss';
 
 export interface Zone {
   readonly kind: 'zone';
@@ -199,7 +204,14 @@ export interface Strike {
  * Algo que avanza solo por el campo y golpea al pasar: el Huracán levanta por los aires,
  * el Orbe errático da rayos alrededor y el Maremoto empapa todo lo que cruza.
  */
-export type SweeperMode = 'tornado' | 'orb' | 'wave' | 'bird' | 'stampede' | 'soulTide';
+export type SweeperMode =
+  | 'tornado'
+  | 'orb'
+  | 'wave'
+  | 'bird'
+  | 'stampede'
+  | 'soulTide'
+  | 'wildfire';
 
 export interface Sweeper {
   readonly kind: 'sweeper';
@@ -419,7 +431,9 @@ export type SummonKind =
   | 'swarm'
   | 'ancientTree'
   | 'shadowTwin'
-  | 'carnivore';
+  | 'carnivore'
+  | 'mirage'
+  | 'sentinel';
 
 export interface Summon {
   readonly kind: 'summon';
@@ -443,6 +457,18 @@ export interface Summon {
   readonly payload: SpellPayload;
 }
 
+/** Brote de árbol: un árbol nuevo en la jungla, hasta que termine la ronda. */
+export interface GrownTree {
+  readonly kind: 'grownTree';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  /** Crece de a poco: el dibujo lo usa. */
+  age: number;
+}
+
 export type SpellEntity =
   | Projectile
   | Wall
@@ -464,6 +490,7 @@ export type SpellEntity =
   | Trap
   | Bubble
   | Aura
+  | GrownTree
   | Summon;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
@@ -484,6 +511,9 @@ export interface Beast {
   aggroTicks: number;
   attackCooldown: number;
   velocity: Vec2;
+  /** Domar bestia: el mago para el que pelea y por cuántos pasos más. */
+  tamedBy: EntityId | null;
+  tamedTicks: number;
 }
 
 /** Santuario de la Convergencia. El primer equipo que lo sostiene solo, lo toma. */
@@ -588,6 +618,8 @@ export interface MatchState {
   /** Paso en que cada campamento vacío se vuelve a poblar; -1 si está poblado. */
   campRespawn: number[];
   guardianAwake: boolean;
+  /** Árboles de la jungla que quemó el Incendio forestal en esta ronda, por su lugar. */
+  burnedTrees: Vec2[];
   shrines: Shrine[];
   /** Lo que pasó en el último paso: el cliente lo usa para efectos y sonido. */
   events: GameEvent[];

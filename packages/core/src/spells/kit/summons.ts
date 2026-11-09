@@ -11,6 +11,7 @@ import {
   updateCarnivore,
   updateGlacier,
   updateMagmaGolem,
+  updateMirage,
   updateShadowTwin,
   updateSwarm,
   updateWanderingSpark,
@@ -81,6 +82,11 @@ export function updateSummon(state: MatchState, summon: Summon, rules: GameRules
       return true;
     case 'carnivore':
       return updateCarnivore(state, summon, rules);
+    case 'mirage':
+      updateMirage(summon, owner, rules);
+      return true;
+    case 'sentinel':
+      return true;
   }
 }
 

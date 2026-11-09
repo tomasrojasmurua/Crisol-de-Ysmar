@@ -70,6 +70,7 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
     beasts: [],
     campRespawn: rules.map.camps.map(() => -1),
     guardianAwake: false,
+    burnedTrees: [],
     shrines: [],
     events: [],
     winnerTeam: null,

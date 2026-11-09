@@ -61,6 +61,26 @@ import {
   castTailwind,
 } from './kit/greatSupport';
 import {
+  castBarometer,
+  castBorrowedShadow,
+  castCrimsonMist,
+  castCursedGrove,
+  castDeepRoots,
+  castErasingRain,
+  castForestFire,
+  castHunter,
+  castMagmaForm,
+  castMirage,
+  castMossCarpet,
+  castSentinel,
+  castShadowPanther,
+  castSurf,
+  castTameBeast,
+  castTrack,
+  castTreeSprout,
+  castWeaveIllusion,
+} from './kit/greatThird';
+import {
   castErraticOrb,
   castHurricane,
   castSkySpear,
@@ -177,6 +197,24 @@ const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   mist: castMist,
   eclipse: castEclipse,
   plague: castPlague,
+  forestFire: castForestFire,
+  tameBeast: castTameBeast,
+  treeSprout: castTreeSprout,
+  barometer: castBarometer,
+  hunter: castHunter,
+  track: castTrack,
+  sentinel: castSentinel,
+  crimsonMist: castCrimsonMist,
+  erasingRain: castErasingRain,
+  mirage: castMirage,
+  cursedGrove: castCursedGrove,
+  mossCarpet: castMossCarpet,
+  weaveIllusion: castWeaveIllusion,
+  borrowedShadow: castBorrowedShadow,
+  magmaForm: castMagmaForm,
+  surf: castSurf,
+  deepRoots: castDeepRoots,
+  shadowPanther: castShadowPanther,
 };
 
 /** Hechizos que no delatan a quien está con Velo. */
@@ -197,6 +235,15 @@ const QUIET: ReadonlySet<SpellId> = new Set([
   'phantom',
   'purify',
   'lifeLink',
+  'barometer',
+  'hunter',
+  'erasingRain',
+  'mirage',
+  'mossCarpet',
+  'cursedGrove',
+  'weaveIllusion',
+  'borrowedShadow',
+  'sentinel',
 ]);
 
 /** Los hechizos que viajan: el apuntado automático se adelanta al rival según su velocidad. */
@@ -225,5 +272,24 @@ export function castSpell(
   const aim = resolveAim(state, caster, rawAim, rules, leadSpeedOf(spell, rules));
   const form = SPELL_FORM_BY_ELEMENT[weave[0] ?? 'brasa'];
   state.events.push({ type: 'release', wizardId: caster.id, form, spell });
-  CASTERS[spell]({ state, caster, spell, weave, aim, rules, bonus });
+  // Con Raíces profundas, todo llega más lejos.
+  const reach = caster.statuses.deepRooted ? farRules(rules) : rules;
+  CASTERS[spell]({ state, caster, spell, weave, aim, rules: reach, bonus });
+}
+
+const FAR = new WeakMap<GameRules, GameRules>();
+
+/** Las mismas reglas con el alcance (`range`) de cada hechizo multiplicado. */
+function farRules(rules: GameRules): GameRules {
+  const cached = FAR.get(rules);
+  if (cached) return cached;
+  const k = rules.statuses.deepRooted.rangeMultiplier;
+  const spells: Record<string, unknown> = {};
+  for (const [id, spec] of Object.entries(rules.spells)) {
+    const range = (spec as { range?: unknown }).range;
+    spells[id] = typeof range === 'number' ? { ...spec, range: range * k } : spec;
+  }
+  const far = { ...rules, spells: spells as unknown as GameRules['spells'] };
+  FAR.set(rules, far);
+  return far;
 }

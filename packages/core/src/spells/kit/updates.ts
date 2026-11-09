@@ -41,6 +41,17 @@ export function updateZone(state: MatchState, zone: Zone, rules: GameRules): boo
       case 'hotSpring':
         if (ally) applyStatus(state, wizard, 'quickened', zone.ownerId, rules);
         break;
+      case 'crimsonMist':
+        // Los rivales dentro de la niebla no ven más que lo que tienen pegado.
+        if (!ally) applyStatus(state, wizard, 'blind', zone.ownerId, rules, 6);
+        break;
+      case 'grove':
+        if (ally) applyStatus(state, wizard, 'shrouded', zone.ownerId, rules);
+        else applyStatus(state, wizard, 'weak', zone.ownerId, rules);
+        break;
+      case 'moss':
+        if (ally) applyStatus(state, wizard, 'unseen', zone.ownerId, rules, 6);
+        break;
       default:
         if (!ally) applyStatus(state, wizard, ZONE_STATUS[zone.effect], zone.ownerId, rules);
     }

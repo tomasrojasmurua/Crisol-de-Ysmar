@@ -5,9 +5,9 @@ import { add, distance, length, normalize, scale, sub, type Vec2, ZERO } from '.
 import type { BeastStats, GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { placeInArena } from './obstacles';
-import { isAlive, wizardById } from './queries';
+import { enemiesOf, isAlive, isHiddenFrom, wizardById } from './queries';
 import { withRng } from './random';
-import type { Beast, EntityId, MatchState } from './state';
+import type { Beast, EntityId, MatchState, Wizard } from './state';
 
 /** Pasos entre cambios de rumbo cuando la bestia deambula. */
 const WANDER_TICKS = 90;
@@ -43,6 +43,8 @@ function createBeast(
     targetId: null,
     aggroTicks: 0,
     attackCooldown: 0,
+    tamedBy: null,
+    tamedTicks: 0,
     velocity: ZERO,
   };
   state.beasts.push(beast);
@@ -172,6 +174,7 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
   for (const beast of state.beasts) {
     const config = beastStats(beast, rules);
     if (beast.attackCooldown > 0) beast.attackCooldown--;
+    if (beast.tamedBy !== null && updateTamed(state, beast, config, rules)) continue;
     const target = wizardById(state, beast.targetId);
     const chasing =
       target !== undefined &&
@@ -210,6 +213,56 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
       beast.facing = normalize(sub(target.pos, beast.pos), beast.facing);
     }
   }
+}
+
+/**
+ * Una bestia domada pelea para su mago: va por el rival más cercano a él y, si no hay, lo
+ * sigue. Devuelve false cuando se acaba el tiempo y vuelve a ser salvaje.
+ */
+function updateTamed(
+  state: MatchState,
+  beast: Beast,
+  config: BeastStats,
+  rules: GameRules,
+): boolean {
+  const tamer = wizardById(state, beast.tamedBy);
+  if (!tamer || !isAlive(tamer) || --beast.tamedTicks <= 0) {
+    beast.tamedBy = null;
+    beast.tamedTicks = 0;
+    beast.targetId = null;
+    return false;
+  }
+  let prey: Wizard | undefined;
+  let best = 12;
+  for (const enemy of enemiesOf(state, tamer)) {
+    const d = distance(enemy.pos, beast.pos);
+    if (d < best && !isHiddenFrom(enemy, tamer, rules)) {
+      prey = enemy;
+      best = d;
+    }
+  }
+  let goal = distance(tamer.pos, beast.pos) > 3 ? tamer.pos : beast.pos;
+  if (prey) {
+    goal = prey.pos;
+    const reach = config.attackRange + rules.wizard.radius + config.radius;
+    if (best <= reach) {
+      goal = beast.pos;
+      beast.facing = normalize(sub(prey.pos, beast.pos), beast.facing);
+      if (beast.attackCooldown === 0) {
+        beast.attackCooldown = config.attackCooldownTicks;
+        dealDamage(state, prey, tamer.id, config.damage, 'beast');
+      }
+    }
+  }
+  const offset = sub(goal, beast.pos);
+  const step = Math.min(length(offset), config.moveSpeed / TICK_RATE);
+  const direction = normalize(offset);
+  beast.velocity = scale(direction, step * TICK_RATE);
+  if (step > 0) {
+    beast.pos = placeInArena(add(beast.pos, scale(direction, step)), config.radius, rules);
+    beast.facing = direction;
+  }
+  return true;
 }
 
 /** Punto al que deambula: cambia cada pocos segundos, sin azar, a partir del paso y el id. */

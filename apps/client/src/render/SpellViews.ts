@@ -21,6 +21,7 @@ import {
   updateThornRing,
   updateTrap,
 } from './GreatSpellViews';
+import { createGrownTree, updateGrownTree } from './JungleSpellViews';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
 import {
@@ -50,6 +51,11 @@ import { createAura, createBubble, updateAura, updateBubble } from './SupportVie
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
+
+/** El Señuelo, el Gemelo sombrío y las copias del Espejismo se dibujan como su mago. */
+function isDouble(summon: Summon): boolean {
+  return summon.summon === 'decoy' || summon.summon === 'shadowTwin' || summon.summon === 'mirage';
+}
 
 /** Lo que las vistas de hechizos necesitan saber del mundo en este cuadro. */
 export interface SpellWorld {
@@ -148,9 +154,7 @@ export class SpellViews {
       case 'shackle':
         return createShackle(spell);
       case 'summon':
-        return spell.summon === 'decoy' || spell.summon === 'shadowTwin'
-          ? this.createDecoy(spell)
-          : createSummon(spell);
+        return isDouble(spell) ? this.createDecoy(spell) : createSummon(spell);
       case 'thornRush':
         // Los brotes se dibujan como estallidos, a medida que salen.
         return new THREE.Group();
@@ -158,6 +162,8 @@ export class SpellViews {
         return createBubble();
       case 'aura':
         return createAura(spell);
+      case 'grownTree':
+        return createGrownTree(spell);
     }
   }
 
@@ -294,8 +300,7 @@ export class SpellViews {
         updateShackle(view, spell, world.wizardPos(spell.targetId), this.rules, time);
         return;
       case 'summon':
-        if (spell.summon === 'decoy' || spell.summon === 'shadowTwin')
-          this.updateDecoy(spell, world);
+        if (isDouble(spell)) this.updateDecoy(spell, world);
         else updateSummon(view, spell, world.positionOf(spell), time, particles);
         return;
       case 'projectile':
@@ -312,6 +317,9 @@ export class SpellViews {
         return;
       case 'aura':
         updateAura(view, spell, world.wizardPos(spell.ownerId), time, particles);
+        return;
+      case 'grownTree':
+        updateGrownTree(view, spell, particles);
         return;
     }
   }
@@ -334,7 +342,8 @@ export class SpellViews {
       channel: null,
       leap: null,
       fallen: null,
-      moveInput: decoy.facing,
+      // Las copias del Espejismo caminan solo cuando camina su mago.
+      moveInput: decoy.summon === 'mirage' ? owner.moveInput : decoy.facing,
     };
     view.update(double, pos.x, pos.z, world.time, world.delta, false, this.rules);
   }

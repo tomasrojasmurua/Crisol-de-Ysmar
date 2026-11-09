@@ -36,7 +36,7 @@ describe('catálogo', () => {
 
   it('un tejido de 3 sin Gran hechizo lanza el de sus dos primeros elementos', () => {
     expect(spellOf(['brasa', 'brasa', 'brasa'])).toBe('meteor');
-    expect(spellOf(['raiz', 'tormenta', 'umbra'])).toBe('vine');
+    expect(spellOf(['brasa', 'tormenta', 'tormenta'])).toBe('comet');
     expect(spellOf([])).toBeNull();
   });
 });

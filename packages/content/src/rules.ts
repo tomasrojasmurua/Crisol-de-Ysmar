@@ -67,6 +67,18 @@ export const GAME_RULES: GameRules = {
     plague: { ticks: 120, damagePerSecond: 10, spreadRadius: 2 },
     // Vínculo vital: 6 segundos.
     linked: { ticks: 180 },
+    insight: { ticks: 300 },
+    hunting: { ticks: 180, moveMultiplier: 1.3 },
+    tracked: { ticks: 450 },
+    unseen: { ticks: 240 },
+    shrouded: { ticks: 6 },
+    disguised: { ticks: 240 },
+    shadowed: { ticks: 180 },
+    leeching: { ticks: 150, lifesteal: 0.5 },
+    magma: { ticks: 150, moveMultiplier: 0.75, trailEvery: 8 },
+    surfing: { ticks: 150, moveMultiplier: 1.8 },
+    deepRooted: { ticks: 120, rangeMultiplier: 1.5 },
+    panther: { ticks: 180, moveMultiplier: 1.5, damage: 12, reach: 1.8, intervalTicks: 20 },
   },
   interactions: {
     tideExtinguishesBurn: true,

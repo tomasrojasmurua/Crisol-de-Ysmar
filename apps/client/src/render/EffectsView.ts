@@ -515,6 +515,80 @@ export class EffectsView {
         size: 0.22,
       });
     }
+    if (st.magma && Math.random() < chance * 0.25) {
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.7,
+        y: 0.3 + Math.random() * 1.4,
+        z: z + (Math.random() - 0.5) * 0.7,
+        vy: 1.2,
+        color: glow(Math.random() < 0.5 ? elementColor('brasa') : new THREE.Color('#ff5a1f'), 1.6),
+        life: 0.5,
+        size: 0.35,
+        gravity: 1,
+      });
+    }
+    if (st.surfing && Math.random() < chance) {
+      // Una ola que lo lleva: espuma y agua alrededor de los pies.
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.7,
+        y: 0.2 + Math.random() * 0.6,
+        z: z + Math.sin(angle) * 0.7,
+        vx: Math.cos(angle) * 1.5,
+        vy: 1.5,
+        vz: Math.sin(angle) * 1.5,
+        color: glow(Math.random() < 0.4 ? new THREE.Color('#e6f4ff') : elementColor('marea'), 1.4),
+        life: 0.5,
+        size: 0.4,
+        gravity: 5,
+      });
+    }
+    if (st.deepRooted && Math.random() < chance * 0.25) {
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.9,
+        y: 0.05,
+        z: z + Math.sin(angle) * 0.9,
+        vy: 0.4,
+        color: glow(elementColor('raiz'), 1.2),
+        life: 0.8,
+        size: 0.3,
+      });
+    }
+    if (st.panther && Math.random() < chance * 0.6) {
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.8,
+        y: 0.3 + Math.random() * 0.8,
+        z: z + (Math.random() - 0.5) * 0.8,
+        vy: 0.3,
+        color: elementColor('umbra').clone().multiplyScalar(0.7),
+        life: 0.6,
+        size: 0.5,
+      });
+    }
+    if (st.hunting && Math.random() < chance * 0.3) {
+      this.particles.emit({
+        x,
+        y: 2.3,
+        z,
+        vx: (Math.random() - 0.5) * 2,
+        vz: (Math.random() - 0.5) * 2,
+        color: glow(elementColor('tormenta'), 1.6),
+        life: 0.4,
+        size: 0.2,
+      });
+    }
+    if (st.tracked && Math.random() < chance * 0.2) {
+      // Huellas de luz que deja al caminar.
+      this.particles.emit({
+        x,
+        y: 0.05,
+        z,
+        color: glow(elementColor('raiz'), 1.4),
+        life: 1.5,
+        size: 0.3,
+      });
+    }
     if (spectre && Math.random() < chance * 0.6) {
       this.particles.emit({
         x: x + (Math.random() - 0.5) * 0.5,
