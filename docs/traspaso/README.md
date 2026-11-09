@@ -12,7 +12,8 @@ cuenta de Claude; sus copias están en [`referencia/`](referencia/).
 
 Duelo de hechiceros para celular, jugado en el navegador desde un enlace de WhatsApp, donde la magia
 se **teje** en tiempo real combinando cinco elementos. Hoy se juega completo contra la IA en
-[crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev); el multijugador todavía no existe.
+[crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev). Ya se puede jugar un duelo 1v1 en
+red con un amigo (menú → Jugar con un amigo).
 
 ## Quién es Tomás y cómo trabaja
 
@@ -77,7 +78,7 @@ se **teje** en tiempo real combinando cinco elementos. Hoy se juega completo con
 | Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`.                                                        |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
-| **Multijugador**                                                       | **No existe.** La Sala solo responde saludos y pings.                                     |
+| **Multijugador**                                                       | **1v1 en red** (primera entrega del Hito 2). Falta la predicción local y más jugadores.   |
 | Audio                                                                  | No hay ningún sonido.                                                                     |
 | Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 

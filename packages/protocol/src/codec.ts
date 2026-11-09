@@ -1,19 +1,26 @@
 import type { ClientMessage, ServerMessage } from './messages';
 
 /**
- * Codificación de mensajes. En el Hito 0 es JSON para depurar fácil;
- * en el Hito 2 se reemplaza por binario sin tocar a quien la usa.
+ * Codificación de mensajes. Por ahora es JSON (el WebSocket lo comprime); pasar a binario y a
+ * mandar solo lo que cambia queda para cuando haga falta, sin tocar a quien la usa.
  */
 export function encode(message: ClientMessage | ServerMessage): string {
   return JSON.stringify(message);
 }
 
 export function decodeClientMessage(raw: string): ClientMessage | null {
-  return parseWithType<ClientMessage>(raw, ['hello', 'intents', 'ping']);
+  return parseWithType<ClientMessage>(raw, ['hello', 'intents', 'glyph', 'rematch', 'ping']);
 }
 
 export function decodeServerMessage(raw: string): ServerMessage | null {
-  return parseWithType<ServerMessage>(raw, ['welcome', 'pong', 'error']);
+  return parseWithType<ServerMessage>(raw, [
+    'welcome',
+    'players',
+    'start',
+    'state',
+    'pong',
+    'error',
+  ]);
 }
 
 function parseWithType<T extends { type: string }>(

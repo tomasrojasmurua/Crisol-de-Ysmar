@@ -42,6 +42,9 @@ importers:
       '@crisol/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@crisol/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       three:
         specifier: 0.187.0
         version: 0.187.0
@@ -55,6 +58,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@crisol/content':
+        specifier: workspace:*
+        version: link:../../packages/content
       '@crisol/core':
         specifier: workspace:*
         version: link:../../packages/core

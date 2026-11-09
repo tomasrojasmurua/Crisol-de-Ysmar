@@ -24,10 +24,12 @@ import {
   TICK_MS,
   type Wizard,
 } from '@crisol/core';
+import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import * as THREE from 'three';
 import { CameraRig } from './camera/CameraRig';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
+import type { MatchView } from './game/MatchView';
 import {
   type Appearance,
   loadProfile,
@@ -42,6 +44,7 @@ import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
+import { NetMatch } from './net/NetMatch';
 import { AimGuide } from './render/AimGuide';
 import { ArenaView } from './render/arena/ArenaView';
 import { MapViews } from './render/arena/MapViews';
@@ -58,6 +61,7 @@ import { BlindVeil } from './ui/BlindVeil';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
+import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { Wardrobe } from './ui/Wardrobe';
@@ -132,7 +136,13 @@ const blindVeil = new BlindVeil(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
 const hud = new Hud(
   uiRoot,
-  () => startMatch(match?.options ?? menu.options),
+  () => {
+    if (net) {
+      net.requestRematch();
+      hud.hideResult();
+      hud.announce('Revancha pedida', 'Esperando a tu rival', 3);
+    } else startMatch(match?.options ?? menu.options);
+  },
   () => showMenu(),
 );
 let profile = loadProfile();
@@ -142,6 +152,7 @@ const menu = new Menu(
   (options) => startMatch(options),
   () => openWardrobe(),
   () => openGrimoire(),
+  () => openLobby(),
 );
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -157,7 +168,13 @@ const grimoireBook = new GrimoireBook(uiRoot, () => closeOverlays());
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
-let match: LocalMatch | null = null;
+let match: MatchView | null = null;
+/** El duelo en red, si estás jugando con un amigo. */
+let net: NetMatch | null = null;
+const netBadge = document.createElement('div');
+netBadge.className = 'net-badge';
+netBadge.hidden = true;
+uiRoot.append(netBadge);
 const wizardViews = new Map<number, WizardView>();
 let badges = new Map<number, WizardBadge>();
 let shownRound = 0;
@@ -246,6 +263,11 @@ function closeOverlays(): void {
   hidePreview();
   menu.setIdentity(profile, grimoire.count, grimoire.total);
   menu.visible = true;
+  if (pendingInvite && profile.name) {
+    const code = pendingInvite;
+    pendingInvite = '';
+    joinRoom(code);
+  }
 }
 
 /** Cámara del Vestidor: el mago a un lado y el panel al otro. */
@@ -279,6 +301,11 @@ function useRules(next: GameRules): void {
 }
 
 function showMenu(): void {
+  net?.close();
+  net = null;
+  if (location.search) history.replaceState(null, '', location.pathname);
+  lobby.hide();
+  netBadge.hidden = true;
   match = null;
   useRules(GAME_RULES);
   targetMarker.update(null, 0);
@@ -305,28 +332,57 @@ function startMatch(options: MatchOptions): void {
   const seed = (Math.random() * 2 ** 32) >>> 0;
   useRules(rulesForMode(options.mode));
   const current = new LocalMatch(options, rules, human, seed);
-  match = current;
-  const ffa = options.mode.kind === 'ffa';
-  const player = current.player;
-
-  // Nombres de los rivales y aliados, sin repetir, elegidos con la semilla.
+  // Nombres y aspecto de los rivales y aliados, sin repetir, elegidos con la semilla.
   const rng = new SeededRng(seed);
   const names = [...WIZARD_NAMES];
+  const others = new Map(
+    current.state.wizards
+      .filter((w) => w.id !== PLAYER_ID)
+      .map((w) => [
+        w.id,
+        {
+          name: names.splice(rng.int(0, names.length - 1), 1)[0] ?? 'Hechicero',
+          look: randomAppearance(rng),
+        },
+      ]),
+  );
+  beginMatch(current, (id) => others.get(id) ?? { name: 'Hechicero', look: profile.look });
+}
+
+/** Empieza (o reempieza) un duelo en red: los nombres y el aspecto vienen de la sala. */
+function startNetMatch(current: NetMatch): void {
+  useRules(rulesForMode(current.options.mode));
+  const info = (id: number): PlayerInfo | undefined => current.roster.find((p) => p.id === id);
+  lobby.hide();
+  netBadge.hidden = false;
+  beginMatch(current, (id) => ({
+    name: info(id)?.name ?? 'Rival',
+    look: info(id)?.look ?? profile.look,
+  }));
+}
+
+/** Prepara la pantalla para una partida: magos, nombres, colores y HUD. */
+function beginMatch(
+  current: MatchView,
+  other: (id: number) => { readonly name: string; readonly look: Appearance },
+): void {
+  match = current;
+  effects.playerId = current.playerId;
+  const ffa = current.options.mode.kind === 'ffa';
+  const player = current.player;
   badges = new Map();
   for (const wizard of current.state.wizards) {
-    const isPlayer = wizard.id === PLAYER_ID;
-    const name = isPlayer
-      ? profile.name || 'Tú'
-      : (names.splice(rng.int(0, names.length - 1), 1)[0] ?? 'Hechicero');
+    const isPlayer = wizard.id === current.playerId;
+    const name = isPlayer ? profile.name || 'Tú' : other(wizard.id).name;
     badges.set(wizard.id, { name, color: teamColorHex(wizard.team, player.team, isPlayer, ffa) });
   }
 
   clearWizards();
   wizardLooks.clear();
   for (const wizard of current.state.wizards) {
-    const isPlayer = wizard.id === PLAYER_ID;
+    const isPlayer = wizard.id === current.playerId;
     const look = lookOf(
-      isPlayer ? profile.look : randomAppearance(rng),
+      isPlayer ? profile.look : other(wizard.id).look,
       current.affinities.get(wizard.id) ?? null,
       badges.get(wizard.id)?.color ?? '#ffffff',
       isPlayer,
@@ -337,7 +393,7 @@ function startMatch(options: MatchOptions): void {
     wizardViews.set(wizard.id, view);
   }
   spells.sync([], NO_SPELL_WORLD);
-  labels.reset(badges, PLAYER_ID);
+  labels.reset(badges, current.playerId);
   menu.visible = false;
   hud.visible = true;
   hud.hideResult();
@@ -361,9 +417,10 @@ function clearWizards(): void {
 }
 
 /** Avisos de la partida según lo que pasó en el paso. */
-function announceEvents(events: readonly GameEvent[], current: LocalMatch): void {
+function announceEvents(events: readonly GameEvent[], current: MatchView): void {
+  const me = current.playerId;
   for (const event of events) {
-    if (event.type === 'cast' && event.wizardId === PLAYER_ID) {
+    if (event.type === 'cast' && event.wizardId === me) {
       if (grimoire.discover(event.weave)) {
         hud.celebrateDiscovery(
           spellName(event.weave),
@@ -374,7 +431,7 @@ function announceEvents(events: readonly GameEvent[], current: LocalMatch): void
       }
     } else if (event.type === 'phase') {
       hud.announcePhase(event.phase);
-    } else if (event.type === 'defeated' && event.wizardId === PLAYER_ID) {
+    } else if (event.type === 'defeated' && event.wizardId === me) {
       const subtitle =
         current.state.deathRule === 'spectre'
           ? 'Sigues como espectro'
@@ -382,20 +439,20 @@ function announceEvents(events: readonly GameEvent[], current: LocalMatch): void
             ? 'Reapareces en unos segundos'
             : 'Te quedaste sin vidas';
       hud.announce('Caíste', subtitle);
-    } else if (event.type === 'revived' && event.wizardId === PLAYER_ID) {
+    } else if (event.type === 'revived' && event.wizardId === me) {
       hud.announce('De pie', `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`);
     } else if (event.type === 'guardianAwake') {
       hud.announce('El Guardián despertó', 'Está en la plaza: vencerlo da Esencia de todo', 2.6);
     } else if (event.type === 'beastSlain' && event.guardian) {
-      const killer = event.killerId === PLAYER_ID ? 'Tú' : badges.get(event.killerId ?? -1)?.name;
+      const killer = event.killerId === me ? 'Tú' : badges.get(event.killerId ?? -1)?.name;
       hud.announce(
         'Cayó el Guardián',
-        event.killerId === PLAYER_ID
+        event.killerId === me
           ? 'Esencia de los cinco elementos'
           : `${killer ?? 'Alguien'} se llevó su Esencia`,
         2.4,
       );
-    } else if (event.type === 'beastSlain' && event.killerId === PLAYER_ID) {
+    } else if (event.type === 'beastSlain' && event.killerId === me) {
       const bonus = Math.round(rules.beasts.essenceDamagePerStack * 100);
       hud.announce(
         `Esencia de ${elementName(event.element)}`,
@@ -408,7 +465,7 @@ function announceEvents(events: readonly GameEvent[], current: LocalMatch): void
   }
 }
 
-function teamName(current: LocalMatch, team: number): string {
+function teamName(current: MatchView, team: number): string {
   const ffa = current.options.mode.kind === 'ffa';
   if (team === current.player.team) return ffa ? 'ti' : 'tu equipo';
   if (!ffa) return 'el equipo rival';
@@ -419,7 +476,7 @@ function teamName(current: LocalMatch, team: number): string {
 /** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
 let lastWinner = -1;
 
-function updateMatchFlow(current: LocalMatch): void {
+function updateMatchFlow(current: MatchView): void {
   const playerTeam = current.player.team;
   const stage = current.stage;
   if (stage.kind === 'playing' && current.roundNumber !== shownRound) {
@@ -434,16 +491,18 @@ function updateMatchFlow(current: LocalMatch): void {
       shownRound === 1 ? 3 : 2.4,
     );
   }
-  if (stage.kind === 'playing' && pickerShown) {
+  if ((stage.kind === 'playing' || stage.kind === 'waiting') && pickerShown) {
     pickerShown = false;
     glyphPicker.hide();
-    controls.visible = true;
+    controls.visible = stage.kind === 'playing';
+    if (stage.kind === 'waiting') hud.announce('Glifo elegido', 'Esperando a tu rival', 3);
   }
+  if (stage.kind === 'playing' && !controls.visible && !resultShown) controls.visible = true;
   if (stage.kind === 'choosing' && !pickerShown) {
     pickerShown = true;
     controls.visible = false;
     const lost = current.series.roundsPlayed > 0 && lastWinner !== playerTeam;
-    glyphPicker.show(stage.options, current.glyphsOf(PLAYER_ID), lost);
+    glyphPicker.show(stage.options, current.glyphsOf(current.playerId), lost);
   }
   if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
     const winner = stage.roundWinner;
@@ -464,6 +523,71 @@ function updateMatchFlow(current: LocalMatch): void {
     controls.visible = false;
   }
 }
+
+// ---------- Jugar con un amigo ----------
+
+const lobby = new Lobby(
+  uiRoot,
+  () => joinRoom(randomRoomCode(Math.random)),
+  (code) => joinRoom(code),
+  () => showMenu(),
+);
+
+function openLobby(): void {
+  menu.visible = false;
+  lobby.showChoice();
+}
+
+/** Entra a una sala (nueva o de un amigo) y espera a que empiece el duelo. */
+function joinRoom(code: string): void {
+  net?.close();
+  menu.visible = false;
+  lobby.showRoom(code);
+  history.replaceState(null, '', `?sala=${code}`);
+  const current = new NetMatch(
+    code,
+    { name: profile.name || 'Hechicero', look: profile.look, affinity: profile.affinity },
+    human,
+    {
+      players: (players, me) => {
+        lobby.setPlayers(players, me);
+        if (current !== net) return;
+        if (!current.started) {
+          for (const p of players) seenConnected.set(p.id, p.connected);
+          return;
+        }
+        // Avisos de quien se fue o volvió durante el duelo.
+        for (const p of players) {
+          if (p.id === me) continue;
+          const was = seenConnected.get(p.id);
+          if (was === true && !p.connected)
+            hud.announce(`${p.name} se desconectó`, 'La IA juega por él', 2.6);
+          if (was === false && p.connected) hud.announce(`${p.name} volvió`, '', 2);
+        }
+        for (const p of players) seenConnected.set(p.id, p.connected);
+      },
+      start: (started) => {
+        if (started !== net) return;
+        resultShown = false;
+        startNetMatch(started);
+      },
+      problem: (reason, fatal) => {
+        if (current !== net) return;
+        if (lobby.visible) lobby.setStatus(reason);
+        else hud.announce(reason, fatal ? '' : 'Tu mago sigue en manos de la IA', 3);
+        if (fatal && !match) lobby.setStatus(reason);
+      },
+      latency: (ms) => {
+        netBadge.textContent = `${ms} ms`;
+      },
+    },
+  );
+  net = current;
+  seenConnected.clear();
+}
+const seenConnected = new Map<number, boolean>();
+/** Una invitación que llegó antes de que eligieras nombre: se usa al salir del Vestidor. */
+let pendingInvite = '';
 
 // ---------- Fijar objetivo tocando a un rival ----------
 
@@ -560,7 +684,7 @@ function disguise(wizard: Wizard, tick: number): Wizard {
   };
 }
 
-function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
+function renderMatch(current: MatchView, alpha: number, delta: number): void {
   const state = current.state;
   const time = ((state.tick + alpha) * TICK_MS) / 1000;
   const player = current.player;
@@ -641,6 +765,12 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
 showMenu();
 // La primera vez eliges nombre y personaje.
 if (!profile.name) openWardrobe();
+// Un enlace de invitación (…?sala=K7QF) entra directo a la sala del amigo.
+const invited = new URLSearchParams(location.search).get('sala')?.toUpperCase() ?? '';
+if (isValidRoomCode(invited)) {
+  if (profile.name) joinRoom(invited);
+  else pendingInvite = invited;
+}
 
 // Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
 if (import.meta.env.DEV) {

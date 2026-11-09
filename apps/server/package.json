@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@crisol/content": "workspace:*",
     "@crisol/core": "workspace:*",
     "@crisol/protocol": "workspace:*"
   },

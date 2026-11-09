@@ -22,8 +22,8 @@ export default {
 
     const socketMatch = ROOM_SOCKET_PATH.exec(url.pathname);
     if (socketMatch?.[1] && isValidRoomCode(socketMatch[1])) {
-      // Hito 2: ubicar la Sala en Sudamérica con locationHint.
-      const room = env.ROOMS.getByName(socketMatch[1]);
+      // Las salas son entre amigos en Chile: se crean en Sudamérica.
+      const room = env.ROOMS.get(env.ROOMS.idFromName(socketMatch[1]), { locationHint: 'sam' });
       return room.fetch(request);
     }
 

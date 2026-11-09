@@ -60,7 +60,8 @@ export class EffectsView {
   constructor(
     private readonly scene: THREE.Scene,
     private readonly particles: Particles,
-    private readonly playerId: number,
+    /** El mago de este celular: en red puede ser el 1 o el 2. */
+    public playerId: number,
   ) {
     this.beamGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 6, 1, true);
     this.beamGeometry.translate(0, 0.5, 0);
