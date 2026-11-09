@@ -1,7 +1,7 @@
 import { ELEMENT_IDS, type ElementId } from '../elements';
 import { normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
 import type { GameRules } from '../rules';
-import type { EntityId, MatchState, Wizard } from './state';
+import type { DeathRule, EntityId, MatchState, Wizard } from './state';
 
 export interface WizardSetup {
   readonly team: number;
@@ -10,6 +10,7 @@ export interface WizardSetup {
 
 export interface MatchSetup {
   readonly seed: number;
+  readonly deathRule: DeathRule;
   readonly wizards: readonly WizardSetup[];
 }
 
@@ -37,10 +38,14 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
     statuses: {},
     lockTarget: null,
     moveInput: ZERO,
+    lives: setup.deathRule === 'lives' ? rules.death.lives : 1,
+    fallen: null,
   }));
 
   return {
+    deathRule: setup.deathRule,
     tick: 0,
+    zoneRadius: rules.arenaRadius,
     rngState: setup.seed >>> 0,
     nextEntityId: wizards.length + 1,
     wizards,
@@ -51,10 +56,15 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
 }
 
 /** Duelo estándar: dos magos frente a frente. */
-export function duelSetup(seed: number, rules: GameRules): MatchSetup {
+export function duelSetup(
+  seed: number,
+  rules: GameRules,
+  deathRule: DeathRule = 'spectre',
+): MatchSetup {
   const offset = rules.arenaRadius * 0.5;
   return {
     seed,
+    deathRule,
     wizards: [
       { team: 0, spawn: { x: 0, z: -offset } },
       { team: 1, spawn: { x: 0, z: offset } },

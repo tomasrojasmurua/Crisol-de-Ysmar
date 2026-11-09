@@ -12,6 +12,7 @@ function duel(gap = 6): MatchState {
   return createMatch(
     {
       seed: 1,
+      deathRule: 'spectre',
       wizards: [
         { team: 0, spawn: { x: 0, z: 0 } },
         { team: 1, spawn: { x: 0, z: gap } },

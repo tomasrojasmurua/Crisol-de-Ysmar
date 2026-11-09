@@ -10,12 +10,30 @@ export {
 } from './elements';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
 export { stateHash } from './match/hash';
+export {
+  type GameMode,
+  MAX_PLAYERS,
+  modeSetup,
+  playerCount,
+  teamCount,
+} from './match/modes';
 export { currentTarget, isAlive, nearestEnemy, wizardById } from './match/queries';
+export {
+  decideRoundWinner,
+  isSpectre,
+  isStanding,
+  roundPhase,
+  zoneRadiusAt,
+} from './match/round';
+export { createSeries, recordRound, type SeriesState } from './match/series';
 export type {
+  DeathRule,
   EntityId,
+  Fallen,
   GameEvent,
   MatchState,
   Projectile,
+  RoundPhase,
   SpellEntity,
   SpellPayload,
   StatusInstance,
@@ -26,7 +44,14 @@ export type {
 export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';
-export type { FormBase, GameRules, ModifierRules, StatusId } from './rules';
+export type {
+  DeathRules,
+  FormBase,
+  GameRules,
+  ModifierRules,
+  RoundRules,
+  StatusId,
+} from './rules';
 export { FixedStepClock, TICK_MS, TICK_RATE } from './sim/fixedStep';
 export { SeededRng } from './sim/rng';
 export { buildPayload } from './spells/payload';

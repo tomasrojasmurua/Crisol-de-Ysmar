@@ -1,7 +1,8 @@
 import type { Controller, Intent } from '../controllers/intent';
 import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
-import { currentTarget } from '../match/queries';
+import { currentTarget, isAlive } from '../match/queries';
+import { isSpectre } from '../match/round';
 import type { MatchState, Projectile, Wizard } from '../match/state';
 import {
   add,
@@ -61,6 +62,10 @@ export class BotController implements Controller {
   }
 
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
+    if (!isAlive(self as Wizard)) {
+      this.plan = null;
+      return this.spectreIntents(state, self);
+    }
     const target = currentTarget(state as MatchState, self as Wizard);
     if (!target) {
       return [{ kind: 'move', x: 0, z: 0 }];
@@ -69,7 +74,10 @@ export class BotController implements Controller {
     if (self.lockTarget !== target.id) {
       intents.push({ kind: 'lockTarget', targetId: target.id });
     }
-    const move = this.chooseMove(state, self, target);
+    const ally = this.allyToRevive(state, self, target);
+    const move = ally
+      ? this.keepInZone(state, self, normalize(sub(ally.pos, self.pos)))
+      : this.chooseMove(state, self, target);
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
     if (self.channel || self.leap) {
@@ -168,11 +176,64 @@ export class BotController implements Controller {
       const away = dot(side, sub(self.pos, threat.pos)) >= 0 ? 1 : -1;
       move = add(move, scale(side, 2 * away));
     }
-    // Se aleja del borde de la arena.
-    if (length(self.pos) > this.rules.arenaRadius * 0.75) {
-      move = add(move, scale(normalize(self.pos), -1.5));
+    return this.keepInZone(state, self, move);
+  }
+
+  /** Se aleja del borde: de la arena al principio y de la zona cuando se cierra. */
+  private keepInZone(state: Readonly<MatchState>, self: Readonly<Wizard>, move: Vec2): Vec2 {
+    const safeRadius = Math.min(this.rules.arenaRadius * 0.75, state.zoneRadius - 1.5);
+    const fromCenter = length(self.pos);
+    if (fromCenter > safeRadius) {
+      const urgency = fromCenter > state.zoneRadius ? 4 : 1.5;
+      move = add(move, scale(normalize(self.pos), -urgency));
     }
     return normalize(move);
+  }
+
+  /** Un aliado caído cerca, si no hay un enemigo encima: vale la pena ir a levantarlo. */
+  private allyToRevive(
+    state: Readonly<MatchState>,
+    self: Readonly<Wizard>,
+    target: Wizard,
+  ): Wizard | undefined {
+    if (distance(self.pos, target.pos) < 5) return undefined;
+    return state.wizards.find(
+      (w) =>
+        w.team === self.team &&
+        w.id !== self.id &&
+        w.fallen !== null &&
+        w.fallen.respawnTicks === null &&
+        distance(w.pos, self.pos) < 12 &&
+        distance(w.pos, self.pos) > this.rules.death.revive.radius * 0.6,
+    );
+  }
+
+  /** Como espectro: busca a un aliado que lo levante o persigue enemigos con su Lamento. */
+  private spectreIntents(state: Readonly<MatchState>, self: Readonly<Wizard>): Intent[] {
+    if (!isSpectre(state as MatchState, self as Wizard)) {
+      return [];
+    }
+    const ally = state.wizards.find((w) => w.team === self.team && w.id !== self.id && isAlive(w));
+    const enemy = currentTarget(state as MatchState, self as Wizard);
+    const intents: Intent[] = [];
+    const goal = ally ?? enemy;
+    if (goal) {
+      const offset = sub(goal.pos, self.pos);
+      const stop = ally
+        ? this.rules.death.revive.radius * 0.5
+        : this.rules.death.spectre.hauntRange * 0.7;
+      const move = length(offset) > stop ? normalize(offset) : { x: 0, z: 0 };
+      intents.push({ kind: 'move', x: move.x, z: move.z });
+    }
+    if (
+      enemy &&
+      self.fallen &&
+      self.fallen.hauntCooldown === 0 &&
+      distance(enemy.pos, self.pos) <= this.rules.death.spectre.hauntRange
+    ) {
+      intents.push({ kind: 'cast', dirX: 0, dirZ: 0 });
+    }
+    return intents;
   }
 
   private aimFor(self: Readonly<Wizard>, target: Wizard, mode: AimMode): Vec2 {

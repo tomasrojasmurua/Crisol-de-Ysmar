@@ -23,6 +23,14 @@ apps/client   apps/server   apps/balance
 4. **Los conjuros se componen:** forma + efectos, según la gramática del tejido.
 5. **Dibujar no es simular:** el render interpola entre pasos para verse a 60 cuadros por segundo.
 
+## La partida en el núcleo
+
+- `match/step.ts` avanza una ronda; `match/round.ts` tiene las fases, la zona, las caídas,
+  el Lamento de los espectros, los revividos y quién gana la ronda.
+- `match/series.ts` lleva el mejor de 3 y `match/modes.ts` arma duelo, equipos y todos contra todos.
+- En el cliente, `game/LocalMatch.ts` encadena rondas con bots; la red del Hito 2 reemplazará
+  solo a los controladores.
+
 ## Red (desde el Hito 2)
 
 La Sala (Durable Object) corre el núcleo y es la única verdad. Los celulares envían intenciones

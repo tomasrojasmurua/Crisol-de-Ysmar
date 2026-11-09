@@ -13,7 +13,16 @@ export class CameraRig {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
-  update(player: Vec2, target: Vec2 | null, deltaSeconds: number): void {
+  /** Vista del menú: la cámara gira despacio alrededor del Crisol. */
+  orbit(timeSeconds: number, deltaSeconds: number): void {
+    const angle = timeSeconds * 0.06;
+    this.desiredPosition.set(Math.cos(angle) * 21, 7.5, Math.sin(angle) * 21);
+    this.desiredLook.set(0, 1.5, 0);
+    this.blendTowards(deltaSeconds, 2);
+  }
+
+  /** `shake` de 0 a 1 sacude la cámara al recibir un golpe fuerte. */
+  update(player: Vec2, target: Vec2 | null, deltaSeconds: number, shake = 0): void {
     // El duelo queda encuadrado cara a cara.
     const dir = new THREE.Vector2(
       (target?.x ?? player.x) - player.x,
@@ -24,7 +33,21 @@ export class CameraRig {
     this.desiredPosition.set(player.x - dir.x * 6.5, 4.6, player.z - dir.y * 6.5);
     this.desiredLook.set(player.x + dir.x * 4, 1.2, player.z + dir.y * 4);
 
-    const blend = this.initialized ? 1 - Math.exp(-deltaSeconds * 6) : 1;
+    this.blendTowards(deltaSeconds, 6);
+    if (shake > 0) {
+      const amount = shake * shake * 0.18;
+      this.camera.position.x += (Math.random() - 0.5) * amount;
+      this.camera.position.y += (Math.random() - 0.5) * amount;
+    }
+  }
+
+  /** Salta sin transición a la próxima posición, por ejemplo al empezar una ronda. */
+  snap(): void {
+    this.initialized = false;
+  }
+
+  private blendTowards(deltaSeconds: number, rate: number): void {
+    const blend = this.initialized ? 1 - Math.exp(-deltaSeconds * rate) : 1;
     this.initialized = true;
     this.camera.position.lerp(this.desiredPosition, blend);
     this.look.lerp(this.desiredLook, blend);
