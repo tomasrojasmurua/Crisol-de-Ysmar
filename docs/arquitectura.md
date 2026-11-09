@@ -27,8 +27,12 @@ apps/client   apps/server   apps/balance
 
 - `match/step.ts` avanza una ronda; `match/round.ts` tiene las fases, la zona, las caídas,
   el Lamento de los espectros, los revividos y quién gana la ronda.
+- `match/beasts.ts` mueve a las bestias neutrales y reparte Esencia; `match/shrines.ts` maneja
+  los santuarios de la Convergencia.
+- `mods.ts` combina los modificadores de Glifos y Presagios (`combineMods`) en un `WizardMods` por
+  mago; `spells/payload.ts` los aplica al lanzar junto con la Esencia y el estado potenciado.
 - `match/series.ts` lleva el mejor de 3 y `match/modes.ts` arma duelo, equipos y todos contra todos.
-- En el cliente, `game/LocalMatch.ts` encadena rondas con bots; la red del Hito 2 reemplazará
+- En el cliente, `game/LocalMatch.ts` encadena rondas con bots, ofrece Glifos entre rondas y sortea el Presagio; la red del Hito 2 reemplazará
   solo a los controladores.
 
 ## Red (desde el Hito 2)

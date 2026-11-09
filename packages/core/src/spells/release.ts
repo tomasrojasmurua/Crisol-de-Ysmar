@@ -1,4 +1,5 @@
 import { applyHit } from '../combat/hit';
+import { damageBeast } from '../match/beasts';
 import { currentTarget, enemiesOf } from '../match/queries';
 import type { MatchState, SpellPayload, Wizard } from '../match/state';
 import {
@@ -89,6 +90,11 @@ function releaseWall(
       applyHit(state, enemy, caster.id, payload, rules);
     }
   }
+  for (const beast of state.beasts) {
+    if (distance(beast.pos, center) <= form.pulseRadius) {
+      damageBeast(state, beast, caster.id, payload.damage, rules);
+    }
+  }
 }
 
 function releaseTrap(
@@ -150,6 +156,16 @@ function releaseMark(
   }
   if (best) {
     applyHit(state, best, caster.id, payload, rules);
+    return;
+  }
+  // Sin rival a la vista, la marca alcanza a una bestia.
+  const beast = state.beasts.find((b) => {
+    const toBeast = sub(b.pos, caster.pos);
+    return length(toBeast) <= range && dot(normalize(toBeast), aim) >= form.coneDot;
+  });
+  if (beast) {
+    state.events.push({ type: 'markBeast', wizardId: caster.id, beastId: beast.id });
+    damageBeast(state, beast, caster.id, payload.damage, rules);
   } else {
     state.events.push({ type: 'fizzle', wizardId: caster.id });
   }

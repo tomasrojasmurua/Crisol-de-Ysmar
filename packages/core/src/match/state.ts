@@ -1,5 +1,6 @@
 import type { ElementId } from '../elements';
 import type { Vec2 } from '../math/vec2';
+import type { WizardMods } from '../mods';
 import type { StatusId } from '../rules';
 import type { SpellForm, Weave } from '../weaving/weave';
 
@@ -39,6 +40,11 @@ export interface Wizard {
   pos: Vec2;
   facing: Vec2;
   hp: number;
+  /** Vida máxima: la base de las reglas por sus Glifos y Presagio. */
+  readonly maxHp: number;
+  readonly mods: WizardMods;
+  /** Esencia de cada elemento ganada cazando bestias en esta ronda. */
+  essence: Record<ElementId, number>;
   /** Elementos tejidos y aún no lanzados. Lo ve todo el mundo. */
   weave: ElementId[];
   channel: Channel | null;
@@ -101,6 +107,30 @@ export interface Trap {
 
 export type SpellEntity = Projectile | Wall | Trap;
 
+/** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
+export interface Beast {
+  readonly id: EntityId;
+  readonly element: ElementId;
+  readonly home: Vec2;
+  pos: Vec2;
+  facing: Vec2;
+  hp: number;
+  /** A quién persigue y por cuántos pasos más. */
+  targetId: EntityId | null;
+  aggroTicks: number;
+  attackCooldown: number;
+  velocity: Vec2;
+}
+
+/** Santuario de la Convergencia. El primer equipo que lo sostiene solo, lo toma. */
+export interface Shrine {
+  readonly id: EntityId;
+  readonly pos: Vec2;
+  /** Equipo que lo está tomando y cuánto lleva. */
+  team: number | null;
+  progress: number;
+}
+
 export type GameEvent =
   | { readonly type: 'cast'; readonly wizardId: EntityId; readonly weave: Weave }
   | { readonly type: 'release'; readonly wizardId: EntityId; readonly form: SpellForm }
@@ -109,9 +139,24 @@ export type GameEvent =
       readonly targetId: EntityId;
       readonly sourceId: EntityId;
       readonly amount: number;
-      /** 'zone' es el daño por quedar fuera de la zona. */
-      readonly form: SpellForm | 'zone';
+      /** 'zone' es el daño por quedar fuera de la zona; 'beast', el mordisco de una bestia. */
+      readonly form: SpellForm | 'zone' | 'beast';
     }
+  | {
+      readonly type: 'beastHit';
+      readonly beastId: EntityId;
+      readonly sourceId: EntityId;
+      readonly amount: number;
+    }
+  | {
+      readonly type: 'beastSlain';
+      readonly beastId: EntityId;
+      readonly element: ElementId;
+      readonly killerId: EntityId | null;
+    }
+  | { readonly type: 'markBeast'; readonly wizardId: EntityId; readonly beastId: EntityId }
+  | { readonly type: 'shrinesAppear' }
+  | { readonly type: 'shrineClaimed'; readonly shrineId: EntityId; readonly team: number }
   | { readonly type: 'blocked'; readonly pos: Vec2 }
   | { readonly type: 'fizzle'; readonly wizardId: EntityId }
   | { readonly type: 'defeated'; readonly wizardId: EntityId }
@@ -138,6 +183,8 @@ export interface MatchState {
   nextEntityId: EntityId;
   wizards: Wizard[];
   spells: SpellEntity[];
+  beasts: Beast[];
+  shrines: Shrine[];
   /** Lo que pasó en el último paso: el cliente lo usa para efectos y sonido. */
   events: GameEvent[];
   winnerTeam: number | null;

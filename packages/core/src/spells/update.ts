@@ -1,4 +1,5 @@
 import { applyHit } from '../combat/hit';
+import { damageBeast } from '../match/beasts';
 import { enemiesOf } from '../match/queries';
 import type { MatchState, Projectile, SpellEntity, Trap, Wall, Wizard } from '../match/state';
 import { add, distance, distanceToSegment, length, scale } from '../math/vec2';
@@ -60,6 +61,13 @@ function updateProjectile(
     }
   }
 
+  for (const beast of state.beasts) {
+    if (distance(beast.pos, projectile.pos) <= radius + rules.beasts.radius) {
+      damageBeast(state, beast, projectile.ownerId, projectile.payload.damage, rules);
+      return false;
+    }
+  }
+
   const outOfArena = length(projectile.pos) > rules.arenaRadius + 2;
   return projectile.travelled < projectile.maxRange && !outOfArena;
 }
@@ -96,6 +104,11 @@ export function updateLeap(state: MatchState, wizard: Wizard, rules: GameRules):
   for (const enemy of enemiesOf(state, wizard)) {
     if (distance(enemy.pos, wizard.pos) <= rules.forms.leap.impactRadius) {
       applyHit(state, enemy, wizard.id, leap.payload, rules);
+    }
+  }
+  for (const beast of state.beasts) {
+    if (distance(beast.pos, wizard.pos) <= rules.forms.leap.impactRadius) {
+      damageBeast(state, beast, wizard.id, leap.payload.damage, rules);
     }
   }
 }

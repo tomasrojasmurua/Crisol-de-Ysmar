@@ -1,6 +1,8 @@
+import { GLYPHS, type Glyph, OMENS, type Omen } from '@crisol/content';
 import {
   BotController,
   type Controller,
+  combineMods,
   createMatch,
   createSeries,
   type DeathRule,
@@ -10,6 +12,7 @@ import {
   type MatchState,
   modeSetup,
   recordRound,
+  SeededRng,
   type SeriesState,
   stepMatch,
   TICK_RATE,
@@ -31,7 +34,12 @@ export interface MatchOptions {
 export type MatchStage =
   | { readonly kind: 'playing' }
   | { readonly kind: 'intermission'; readonly roundWinner: number; ticksLeft: number }
+  /** Entre rondas: el jugador elige un Glifo entre estas opciones. */
+  | { readonly kind: 'choosing'; readonly options: readonly Glyph[] }
   | { readonly kind: 'finished' };
+
+/** Glifos que se ofrecen entre rondas; quien perdió la ronda ve uno más. */
+const GLYPH_OPTIONS = 3;
 
 /**
  * Una partida completa en el celular: tú y hechiceros de la IA, al mejor de 3 rondas.
@@ -41,6 +49,11 @@ export class LocalMatch {
   state: MatchState;
   readonly series: SeriesState;
   stage: MatchStage = { kind: 'playing' };
+  /** El Presagio de esta partida: afecta a todos por igual. */
+  readonly omen: Omen;
+  /** Glifos elegidos por cada mago, por id. */
+  readonly glyphs = new Map<number, Glyph[]>();
+  private readonly rng: SeededRng;
   private bots = new Map<number, BotController>();
   private readonly previous = new Map<number, Vec2>();
 
@@ -51,6 +64,8 @@ export class LocalMatch {
     private readonly seed: number,
   ) {
     this.series = createSeries(teamCount(options.mode));
+    this.rng = new SeededRng(seed ^ 0x2545f491);
+    this.omen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
     this.state = this.startRound();
   }
 
@@ -68,12 +83,11 @@ export class LocalMatch {
   step(): readonly GameEvent[] {
     if (this.stage.kind === 'intermission') {
       if (--this.stage.ticksLeft <= 0) {
-        this.state = this.startRound();
-        this.stage = { kind: 'playing' };
+        this.offerGlyphs(this.stage.roundWinner);
       }
       return [];
     }
-    if (this.stage.kind === 'finished') {
+    if (this.stage.kind === 'finished' || this.stage.kind === 'choosing') {
       return [];
     }
 
@@ -97,6 +111,49 @@ export class LocalMatch {
     return this.state.events;
   }
 
+  /** El jugador eligió su Glifo: los bots eligen el suyo y empieza la ronda siguiente. */
+  chooseGlyph(glyph: Glyph): void {
+    if (this.stage.kind !== 'choosing') return;
+    this.glyphsOf(PLAYER_ID).push(glyph);
+    for (const wizard of this.state.wizards) {
+      if (wizard.id === PLAYER_ID) continue;
+      const options = this.glyphOptions(wizard.id, GLYPH_OPTIONS);
+      const pick = options[this.rng.int(0, options.length - 1)];
+      if (pick) this.glyphsOf(wizard.id).push(pick);
+    }
+    this.state = this.startRound();
+    this.stage = { kind: 'playing' };
+  }
+
+  glyphsOf(id: number): Glyph[] {
+    let owned = this.glyphs.get(id);
+    if (!owned) {
+      owned = [];
+      this.glyphs.set(id, owned);
+    }
+    return owned;
+  }
+
+  private offerGlyphs(roundWinner: number): void {
+    const lost = roundWinner !== this.player.team;
+    this.stage = {
+      kind: 'choosing',
+      options: this.glyphOptions(PLAYER_ID, GLYPH_OPTIONS + (lost ? 1 : 0)),
+    };
+  }
+
+  /** Glifos al azar que el mago todavía no tiene. */
+  private glyphOptions(id: number, count: number): Glyph[] {
+    const owned = new Set(this.glyphsOf(id).map((g) => g.id));
+    const pool = GLYPHS.filter((g) => !owned.has(g.id));
+    const options: Glyph[] = [];
+    while (options.length < count && pool.length > 0) {
+      const [pick] = pool.splice(this.rng.int(0, pool.length - 1), 1);
+      if (pick) options.push(pick);
+    }
+    return options;
+  }
+
   /** Posición entre el paso anterior y el actual, según `alpha` (0 a 1). */
   interpolated(id: number, current: Vec2, alpha: number): Vec2 {
     const before = this.previous.get(id);
@@ -110,10 +167,13 @@ export class LocalMatch {
   private startRound(): MatchState {
     // Cada ronda tiene su propia semilla, derivada de la de la partida.
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
-    const state = createMatch(
-      modeSetup(this.options.mode, roundSeed, this.options.deathRule, this.rules),
-      this.rules,
-    );
+    const setup = modeSetup(this.options.mode, roundSeed, this.options.deathRule, this.rules);
+    // Cada mago lleva el Presagio de la partida y sus Glifos.
+    const wizards = setup.wizards.map((w, index) => ({
+      ...w,
+      mods: combineMods(this.omen.mods, ...this.glyphsOf(index + 1).map((g) => g.mods)),
+    }));
+    const state = createMatch({ ...setup, wizards }, this.rules);
     this.bots = new Map(
       state.wizards
         .filter((w) => w.id !== PLAYER_ID)

@@ -4,7 +4,7 @@ import type { GameRules, StatusId } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { dealDamage } from './hit';
 
-const STATUS_IDS: readonly StatusId[] = ['burn', 'slow', 'root', 'curse'];
+const STATUS_IDS: readonly StatusId[] = ['burn', 'slow', 'root', 'curse', 'empowered'];
 
 /** Avanza un paso los estados de un mago: quemadura y maldición hacen daño en el tiempo. */
 export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules): void {
@@ -24,7 +24,7 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
     dealDamage(state, wizard, curse.sourceId, amount, 'mark');
     const caster = wizardById(state, curse.sourceId);
     if (caster && caster.hp > 0) {
-      caster.hp = Math.min(rules.wizard.maxHp, caster.hp + amount * rules.statuses.curse.lifesteal);
+      caster.hp = Math.min(caster.maxHp, caster.hp + amount * rules.statuses.curse.lifesteal);
     }
   }
   for (const id of STATUS_IDS) {

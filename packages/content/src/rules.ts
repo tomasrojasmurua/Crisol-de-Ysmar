@@ -55,6 +55,8 @@ export const GAME_RULES: GameRules = {
     slow: { ticks: 75, moveMultiplier: 0.55 },
     root: { ticks: 36 },
     curse: { ticks: 90, damagePerSecond: 3, lifesteal: 0.5 },
+    // La bendición de un santuario: 12 segundos con 25% más de daño.
+    empowered: { ticks: 360, damageMultiplier: 1.25 },
   },
   interactions: {
     stormVsSlowedMultiplier: 1.5,
@@ -79,5 +81,27 @@ export const GAME_RULES: GameRules = {
     // Un aliado al lado durante 3 segundos te levanta con 40% de vida.
     revive: { radius: 1.6, ticks: 90, hpFraction: 0.4 },
     spectre: { moveMultiplier: 0.8, hauntRange: 7, hauntCooldownTicks: 240 },
+  },
+  beasts: {
+    // Una por elemento en cada ronda.
+    count: 5,
+    maxHp: 45,
+    radius: 0.6,
+    moveSpeed: 4.2,
+    damage: 7,
+    attackRange: 0.7,
+    attackCooldownTicks: 36,
+    aggroTicks: 180,
+    leash: 9,
+    // Cada Esencia suma 12% de daño a los conjuros con ese elemento, hasta 3.
+    essenceDamagePerStack: 0.12,
+    maxEssence: 3,
+  },
+  shrines: {
+    count: 2,
+    radius: 1.8,
+    // 4 segundos parado encima, sin rivales.
+    captureTicks: 120,
+    healFraction: 0.35,
   },
 };

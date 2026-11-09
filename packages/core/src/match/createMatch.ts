@@ -1,11 +1,15 @@
 import { ELEMENT_IDS, type ElementId } from '../elements';
 import { normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
+import { NEUTRAL_MODS, type WizardMods } from '../mods';
 import type { GameRules } from '../rules';
+import { spawnBeasts } from './beasts';
 import type { DeathRule, EntityId, MatchState, Wizard } from './state';
 
 export interface WizardSetup {
   readonly team: number;
   readonly spawn: Vec2;
+  /** Glifos, Presagio y Afinidad ya combinados. */
+  readonly mods?: WizardMods;
 }
 
 export interface MatchSetup {
@@ -14,7 +18,7 @@ export interface MatchSetup {
   readonly wizards: readonly WizardSetup[];
 }
 
-function restedElements(): Record<ElementId, number> {
+function zeroByElement(): Record<ElementId, number> {
   const fatigue = {} as Record<ElementId, number>;
   for (const element of ELEMENT_IDS) {
     fatigue[element] = 0;
@@ -24,25 +28,32 @@ function restedElements(): Record<ElementId, number> {
 
 /** Crea una partida nueva. Los ids de los magos son 1, 2, 3... en el orden de `setup`. */
 export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
-  const wizards: Wizard[] = setup.wizards.map((w, index) => ({
-    id: (index + 1) as EntityId,
-    team: w.team,
-    pos: w.spawn,
-    // Al empezar, cada mago mira hacia el centro de la arena.
-    facing: normalize(scale(sub(ZERO, w.spawn), 1), { x: 0, z: 1 }),
-    hp: rules.wizard.maxHp,
-    weave: [],
-    channel: null,
-    leap: null,
-    fatigue: restedElements(),
-    statuses: {},
-    lockTarget: null,
-    moveInput: ZERO,
-    lives: setup.deathRule === 'lives' ? rules.death.lives : 1,
-    fallen: null,
-  }));
+  const wizards: Wizard[] = setup.wizards.map((w, index) => {
+    const mods = w.mods ?? NEUTRAL_MODS;
+    const maxHp = rules.wizard.maxHp * mods.maxHp;
+    return {
+      id: (index + 1) as EntityId,
+      team: w.team,
+      pos: w.spawn,
+      // Al empezar, cada mago mira hacia el centro de la arena.
+      facing: normalize(scale(sub(ZERO, w.spawn), 1), { x: 0, z: 1 }),
+      hp: maxHp,
+      maxHp,
+      mods,
+      essence: zeroByElement(),
+      weave: [],
+      channel: null,
+      leap: null,
+      fatigue: zeroByElement(),
+      statuses: {},
+      lockTarget: null,
+      moveInput: ZERO,
+      lives: setup.deathRule === 'lives' ? rules.death.lives : 1,
+      fallen: null,
+    };
+  });
 
-  return {
+  const state: MatchState = {
     deathRule: setup.deathRule,
     tick: 0,
     zoneRadius: rules.arenaRadius,
@@ -50,9 +61,13 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
     nextEntityId: wizards.length + 1,
     wizards,
     spells: [],
+    beasts: [],
+    shrines: [],
     events: [],
     winnerTeam: null,
   };
+  spawnBeasts(state, rules);
+  return state;
 }
 
 /** Duelo estándar: dos magos frente a frente. */

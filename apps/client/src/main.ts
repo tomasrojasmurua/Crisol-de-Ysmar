@@ -1,4 +1,4 @@
-import { GAME_RULES, WIZARD_NAMES } from '@crisol/content';
+import { BEAST_NAMES, ELEMENTS, GAME_RULES, WIZARD_NAMES } from '@crisol/content';
 import {
   currentTarget,
   FixedStepClock,
@@ -17,6 +17,7 @@ import { TouchControls } from './input/TouchControls';
 import { AimGuide } from './render/AimGuide';
 import { ArenaView } from './render/arena/ArenaView';
 import { ZoneView } from './render/arena/ZoneView';
+import { CreatureViews } from './render/CreatureViews';
 import { EffectsView } from './render/EffectsView';
 import { Particles } from './render/Particles';
 import { teamColorHex } from './render/palette';
@@ -24,6 +25,7 @@ import { PostProcessing } from './render/postprocessing';
 import { SpellViews } from './render/SpellViews';
 import { TargetMarker } from './render/TargetMarker';
 import { WizardView } from './render/WizardView';
+import { GlyphPicker } from './ui/GlyphPicker';
 import { Hud, type WizardBadge } from './ui/Hud';
 import { Menu } from './ui/Menu';
 import { WorldLabels } from './ui/WorldLabels';
@@ -58,6 +60,7 @@ const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
 const post = new PostProcessing(renderer, scene, camera);
 const spells = new SpellViews(scene, rules, particles);
+const creatures = new CreatureViews(scene, rules);
 const effects = new EffectsView(scene, particles, PLAYER_ID);
 const aimGuide = new AimGuide();
 scene.add(aimGuide.mesh);
@@ -76,6 +79,7 @@ const hud = new Hud(
   () => showMenu(),
 );
 const menu = new Menu(uiRoot, (options) => startMatch(options));
+const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
 let match: LocalMatch | null = null;
@@ -83,10 +87,26 @@ const wizardViews = new Map<number, WizardView>();
 let badges = new Map<number, WizardBadge>();
 let shownRound = 0;
 let resultShown = false;
+let pickerShown = false;
+
+const elementColorHex = (element: string): string =>
+  ELEMENTS.find((e) => e.id === element)?.color ?? '#ffffff';
+const elementName = (element: string): string =>
+  ELEMENTS.find((e) => e.id === element)?.name ?? element;
+const beastName = (element: string): string =>
+  BEAST_NAMES[element as keyof typeof BEAST_NAMES] ?? 'Bestia';
+
+/** Color del bando de un equipo, a partir de cualquiera de sus magos. */
+function teamColor(team: number): string {
+  const member = match?.state.wizards.find((w) => w.team === team);
+  return (member && badges.get(member.id)?.color) ?? '#ffffff';
+}
 
 function showMenu(): void {
   match = null;
   targetMarker.update(null, 0);
+  creatures.clear();
+  glyphPicker.hide();
   clearWizards();
   spells.sync([], () => ({ x: 0, z: 0 }), 0);
   menu.visible = true;
@@ -133,6 +153,8 @@ function startMatch(options: MatchOptions): void {
   controls.visible = true;
   shownRound = 0;
   resultShown = false;
+  pickerShown = false;
+  hud.setOmen(current.omen.name, current.omen.description);
   rig.snap();
 }
 
@@ -156,6 +178,15 @@ function announceEvents(events: readonly GameEvent[], current: LocalMatch): void
       hud.announce('Caíste', subtitle);
     } else if (event.type === 'revived' && event.wizardId === PLAYER_ID) {
       hud.announce('De pie', `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`);
+    } else if (event.type === 'beastSlain' && event.killerId === PLAYER_ID) {
+      const bonus = Math.round(rules.beasts.essenceDamagePerStack * 100);
+      hud.announce(
+        `Esencia de ${elementName(event.element)}`,
+        `+${bonus}% de daño con ${elementName(event.element)} esta ronda`,
+        1.8,
+      );
+    } else if (event.type === 'shrineClaimed' && event.team === current.player.team) {
+      hud.announce('Santuario tomado', 'Recuperas vida y tu magia pega más fuerte', 2);
     }
   }
 }
@@ -168,17 +199,37 @@ function teamName(current: LocalMatch, team: number): string {
   return (member && badges.get(member.id)?.name) ?? 'un rival';
 }
 
+/** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
+let lastWinner = -1;
+
 function updateMatchFlow(current: LocalMatch): void {
   const playerTeam = current.player.team;
   const stage = current.stage;
   if (stage.kind === 'playing' && current.roundNumber !== shownRound) {
     shownRound = current.roundNumber;
     hud.reset(current.state, current.player, badges);
+    creatures.clear();
     rig.snap();
-    hud.announce(`Ronda ${shownRound}`, 'Caza: la arena está abierta');
+    hud.announce(
+      `Ronda ${shownRound}`,
+      shownRound === 1 ? `Presagio: ${current.omen.name}` : 'Caza: la arena está abierta',
+      shownRound === 1 ? 3 : 2.4,
+    );
+  }
+  if (stage.kind === 'playing' && pickerShown) {
+    pickerShown = false;
+    glyphPicker.hide();
+    controls.visible = true;
+  }
+  if (stage.kind === 'choosing' && !pickerShown) {
+    pickerShown = true;
+    controls.visible = false;
+    const lost = current.series.roundsPlayed > 0 && lastWinner !== playerTeam;
+    glyphPicker.show(stage.options, current.glyphsOf(PLAYER_ID), lost);
   }
   if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
     const winner = stage.roundWinner;
+    lastWinner = winner;
     if (winner < 0) hud.announce('Ronda empatada', 'Nadie suma', 3.5);
     else if (winner === playerTeam) hud.announce('Ganaste la ronda', '', 3.5);
     else hud.announce('Ronda perdida', `Para ${teamName(current, winner)}`, 3.5);
@@ -209,6 +260,13 @@ canvas.addEventListener('pointerdown', (event) => {
     const y = ((1 - projected.y) / 2) * window.innerHeight;
     const distance = Math.hypot(x - event.clientX, y - event.clientY);
     if (distance < 80 && (!best || distance < best.distance)) best = { id: wizard.id, distance };
+  }
+  for (const beast of match.state.beasts) {
+    projected.set(beast.pos.x, 0.8, beast.pos.z).project(camera);
+    const x = ((projected.x + 1) / 2) * window.innerWidth;
+    const y = ((1 - projected.y) / 2) * window.innerHeight;
+    const distance = Math.hypot(x - event.clientX, y - event.clientY);
+    if (distance < 70 && (!best || distance < best.distance)) best = { id: beast.id, distance };
   }
   if (best) input.push({ type: 'lock', targetId: best.id });
 });
@@ -249,7 +307,7 @@ renderer.setAnimationLoop((now) => {
     const { steps, alpha } = clock.advance(frameMs);
     for (let i = 0; i < steps; i++) {
       const events = current.step();
-      effects.onEvents(events, current.state);
+      effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
       announceEvents(events, current);
     }
     updateMatchFlow(current);
@@ -288,9 +346,16 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     time,
   );
   zone.update(state.zoneRadius, time);
+  creatures.sync(state, teamColor, time, delta);
 
+  // El objetivo es la bestia fijada a mano, o el rival.
+  const lockedBeast = state.beasts.find((b) => b.id === player.lockTarget);
   const target = currentTarget(state, player);
-  const targetPos = target ? current.interpolated(target.id, target.pos, alpha) : null;
+  const targetPos = lockedBeast
+    ? lockedBeast.pos
+    : target
+      ? current.interpolated(target.id, target.pos, alpha)
+      : null;
   rig.update(playerPos, targetPos, delta, effects.shake);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
   const aim = input.aimPreview;
@@ -298,6 +363,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
 
   controls.render(player, rules, isSpectre(state, player));
   hud.update(state, player, current.series, current.roundNumber, badges, rules);
+  labels.updateBeasts(state, camera, beastName, elementColorHex, rules);
   labels.update(
     state,
     (id, pos) => current.interpolated(id, pos, alpha),
@@ -309,3 +375,8 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
 }
 
 showMenu();
+
+// Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
+if (import.meta.env.DEV) {
+  Object.assign(window, { crisol: { match: () => match } });
+}
