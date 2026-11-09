@@ -7,7 +7,7 @@ El documento de diseño completo vive en Claude:
 
 - **Pilares:** la magia se construye, descubrir es progresar, duelos con estrategia.
 - **Plataforma:** juego web que se abre desde un enlace de WhatsApp, celular en horizontal.
-- **Cámara:** tercera persona elevada con fijación de objetivo (en el Hito 1 se compara con 3/4).
+- **Cámara:** tercera persona sobre el hombro con fijación de objetivo (elegida en el Hito 1 frente a la vista 3/4).
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. El primer elemento define

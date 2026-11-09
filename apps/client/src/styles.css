@@ -102,15 +102,6 @@ body {
   background: var(--rival);
 }
 
-.camera-button {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: var(--panel);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .hint {
   position: absolute;
   left: 50%;

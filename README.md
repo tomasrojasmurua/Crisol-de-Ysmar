@@ -5,7 +5,7 @@ Duelo de hechiceros para celular. La magia se **teje** en tiempo real combinando
 de WhatsApp, sin instalar nada.
 
 > Estado: **Hito 1, el tejido se siente bien.** Un duelo en el celular contra un hechicero de la IA,
-> con los cinco elementos, tejido visible, fatiga, combate y dos cámaras para comparar.
+> con los cinco elementos, tejido visible, fatiga, combate y cámara sobre el hombro.
 > Se juega en [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev).
 
 ## Cómo se juega (Hito 1)
@@ -13,8 +13,7 @@ de WhatsApp, sin instalar nada.
 - **Pulgar izquierdo:** toca y arrastra en cualquier parte de la mitad izquierda para moverte.
 - **Pulgar derecho:** toca hasta tres elementos para tejer (el orden importa) y luego **✦** para lanzar.
   Tocar ✦ apunta solo al rival; arrastrar desde ✦ elige la dirección. **✕** deshace el tejido.
-- **En computador:** WASD para moverte, 1 a 5 para tejer, espacio para lanzar, X para deshacer,
-  C para cambiar de cámara.
+- **En computador:** WASD para moverte, 1 a 5 para tejer, espacio para lanzar y X para deshacer.
 
 | Primer elemento | Forma     | Qué hace                                    |
 | --------------- | --------- | ------------------------------------------- |
