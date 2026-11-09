@@ -2,10 +2,18 @@ import { applyHit } from '../../combat/hit';
 import { beastStats, damageBeast } from '../../match/beasts';
 import { lineBlocked } from '../../match/obstacles';
 import { currentTarget, enemiesOf, isHiddenFrom } from '../../match/queries';
-import type { Beast, EntityId, MatchState, SpellPayload, Wizard } from '../../match/state';
+import type {
+  Beast,
+  EntityId,
+  MatchState,
+  Projectile,
+  SpellPayload,
+  Wizard,
+} from '../../match/state';
 import { add, distance, dot, length, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import type { SpellId } from '../catalog';
+import { damageSummon } from './summons';
 
 /** Un blanco para un hechizo instantáneo: un rival, o si no hay, una bestia. */
 export type SpellTarget =
@@ -90,6 +98,40 @@ export function hitArea(
     if (distance(beast.pos, pos) <= radius + beastStats(beast, rules).radius) {
       damageBeast(state, beast, ownerId, payload.damage, rules);
     }
+  }
+  for (const summon of state.spells) {
+    if (summon.kind !== 'summon' || summon.team === team) continue;
+    if (distance(summon.pos, pos) <= radius + summon.radius) {
+      damageSummon(state, summon, payload.damage);
+    }
+  }
+}
+
+/**
+ * La Ventisca tuerce una vez cada proyectil rival que entra en ella, hacia afuera del remolino.
+ */
+export function deflectInBlizzard(
+  state: MatchState,
+  projectile: Projectile,
+  rules: GameRules,
+): void {
+  if (projectile.deflected) return;
+  for (const zone of state.spells) {
+    if (zone.kind !== 'zone' || zone.effect !== 'blizzard' || zone.team === projectile.team) {
+      continue;
+    }
+    if (distance(projectile.pos, zone.pos) > zone.radius) continue;
+    const toCenter = sub(zone.pos, projectile.pos);
+    const v = projectile.velocity;
+    // Gira hacia el lado contrario al centro del remolino.
+    const side = v.x * toCenter.z - v.z * toCenter.x >= 0 ? -1 : 1;
+    const angle = rules.spells.blizzard.deflectAngle * side;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    projectile.velocity = { x: v.x * cos - v.z * sin, z: v.x * sin + v.z * cos };
+    projectile.deflected = true;
+    state.events.push({ type: 'blocked', pos: projectile.pos });
+    return;
   }
 }
 

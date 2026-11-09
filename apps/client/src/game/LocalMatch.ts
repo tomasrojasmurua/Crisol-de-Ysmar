@@ -224,7 +224,9 @@ export class LocalMatch {
     this.previous.clear();
     for (const wizard of this.state.wizards) this.previous.set(wizard.id, wizard.pos);
     for (const spell of this.state.spells) {
-      if (spell.kind === 'projectile') this.previous.set(spell.id, spell.pos);
+      if (spell.kind === 'projectile' || spell.kind === 'summon') {
+        this.previous.set(spell.id, spell.pos);
+      }
     }
   }
 }

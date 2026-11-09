@@ -17,15 +17,21 @@ export const SPELL_NAMES: Readonly<Record<SpellId, string>> = {
   rootWall: 'Muralla de raíces',
   veil: 'Velo',
   drain: 'Drenaje',
-};
-
-/** Nombre base de cada forma, según el primer elemento del tejido. */
-const BASE: Record<ElementId, { readonly noun: string; readonly alone: string }> = {
-  brasa: { noun: 'Dardo', alone: 'Dardo ígneo' },
-  tormenta: { noun: 'Salto', alone: 'Salto del rayo' },
-  marea: { noun: 'Muro', alone: 'Muro de agua' },
-  raiz: { noun: 'Trampa', alone: 'Trampa de raíces' },
-  umbra: { noun: 'Marca', alone: 'Marca sombría' },
+  obsidian: 'Obsidiana',
+  wisp: 'Fuego fatuo',
+  ignite: 'Ignición',
+  blizzard: 'Ventisca',
+  lightningRod: 'Pararrayos',
+  shadowStep: 'Paso sombrío',
+  current: 'Corriente',
+  iceWall: 'Muro de hielo',
+  spring: 'Manantial',
+  vine: 'Liana',
+  mossGuardian: 'Guardián de musgo',
+  spores: 'Esporas',
+  decoy: 'Señuelo',
+  blinding: 'Ceguera',
+  shackle: 'Grillete',
 };
 
 /** Lo que agrega cada elemento cuando no va primero. */
@@ -39,23 +45,15 @@ const TOUCH: Record<ElementId, string> = {
 
 /**
  * El nombre de un conjuro en el Grimorio. Cada uno de los 155 tejidos tiene un nombre propio.
- * Los hechizos propios usan el suyo; un tejido de 3 cuyo Gran hechizo aún no existe es el eco
- * del hechizo de sus dos primeros elementos. El resto sigue la gramática antigua:
- * la forma la da el primer elemento y los siguientes la tiñen, en orden.
+ * Los de 1 y 2 elementos usan el de su hechizo; un tejido de 3 cuyo Gran hechizo aún no existe
+ * es el eco del hechizo de sus dos primeros elementos, teñido por el tercero.
  */
 export function spellName(weave: Weave): string {
-  const [first, second, third] = weave;
-  if (!first) return '';
   const own = spellOf(weave);
-  if (own) {
-    const name = SPELL_NAMES[own];
-    return weave.length === 3 && third ? `${name} · eco de ${TOUCH[third]}` : name;
-  }
-  const base = BASE[first];
-  if (!second) return base.alone;
-  if (!third) return `${base.noun} de ${TOUCH[second]}`;
-  if (second === third) return `${base.noun} de ${TOUCH[second]} doble`;
-  return `${base.noun} de ${TOUCH[second]} y ${TOUCH[third]}`;
+  if (!own) return '';
+  const name = SPELL_NAMES[own];
+  const third = weave[2];
+  return third ? `${name} · eco de ${TOUCH[third]}` : name;
 }
 
 /** Clave estable de un tejido, para guardarlo en el Grimorio. */

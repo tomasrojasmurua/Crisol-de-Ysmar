@@ -4,12 +4,40 @@ import type { Vec2 } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { SPELL_FORM_BY_ELEMENT, type Weave } from '../weaving/weave';
 import type { SpellId } from './catalog';
-import { castComet, castFireball, castSpark } from './kit/brasa';
+import {
+  castComet,
+  castFireball,
+  castIgnite,
+  castObsidian,
+  castSpark,
+  castWisp,
+} from './kit/brasa';
 import type { CastContext } from './kit/context';
-import { castGeyser, castIceCoffin, castSplash } from './kit/marea';
-import { castRootWall, castSap, castThornRush } from './kit/raiz';
-import { castBlink, castChainLightning, castStep } from './kit/tormenta';
-import { castClaw, castDrain, castVeil } from './kit/umbra';
+import {
+  castCurrent,
+  castGeyser,
+  castIceCoffin,
+  castIceWall,
+  castSplash,
+  castSpring,
+} from './kit/marea';
+import {
+  castMossGuardian,
+  castRootWall,
+  castSap,
+  castSpores,
+  castThornRush,
+  castVine,
+} from './kit/raiz';
+import {
+  castBlink,
+  castBlizzard,
+  castChainLightning,
+  castLightningRod,
+  castShadowStep,
+  castStep,
+} from './kit/tormenta';
+import { castBlinding, castClaw, castDecoy, castDrain, castShackle, castVeil } from './kit/umbra';
 
 const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   spark: castSpark,
@@ -27,19 +55,45 @@ const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   rootWall: castRootWall,
   veil: castVeil,
   drain: castDrain,
+  obsidian: castObsidian,
+  wisp: castWisp,
+  ignite: castIgnite,
+  blizzard: castBlizzard,
+  lightningRod: castLightningRod,
+  shadowStep: castShadowStep,
+  current: castCurrent,
+  iceWall: castIceWall,
+  spring: castSpring,
+  vine: castVine,
+  mossGuardian: castMossGuardian,
+  spores: castSpores,
+  decoy: castDecoy,
+  blinding: castBlinding,
+  shackle: castShackle,
 };
 
 /** Hechizos que no delatan a quien está con Velo. */
-const QUIET: ReadonlySet<SpellId> = new Set(['step', 'blink', 'sap', 'veil', 'iceCoffin']);
+const QUIET: ReadonlySet<SpellId> = new Set([
+  'step',
+  'blink',
+  'sap',
+  'veil',
+  'iceCoffin',
+  'obsidian',
+  'current',
+  'spring',
+  'decoy',
+]);
 
 /** Los hechizos que viajan: el apuntado automático se adelanta al rival según su velocidad. */
 function leadSpeedOf(spell: SpellId, rules: GameRules): number {
   if (spell === 'spark') return rules.spells.spark.speed;
   if (spell === 'fireball') return rules.spells.fireball.speed;
+  if (spell === 'blinding') return rules.spells.blinding.speed;
   return 0;
 }
 
-/** Hace salir un hechizo propio ya canalizado. */
+/** Hace salir un hechizo ya canalizado. */
 export function castSpell(
   state: MatchState,
   caster: Wizard,

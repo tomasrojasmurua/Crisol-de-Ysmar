@@ -61,7 +61,7 @@ describe('bestias', () => {
     const state = huntingScene();
     run(state, 12, brasaForward);
     const beast = state.beasts[0];
-    expect(beast?.hp).toBe(rules.beasts.maxHp - rules.forms.projectile.damage);
+    expect(beast?.hp).toBe(rules.beasts.maxHp - rules.spells.spark.damage);
     expect(beast?.targetId).toBe(1);
   });
 
@@ -137,7 +137,7 @@ describe('Glifos y Presagios', () => {
     player.hp = 50;
     run(state, 1, [
       { kind: 'weave', element: 'brasa' },
-      { kind: 'weave', element: 'marea' },
+      { kind: 'weave', element: 'brasa' },
       { kind: 'cast', dirX: 0, dirZ: 1 },
     ]);
     expect(player.channel?.ticksLeft).toBe(Math.round(rules.weave.castTicksByLength[1] * 0.5) - 1);

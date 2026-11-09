@@ -33,7 +33,7 @@ import {
   randomAppearance,
   saveProfile,
 } from './game/Profile';
-import { veiledFromTeam, visibleEnemies } from './game/Sight';
+import { blindedFrom, veiledFromTeam, visibleEnemies } from './game/Sight';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
@@ -48,9 +48,10 @@ import { EffectsView } from './render/EffectsView';
 import { Particles } from './render/Particles';
 import { teamColorHex } from './render/palette';
 import { PostProcessing } from './render/postprocessing';
-import { SpellViews } from './render/SpellViews';
+import { SpellViews, type SpellWorld } from './render/SpellViews';
 import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
+import { BlindVeil } from './ui/BlindVeil';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
@@ -90,7 +91,19 @@ scene.add(zone.group);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
 const post = new PostProcessing(renderer, scene, camera);
-const spells = new SpellViews(scene, rules, particles);
+/** El aspecto de cada mago de la partida, para que su Señuelo se vea igual que él. */
+const wizardLooks = new Map<number, WizardLook>();
+const spells = new SpellViews(scene, rules, particles, (ownerId) => {
+  const look = wizardLooks.get(ownerId);
+  return look ? new WizardView({ ...look, isPlayer: false }, rules, particles) : null;
+});
+const NO_SPELL_WORLD: SpellWorld = {
+  positionOf: () => ({ x: 0, z: 0 }),
+  time: 0,
+  delta: 0,
+  wizard: () => undefined,
+  wizardPos: () => undefined,
+};
 const creatures = new CreatureViews(scene, rules);
 const effects = new EffectsView(scene, particles, PLAYER_ID);
 const aimGuide = new AimGuide();
@@ -112,6 +125,7 @@ const human = new HumanController(
 const labels = new WorldLabels(uiRoot);
 const controls = new TouchControls(uiRoot, input);
 const minimap = new Minimap(uiRoot, rules);
+const blindVeil = new BlindVeil(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
 const hud = new Hud(
   uiRoot,
@@ -260,12 +274,13 @@ function showMenu(): void {
   creatures.clear();
   glyphPicker.hide();
   clearWizards();
-  spells.sync([], () => ({ x: 0, z: 0 }), 0);
+  spells.sync([], NO_SPELL_WORLD);
   menu.visible = true;
   hud.visible = false;
   labels.visible = false;
   controls.visible = false;
   minimap.show(false);
+  blindVeil.reset();
   cameraDrag.enabled = false;
   lantern.intensity = 0;
   hud.hideResult();
@@ -295,23 +310,21 @@ function startMatch(options: MatchOptions): void {
   }
 
   clearWizards();
+  wizardLooks.clear();
   for (const wizard of current.state.wizards) {
     const isPlayer = wizard.id === PLAYER_ID;
-    const look = isPlayer ? profile.look : randomAppearance(rng);
-    const view = new WizardView(
-      lookOf(
-        look,
-        current.affinities.get(wizard.id) ?? null,
-        badges.get(wizard.id)?.color ?? '#ffffff',
-        isPlayer,
-      ),
-      rules,
-      particles,
+    const look = lookOf(
+      isPlayer ? profile.look : randomAppearance(rng),
+      current.affinities.get(wizard.id) ?? null,
+      badges.get(wizard.id)?.color ?? '#ffffff',
+      isPlayer,
     );
+    wizardLooks.set(wizard.id, look);
+    const view = new WizardView(look, rules, particles);
     scene.add(view.group);
     wizardViews.set(wizard.id, view);
   }
-  spells.sync([], () => ({ x: 0, z: 0 }), 0);
+  spells.sync([], NO_SPELL_WORLD);
   labels.reset(badges, PLAYER_ID);
   menu.visible = false;
   hud.visible = true;
@@ -531,22 +544,28 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     if (!view) continue;
     const pos = current.interpolated(wizard.id, wizard.pos, alpha);
     const spectre = isSpectre(state, wizard);
-    const hidden = veiledFromTeam(state, player.team, wizard.id, rules);
+    const hidden =
+      veiledFromTeam(state, player.team, wizard.id, rules) || blindedFrom(player, wizard, rules);
     view.update(wizard, pos.x, pos.z, time, delta, spectre, rules, hidden);
     if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
   }
-  spells.sync(
-    state.spells,
-    (spell) =>
-      spell.kind === 'projectile'
+  const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
+  spells.sync(state.spells, {
+    positionOf: (spell) =>
+      spell.kind === 'projectile' || spell.kind === 'summon'
         ? current.interpolated(spell.id, spell.pos, alpha)
         : { x: 0, z: 0 },
     time,
-    (id) => {
-      const wizard = state.wizards.find((w) => w.id === id);
+    delta,
+    wizard: wizardOf,
+    wizardPos: (id) => {
+      const wizard = wizardOf(id);
       return wizard ? current.interpolated(id, wizard.pos, alpha) : undefined;
     },
-  );
+  });
+  // Cegado: la pantalla se oscurece alrededor y el minimapa se apaga.
+  blindVeil.update(player, delta);
+  minimap.show(!player.statuses.blind);
   zone.update(state.zoneRadius, time);
   creatures.sync(state, teamColor, time, delta);
 

@@ -1,4 +1,11 @@
-import type { MatchState, SpellPayload, Wizard } from '../../match/state';
+import type {
+  MatchState,
+  SpellPayload,
+  Summon,
+  SummonKind,
+  Wizard,
+  ZoneEffect,
+} from '../../match/state';
 import type { Vec2 } from '../../math/vec2';
 import type { GameRules, StatusId } from '../../rules';
 import type { Weave } from '../../weaving/weave';
@@ -32,4 +39,55 @@ export function payloadFor(
 
 export function nextId(state: MatchState): number {
   return state.nextEntityId++;
+}
+
+/** Deja un efecto en el suelo, a cierta distancia en la dirección apuntada (0: a tus pies). */
+export function placeZone(
+  ctx: CastContext,
+  effect: ZoneEffect,
+  spell: { readonly range: number; readonly radius: number; readonly durationTicks: number },
+  pos: Vec2,
+): void {
+  const { state, caster } = ctx;
+  state.spells.push({
+    kind: 'zone',
+    id: nextId(state),
+    ownerId: caster.id,
+    team: caster.team,
+    pos,
+    radius: spell.radius,
+    effect,
+    durationTicks: spell.durationTicks,
+    ticksLeft: spell.durationTicks,
+  });
+}
+
+/** Invoca algo que vive un rato y se puede destruir a golpes. */
+export function summon(
+  ctx: CastContext,
+  kind: SummonKind,
+  spell: { readonly hp: number; readonly radius: number; readonly durationTicks: number },
+  pos: Vec2,
+  payload: SpellPayload,
+  cooldown = 0,
+): Summon {
+  const { state, caster } = ctx;
+  const created: Summon = {
+    kind: 'summon',
+    summon: kind,
+    id: nextId(state),
+    ownerId: caster.id,
+    team: caster.team,
+    pos,
+    facing: ctx.aim,
+    hp: spell.hp,
+    maxHp: spell.hp,
+    radius: spell.radius,
+    durationTicks: spell.durationTicks,
+    ticksLeft: spell.durationTicks,
+    cooldown,
+    payload,
+  };
+  state.spells.push(created);
+  return created;
 }

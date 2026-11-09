@@ -54,6 +54,8 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
       moveInput: ZERO,
       lives: setup.deathRule === 'lives' ? rules.death.lives : 1,
       fallen: null,
+      shield: 0,
+      damageTaken: 0,
     };
   });
 

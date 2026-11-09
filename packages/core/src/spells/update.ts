@@ -1,21 +1,30 @@
 import { applyHit } from '../combat/hit';
 import { beastStats, damageBeast } from '../match/beasts';
 import { obstacleAt, placeInArena } from '../match/obstacles';
-import { enemiesOf } from '../match/queries';
-import type { MatchState, Projectile, SpellEntity, Trap, Wall, Wizard } from '../match/state';
+import type { MatchState, Projectile, SpellEntity, Wall, Wizard } from '../match/state';
 import { add, distance, distanceToSegment, length, scale } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
-import { hitArea } from './kit/shared';
-import { updateGeyser, updateTether, updateThornRush, updateZone } from './kit/updates';
+import { deflectInBlizzard, hitArea } from './kit/shared';
+import { damageSummon, enemySummonAt, updateSummon } from './kit/summons';
+import {
+  updateCurrent,
+  updateGeyser,
+  updateIgnite,
+  updateObsidian,
+  updateShackle,
+  updateTether,
+  updateThornRush,
+  updateZone,
+} from './kit/updates';
 
-/** Avanza un paso todos los conjuros en el mundo y quita los que terminaron. */
+/** Avanza un paso todos los hechizos en el mundo y quita los que terminaron. */
 export function updateSpells(state: MatchState, rules: GameRules): void {
   const walls = state.spells.filter((s): s is Wall => s.kind === 'wall');
   state.spells = state.spells.filter((spell) => updateSpell(state, spell, walls, rules));
 }
 
-/** Devuelve false si el conjuro debe desaparecer. */
+/** Devuelve false si el hechizo debe desaparecer. */
 function updateSpell(
   state: MatchState,
   spell: SpellEntity,
@@ -27,16 +36,24 @@ function updateSpell(
       return updateProjectile(state, spell, walls, rules);
     case 'wall':
       return --spell.ticksLeft > 0;
-    case 'trap':
-      return updateTrap(state, spell, rules);
     case 'zone':
       return updateZone(state, spell, rules);
+    case 'current':
+      return updateCurrent(state, spell, rules);
     case 'geyser':
       return updateGeyser(state, spell, rules);
     case 'thornRush':
       return updateThornRush(state, spell, rules);
     case 'tether':
       return updateTether(state, spell, rules);
+    case 'obsidian':
+      return updateObsidian(state, spell, rules);
+    case 'ignite':
+      return updateIgnite(state, spell);
+    case 'shackle':
+      return updateShackle(state, spell, rules);
+    case 'summon':
+      return updateSummon(state, spell, rules);
   }
 }
 
@@ -46,19 +63,28 @@ function updateProjectile(
   walls: readonly Wall[],
   rules: GameRules,
 ): boolean {
+  deflectInBlizzard(state, projectile, rules);
   const step = scale(projectile.velocity, 1 / TICK_RATE);
   projectile.pos = add(projectile.pos, step);
   projectile.travelled += length(step);
   const radius = projectile.radius;
 
   for (const wall of walls) {
-    // El muro de agua solo frena a los rivales; la muralla sólida, a todos.
+    // El Muro de hielo solo frena a los rivales; la Muralla de raíces, a todos.
     if (wall.team === projectile.team && !wall.solid) continue;
     const a = add(wall.center, scale(wall.along, -wall.halfLength));
     const b = add(wall.center, scale(wall.along, wall.halfLength));
     if (distanceToSegment(projectile.pos, a, b) <= radius + wall.thickness) {
       return impact(state, projectile, rules, true);
     }
+  }
+
+  // El Guardián de musgo, el Pararrayos y los demás atajan los proyectiles rivales.
+  const summon = enemySummonAt(state, projectile.team, projectile.pos, radius);
+  if (summon) {
+    if (projectile.payload.blastRadius > 0) return impact(state, projectile, rules, false);
+    damageSummon(state, summon, projectile.payload.damage);
+    return false;
   }
 
   for (const wizard of state.wizards) {
@@ -98,7 +124,7 @@ function impact(
   blocked: boolean,
 ): false {
   const payload = projectile.payload;
-  if (payload.blastRadius > 0 && payload.spell) {
+  if (payload.blastRadius > 0) {
     const pos = projectile.pos;
     hitArea(
       state,
@@ -116,23 +142,7 @@ function impact(
   return false;
 }
 
-function updateTrap(state: MatchState, trap: Trap, rules: GameRules): boolean {
-  if (trap.armTicks > 0) {
-    trap.armTicks--;
-    return true;
-  }
-  const triggerRadius = rules.forms.trap.triggerRadius;
-  const victim = state.wizards.find(
-    (w) => w.team !== trap.team && w.hp > 0 && distance(w.pos, trap.pos) <= triggerRadius,
-  );
-  if (victim) {
-    applyHit(state, victim, trap.ownerId, trap.payload, rules);
-    return false;
-  }
-  return --trap.ticksLeft > 0;
-}
-
-/** Avanza un salto o desplazamiento; el de Tormenta descarga su impacto al aterrizar. */
+/** Avanza un desplazamiento: el Paso, el Cometa (que deja fuego) o el tirón de la Liana. */
 export function updateLeap(state: MatchState, wizard: Wizard, rules: GameRules): void {
   const leap = wizard.leap;
   if (!leap) return;
@@ -146,6 +156,7 @@ export function updateLeap(state: MatchState, wizard: Wizard, rules: GameRules):
       pos: wizard.pos,
       radius: comet.trailRadius,
       effect: 'burn',
+      durationTicks: comet.trailTicks,
       ticksLeft: comet.trailTicks,
     });
   }
@@ -160,16 +171,4 @@ export function updateLeap(state: MatchState, wizard: Wizard, rules: GameRules):
   // El salto pasa por encima de árboles y rocas, pero se aterriza en suelo libre.
   wizard.pos = placeInArena(wizard.pos, rules.wizard.radius, rules);
   wizard.leap = null;
-  const payload = leap.payload;
-  if (!payload) return;
-  for (const enemy of enemiesOf(state, wizard)) {
-    if (distance(enemy.pos, wizard.pos) <= rules.forms.leap.impactRadius) {
-      applyHit(state, enemy, wizard.id, payload, rules);
-    }
-  }
-  for (const beast of state.beasts) {
-    if (distance(beast.pos, wizard.pos) <= rules.forms.leap.impactRadius) {
-      damageBeast(state, beast, wizard.id, payload.damage, rules);
-    }
-  }
 }

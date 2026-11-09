@@ -51,28 +51,30 @@ export const GLYPHS: readonly Glyph[] = [
   {
     id: 'brasa-hambrienta',
     name: 'Brasa hambrienta',
-    description: 'Tus proyectiles hacen 20% más y tus quemaduras duran el doble.',
+    description:
+      'Tus hechizos que empiezan con Brasa hacen 20% más y tus quemaduras duran el doble.',
     element: 'brasa',
     mods: { formDamage: { projectile: 1.2 }, statusDuration: { burn: 2 } },
   },
   {
     id: 'viento-a-favor',
     name: 'Viento a favor',
-    description: 'Te mueves 12% más rápido y tus saltos golpean 30% más fuerte.',
+    description: 'Te mueves 12% más rápido y tus hechizos que empiezan con Tormenta hacen 30% más.',
     element: 'tormenta',
     mods: { moveSpeed: 1.12, formDamage: { leap: 1.3 } },
   },
   {
     id: 'marea-alta',
     name: 'Marea alta',
-    description: 'Tus muros golpean 40% más y tus ralentizaciones duran 50% más.',
+    description:
+      'Tus hechizos que empiezan con Marea hacen 40% más y tus ralentizaciones duran 50% más.',
     element: 'marea',
     mods: { formDamage: { wall: 1.4 }, statusDuration: { slow: 1.5 } },
   },
   {
     id: 'raiz-profunda',
     name: 'Raíz profunda',
-    description: 'Tus trampas hacen 30% más y enraízan 50% más tiempo.',
+    description: 'Tus hechizos que empiezan con Raíz hacen 30% más y enraízan 50% más tiempo.',
     element: 'raiz',
     mods: { formDamage: { trap: 1.3 }, statusDuration: { root: 1.5 } },
   },
@@ -105,7 +107,8 @@ export const OMENS: readonly Omen[] = [
   {
     id: 'tormenta-eterna',
     name: 'Tormenta eterna',
-    description: 'Todos se mueven 15% más rápido y los saltos golpean más fuerte.',
+    description:
+      'Todos se mueven 15% más rápido y los hechizos que empiezan con Tormenta pegan más.',
     element: 'tormenta',
     mods: { moveSpeed: 1.15, formDamage: { leap: 1.25 } },
   },

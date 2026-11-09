@@ -1,12 +1,12 @@
 import type { ElementId } from './elements';
 import type { Vec2 } from './math/vec2';
 import type { SpellRules } from './spells/spellRules';
-import type { SpellForm } from './weaving/weave';
 
 /**
  * `empowered` lo da un santuario: más daño por un rato.
  * `airborne` (por los aires), `stasis` (Ataúd helado), `veiled` (Velo) y `regen` (Savia)
- * vienen de los hechizos propios.
+ * vienen de los hechizos propios, igual que `silenced` (no puede tejer), `weak` (pega menos),
+ * `blind` (solo ve de cerca) y `haste` (corre más).
  */
 export type StatusId =
   | 'burn'
@@ -17,7 +17,11 @@ export type StatusId =
   | 'airborne'
   | 'stasis'
   | 'veiled'
-  | 'regen';
+  | 'regen'
+  | 'silenced'
+  | 'weak'
+  | 'blind'
+  | 'haste';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -30,6 +34,10 @@ export const STATUS_IDS: readonly StatusId[] = [
   'stasis',
   'veiled',
   'regen',
+  'silenced',
+  'weak',
+  'blind',
+  'haste',
 ];
 
 /**
@@ -77,33 +85,6 @@ export interface GameRules {
     /** Pasos que un elemento queda cansado después de usarlo. */
     readonly fatigueTicks: number;
   };
-  readonly forms: {
-    readonly projectile: FormBase & {
-      readonly speed: number;
-      readonly range: number;
-      readonly radius: number;
-    };
-    readonly wall: FormBase & {
-      readonly halfLength: number;
-      readonly distance: number;
-      readonly durationTicks: number;
-      readonly pulseRadius: number;
-    };
-    readonly trap: FormBase & {
-      readonly range: number;
-      readonly triggerRadius: number;
-      readonly armTicks: number;
-      readonly durationTicks: number;
-    };
-    readonly leap: FormBase & {
-      readonly distance: number;
-      readonly durationTicks: number;
-      readonly impactRadius: number;
-    };
-    readonly mark: FormBase & { readonly range: number; readonly coneDot: number };
-  };
-  /** Lo que aporta cada elemento cuando no es el primero del tejido. */
-  readonly modifiers: Readonly<Record<ElementId, ModifierRules>>;
   /** Los hechizos propios, cada uno con sus números. */
   readonly spells: SpellRules;
   readonly statuses: {
@@ -128,10 +109,16 @@ export interface GameRules {
     };
     /** Se cura en el tiempo. */
     readonly regen: { readonly ticks: number; readonly healPerSecond: number };
+    /** Silenciado: se mueve, pero no teje ni lanza. */
+    readonly silenced: { readonly ticks: number };
+    /** Débil: sus hechizos hacen menos daño. */
+    readonly weak: { readonly ticks: number; readonly damageMultiplier: number };
+    /** Cegado: no ve a los rivales más allá de este radio. */
+    readonly blind: { readonly ticks: number; readonly sightRadius: number };
+    /** Apurado: corre más rápido. */
+    readonly haste: { readonly ticks: number; readonly moveMultiplier: number };
   };
   readonly interactions: {
-    /** Tormenta se conduce por el agua: más daño contra quien está ralentizado. */
-    readonly stormVsSlowedMultiplier: number;
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */
     readonly tideExtinguishesBurn: boolean;
   };
@@ -229,18 +216,3 @@ export interface DeathRules {
     readonly hauntCooldownTicks: number;
   };
 }
-
-export interface FormBase {
-  readonly damage: number;
-  /** Estado que la forma aplica por sí misma. */
-  readonly status: StatusId | null;
-}
-
-export interface ModifierRules {
-  readonly damageMultiplier: number;
-  readonly status: StatusId | null;
-  readonly speedMultiplier: number;
-  readonly rangeMultiplier: number;
-}
-
-export type FormRules = GameRules['forms'][SpellForm];

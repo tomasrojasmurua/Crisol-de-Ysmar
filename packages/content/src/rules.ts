@@ -20,39 +20,6 @@ export const GAME_RULES: GameRules = {
     castTicksByLength: [3, 9, 18],
     fatigueTicks: 90,
   },
-  forms: {
-    // Brasa primero: proyectil que vuela recto.
-    projectile: { damage: 12, status: null, speed: 16, range: 16, radius: 0.35 },
-    // Marea primero: muro que bloquea proyectiles y estalla al levantarse.
-    wall: {
-      damage: 6,
-      status: 'slow',
-      halfLength: 1.8,
-      distance: 2.2,
-      durationTicks: 120,
-      pulseRadius: 2.5,
-    },
-    // Raíz primero: trampa que cae a los pies del rival y lo enraíza.
-    trap: {
-      damage: 10,
-      status: 'root',
-      range: 9,
-      triggerRadius: 1.3,
-      armTicks: 15,
-      durationTicks: 300,
-    },
-    // Tormenta primero: salto que golpea al aterrizar.
-    leap: { damage: 8, status: null, distance: 6, durationTicks: 8, impactRadius: 2 },
-    // Umbra primero: marca instantánea que maldice y roba vida.
-    mark: { damage: 4, status: 'curse', range: 11, coneDot: 0.6 },
-  },
-  modifiers: {
-    brasa: { damageMultiplier: 1.35, status: 'burn', speedMultiplier: 1, rangeMultiplier: 1 },
-    tormenta: { damageMultiplier: 1.1, status: null, speedMultiplier: 1.5, rangeMultiplier: 1.3 },
-    marea: { damageMultiplier: 1, status: 'slow', speedMultiplier: 0.9, rangeMultiplier: 1 },
-    raiz: { damageMultiplier: 1, status: 'root', speedMultiplier: 1, rangeMultiplier: 1 },
-    umbra: { damageMultiplier: 1, status: 'curse', speedMultiplier: 1, rangeMultiplier: 1 },
-  },
   spells: SPELL_RULES,
   statuses: {
     burn: { ticks: 90, damagePerSecond: 4 },
@@ -69,9 +36,16 @@ export const GAME_RULES: GameRules = {
     veiled: { ticks: 120, revealRadius: 2, damageMultiplier: 1.3 },
     // Savia: 15 de vida en 3 segundos.
     regen: { ticks: 90, healPerSecond: 5 },
+    // Paso sombrío: 1,2 segundos sin poder tejer.
+    silenced: { ticks: 36 },
+    // Esporas: 30% menos de daño por 3 segundos.
+    weak: { ticks: 90, damageMultiplier: 0.7 },
+    // Ceguera: 3 segundos viendo solo 3 m alrededor.
+    blind: { ticks: 90, sightRadius: 3 },
+    // Corriente: 50% más rápido mientras vas a favor del río.
+    haste: { ticks: 6, moveMultiplier: 1.5 },
   },
   interactions: {
-    stormVsSlowedMultiplier: 1.5,
     tideExtinguishesBurn: true,
   },
   round: {

@@ -41,11 +41,19 @@ export function canAct(wizard: Wizard): boolean {
   return !wizard.statuses.airborne && !wizard.statuses.stasis;
 }
 
+/** Silenciado, se puede mover pero no tejer ni lanzar. */
+export function canWeave(wizard: Wizard): boolean {
+  return canAct(wizard) && !wizard.statuses.silenced;
+}
+
 export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
   if (wizard.statuses.root || !canAct(wizard)) {
     return 0;
   }
   let multiplier = wizard.statuses.slow ? rules.statuses.slow.moveMultiplier : 1;
+  if (wizard.statuses.haste) {
+    multiplier *= rules.statuses.haste.moveMultiplier;
+  }
   if (wizard.channel) {
     multiplier *= rules.wizard.channelMoveMultiplier;
   }

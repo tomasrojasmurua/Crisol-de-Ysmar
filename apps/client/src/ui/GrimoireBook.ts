@@ -3,12 +3,13 @@ import type { ElementId, Weave } from '@crisol/core';
 import type { Grimoire } from '../game/Grimoire';
 import { el, query } from './dom';
 
-const FORM_NAMES: Record<ElementId, string> = {
-  brasa: 'Proyectiles',
-  tormenta: 'Saltos',
-  marea: 'Muros',
-  raiz: 'Trampas',
-  umbra: 'Marcas',
+/** Las pestañas agrupan los conjuros por su primer elemento. */
+const TAB_NAMES: Record<ElementId, string> = {
+  brasa: 'Brasa',
+  tormenta: 'Tormenta',
+  marea: 'Marea',
+  raiz: 'Raíz',
+  umbra: 'Umbra',
 };
 
 const colorOf = (id: ElementId): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
@@ -25,7 +26,7 @@ export function weaveOrbs(weave: Weave): HTMLElement {
 }
 
 /**
- * El Grimorio: los 155 conjuros por forma. Los que ya lanzaste muestran su nombre;
+ * El Grimorio: los 155 conjuros por su primer elemento. Los que ya lanzaste muestran su nombre;
  * los demás muestran solo la receta, para que dé ganas de probarlos.
  */
 export class GrimoireBook {
@@ -63,7 +64,7 @@ export class GrimoireBook {
       tab.type = 'button';
       tab.dataset.id = id;
       tab.style.setProperty('--element', element.color);
-      tab.append(el('strong', '', FORM_NAMES[id]), el('span', 'grimoire-tab-count'));
+      tab.append(el('strong', '', TAB_NAMES[id]), el('span', 'grimoire-tab-count'));
       tab.addEventListener('click', () => {
         this.form = id;
         this.render();

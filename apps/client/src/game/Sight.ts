@@ -1,5 +1,11 @@
 import { MAP_DECOR } from '@crisol/content';
-import { type GameRules, isHiddenFrom, lineBlocked, type MatchState } from '@crisol/core';
+import {
+  type GameRules,
+  isHiddenFrom,
+  lineBlocked,
+  type MatchState,
+  type Wizard,
+} from '@crisol/core';
 
 const CLOSE = 5;
 
@@ -14,6 +20,13 @@ export function veiledFromTeam(
   if (!enemy || enemy.team === team || !enemy.statuses.veiled) return false;
   const eyes = state.wizards.filter((w) => w.team === team && w.hp > 0);
   return eyes.every((eye) => isHiddenFrom(enemy, eye, rules));
+}
+
+/** Si estás cegado, los rivales más allá de tu vista corta no se dibujan. */
+export function blindedFrom(player: Wizard, other: Wizard, rules: GameRules): boolean {
+  if (!player.statuses.blind || other.team === player.team) return false;
+  const d = Math.hypot(other.pos.x - player.pos.x, other.pos.z - player.pos.z);
+  return d > rules.statuses.blind.sightRadius;
 }
 
 /**

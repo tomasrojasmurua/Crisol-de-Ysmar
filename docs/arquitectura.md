@@ -20,7 +20,7 @@ apps/client   apps/server   apps/balance
 1. **Núcleo determinista:** 30 pasos por segundo, azar con semilla, sin reloj.
 2. **Todo mago recibe intenciones** de un controlador intercambiable: dedo, IA o red.
 3. **Los datos mandan:** balancear es editar tablas en `packages/content`.
-4. **Los conjuros se componen:** forma + efectos, según la gramática del tejido.
+4. **Cada tejido es un hechizo propio:** su efecto vive en `packages/core/src/spells/kit` y sus números en `packages/content`.
 5. **Dibujar no es simular:** el render interpola entre pasos para verse a 60 cuadros por segundo.
 
 ## La partida en el núcleo

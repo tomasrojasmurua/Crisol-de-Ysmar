@@ -162,7 +162,7 @@ export class BotController implements Controller {
     const threatened = incomingProjectiles(state, self).length > 0;
 
     // Casi siempre elige un hechizo propio según la situación; a veces improvisa un tejido.
-    const spells = spellOptions({ self, target, available, threatened });
+    const spells = spellOptions({ state, self, target, available, threatened });
     if (spells.length > 0 && this.rng.next() < 0.8) {
       return this.pickWeighted(spells);
     }
@@ -175,7 +175,7 @@ export class BotController implements Controller {
       first = 'tormenta';
       aimMode = 'away';
     } else {
-      const options = available.filter((e) => suits(e, d, this.rules));
+      const options = available.filter((e) => suits(e, d));
       first = this.pick(options.length > 0 ? options : available);
       if (first === 'brasa') aimMode = 'lead';
       if (first === 'tormenta') aimMode = d > 8 ? 'target' : 'away';
@@ -340,7 +340,7 @@ export class BotController implements Controller {
   private aimFor(self: Readonly<Wizard>, target: Wizard, mode: AimMode): Vec2 {
     let aimPoint = target.pos;
     if (mode === 'lead') {
-      const speed = this.rules.forms.projectile.speed;
+      const speed = this.rules.spells.spark.speed;
       const time = distance(self.pos, target.pos) / speed;
       aimPoint = add(target.pos, scale(target.moveInput, this.rules.wizard.moveSpeed * time));
     }
@@ -374,17 +374,16 @@ export class BotController implements Controller {
   }
 }
 
-/** Qué formas tienen sentido según la distancia al rival. */
-function suits(element: ElementId, d: number, rules: GameRules): boolean {
+/** Qué primer elemento tiene sentido según la distancia al rival, para improvisar. */
+function suits(element: ElementId, d: number): boolean {
   switch (element) {
     case 'brasa':
-      return d <= rules.forms.projectile.range;
+      return d <= 14;
     case 'umbra':
-      return d <= rules.forms.mark.range;
+      return d <= 8;
     case 'raiz':
-      return d <= rules.forms.trap.range;
     case 'marea':
-      return d <= rules.forms.wall.pulseRadius + rules.forms.wall.distance;
+      return d <= 8;
     case 'tormenta':
       return d < 4 || d > 10;
   }

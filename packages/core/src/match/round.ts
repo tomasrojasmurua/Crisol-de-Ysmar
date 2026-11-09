@@ -52,6 +52,7 @@ export function processFalls(state: MatchState, rules: GameRules): void {
     if (wizard.hp > 0 || wizard.fallen) continue;
     wizard.lives = Math.max(0, wizard.lives - 1);
     wizard.statuses = {};
+    wizard.shield = 0;
     wizard.moveInput = { x: 0, z: 0 };
     const canRespawn = state.deathRule === 'lives' && wizard.lives > 0;
     wizard.fallen = {

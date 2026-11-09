@@ -1,8 +1,17 @@
 import { applyHit } from '../../combat/hit';
 import { beastStats, damageBeast } from '../../match/beasts';
-import { add, clampToCircle, dot, length, normalize, scale, sub } from '../../math/vec2';
+import {
+  add,
+  clampToCircle,
+  dot,
+  length,
+  normalize,
+  perpendicular,
+  scale,
+  sub,
+} from '../../math/vec2';
 import type { StatusId } from '../../rules';
-import { type CastContext, nextId, payloadFor } from './context';
+import { type CastContext, nextId, payloadFor, placeZone } from './context';
 import { groundPoint } from './shared';
 
 /** Salpicón: un abanico de agua que moja y frena a todo lo que hay delante. */
@@ -59,4 +68,49 @@ export function castIceCoffin(ctx: CastContext): void {
   for (const id of HARMFUL) delete caster.statuses[id];
   caster.leap = null;
   caster.statuses.stasis = { ticks: rules.statuses.stasis.ticks, sourceId: caster.id };
+}
+
+/** Corriente: un río que sale de tus pies hacia donde apuntas. */
+export function castCurrent(ctx: CastContext): void {
+  const { state, caster, rules } = ctx;
+  const spell = rules.spells.current;
+  state.spells.push({
+    kind: 'current',
+    id: nextId(state),
+    ownerId: caster.id,
+    team: caster.team,
+    origin: caster.pos,
+    dir: ctx.aim,
+    length: spell.length,
+    halfWidth: spell.halfWidth,
+    durationTicks: spell.durationTicks,
+    ticksLeft: spell.durationTicks,
+  });
+}
+
+/** Muro de hielo: un muro corto delante tuyo que solo frena a los rivales y sus proyectiles. */
+export function castIceWall(ctx: CastContext): void {
+  const { state, caster, rules } = ctx;
+  const spell = rules.spells.iceWall;
+  state.spells.push({
+    kind: 'wall',
+    id: nextId(state),
+    ownerId: caster.id,
+    team: caster.team,
+    center: add(caster.pos, scale(ctx.aim, spell.distance)),
+    along: perpendicular(ctx.aim),
+    halfLength: spell.halfLength,
+    thickness: spell.thickness,
+    solid: false,
+    durationTicks: spell.durationTicks,
+    ticksLeft: spell.durationTicks,
+    payload: payloadFor(ctx, 0),
+  });
+}
+
+/** Manantial: una fuente a tus pies que cura a ti y a tus aliados mientras estén dentro. */
+export function castSpring(ctx: CastContext): void {
+  const { caster, rules } = ctx;
+  const spell = rules.spells.spring;
+  placeZone(ctx, 'spring', spell, add(caster.pos, scale(ctx.aim, spell.range)));
 }
