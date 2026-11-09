@@ -1,5 +1,6 @@
-import type { GameRules } from '@crisol/core';
-import { MAP, MAP_RADIUS } from './map';
+import type { GameMode, GameRules } from '@crisol/core';
+import { FEATURES } from './features';
+import { MAP, MAP_RADIUS, PLAZA_ARENA_RADIUS, PLAZA_MAP } from './map';
 import { SPELL_RULES } from './spells';
 
 /**
@@ -142,3 +143,19 @@ export const GAME_RULES: GameRules = {
     healFraction: 0.35,
   },
 };
+
+/**
+ * El 1v1 en la plaza: arena chica, sin jungla ni bestias, para que el duelo empiece de inmediato
+ * y se lea bien. El resto de los números es el mismo.
+ */
+export const DUEL_RULES: GameRules = {
+  ...GAME_RULES,
+  arenaRadius: PLAZA_ARENA_RADIUS,
+  map: PLAZA_MAP,
+  beasts: { ...GAME_RULES.beasts, count: 0 },
+};
+
+/** Las reglas de un modo: el 1v1 va en la plaza; 2v2 en adelante, en la jungla. */
+export function rulesForMode(mode: GameMode): GameRules {
+  return mode.kind === 'duel' && !FEATURES.duelInJungle ? DUEL_RULES : GAME_RULES;
+}

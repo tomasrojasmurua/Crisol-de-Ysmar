@@ -33,6 +33,10 @@ export class ArenaView {
   private readonly runeMaterial: THREE.MeshBasicMaterial;
   private readonly stars: THREE.Points;
   private readonly moon = new THREE.DirectionalLight('#b8c2ff', 2.4);
+  /** Lo que depende del tamaño de la arena: senderos, murete, columnas y ruinas lejanas. */
+  private readonly layout = new THREE.Group();
+  private readonly groundTexture: THREE.Texture;
+  private layoutKey = '';
   private emberTimer = 0;
 
   constructor(
@@ -65,6 +69,7 @@ export class ArenaView {
 
     // La jungla: tierra con musgo que se pierde en la niebla.
     const groundTexture = createGroundTexture();
+    this.groundTexture = groundTexture;
     const groundSize = 2 * (arenaRadius + 60);
     groundTexture.repeat.set(groundSize / 9, groundSize / 9);
     const ground = new THREE.Mesh(
@@ -74,7 +79,6 @@ export class ArenaView {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
-    scene.add(createPaths(arenaRadius, groundTexture));
 
     this.runeMaterial = new THREE.MeshBasicMaterial({
       map: createRuneCircleTexture(),
@@ -88,11 +92,28 @@ export class ArenaView {
     rune.position.y = 0.02;
     scene.add(rune);
 
-    scene.add(createLowWall(arenaRadius));
-    scene.add(createPillars(arenaRadius));
-    scene.add(createDistantRuins(arenaRadius));
+    scene.add(this.layout);
+    this.setLayout(arenaRadius, true);
     this.createBraziers();
     this.createLights();
+  }
+
+  /**
+   * Ajusta el borde de la arena a la partida: el 1v1 cierra el murete alrededor de la plaza y
+   * no dibuja senderos; la jungla lo abre a todo el mapa.
+   */
+  setLayout(arenaRadius: number, paths: boolean): void {
+    const key = `${arenaRadius}|${paths}`;
+    if (key === this.layoutKey) return;
+    this.layoutKey = key;
+    for (const child of [...this.layout.children]) disposeTree(child);
+    this.layout.clear();
+    if (paths) this.layout.add(createPaths(arenaRadius, this.groundTexture));
+    this.layout.add(
+      createLowWall(arenaRadius),
+      createPillars(arenaRadius),
+      createDistantRuins(arenaRadius),
+    );
   }
 
   update(timeSeconds: number, deltaSeconds: number): void {
@@ -274,6 +295,21 @@ function createMoon(): THREE.Sprite {
   moon.position.set(-60, 75, 55);
   moon.scale.setScalar(26);
   return moon;
+}
+
+/** Libera geometrías y materiales de un objeto y sus hijos (las texturas compartidas quedan). */
+function disposeTree(root: THREE.Object3D): void {
+  root.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    node.geometry.dispose();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      if (material instanceof THREE.MeshStandardMaterial && material.map !== null) {
+        material.map.dispose();
+      }
+      material.dispose();
+    }
+  });
 }
 
 /** Un murete bajo marca el borde de la arena. */

@@ -2,9 +2,10 @@ import { ELEMENT_IDS, modeSetup, obstacleAt } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
 import { ELEMENTS } from './elements';
+import { FEATURES } from './features';
 import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
-import { MAP, MAP_RADIUS } from './map';
-import { GAME_RULES } from './rules';
+import { MAP, MAP_RADIUS, PLAZA_MAP } from './map';
+import { DUEL_RULES, GAME_RULES, rulesForMode } from './rules';
 
 describe('tablas de contenido', () => {
   it('describe exactamente los cinco elementos del núcleo, en el mismo orden', () => {
@@ -93,5 +94,41 @@ describe('mapa', () => {
 
   it('tiene jungla de verdad: más de cien obstáculos', () => {
     expect(MAP.obstacles.length).toBeGreaterThan(100);
+  });
+});
+
+describe('el 1v1 en la plaza', () => {
+  it('el duelo usa la plaza y los equipos la jungla', () => {
+    expect(rulesForMode({ kind: 'duel' })).toBe(DUEL_RULES);
+    expect(rulesForMode({ kind: 'teams', size: 2 })).toBe(GAME_RULES);
+    expect(rulesForMode({ kind: 'ffa', players: 4 })).toBe(GAME_RULES);
+  });
+
+  it('no tiene jungla, campamentos, bestias ni Guardián', () => {
+    expect(PLAZA_MAP.camps).toHaveLength(0);
+    expect(PLAZA_MAP.guardianLair).toBeNull();
+    expect(PLAZA_MAP.obstacles.some((o) => o.kind === 'tree' || o.kind === 'rock')).toBe(false);
+    expect(DUEL_RULES.beasts.count).toBe(0);
+  });
+
+  it('todo lo de la plaza cabe en la arena y las bases quedan libres', () => {
+    for (const o of PLAZA_MAP.obstacles) {
+      expect(Math.hypot(o.x, o.z) + o.radius).toBeLessThan(DUEL_RULES.arenaRadius);
+    }
+    for (const w of modeSetup({ kind: 'duel' }, 1, 'spectre', DUEL_RULES).wizards) {
+      expect(obstacleAt(w.spawn, 1.5, PLAZA_MAP.obstacles)).toBeUndefined();
+    }
+  });
+
+  it('solo cambia el mapa: el combate usa los mismos números', () => {
+    expect(DUEL_RULES.spells).toBe(GAME_RULES.spells);
+    expect(DUEL_RULES.round).toBe(GAME_RULES.round);
+    expect(DUEL_RULES.round.convergenceRadius).toBeLessThan(DUEL_RULES.arenaRadius);
+  });
+});
+
+describe('piezas en pausa', () => {
+  it('el Guardián solo existe si está encendido', () => {
+    expect(MAP.guardianLair === null).toBe(!FEATURES.guardian);
   });
 });

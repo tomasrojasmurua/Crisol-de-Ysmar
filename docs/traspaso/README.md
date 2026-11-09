@@ -104,11 +104,12 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 
 Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendación fue la poda primero.
 
-1. **Plan de debilidades (aprobado por Tomás, sin implementar).** Antes de la red:
-   - **1v1 en la plaza**, sin jungla ni campamentos; la jungla completa queda para 2v2 en adelante.
-   - **Pausar familiares, Guardián y el modo 3 Vidas** hasta probar con gente. Espectro queda como
-     única regla de muerte.
-   - Ya hecho de este plan: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
+1. **Plan de debilidades (aprobado por Tomás).** Antes de la red:
+   - Hecho (PR #19): **1v1 en la plaza** (arena de 17 m, sin jungla, campamentos ni bestias); la
+     jungla completa queda para 2v2 en adelante. **Guardián y 3 Vidas en pausa** con interruptores
+     en `packages/content/src/features.ts`; Espectro es la única regla de muerte. Los familiares no
+     existían, así que no hubo nada que apagar.
+   - Hecho antes: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
    - Propuesto, sin decidir: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
      familia de hechizo (proyectil, zona, movimiento, invocación); interacciones entre estados al
      estilo sistémico (mojado + Tormenta aturde, Raíz + Brasa arde); **choque de tejidos** (un

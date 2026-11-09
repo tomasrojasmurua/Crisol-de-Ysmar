@@ -1,4 +1,4 @@
-import { ELEMENTS } from '@crisol/content';
+import { ELEMENTS, FEATURES } from '@crisol/content';
 import type { DeathRule, ElementId, GameMode } from '@crisol/core';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
@@ -29,10 +29,12 @@ const MODES: readonly ModeChoice[] = [
   },
 ];
 
-const DEATH_RULES: readonly { id: DeathRule; title: string; detail: string }[] = [
+const ALL_DEATH_RULES: readonly { id: DeathRule; title: string; detail: string }[] = [
   { id: 'spectre', title: 'Espectro', detail: 'Sigues como espíritu' },
   { id: 'lives', title: 'Vidas', detail: '3 vidas por ronda' },
 ];
+/** Con 3 Vidas en pausa, Espectro es la única regla y el menú no pregunta. */
+const DEATH_RULES = ALL_DEATH_RULES.filter((rule) => rule.id !== 'lives' || FEATURES.livesRule);
 
 const STORAGE_KEY = 'crisol.menu';
 
@@ -82,7 +84,7 @@ export class Menu {
       <section class="menu-panel">
         <h2>Modo</h2>
         <div class="menu-modes"></div>
-        <h2>Al caer</h2>
+        <h2 class="menu-rules-title">Al caer</h2>
         <div class="menu-rules"></div>
         <button type="button" class="primary menu-play">Entrar al Crisol</button>
       </section>`;
@@ -107,6 +109,9 @@ export class Menu {
       modes.append(button);
     }
     const rules = query(this.root, '.menu-rules');
+    const askDeathRule = DEATH_RULES.length > 1;
+    rules.hidden = !askDeathRule;
+    query(this.root, '.menu-rules-title').hidden = !askDeathRule;
     for (const rule of DEATH_RULES) {
       const button = el('button', 'menu-choice');
       button.type = 'button';
@@ -164,9 +169,8 @@ export class Menu {
         deathRule?: string;
       };
       if (MODES.some((m) => m.id === saved.modeId) && saved.modeId) this.modeId = saved.modeId;
-      if (saved.deathRule === 'spectre' || saved.deathRule === 'lives') {
-        this.deathRule = saved.deathRule;
-      }
+      const rule = DEATH_RULES.find((r) => r.id === saved.deathRule);
+      if (rule) this.deathRule = rule.id;
     } catch {
       // Sin almacenamiento (modo privado): se usan los valores por defecto.
     }
