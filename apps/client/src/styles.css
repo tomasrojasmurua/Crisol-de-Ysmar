@@ -1,0 +1,50 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0b10;
+  --ink: #e8e4dc;
+  --ink-quiet: #8e897f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  touch-action: none;
+  user-select: none;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hud {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+
+.hud h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.hud p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-quiet);
+}
