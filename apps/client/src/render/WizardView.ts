@@ -48,6 +48,8 @@ export class WizardView {
   private readonly rootRing: THREE.Mesh;
   private readonly curseRing: THREE.Mesh;
   private readonly frost: THREE.Mesh;
+  /** Ataúd helado: un bloque de hielo alrededor del mago. */
+  private readonly iceBlock: THREE.Mesh;
   private readonly teamRing: THREE.Mesh;
   private readonly reviveRing: THREE.Mesh;
   private readonly grave: THREE.Mesh;
@@ -172,6 +174,24 @@ export class WizardView {
     this.frost.visible = false;
     this.group.add(this.rootRing, this.curseRing, this.frost);
 
+    this.iceBlock = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.75, 0.85, 2.3, 6),
+      new THREE.MeshStandardMaterial({
+        color: '#bfe6ff',
+        emissive: new THREE.Color('#2f7dff'),
+        emissiveIntensity: 0.45,
+        roughness: 0.15,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.55,
+        flatShading: true,
+        depthWrite: false,
+      }),
+    );
+    this.iceBlock.position.y = 1.1;
+    this.iceBlock.visible = false;
+    this.group.add(this.iceBlock);
+
     const orbGeometry = new THREE.SphereGeometry(0.12, 14, 10);
     for (let i = 0; i < ORB_COUNT; i++) {
       const orb = new THREE.Mesh(orbGeometry, new THREE.MeshBasicMaterial());
@@ -190,7 +210,10 @@ export class WizardView {
     deltaSeconds: number,
     spectre: boolean,
     rules: GameRules,
+    /** Con Velo y lejos de tu equipo: no se dibuja. */
+    hidden = false,
   ): void {
+    this.group.visible = !hidden;
     this.group.position.set(x, 0, z);
     const speed = deltaSeconds > 0 ? Math.hypot(x - this.lastX, z - this.lastZ) / deltaSeconds : 0;
     this.lastX = x;
@@ -200,7 +223,8 @@ export class WizardView {
 
     const alive = wizard.hp > 0;
     const fallen = wizard.fallen;
-    this.setGhostly(spectre);
+    // Con Velo, los tuyos te ven como una sombra translúcida.
+    this.setGhostly(spectre || wizard.statuses.veiled !== undefined);
     this.body.visible = alive || spectre;
     this.grave.visible = !alive && !spectre;
     this.teamRing.visible = alive;
@@ -218,7 +242,13 @@ export class WizardView {
     // Paso: balanceo al caminar y una leve inclinación hacia adelante.
     const moving = Math.min(1, speed / rules.wizard.moveSpeed);
     this.stride += deltaSeconds * (4 + moving * 8);
-    const float = spectre ? 0.35 + Math.sin(timeSeconds * 2) * 0.1 : 0;
+    let float = spectre ? 0.35 + Math.sin(timeSeconds * 2) * 0.1 : 0;
+    // Por los aires: un arco de subida y caída mientras dura el Géiser.
+    const airborne = wizard.statuses.airborne;
+    if (airborne) {
+      const t = 1 - airborne.ticks / rules.statuses.airborne.ticks;
+      float += Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6;
+    }
     this.body.position.y = float + Math.abs(Math.sin(this.stride)) * 0.06 * moving;
     this.body.rotation.x = moving * 0.12;
     this.staff.rotation.z = Math.sin(this.stride) * 0.06 * moving;
@@ -272,6 +302,8 @@ export class WizardView {
     this.rootRing.rotation.z = -timeSeconds;
     this.curseRing.visible = wizard.statuses.curse !== undefined && alive;
     this.curseRing.rotation.z = timeSeconds * 2;
+    this.iceBlock.visible = wizard.statuses.stasis !== undefined && alive;
+    this.iceBlock.rotation.y = timeSeconds * 0.3;
 
     this.affinityLook?.update(
       x,

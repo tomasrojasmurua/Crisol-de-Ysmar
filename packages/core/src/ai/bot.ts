@@ -20,6 +20,7 @@ import type { GameRules } from '../rules';
 import { SeededRng } from '../sim/rng';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { Navigator } from './navigation';
+import { type AimMode, type Plan, spellOptions } from './spellPlans';
 
 export interface BotProfile {
   /** Pasos de "pensar" entre un conjuro y el siguiente. */
@@ -35,13 +36,6 @@ export const DEFAULT_BOT: BotProfile = {
   aimError: 0.14,
   preferredDistance: 7,
 };
-
-type AimMode = 'lead' | 'target' | 'away';
-
-interface Plan {
-  readonly elements: ElementId[];
-  readonly aimMode: AimMode;
-}
 
 /**
  * Hechicero controlado por la IA. Usa las mismas intenciones y reglas que un jugador:
@@ -70,7 +64,7 @@ export class BotController implements Controller {
       this.plan = null;
       return this.spectreIntents(state, self);
     }
-    const target = currentTarget(state as MatchState, self as Wizard);
+    const target = currentTarget(state as MatchState, self as Wizard, this.rules);
     if (!target) {
       return [{ kind: 'move', x: 0, z: 0 }];
     }
@@ -166,6 +160,12 @@ export class BotController implements Controller {
     }
     const d = distance(self.pos, target.pos);
     const threatened = incomingProjectiles(state, self).length > 0;
+
+    // Casi siempre elige un hechizo propio según la situación; a veces improvisa un tejido.
+    const spells = spellOptions({ self, target, available, threatened });
+    if (spells.length > 0 && this.rng.next() < 0.8) {
+      return this.pickWeighted(spells);
+    }
 
     let first: ElementId;
     let aimMode: AimMode = 'target';
@@ -315,7 +315,7 @@ export class BotController implements Controller {
       return [];
     }
     const ally = state.wizards.find((w) => w.team === self.team && w.id !== self.id && isAlive(w));
-    const enemy = currentTarget(state as MatchState, self as Wizard);
+    const enemy = currentTarget(state as MatchState, self as Wizard, this.rules);
     const intents: Intent[] = [];
     const goal = ally ?? enemy;
     if (goal) {
@@ -352,6 +352,17 @@ export class BotController implements Controller {
     const cos = Math.cos(error);
     const sin = Math.sin(error);
     return { x: aim.x * cos - aim.z * sin, z: aim.x * sin + aim.z * cos };
+  }
+
+  private pickWeighted(options: readonly (Plan & { readonly weight: number })[]): Plan {
+    const total = options.reduce((sum, o) => sum + o.weight, 0);
+    let roll = this.rng.next() * total;
+    for (const option of options) {
+      roll -= option.weight;
+      if (roll <= 0) return { elements: [...option.elements], aimMode: option.aimMode };
+    }
+    const last = this.pick(options);
+    return { elements: [...last.elements], aimMode: last.aimMode };
   }
 
   private pick<T>(options: readonly T[]): T {

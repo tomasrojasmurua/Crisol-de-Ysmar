@@ -73,13 +73,15 @@ describe('bestias', () => {
     expect(state.beasts).toHaveLength(0);
     expect(wizard(state, 1).essence.brasa).toBe(1);
 
-    // Ahora un proyectil de Brasa contra el rival pega 50% más (TEST_RULES).
+    // Ahora la Chispa contra el rival pega 50% más (TEST_RULES), sin contar la quemadura.
     const rival = wizard(state, 2);
     rival.pos = { x: 0, z: 5 };
     const fatigue = wizard(state, 1).fatigue;
     fatigue.brasa = 0;
     run(state, 12, brasaForward);
-    expect(rival.hp).toBe(rival.maxHp - rules.forms.projectile.damage * 1.5);
+    const lost = rival.maxHp - rival.hp;
+    expect(lost).toBeGreaterThanOrEqual(rules.spells.spark.damage * 1.5);
+    expect(lost).toBeLessThan(rules.spells.spark.damage * 1.5 + 2);
   });
 
   it('una bestia enojada muerde', () => {

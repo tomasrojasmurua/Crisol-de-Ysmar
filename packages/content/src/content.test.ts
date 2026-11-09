@@ -50,9 +50,10 @@ describe('Grimorio', () => {
     expect(new Set(ALL_WEAVES.map(weaveKey)).size).toBe(155);
   });
 
-  it('el nombre sigue el orden del tejido', () => {
-    expect(spellName(['brasa'])).toBe('Dardo ígneo');
-    expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Muro de brasas y sombra');
+  it('los hechizos propios tienen su nombre y el resto sigue el orden del tejido', () => {
+    expect(spellName(['brasa'])).toBe('Chispa');
+    expect(spellName(['marea', 'brasa'])).toBe('Géiser');
+    expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Géiser · eco de sombra');
     expect(spellName(['raiz', 'tormenta', 'tormenta'])).toBe('Trampa de trueno doble');
   });
 });

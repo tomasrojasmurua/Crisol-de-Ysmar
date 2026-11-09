@@ -2,6 +2,7 @@ import type { ElementId } from '../elements';
 import type { Vec2 } from '../math/vec2';
 import type { WizardMods } from '../mods';
 import type { StatusId } from '../rules';
+import type { SpellId } from '../spells/catalog';
 import type { SpellForm, Weave } from '../weaving/weave';
 
 export type EntityId = number;
@@ -18,10 +19,14 @@ export interface Channel {
   readonly aim: Vec2;
 }
 
+/** Un desplazamiento en varios pasos: el salto de Tormenta, el Paso o el Cometa. */
 export interface Leap {
   ticksLeft: number;
   readonly step: Vec2;
-  readonly payload: SpellPayload;
+  /** Lo que descarga al aterrizar; null si no golpea. */
+  readonly payload: SpellPayload | null;
+  /** Rastro que deja en el suelo (el Cometa deja fuego). */
+  readonly trail: 'fire' | null;
 }
 
 /** Un mago caído. En modo Espectro sigue moviéndose; en modo Vidas espera para reaparecer. */
@@ -70,6 +75,10 @@ export interface SpellPayload {
   readonly speedMultiplier: number;
   readonly rangeMultiplier: number;
   readonly hasStorm: boolean;
+  /** El hechizo propio que lo lanzó, o null si usa la gramática antigua. */
+  readonly spell: SpellId | null;
+  /** Radio de la explosión al impactar; 0 si no explota. */
+  readonly blastRadius: number;
 }
 
 export interface Projectile {
@@ -79,6 +88,7 @@ export interface Projectile {
   readonly team: number;
   pos: Vec2;
   readonly velocity: Vec2;
+  readonly radius: number;
   travelled: number;
   readonly maxRange: number;
   readonly payload: SpellPayload;
@@ -92,6 +102,11 @@ export interface Wall {
   readonly center: Vec2;
   /** Dirección a lo largo del muro. */
   readonly along: Vec2;
+  readonly halfLength: number;
+  readonly thickness: number;
+  /** Un muro sólido corta el paso y los proyectiles de todos, no solo los rivales. */
+  readonly solid: boolean;
+  readonly durationTicks: number;
   ticksLeft: number;
   readonly payload: SpellPayload;
 }
@@ -107,7 +122,57 @@ export interface Trap {
   readonly payload: SpellPayload;
 }
 
-export type SpellEntity = Projectile | Wall | Trap;
+/** Suelo encantado por un rato: el rastro del Cometa quema a los rivales que lo pisan. */
+export interface Zone {
+  readonly kind: 'zone';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  readonly effect: 'burn';
+  ticksLeft: number;
+}
+
+/** Un géiser marcado en el suelo: tras el aviso, brota y levanta a quien esté encima. */
+export interface Geyser {
+  readonly kind: 'geyser';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  readonly delayTicks: number;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** La Estampida de espinas: brotes que avanzan en línea, uno tras otro. */
+export interface ThornRush {
+  readonly kind: 'thornRush';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly origin: Vec2;
+  readonly dir: Vec2;
+  /** Brotes que ya salieron. */
+  bursts: number;
+  ticksToNext: number;
+  readonly payload: SpellPayload;
+}
+
+/** El hilo del Drenaje entre quien lo lanza y su blanco. */
+export interface Tether {
+  readonly kind: 'tether';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+export type SpellEntity = Projectile | Wall | Trap | Zone | Geyser | ThornRush | Tether;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
 export interface Beast {
@@ -140,7 +205,22 @@ export interface Shrine {
 
 export type GameEvent =
   | { readonly type: 'cast'; readonly wizardId: EntityId; readonly weave: Weave }
-  | { readonly type: 'release'; readonly wizardId: EntityId; readonly form: SpellForm }
+  | {
+      readonly type: 'release';
+      readonly wizardId: EntityId;
+      readonly form: SpellForm;
+      readonly spell: SpellId | null;
+    }
+  /** Una explosión o un brote en área: Bola ígnea, espinas, géiser, Salpicón. */
+  | {
+      readonly type: 'burst';
+      readonly spell: SpellId;
+      readonly pos: Vec2;
+      readonly radius: number;
+    }
+  /** El recorrido de un rayo en cadena, desde quien lo lanza. */
+  | { readonly type: 'chain'; readonly points: readonly Vec2[] }
+  | { readonly type: 'blink'; readonly wizardId: EntityId; readonly from: Vec2; readonly to: Vec2 }
   | {
       readonly type: 'hit';
       readonly targetId: EntityId;

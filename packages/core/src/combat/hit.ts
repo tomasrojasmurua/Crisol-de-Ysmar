@@ -13,7 +13,7 @@ export function applyHit(
   rules: GameRules,
   damageScale = 1,
 ): void {
-  if (target.hp <= 0) {
+  if (target.hp <= 0 || target.statuses.stasis) {
     return;
   }
   let amount = payload.damage * damageScale;
@@ -38,9 +38,11 @@ export function dealDamage(
   amount: number,
   form: HitForm,
 ): void {
-  if (amount <= 0 || target.hp <= 0) {
+  if (amount <= 0 || target.hp <= 0 || target.statuses.stasis) {
     return;
   }
+  // Recibir daño rompe el Velo.
+  delete target.statuses.veiled;
   target.hp = Math.max(0, target.hp - amount);
   state.events.push({ type: 'hit', targetId: target.id, sourceId, amount, form });
   if (target.hp === 0) {
@@ -59,6 +61,10 @@ export function applyStatus(
   sourceId: number,
   rules: GameRules,
 ): void {
+  // Dentro del Ataúd helado no entra ningún estado.
+  if (target.statuses.stasis) {
+    return;
+  }
   if (status === 'slow' && rules.interactions.tideExtinguishesBurn) {
     delete target.statuses.burn;
   }

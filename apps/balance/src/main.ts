@@ -49,7 +49,10 @@ for (const result of results) {
   else if (result.winnerTeam < 0) draws++;
   else wins[result.winnerTeam] = (wins[result.winnerTeam] ?? 0) + 1;
   for (const event of result.releases) {
-    if (event.type === 'release') formCounts.set(event.form, (formCounts.get(event.form) ?? 0) + 1);
+    if (event.type !== 'release') continue;
+    // Los hechizos propios se cuentan por nombre; los antiguos, por forma.
+    const key = event.spell ?? `(${event.form})`;
+    formCounts.set(key, (formCounts.get(key) ?? 0) + 1);
   }
 }
 const average = results.reduce((sum, r) => sum + r.seconds, 0) / results.length;
@@ -61,7 +64,7 @@ console.log(
 console.log(`Gana el mago del sur: ${pct(wins[0] ?? 0)} · del norte: ${pct(wins[1] ?? 0)}`);
 console.log(`Empates: ${draws} · Sin terminar en 6 min: ${timeouts}`);
 console.log(`Duración media de un duelo: ${average.toFixed(1)} s`);
-console.log('Conjuros lanzados por forma:');
+console.log('Hechizos lanzados (entre paréntesis, formas antiguas):');
 for (const [form, count] of [...formCounts].sort((a, b) => b[1] - a[1])) {
-  console.log(`  ${form.padEnd(10)} ${count}`);
+  console.log(`  ${form.padEnd(16)} ${count}`);
 }

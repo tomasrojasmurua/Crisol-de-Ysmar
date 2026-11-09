@@ -35,22 +35,29 @@ function run(state: MatchState, ticks: number, first: Intent[] = []): void {
   }
 }
 
+/** Brasa → Marea: aún sin hechizo propio, es el proyectil de la gramática antigua. */
+const LEGACY_BOLT: Intent[] = [
+  { kind: 'weave', element: 'brasa' },
+  { kind: 'weave', element: 'marea' },
+];
+
 const weaveAndCast = (...elements: Intent[]): Intent[] => [
   ...elements,
   { kind: 'cast', dirX: 0, dirZ: 1 },
 ];
 
 describe('stepMatch', () => {
-  it('un proyectil de Brasa daña al rival', () => {
+  // Brasa → Marea todavía no tiene hechizo propio: sale el proyectil de la gramática antigua.
+  it('un proyectil de la gramática antigua daña al rival', () => {
     const state = duel();
-    run(state, 30, weaveAndCast({ kind: 'weave', element: 'brasa' }));
+    run(state, 30, weaveAndCast(...LEGACY_BOLT));
     expect(wizard(state, 2).hp).toBe(90);
   });
 
   it('el apuntado automático se adelanta a un rival que se mueve', () => {
     const state = duel(9);
     for (let i = 0; i < 40; i++) {
-      const own: Intent[] = i === 0 ? weaveAndCast({ kind: 'weave', element: 'brasa' }) : [];
+      const own: Intent[] = i === 0 ? weaveAndCast(...LEGACY_BOLT) : [];
       // `weaveAndCast` apunta hacia +z; para probar el apuntado solo se lanza con (0, 0).
       const auto = own.map((intent) => (intent.kind === 'cast' ? { ...intent, dirZ: 0 } : intent));
       stepMatch(
@@ -89,7 +96,7 @@ describe('stepMatch', () => {
 
   it('un muro de Marea bloquea los proyectiles enemigos', () => {
     const state = duel(10);
-    // El mago 2 levanta un muro hacia el mago 1 y luego el mago 1 dispara.
+    // El mago 2 levanta un muro (Marea → Tormenta) hacia el mago 1 y luego el mago 1 dispara.
     stepMatch(
       state,
       new Map([
@@ -97,20 +104,25 @@ describe('stepMatch', () => {
           2,
           [
             { kind: 'weave', element: 'marea' },
+            { kind: 'weave', element: 'tormenta' },
             { kind: 'cast', dirX: 0, dirZ: -1 },
           ],
         ],
       ]),
       rules,
     );
-    for (let i = 0; i < 5; i++) stepMatch(state, new Map(), rules);
-    run(state, 40, weaveAndCast({ kind: 'weave', element: 'brasa' }));
+    for (let i = 0; i < 12; i++) stepMatch(state, new Map(), rules);
+    run(state, 40, weaveAndCast(...LEGACY_BOLT));
     expect(wizard(state, 2).hp).toBe(100);
   });
 
   it('una trampa de Raíz enraíza al rival', () => {
     const state = duel(5);
-    run(state, 12, weaveAndCast({ kind: 'weave', element: 'raiz' }));
+    run(
+      state,
+      18,
+      weaveAndCast({ kind: 'weave', element: 'raiz' }, { kind: 'weave', element: 'tormenta' }),
+    );
     expect(wizard(state, 2).statuses.root).toBeDefined();
     expect(wizard(state, 2).hp).toBe(90);
   });
@@ -118,7 +130,11 @@ describe('stepMatch', () => {
   it('la maldición de Umbra roba vida', () => {
     const state = duel();
     wizard(state, 1).hp = 50;
-    run(state, 40, weaveAndCast({ kind: 'weave', element: 'umbra' }));
+    run(
+      state,
+      40,
+      weaveAndCast({ kind: 'weave', element: 'umbra' }, { kind: 'weave', element: 'tormenta' }),
+    );
     expect(wizard(state, 2).hp).toBeLessThan(94);
     expect(wizard(state, 1).hp).toBeGreaterThan(50);
   });
@@ -134,17 +150,17 @@ describe('stepMatch', () => {
   it('Tormenta hace más daño a quien está ralentizado', () => {
     const state = duel();
     wizard(state, 2).statuses.slow = { ticks: 300, sourceId: 1 };
-    run(
-      state,
-      30,
-      weaveAndCast({ kind: 'weave', element: 'brasa' }, { kind: 'weave', element: 'tormenta' }),
-    );
+    run(state, 30, weaveAndCast(...LEGACY_BOLT, { kind: 'weave', element: 'tormenta' }));
     expect(wizard(state, 2).hp).toBe(80);
   });
 
   it('el salto de Tormenta mueve al mago', () => {
     const state = duel(20);
-    run(state, 15, weaveAndCast({ kind: 'weave', element: 'tormenta' }));
+    run(
+      state,
+      20,
+      weaveAndCast({ kind: 'weave', element: 'tormenta' }, { kind: 'weave', element: 'marea' }),
+    );
     expect(wizard(state, 1).pos.z).toBeCloseTo(6);
   });
 

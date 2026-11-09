@@ -1,5 +1,5 @@
 import { ELEMENT_IDS, type ElementId, opposingOf } from './elements';
-import type { StatusId } from './rules';
+import { STATUS_IDS, type StatusId } from './rules';
 import type { SpellForm } from './weaving/weave';
 
 /**
@@ -34,7 +34,6 @@ export interface ModsPatch {
 }
 
 const FORMS: readonly SpellForm[] = ['projectile', 'wall', 'trap', 'leap', 'mark'];
-const STATUSES: readonly StatusId[] = ['burn', 'slow', 'root', 'curse', 'empowered'];
 
 function ones<K extends string>(keys: readonly K[]): Record<K, number> {
   const record = {} as Record<K, number>;
@@ -48,7 +47,7 @@ export const NEUTRAL_MODS: WizardMods = {
   formDamage: ones(FORMS),
   castTime: 1,
   fatigue: ones(ELEMENT_IDS),
-  statusDuration: ones(STATUSES),
+  statusDuration: ones(STATUS_IDS),
   lifesteal: 0,
   maxHp: 1,
   moveSpeed: 1,

@@ -1,6 +1,7 @@
 import type { SpellPayload, Wizard } from '../match/state';
 import type { GameRules, StatusId } from '../rules';
-import { recipeOf, type Weave } from '../weaving/weave';
+import { recipeOf, SPELL_FORM_BY_ELEMENT, type Weave } from '../weaving/weave';
+import type { SpellId } from './catalog';
 
 /**
  * Gramática del tejido: el primer elemento da la forma y sus números base;
@@ -35,17 +36,46 @@ export function buildPayload(weave: Weave, rules: GameRules): SpellPayload | nul
     speedMultiplier,
     rangeMultiplier,
     hasStorm: weave.includes('tormenta'),
+    spell: null,
+    blastRadius: 0,
+  };
+}
+
+/**
+ * Lo que lleva un hechizo propio. La forma sale del primer elemento, así los Glifos
+ * que potencian una forma también potencian los hechizos que empiezan con ese elemento.
+ */
+export function spellPayload(
+  spell: SpellId,
+  weave: Weave,
+  damage: number,
+  statuses: readonly StatusId[] = [],
+  blastRadius = 0,
+): SpellPayload {
+  const first = weave[0] ?? 'brasa';
+  return {
+    form: SPELL_FORM_BY_ELEMENT[first],
+    weave,
+    damage,
+    statuses,
+    speedMultiplier: 1,
+    rangeMultiplier: 1,
+    hasStorm: false,
+    spell,
+    blastRadius,
   };
 }
 
 /**
  * El daño final según quién lanza: sus Glifos y Presagio, la Esencia de los elementos
- * del tejido y la bendición de un santuario.
+ * del tejido, la bendición de un santuario y el Velo.
  */
 export function empowerPayload(
   payload: SpellPayload,
   caster: Wizard,
   rules: GameRules,
+  /** Multiplicador extra, como el del primer hechizo que sale del Velo. */
+  extra = 1,
 ): SpellPayload {
   const mods = caster.mods;
   let multiplier =
@@ -58,5 +88,6 @@ export function empowerPayload(
   if (caster.statuses.empowered) {
     multiplier *= rules.statuses.empowered.damageMultiplier;
   }
+  multiplier *= extra;
   return multiplier === 1 ? payload : { ...payload, damage: payload.damage * multiplier };
 }

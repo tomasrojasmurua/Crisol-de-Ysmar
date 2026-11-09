@@ -1,4 +1,5 @@
 import { add, distance, normalize, scale, sub, type Vec2 } from '../math/vec2';
+import type { GameRules } from '../rules';
 import type { EntityId, MatchState, Wizard } from './state';
 
 export const isAlive = (wizard: Wizard): boolean => wizard.hp > 0;
@@ -11,10 +12,24 @@ export function enemiesOf(state: MatchState, wizard: Wizard): Wizard[] {
   return state.wizards.filter((w) => w.team !== wizard.team && isAlive(w));
 }
 
-export function nearestEnemy(state: MatchState, wizard: Wizard): Wizard | undefined {
+/** Un rival con Velo no se puede elegir como blanco salvo de muy cerca. */
+export function isHiddenFrom(target: Wizard, viewer: Wizard, rules: GameRules): boolean {
+  return (
+    target.statuses.veiled !== undefined &&
+    target.team !== viewer.team &&
+    distance(target.pos, viewer.pos) > rules.statuses.veiled.revealRadius
+  );
+}
+
+export function nearestEnemy(
+  state: MatchState,
+  wizard: Wizard,
+  rules: GameRules,
+): Wizard | undefined {
   let best: Wizard | undefined;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const enemy of enemiesOf(state, wizard)) {
+    if (isHiddenFrom(enemy, wizard, rules)) continue;
     const d = distance(enemy.pos, wizard.pos);
     if (d < bestDistance) {
       best = enemy;
@@ -24,13 +39,22 @@ export function nearestEnemy(state: MatchState, wizard: Wizard): Wizard | undefi
   return best;
 }
 
-/** El objetivo fijado si sigue vivo; si no, el enemigo más cercano. */
-export function currentTarget(state: MatchState, wizard: Wizard): Wizard | undefined {
+/** El objetivo fijado si sigue vivo y a la vista; si no, el enemigo visible más cercano. */
+export function currentTarget(
+  state: MatchState,
+  wizard: Wizard,
+  rules: GameRules,
+): Wizard | undefined {
   const locked = wizardById(state, wizard.lockTarget);
-  if (locked && isAlive(locked) && locked.team !== wizard.team) {
+  if (
+    locked &&
+    isAlive(locked) &&
+    locked.team !== wizard.team &&
+    !isHiddenFrom(locked, wizard, rules)
+  ) {
     return locked;
   }
-  return nearestEnemy(state, wizard);
+  return nearestEnemy(state, wizard, rules);
 }
 
 /**
@@ -41,16 +65,17 @@ export function resolveAim(
   state: MatchState,
   wizard: Wizard,
   aim: Vec2,
-  moveSpeed = 0,
+  rules: GameRules,
   leadSpeed = 0,
 ): Vec2 {
+  const moveSpeed = rules.wizard.moveSpeed;
   const chosen = normalize(aim);
   if (chosen.x !== 0 || chosen.z !== 0) {
     return chosen;
   }
   // Una bestia fijada a mano tiene prioridad; si no, el rival.
   const beast = state.beasts.find((b) => b.id === wizard.lockTarget && b.hp > 0);
-  const target = currentTarget(state, wizard);
+  const target = currentTarget(state, wizard, rules);
   if (!beast && !target) {
     return wizard.facing;
   }

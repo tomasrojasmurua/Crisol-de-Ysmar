@@ -1,13 +1,16 @@
-import { moveMultiplier, tickStatuses } from '../combat/statuses';
+import { canAct, moveMultiplier, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
 import { add, clampLength, length, normalize, scale } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { castSpell } from '../spells/cast';
+import { spellOf } from '../spells/catalog';
 import { buildPayload, empowerPayload } from '../spells/payload';
 import { releaseSpell } from '../spells/release';
+import { blockBySolidWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
-import { MAX_WEAVE_LENGTH } from '../weaving/weave';
+import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
 import { updateBeasts } from './beasts';
 import { placeInArena } from './obstacles';
 import { isAlive, resolveAim } from './queries';
@@ -90,6 +93,7 @@ function applyIntents(
         break;
       case 'weave':
         if (
+          canAct(wizard) &&
           !wizard.channel &&
           wizard.weave.length < MAX_WEAVE_LENGTH &&
           wizard.fatigue[intent.element] === 0
@@ -118,7 +122,7 @@ function startChannel(
   aim: { x: number; z: number },
   rules: GameRules,
 ): void {
-  if (wizard.channel || wizard.leap || wizard.weave.length === 0) {
+  if (wizard.channel || wizard.leap || wizard.weave.length === 0 || !canAct(wizard)) {
     return;
   }
   const weave = wizard.weave;
@@ -144,22 +148,19 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
     }
   }
 
+  // Por los aires o congelado, no se teje ni se salta.
+  if (!canAct(wizard)) {
+    wizard.channel = null;
+    wizard.leap = null;
+    return;
+  }
+
   const channel = wizard.channel;
   if (channel) {
-    wizard.facing = resolveAim(state, wizard, channel.aim);
+    wizard.facing = resolveAim(state, wizard, channel.aim, rules);
     if (--channel.ticksLeft <= 0) {
       wizard.channel = null;
-      const base = buildPayload(channel.weave, rules);
-      const payload = base && empowerPayload(base, wizard, rules);
-      if (payload) {
-        // Los proyectiles apuntados solos se adelantan al rival; el resto va directo.
-        const leadSpeed =
-          payload.form === 'projectile'
-            ? rules.forms.projectile.speed * payload.speedMultiplier
-            : 0;
-        const aim = resolveAim(state, wizard, channel.aim, rules.wizard.moveSpeed, leadSpeed);
-        releaseSpell(state, wizard, payload, aim, rules);
-      }
+      release(state, wizard, channel.weave, channel.aim, rules);
     }
   }
 
@@ -171,11 +172,43 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   const speed = rules.wizard.moveSpeed * wizard.mods.moveSpeed * moveMultiplier(wizard, rules);
   const move = scale(wizard.moveInput, speed / TICK_RATE);
   if (length(move) > 0) {
-    wizard.pos = placeInArena(add(wizard.pos, move), rules.wizard.radius, rules);
+    const next = placeInArena(add(wizard.pos, move), rules.wizard.radius, rules);
+    wizard.pos = blockBySolidWalls(state, wizard.pos, next, rules.wizard.radius);
     if (!wizard.channel) {
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }
   }
+}
+
+/** Sale el conjuro: el hechizo propio del tejido o, si aún no tiene, la gramática antigua. */
+function release(
+  state: MatchState,
+  wizard: Wizard,
+  weave: Weave,
+  rawAim: { x: number; z: number },
+  rules: GameRules,
+): void {
+  const spell = spellOf(weave);
+  if (spell) {
+    castSpell(state, wizard, spell, weave, rawAim, rules);
+    return;
+  }
+  const base = buildPayload(weave, rules);
+  if (!base) return;
+  // Salir del Velo con un conjuro lo rompe y lo potencia.
+  const veiled = wizard.statuses.veiled !== undefined;
+  delete wizard.statuses.veiled;
+  const payload = empowerPayload(
+    base,
+    wizard,
+    rules,
+    veiled ? rules.statuses.veiled.damageMultiplier : 1,
+  );
+  // Los proyectiles apuntados solos se adelantan al rival; el resto va directo.
+  const leadSpeed =
+    payload.form === 'projectile' ? rules.forms.projectile.speed * payload.speedMultiplier : 0;
+  const aim = resolveAim(state, wizard, rawAim, rules, leadSpeed);
+  releaseSpell(state, wizard, payload, aim, rules);
 }
 
 export const NO_INTENTS: IntentsByWizard = new Map();

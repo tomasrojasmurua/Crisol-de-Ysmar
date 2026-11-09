@@ -94,7 +94,7 @@ export function haunt(state: MatchState, spectre: Wizard, rules: GameRules): voi
   const fallen = spectre.fallen;
   if (!fallen || fallen.hauntCooldown > 0 || !isSpectre(state, spectre)) return;
   const range = rules.death.spectre.hauntRange;
-  const locked = currentTarget(state, spectre);
+  const locked = currentTarget(state, spectre, rules);
   const target =
     locked && distance(locked.pos, spectre.pos) <= range
       ? locked

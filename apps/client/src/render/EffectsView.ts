@@ -2,6 +2,7 @@ import type { GameEvent, MatchState, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
+import { blinked, chainLightning, spellBurst, spellReleased } from './SpellEffects';
 
 interface Timed {
   readonly mesh: THREE.Mesh;
@@ -68,12 +69,31 @@ export class EffectsView {
         case 'release': {
           const caster = byId(event.wizardId);
           if (!caster) break;
+          if (event.spell) {
+            spellReleased(this, this.particles, event.spell, caster);
+            break;
+          }
           const color = formColor(event.form);
           if (event.form === 'leap' || event.form === 'wall') {
             this.ring(caster.pos.x, caster.pos.z, color, 2.5, 0.4);
           }
           break;
         }
+        case 'burst':
+          spellBurst(this, this.particles, event);
+          if (event.spell === 'fireball' || event.spell === 'geyser') {
+            const player = byId(this.playerId);
+            if (player && Math.hypot(player.pos.x - event.pos.x, player.pos.z - event.pos.z) < 8) {
+              this.shake = Math.min(1, this.shake + 0.35);
+            }
+          }
+          break;
+        case 'chain':
+          chainLightning(this, this.particles, event.points);
+          break;
+        case 'blink':
+          blinked(this, this.particles, event.from, event.to);
+          break;
         case 'hit': {
           const target = byId(event.targetId);
           if (!target) break;
@@ -254,6 +274,31 @@ export class EffectsView {
         gravity: 1,
       });
     }
+    if (wizard.statuses.regen && Math.random() < chance * 0.3) {
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.6,
+        y: 0.3 + Math.random() * 1.4,
+        z: z + Math.sin(angle) * 0.6,
+        vx: -Math.sin(angle) * 1.2,
+        vy: 0.4,
+        vz: Math.cos(angle) * 1.2,
+        color: glow(elementColor('raiz'), 1.4),
+        life: 0.7,
+        size: 0.3,
+      });
+    }
+    if (wizard.statuses.veiled && Math.random() < chance * 0.3) {
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.6,
+        y: 0.3 + Math.random() * 1.4,
+        z: z + (Math.random() - 0.5) * 0.6,
+        vy: 0.5,
+        color: elementColor('umbra').clone().multiplyScalar(0.5),
+        life: 0.9,
+        size: 0.45,
+      });
+    }
     if (spectre && Math.random() < chance * 0.6) {
       this.particles.emit({
         x: x + (Math.random() - 0.5) * 0.5,
@@ -288,18 +333,19 @@ export class EffectsView {
       if (!advance(column, deltaSeconds)) continue;
       const t = column.age / column.duration;
       (column.mesh.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.7;
-      column.mesh.scale.set(1 - t * 0.6, 1, 1 - t * 0.6);
+      const width = ((column.mesh.userData.width as number | undefined) ?? 1) * (1 - t * 0.6);
+      column.mesh.scale.set(width, 1, width);
     }
   }
 
-  private ring(x: number, z: number, color: THREE.Color, size: number, duration: number): void {
+  ring(x: number, z: number, color: THREE.Color, size: number, duration: number): void {
     const ring = this.take(this.rings, this.ringGeometry, duration);
     ring.mesh.position.set(x, 0.06, z);
     ring.mesh.userData.size = size;
     (ring.mesh.material as THREE.MeshBasicMaterial).color.copy(glow(color, 1.8));
   }
 
-  private beam(
+  beam(
     from: { x: number; z: number },
     to: { x: number; z: number },
     color: THREE.Color,
@@ -314,9 +360,10 @@ export class EffectsView {
     (beam.mesh.material as THREE.MeshBasicMaterial).color.copy(glow(color, 2.5));
   }
 
-  private column(x: number, z: number, color: THREE.Color, duration: number): void {
+  column(x: number, z: number, color: THREE.Color, duration: number, width = 1): void {
     const column = this.take(this.columns, this.columnGeometry, duration);
     column.mesh.position.set(x, 3, z);
+    column.mesh.userData.width = width;
     (column.mesh.material as THREE.MeshBasicMaterial).color.copy(glow(color, 1.5));
   }
 

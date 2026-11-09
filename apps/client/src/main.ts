@@ -33,7 +33,7 @@ import {
   randomAppearance,
   saveProfile,
 } from './game/Profile';
-import { visibleEnemies } from './game/Sight';
+import { veiledFromTeam, visibleEnemies } from './game/Sight';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
@@ -104,7 +104,11 @@ scene.add(lantern);
 // ---------- Interfaz ----------
 
 const input = new PlayerInput();
-const human = new HumanController(input, (screen) => rig.screenToGround(screen.right, screen.up));
+const human = new HumanController(
+  input,
+  (screen) => rig.screenToGround(screen.right, screen.up),
+  rules,
+);
 const labels = new WorldLabels(uiRoot);
 const controls = new TouchControls(uiRoot, input);
 const minimap = new Minimap(uiRoot, rules);
@@ -527,8 +531,9 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     if (!view) continue;
     const pos = current.interpolated(wizard.id, wizard.pos, alpha);
     const spectre = isSpectre(state, wizard);
-    view.update(wizard, pos.x, pos.z, time, delta, spectre, rules);
-    effects.aura(wizard, pos.x, pos.z, spectre, delta);
+    const hidden = veiledFromTeam(state, player.team, wizard.id, rules);
+    view.update(wizard, pos.x, pos.z, time, delta, spectre, rules, hidden);
+    if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
   }
   spells.sync(
     state.spells,
@@ -537,13 +542,17 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
         ? current.interpolated(spell.id, spell.pos, alpha)
         : { x: 0, z: 0 },
     time,
+    (id) => {
+      const wizard = state.wizards.find((w) => w.id === id);
+      return wizard ? current.interpolated(id, wizard.pos, alpha) : undefined;
+    },
   );
   zone.update(state.zoneRadius, time);
   creatures.sync(state, teamColor, time, delta);
 
   // El objetivo es la bestia fijada a mano, o el rival.
   const lockedBeast = state.beasts.find((b) => b.id === player.lockTarget);
-  const target = currentTarget(state, player);
+  const target = currentTarget(state, player, rules);
   const targetPos = lockedBeast
     ? lockedBeast.pos
     : target

@@ -1,4 +1,23 @@
-import { ELEMENT_IDS, type ElementId, type Weave } from '@crisol/core';
+import { ELEMENT_IDS, type ElementId, type SpellId, spellOf, type Weave } from '@crisol/core';
+
+/** Los nombres de los hechizos propios. */
+export const SPELL_NAMES: Readonly<Record<SpellId, string>> = {
+  spark: 'Chispa',
+  step: 'Paso',
+  splash: 'Salpicón',
+  sap: 'Savia',
+  claw: 'Zarpa',
+  fireball: 'Bola ígnea',
+  comet: 'Cometa',
+  blink: 'Destello',
+  chainLightning: 'Rayo en cadena',
+  geyser: 'Géiser',
+  iceCoffin: 'Ataúd helado',
+  thornRush: 'Estampida de espinas',
+  rootWall: 'Muralla de raíces',
+  veil: 'Velo',
+  drain: 'Drenaje',
+};
 
 /** Nombre base de cada forma, según el primer elemento del tejido. */
 const BASE: Record<ElementId, { readonly noun: string; readonly alone: string }> = {
@@ -19,12 +38,19 @@ const TOUCH: Record<ElementId, string> = {
 };
 
 /**
- * El nombre de un conjuro en el Grimorio. Cada uno de los 155 tejidos tiene un nombre propio:
+ * El nombre de un conjuro en el Grimorio. Cada uno de los 155 tejidos tiene un nombre propio.
+ * Los hechizos propios usan el suyo; un tejido de 3 cuyo Gran hechizo aún no existe es el eco
+ * del hechizo de sus dos primeros elementos. El resto sigue la gramática antigua:
  * la forma la da el primer elemento y los siguientes la tiñen, en orden.
  */
 export function spellName(weave: Weave): string {
   const [first, second, third] = weave;
   if (!first) return '';
+  const own = spellOf(weave);
+  if (own) {
+    const name = SPELL_NAMES[own];
+    return weave.length === 3 && third ? `${name} · eco de ${TOUCH[third]}` : name;
+  }
   const base = BASE[first];
   if (!second) return base.alone;
   if (!third) return `${base.noun} de ${TOUCH[second]}`;
