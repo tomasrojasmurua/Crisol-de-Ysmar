@@ -8,7 +8,10 @@ import type { SpellRules } from './spells/spellRules';
  * vienen de los hechizos propios, igual que `silenced` (no puede tejer), `weak` (pega menos),
  * `blind` (solo ve de cerca) y `haste` (corre más). Los Grandes hechizos suman `frozen`
  * (congelado: no actúa, pero recibe daño), `asleep` (dormido hasta que lo golpean),
- * `phased` (atraviesa magos, muros y árboles) y `soaked` (empapado: muy lento).
+ * `phased` (atraviesa magos, muros y árboles) y `soaked` (empapado: muy lento). La segunda
+ * tanda suma `quickened` (teje más rápido), `sluggish` (teje más lento), `warded` (no le entran
+ * estados dañinos), `exposed` (recibe más daño), `combusting` (tejer le quema), `plague` (daño que
+ * contagia) y `linked` (sus golpes curan a un aliado).
  */
 export type StatusId =
   | 'burn'
@@ -27,7 +30,14 @@ export type StatusId =
   | 'frozen'
   | 'asleep'
   | 'phased'
-  | 'soaked';
+  | 'soaked'
+  | 'quickened'
+  | 'sluggish'
+  | 'warded'
+  | 'exposed'
+  | 'combusting'
+  | 'plague'
+  | 'linked';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -48,6 +58,13 @@ export const STATUS_IDS: readonly StatusId[] = [
   'asleep',
   'phased',
   'soaked',
+  'quickened',
+  'sluggish',
+  'warded',
+  'exposed',
+  'combusting',
+  'plague',
+  'linked',
 ];
 
 /**
@@ -135,6 +152,24 @@ export interface GameRules {
     readonly phased: { readonly ticks: number };
     /** Empapado: mucho más lento que el `slow`. */
     readonly soaked: { readonly ticks: number; readonly moveMultiplier: number };
+    /** Teje más rápido: multiplica el tiempo de canalización. */
+    readonly quickened: { readonly ticks: number; readonly castMultiplier: number };
+    /** Teje más lento: multiplica el tiempo de canalización. */
+    readonly sluggish: { readonly ticks: number; readonly castMultiplier: number };
+    /** No le entran estados dañinos. */
+    readonly warded: { readonly ticks: number };
+    /** Recibe más daño de todo. */
+    readonly exposed: { readonly ticks: number; readonly damageMultiplier: number };
+    /** Cada hechizo que lanza le hace daño a él mismo. */
+    readonly combusting: { readonly ticks: number; readonly damage: number };
+    /** Daño en el tiempo que salta a los rivales cercanos de quien lo lanzó. */
+    readonly plague: {
+      readonly ticks: number;
+      readonly damagePerSecond: number;
+      readonly spreadRadius: number;
+    };
+    /** Cada golpe que da cura lo mismo a su aliado más cercano. */
+    readonly linked: { readonly ticks: number };
   };
   readonly interactions: {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */

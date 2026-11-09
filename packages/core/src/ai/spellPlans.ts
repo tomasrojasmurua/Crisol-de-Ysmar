@@ -161,4 +161,48 @@ function greatOptions(
   add(['umbra', 'brasa', 'tormenta'], 'away', near && health < 0.35 ? 1.2 : 0);
   add(['umbra', 'tormenta', 'tormenta'], 'away', near && health < 0.4 ? 1 : 0);
   add(['marea', 'raiz', 'brasa'], 'target', threatened ? 2 : 0);
+
+  // Segunda tanda: invocaciones.
+  const t = target.statuses;
+  const owns = (kind: string): boolean =>
+    state.spells.some((e) => e.kind === 'summon' && e.summon === kind && e.ownerId === self.id);
+  add(['brasa', 'brasa', 'raiz'], 'target', d >= 3 && d < 11 ? 0.8 : 0);
+  add(['brasa', 'raiz', 'tormenta'], 'target', !owns('wanderingSpark') && d < 8 ? 0.8 : 0);
+  add(['brasa', 'raiz', 'umbra'], 'target', !owns('magmaGolem') && d < 9 ? 0.8 : 0);
+  add(['marea', 'raiz', 'raiz'], 'target', !owns('glacier') && d >= 4 && d < 12 ? 0.7 : 0);
+  add(['raiz', 'tormenta', 'tormenta'], 'target', !owns('swarm') && d >= 4 && d < 12 ? 0.8 : 0);
+  add(['raiz', 'raiz', 'tormenta'], 'target', d >= 3 && d < 12 ? 0.7 : 0);
+  add(['raiz', 'raiz', 'raiz'], 'target', !owns('ancientTree') && d < 7 ? 0.8 : 0);
+  add(['umbra', 'umbra', 'tormenta'], 'target', !owns('shadowTwin') && d < 14 ? 0.8 : 0);
+  add(['raiz', 'umbra', 'brasa'], 'target', !owns('carnivore') && near ? 1.2 : 0);
+
+  // Apoyo: los de aliados solo con aliados cerca.
+  const allies = state.wizards.filter(
+    (w) => w.team === self.team && w.id !== self.id && distance(w.pos, self.pos) < 9,
+  );
+  const hurtAlly = allies.some((a) => a.hp > 0 && a.hp / a.maxHp < 0.5);
+  const fallenAlly = allies.some((a) => a.fallen !== null);
+  add(['brasa', 'marea', 'raiz'], 'target', d >= 6 && d < 14 ? 0.5 : 0);
+  add(['tormenta', 'marea', 'tormenta'], 'away', d > 12 ? 0.5 : 0);
+  add(['marea', 'brasa', 'marea'], 'target', threatened && self.shield <= 0 ? 1.5 : 0);
+  add(['marea', 'brasa', 'raiz'], 'target', fallenAlly ? 4 : 0);
+  add(['marea', 'marea', 'raiz'], 'target', health < 0.5 || hurtAlly ? 1.5 : 0);
+  add(['marea', 'umbra', 'raiz'], 'target', hurtAlly && health > 0.6 ? 2 : 0);
+  add(['raiz', 'raiz', 'marea'], 'target', health < 0.6 && d > 6 ? 0.8 : 0);
+  add(['umbra', 'brasa', 'raiz'], 'target', allies.length > 0 && hurtAlly ? 1.5 : 0);
+
+  // Refuerzo.
+  add(['brasa', 'brasa', 'umbra'], 'target', d < 3.5 ? 2 : 0);
+  add(['tormenta', 'marea', 'raiz'], 'target', threatened || (near && health < 0.5) ? 1.5 : 0);
+  const afflicted = Boolean(self.statuses.burn || self.statuses.slow || self.statuses.curse);
+  add(['marea', 'raiz', 'marea'], 'target', afflicted || self.statuses.plague ? 2 : 0);
+  add(['umbra', 'marea', 'tormenta'], 'target', health < 0.7 && d < 10 ? 1 : 0);
+
+  // Estados.
+  add(['brasa', 'umbra', 'brasa'], 'target', !t.combusting && d < 10 ? 0.8 : 0);
+  add(['tormenta', 'umbra', 'umbra'], 'target', !t.slow && d < 9 ? 0.8 : 0);
+  add(['marea', 'brasa', 'umbra'], 'lead', !t.exposed && d < 12 ? 0.8 : 0);
+  add(['marea', 'marea', 'brasa'], 'target', !t.sluggish && mid ? 0.6 : 0);
+  add(['umbra', 'umbra', 'umbra'], 'target', !t.blind && d > 6 ? 0.6 : 0);
+  add(['umbra', 'marea', 'raiz'], 'target', !t.plague && d < 9 ? 0.8 : 0);
 }

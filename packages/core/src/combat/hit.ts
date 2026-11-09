@@ -1,6 +1,7 @@
 import { wizardById } from '../match/queries';
 import type { GameEvent, MatchState, SpellPayload, Wizard } from '../match/state';
 import type { GameRules, StatusId } from '../rules';
+import { HARMFUL_STATUSES } from './statuses';
 
 type HitForm = Extract<GameEvent, { type: 'hit' }>['form'];
 
@@ -41,6 +42,8 @@ export function dealDamage(
   if (amount <= 0 || target.hp <= 0 || target.statuses.stasis) {
     return;
   }
+  // El Ácido hace que todo pegue más.
+  amount *= target.statuses.exposed?.power ?? 1;
   // Recibir daño rompe el Velo, aunque lo ataje la coraza, y despierta de la Pesadilla.
   delete target.statuses.veiled;
   delete target.statuses.asleep;
@@ -51,7 +54,9 @@ export function dealDamage(
     if (amount <= 0) return;
   }
   target.damageTaken += amount;
+  const before = target.hp;
   target.hp = Math.max(0, target.hp - amount);
+  shareWithLink(state, sourceId, before - target.hp);
   state.events.push({ type: 'hit', targetId: target.id, sourceId, amount, form });
   if (target.hp === 0) {
     target.weave = [];
@@ -73,8 +78,11 @@ export function applyStatus(
   rules: GameRules,
   ticks: number = rules.statuses[status].ticks,
 ): void {
-  // Dentro del Ataúd helado no entra ningún estado.
+  // Dentro del Ataúd helado no entra ningún estado, y con la Purificación no entra ninguno dañino.
   if (target.statuses.stasis) {
+    return;
+  }
+  if (target.statuses.warded && HARMFUL_STATUSES.includes(status)) {
     return;
   }
   if (status === 'slow' && rules.interactions.tideExtinguishesBurn) {
@@ -85,5 +93,24 @@ export function applyStatus(
   target.statuses[status] = {
     ticks: Math.max(1, Math.round(ticks * duration)),
     sourceId,
+    ...(status === 'exposed' ? { power: rules.statuses.exposed.damageMultiplier } : {}),
   };
+}
+
+/** Vínculo vital: lo que pega quien está vinculado cura lo mismo a su aliado vivo más cercano. */
+function shareWithLink(state: MatchState, sourceId: number, dealt: number): void {
+  if (dealt <= 0) return;
+  const source = wizardById(state, sourceId);
+  if (!source?.statuses.linked) return;
+  let best: Wizard | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const ally of state.wizards) {
+    if (ally === source || ally.team !== source.team || ally.hp <= 0) continue;
+    const d = Math.hypot(ally.pos.x - source.pos.x, ally.pos.z - source.pos.z);
+    if (d < bestDistance) {
+      best = ally;
+      bestDistance = d;
+    }
+  }
+  if (best) best.hp = Math.min(best.maxHp, best.hp + dealt);
 }

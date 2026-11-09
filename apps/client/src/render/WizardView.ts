@@ -305,8 +305,12 @@ export class WizardView {
     this.curseRing.visible = wizard.statuses.curse !== undefined && alive;
     this.curseRing.rotation.z = timeSeconds * 2;
     // El Ataúd helado y la Era de hielo dejan al mago dentro de un bloque.
+    // Dentro de la Planta carnívora (una quietud que le puso otro) no se ve.
+    const stasis = wizard.statuses.stasis;
+    const swallowed = stasis !== undefined && stasis.sourceId !== wizard.id;
+    if (swallowed) this.body.visible = false;
     this.iceBlock.visible =
-      (wizard.statuses.stasis !== undefined || wizard.statuses.frozen !== undefined) && alive;
+      ((stasis !== undefined && !swallowed) || wizard.statuses.frozen !== undefined) && alive;
     this.iceBlock.rotation.y = timeSeconds * 0.3;
 
     this.affinityLook?.update(

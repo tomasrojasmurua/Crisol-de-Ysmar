@@ -421,6 +421,100 @@ export class EffectsView {
         gravity: -6,
       });
     }
+    const st = wizard.statuses;
+    if (st.quickened && Math.random() < chance * 0.4) {
+      // Chispas doradas que giran rápido en las manos: teje más rápido.
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.5,
+        y: 1.2,
+        z: z + Math.sin(angle) * 0.5,
+        vx: -Math.sin(angle) * 3,
+        vy: 0.8,
+        vz: Math.cos(angle) * 3,
+        color: glow(elementColor('brasa'), 1.8),
+        life: 0.3,
+        size: 0.2,
+      });
+    }
+    if (st.sluggish && Math.random() < chance * 0.3) {
+      // Vaho gris pegado a las manos: teje más lento.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.8,
+        y: 1 + Math.random() * 0.4,
+        z: z + (Math.random() - 0.5) * 0.8,
+        vy: 0.1,
+        color: new THREE.Color('#8a8fa0').multiplyScalar(0.6),
+        life: 1,
+        size: 0.6,
+      });
+    }
+    if (st.warded && Math.random() < chance * 0.3) {
+      // Destellos claros que suben: no le entra nada dañino.
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.6,
+        y: 0.2,
+        z: z + Math.sin(angle) * 0.6,
+        vy: 2,
+        color: glow(new THREE.Color('#dff6ff'), 1.4),
+        life: 0.7,
+        size: 0.25,
+      });
+    }
+    if (st.exposed && Math.random() < chance * 0.4) {
+      // Gotas de ácido verde que le chorrean: recibe más daño.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.6,
+        y: 1.2 + Math.random() * 0.8,
+        z: z + (Math.random() - 0.5) * 0.6,
+        vy: -0.5,
+        color: glow(new THREE.Color('#9be22d'), 1.4),
+        life: 0.6,
+        size: 0.22,
+        gravity: -4,
+      });
+    }
+    if (st.combusting && Math.random() < chance * 0.3) {
+      // Brasas que le salen del pecho: tejer le quema.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.3,
+        y: 1.3,
+        z: z + (Math.random() - 0.5) * 0.3,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: 1.2,
+        vz: (Math.random() - 0.5) * 1.5,
+        color: glow(Math.random() < 0.5 ? elementColor('brasa') : elementColor('umbra'), 1.8),
+        life: 0.4,
+        size: 0.25,
+      });
+    }
+    if (st.plague && Math.random() < chance * 0.5) {
+      // Una nube verdosa y sucia que lo rodea: contagia.
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.7,
+        y: 0.4 + Math.random() * 1.4,
+        z: z + Math.sin(angle) * 0.7,
+        vy: 0.2,
+        color: new THREE.Color('#6f8a2a').multiplyScalar(0.8),
+        life: 1,
+        size: 0.55,
+      });
+    }
+    if (st.linked && Math.random() < chance * 0.25) {
+      // Hilos de vida rojos que suben en espiral.
+      const angle = (performance.now() / 150) % (Math.PI * 2);
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.55,
+        y: 0.4 + Math.random() * 1.4,
+        z: z + Math.sin(angle) * 0.55,
+        vy: 0.8,
+        color: glow(new THREE.Color('#ff5a6a'), 1.6),
+        life: 0.6,
+        size: 0.22,
+      });
+    }
     if (spectre && Math.random() < chance * 0.6) {
       this.particles.emit({
         x: x + (Math.random() - 0.5) * 0.5,

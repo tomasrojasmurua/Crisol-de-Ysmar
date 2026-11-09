@@ -1,6 +1,6 @@
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { isHiddenFrom } from '../../match/queries';
-import type { Wizard } from '../../match/state';
+import type { SpellPayload, SweeperMode, Wizard } from '../../match/state';
 import { add, distance, dot, normalize, scale, sub } from '../../math/vec2';
 import { type CastContext, nextId, payloadFor, placeStrike } from './context';
 import { tempestJump } from './greatUpdates';
@@ -51,7 +51,7 @@ export function castErraticOrb(ctx: CastContext): void {
 /** Lanza algo que avanza solo desde quien lo lanza. */
 export function sweeper(
   ctx: CastContext,
-  mode: 'tornado' | 'orb' | 'wave',
+  mode: SweeperMode,
   spell: {
     readonly damage: number;
     readonly speed: number;
@@ -60,6 +60,7 @@ export function sweeper(
   },
   halfWidth: number,
   cooldown: number,
+  payload: SpellPayload = payloadFor(ctx, spell.damage),
 ): void {
   const { state, caster, aim, rules } = ctx;
   state.spells.push({
@@ -76,7 +77,8 @@ export function sweeper(
     maxRange: spell.range,
     cooldown,
     struck: [],
-    payload: payloadFor(ctx, spell.damage),
+    returning: false,
+    payload,
   });
 }
 

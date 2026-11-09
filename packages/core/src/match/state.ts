@@ -10,6 +10,8 @@ export type EntityId = number;
 export interface StatusInstance {
   ticks: number;
   sourceId: EntityId;
+  /** La fuerza del estado cuando no es la de siempre (cuánto más daño recibe con el Ácido). */
+  readonly power?: number;
 }
 
 export interface Channel {
@@ -132,7 +134,14 @@ export interface Wall {
  * Suelo encantado por un rato: el rastro del Cometa quema, la Ventisca frena y desvía,
  * el Manantial cura a los aliados y las Esporas debilitan a los rivales.
  */
-export type ZoneEffect = 'burn' | 'blizzard' | 'spring' | 'spores';
+export type ZoneEffect =
+  | 'burn'
+  | 'blizzard'
+  | 'spring'
+  | 'spores'
+  | 'hotSpring'
+  | 'healingRain'
+  | 'mist';
 
 export interface Zone {
   readonly kind: 'zone';
@@ -190,7 +199,7 @@ export interface Strike {
  * Algo que avanza solo por el campo y golpea al pasar: el Huracán levanta por los aires,
  * el Orbe errático da rayos alrededor y el Maremoto empapa todo lo que cruza.
  */
-export type SweeperMode = 'tornado' | 'orb' | 'wave';
+export type SweeperMode = 'tornado' | 'orb' | 'wave' | 'bird' | 'stampede' | 'soulTide';
 
 export interface Sweeper {
   readonly kind: 'sweeper';
@@ -199,7 +208,9 @@ export interface Sweeper {
   readonly ownerId: EntityId;
   readonly team: number;
   pos: Vec2;
-  readonly velocity: Vec2;
+  /** El Ave de ceniza da la vuelta a mitad de camino. */
+  velocity: Vec2;
+  returning: boolean;
   /** Radio de lo que toca; con `halfWidth`, el grosor de la ola. */
   readonly radius: number;
   /** Medio largo de un frente ancho, de costado a su avance (0: un círculo). */
@@ -360,6 +371,35 @@ export interface Trap {
   /** Pasos hasta que se arma. */
   armTicks: number;
   ticksLeft: number;
+  /** Una flor del Jardín: la pisan los aliados y los cura. */
+  readonly friendly: boolean;
+  readonly payload: SpellPayload;
+}
+
+/** Burbuja: un escudo sobre un aliado que se deshace al terminar. */
+export interface Bubble {
+  readonly kind: 'bubble';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  ticksLeft: number;
+}
+
+/**
+ * Lo que rodea a quien lo lanzó mientras dura: la Inmolación quema alrededor y cura,
+ * el Ojo del huracán no deja entrar nada.
+ */
+export interface Aura {
+  readonly kind: 'aura';
+  readonly mode: 'immolation' | 'stormEye';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly radius: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  cooldown: number;
   readonly payload: SpellPayload;
 }
 
@@ -368,7 +408,18 @@ export interface Trap {
  * el Guardián de musgo te sigue y pega, y el Señuelo corre fingiendo ser tú.
  * Los rivales pueden destruirlos a golpes.
  */
-export type SummonKind = 'wisp' | 'lightningRod' | 'mossGuardian' | 'decoy';
+export type SummonKind =
+  | 'wisp'
+  | 'lightningRod'
+  | 'mossGuardian'
+  | 'decoy'
+  | 'wanderingSpark'
+  | 'magmaGolem'
+  | 'glacier'
+  | 'swarm'
+  | 'ancientTree'
+  | 'shadowTwin'
+  | 'carnivore';
 
 export interface Summon {
   readonly kind: 'summon';
@@ -385,6 +436,10 @@ export interface Summon {
   ticksLeft: number;
   /** Pasos hasta su próximo golpe o rayo. */
   cooldown: number;
+  /** A quién persigue el Enjambre, o a quién se tragó la Planta carnívora. */
+  targetId: EntityId | null;
+  /** Lugar en el grupo: cada Chispa errante gira en su propio ángulo. */
+  readonly slot: number;
   readonly payload: SpellPayload;
 }
 
@@ -407,6 +462,8 @@ export type SpellEntity =
   | Portal
   | ThornRing
   | Trap
+  | Bubble
+  | Aura
   | Summon;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */

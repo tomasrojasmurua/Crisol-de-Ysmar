@@ -53,8 +53,9 @@ describe('Grimorio', () => {
   it('cada hechizo tiene su nombre y los de 3 elementos sin Gran hechizo son ecos', () => {
     expect(spellName(['brasa'])).toBe('Chispa');
     expect(spellName(['marea', 'brasa'])).toBe('Géiser');
-    expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Géiser · eco de sombra');
-    expect(spellName(['raiz', 'tormenta', 'tormenta'])).toBe('Liana · eco de trueno');
+    expect(spellName(['brasa', 'brasa', 'marea'])).toBe('Bola ígnea · eco de escarcha');
+    expect(spellName(['brasa', 'tormenta', 'tormenta'])).toBe('Cometa · eco de trueno');
+    expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Ácido');
     expect(spellName(['brasa', 'marea'])).toBe('Obsidiana');
     expect(spellName(['brasa', 'brasa', 'brasa'])).toBe('Meteoro');
     expect(spellName(['umbra', 'brasa', 'tormenta'])).toBe('Portal');

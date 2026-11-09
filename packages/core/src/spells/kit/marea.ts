@@ -1,4 +1,5 @@
 import { applyHit } from '../../combat/hit';
+import { HARMFUL_STATUSES } from '../../combat/statuses';
 import { beastStats, damageBeast } from '../../match/beasts';
 import {
   add,
@@ -10,7 +11,6 @@ import {
   scale,
   sub,
 } from '../../math/vec2';
-import type { StatusId } from '../../rules';
 import { type CastContext, nextId, payloadFor, placeStrike, placeZone } from './context';
 import { groundPoint } from './shared';
 
@@ -55,22 +55,13 @@ export function castGeyser(ctx: CastContext): void {
   );
 }
 
-/** Lo que el hielo quita al encerrarte; la bendición de un santuario, la Savia y el Velo se quedan. */
-const HARMFUL: readonly StatusId[] = [
-  'burn',
-  'slow',
-  'root',
-  'curse',
-  'airborne',
-  'frozen',
-  'asleep',
-  'soaked',
-];
-
 /** Ataúd helado: te encierras en hielo; nada te daña ni te afecta, y sales limpio. */
 export function castIceCoffin(ctx: CastContext): void {
   const { caster, rules } = ctx;
-  for (const id of HARMFUL) delete caster.statuses[id];
+  for (const id of HARMFUL_STATUSES) {
+    // La bendición, la Savia y el Velo se quedan; el silencio también, que el hielo no lo cura.
+    if (id !== 'silenced') delete caster.statuses[id];
+  }
   caster.leap = null;
   caster.statuses.stasis = { ticks: rules.statuses.stasis.ticks, sourceId: caster.id };
 }

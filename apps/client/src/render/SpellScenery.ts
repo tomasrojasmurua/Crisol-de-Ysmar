@@ -35,12 +35,15 @@ function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial 
 const fade = (ticksLeft: number, durationTicks: number): number =>
   Math.min(1, ticksLeft / 15, (durationTicks - ticksLeft + 1) / 6);
 
-// ---------- Zonas: Ventisca, Manantial y Esporas ----------
+// ---------- Zonas: Ventisca, Manantial, Esporas, Fuente termal, Lluvia de vida y Vaho ----------
 
 const ZONE_LOOK = {
   blizzard: { color: new THREE.Color('#7fa8c8'), opacity: 0.14 },
   spring: { color: new THREE.Color('#5fe0c8'), opacity: 0.3 },
   spores: { color: new THREE.Color('#8fbf5a'), opacity: 0.16 },
+  hotSpring: { color: new THREE.Color('#ff9a4a'), opacity: 0.22 },
+  healingRain: { color: new THREE.Color('#6fe8a0'), opacity: 0.2 },
+  mist: { color: new THREE.Color('#9aa0b8'), opacity: 0.12 },
 } as const;
 
 /** Una zona encantada: un disco tenue con un borde que gira. */
@@ -106,6 +109,51 @@ export function updateAreaZone(
         gravity: 0.5,
       });
     }
+  } else if (zone.effect === 'hotSpring') {
+    // Vapor naranja que sube del agua caliente.
+    if (Math.random() < 0.7) {
+      const angle = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      particles.emit({
+        x: x + Math.cos(angle) * d,
+        y: 0.1,
+        z: z + Math.sin(angle) * d,
+        vy: 1.4 + Math.random(),
+        color: glow(Math.random() < 0.6 ? FIRE : WATER, 1.1 * strength),
+        life: 1,
+        size: 0.5,
+      });
+    }
+  } else if (zone.effect === 'healingRain') {
+    // Gotas verdes que caen desde arriba.
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      particles.emit({
+        x: x + Math.cos(angle) * d,
+        y: 4,
+        z: z + Math.sin(angle) * d,
+        vy: -7,
+        color: glow(i === 0 ? ROOT : WATER, 1.5 * strength),
+        life: 0.55,
+        size: 0.18,
+      });
+    }
+  } else if (zone.effect === 'mist') {
+    // Bocanadas grises y lentas.
+    const angle = Math.random() * Math.PI * 2;
+    const d = Math.sqrt(Math.random()) * r;
+    particles.emit({
+      x: x + Math.cos(angle) * d,
+      y: 0.4 + Math.random() * 1.6,
+      z: z + Math.sin(angle) * d,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: 0.05,
+      vz: (Math.random() - 0.5) * 0.3,
+      color: new THREE.Color('#aab0c4').multiplyScalar(0.5 * strength),
+      life: 1.6,
+      size: 1.3,
+    });
   } else if (zone.effect === 'spores') {
     for (let i = 0; i < 2; i++) {
       const angle = Math.random() * Math.PI * 2;

@@ -271,6 +271,123 @@ export interface SpellRules {
   readonly abyss: StrikeSpell & { readonly range: number; readonly silenceTicks: number };
   /** Umbra → Umbra → Marea: el rival se duerme (la duración la da el estado `asleep`). */
   readonly nightmare: { readonly range: number; readonly coneDot: number };
+
+  // Grandes hechizos, segunda tanda: invocaciones, apoyo, refuerzo y estados.
+
+  /** Brasa → Brasa → Raíz: un ave de fuego va y vuelve quemando todo lo que cruza. */
+  readonly ashBird: SweeperSpell;
+  /** Brasa → Raíz → Tormenta: chispas que giran a tu alrededor y salen al rival que se acerque. */
+  readonly wanderingSparks: SummonSpell & {
+    readonly count: number;
+    readonly orbitRadius: number;
+    readonly seekRange: number;
+    readonly damage: number;
+    readonly speed: number;
+  };
+  /** Brasa → Raíz → Umbra: un gólem que se pone delante tuyo y estalla al caer. */
+  readonly magmaGolem: SummonSpell & {
+    readonly damage: number;
+    readonly blastRadius: number;
+    readonly speed: number;
+    /** A qué distancia de ti se planta, del lado del rival. */
+    readonly guardDistance: number;
+  };
+  /** Marea → Raíz → Raíz: un elemental de hielo que congela al primer rival que toca. */
+  readonly glacier: SummonSpell & {
+    readonly damage: number;
+    readonly speed: number;
+    readonly seekRange: number;
+  };
+  /** Raíz → Tormenta → Tormenta: un enjambre persigue al rival, lo frena y le tapa la vista. */
+  readonly swarm: SummonSpell & {
+    readonly speed: number;
+    readonly range: number;
+    readonly coneDot: number;
+    /** A qué distancia del rival lo estorba. */
+    readonly reach: number;
+  };
+  /** Raíz → Raíz → Tormenta: bestias de raíz cargan en fila y enraízan a quien atropellan. */
+  readonly rootPack: SweeperSpell & { readonly halfWidth: number; readonly rootTicks: number };
+  /** Raíz → Raíz → Raíz: un árbol gigante que ataja proyectiles y golpea alrededor. */
+  readonly ancientTree: SummonSpell & {
+    readonly distance: number;
+    readonly damage: number;
+    readonly reach: number;
+    readonly intervalTicks: number;
+  };
+  /** Umbra → Umbra → Tormenta: un clon tuyo que pelea solo. */
+  readonly shadowTwin: SummonSpell & {
+    readonly speed: number;
+    /** A qué distancia del rival se queda para disparar. */
+    readonly keepDistance: number;
+    readonly damage: number;
+    readonly boltSpeed: number;
+    readonly boltRange: number;
+    readonly intervalTicks: number;
+  };
+  /** Raíz → Umbra → Brasa: una planta que se traga al primer rival que se acerca. */
+  readonly carnivore: SummonSpell & {
+    readonly distance: number;
+    readonly reach: number;
+    readonly swallowTicks: number;
+    readonly damage: number;
+  };
+  /** Brasa → Marea → Raíz: una fuente donde tú y tus aliados tejen más rápido. */
+  readonly hotSpring: AreaSpell;
+  /** Tormenta → Marea → Tormenta: tú y tus aliados cercanos corren más rápido. */
+  readonly tailwind: { readonly radius: number; readonly hasteTicks: number };
+  /** Marea → Brasa → Marea: una burbuja que absorbe daño, sobre un aliado o sobre ti. */
+  readonly bubble: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly shield: number;
+    readonly durationTicks: number;
+  };
+  /** Marea → Brasa → Raíz: revives al instante a un aliado caído. */
+  readonly lifeWater: { readonly range: number; readonly hpFraction: number };
+  /** Marea → Marea → Raíz: una lluvia que cura y limpia a tus aliados. */
+  readonly healingRain: AreaSpell & { readonly healPerSecond: number };
+  /** Marea → Umbra → Raíz: le pasas vida tuya a un aliado. */
+  readonly sacrifice: { readonly range: number; readonly amount: number };
+  /** Raíz → Raíz → Marea: flores que curan al aliado que las pisa. */
+  readonly garden: {
+    readonly count: number;
+    readonly spread: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly heal: number;
+  };
+  /** Umbra → Brasa → Raíz: tus golpes curan a tu aliado (la duración la da el estado `linked`). */
+  readonly lifeLink: Record<string, never>;
+  /** Brasa → Brasa → Umbra: ardes, quemas alrededor y te curas con ese daño. */
+  readonly immolation: {
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly damagePerSecond: number;
+    readonly intervalTicks: number;
+  };
+  /** Tormenta → Marea → Raíz: nada entra cerca de ti, ni magos ni proyectiles. */
+  readonly stormEye: { readonly radius: number; readonly durationTicks: number };
+  /** Marea → Raíz → Marea: te limpias y no te entran estados (lo da el estado `warded`). */
+  readonly purify: Record<string, never>;
+  /** Umbra → Marea → Tormenta: una ola que te cura por cada mago que atraviesa. */
+  readonly soulTide: SweeperSpell & { readonly heal: number };
+  /** Brasa → Umbra → Brasa: tejer le quema al rival (lo da el estado `combusting`). */
+  readonly combustion: { readonly range: number; readonly coneDot: number };
+  /** Tormenta → Umbra → Umbra: el rival va más lento y tú más rápido. */
+  readonly speedTheft: {
+    readonly range: number;
+    readonly coneDot: number;
+    readonly durationTicks: number;
+  };
+  /** Marea → Brasa → Umbra: proyectil que deja al rival recibiendo más daño (estado `exposed`). */
+  readonly acid: ProjectileSpell;
+  /** Marea → Marea → Brasa: nube donde los rivales tejen más lento (estado `sluggish`). */
+  readonly mist: AreaSpell;
+  /** Umbra → Umbra → Umbra: todos los rivales solo ven de cerca. */
+  readonly eclipse: { readonly durationTicks: number };
+  /** Umbra → Marea → Raíz: daño en el tiempo que contagia (estado `plague`). */
+  readonly plague: { readonly range: number; readonly coneDot: number };
 }
 
 /** Un golpe con aviso: cae en un círculo tras unos pasos. */

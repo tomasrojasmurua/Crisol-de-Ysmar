@@ -46,6 +46,7 @@ import {
   updateShackle,
 } from './SpellScenery';
 import { createSummon, updateSummon } from './SummonViews';
+import { createAura, createBubble, updateAura, updateBubble } from './SupportViews';
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
@@ -114,7 +115,9 @@ export class SpellViews {
       case 'zone':
         return spell.effect === 'burn'
           ? createZone(spell)
-          : createAreaZone(spell as typeof spell & { effect: 'blizzard' | 'spring' | 'spores' });
+          : createAreaZone(
+              spell as typeof spell & { effect: Exclude<typeof spell.effect, 'burn'> },
+            );
       case 'current':
         return createCurrent(spell);
       case 'strike':
@@ -145,10 +148,16 @@ export class SpellViews {
       case 'shackle':
         return createShackle(spell);
       case 'summon':
-        return spell.summon === 'decoy' ? this.createDecoy(spell) : createSummon(spell);
+        return spell.summon === 'decoy' || spell.summon === 'shadowTwin'
+          ? this.createDecoy(spell)
+          : createSummon(spell);
       case 'thornRush':
         // Los brotes se dibujan como estallidos, a medida que salen.
         return new THREE.Group();
+      case 'bubble':
+        return createBubble();
+      case 'aura':
+        return createAura(spell);
     }
   }
 
@@ -285,16 +294,29 @@ export class SpellViews {
         updateShackle(view, spell, world.wizardPos(spell.targetId), this.rules, time);
         return;
       case 'summon':
-        if (spell.summon === 'decoy') this.updateDecoy(spell, world);
+        if (spell.summon === 'decoy' || spell.summon === 'shadowTwin')
+          this.updateDecoy(spell, world);
         else updateSummon(view, spell, world.positionOf(spell), time, particles);
         return;
       case 'projectile':
         this.updateProjectile(view, spell, world.positionOf(spell), time);
         return;
+      case 'bubble':
+        updateBubble(
+          view,
+          spell,
+          world.wizard(spell.targetId),
+          world.wizardPos(spell.targetId),
+          time,
+        );
+        return;
+      case 'aura':
+        updateAura(view, spell, world.wizardPos(spell.ownerId), time, particles);
+        return;
     }
   }
 
-  /** El Señuelo se dibuja como su dueño, corriendo, sin estados ni tejido. */
+  /** El Señuelo y el Gemelo sombrío se dibujan como su dueño, sin estados ni tejido. */
   private updateDecoy(decoy: Summon, world: SpellWorld): void {
     const view = this.decoys.get(decoy.id);
     const owner = world.wizard(decoy.ownerId);
@@ -305,7 +327,9 @@ export class SpellViews {
       pos,
       facing: decoy.facing,
       hp: owner.maxHp,
-      statuses: {},
+      // El Gemelo sombrío se ve como tu sombra: medio transparente.
+      statuses:
+        decoy.summon === 'shadowTwin' ? { veiled: { ticks: 1, sourceId: decoy.ownerId } } : {},
       weave: [],
       channel: null,
       leap: null,

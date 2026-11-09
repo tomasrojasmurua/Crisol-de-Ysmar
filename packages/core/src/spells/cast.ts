@@ -30,6 +30,37 @@ import {
 } from './kit/greatMarea';
 import { castRootCatapult, castSowing, castThornRing, castTreeStride } from './kit/greatRaiz';
 import {
+  castAncientTree,
+  castAshBird,
+  castCarnivore,
+  castGlacier,
+  castMagmaGolem,
+  castRootPack,
+  castShadowTwin,
+  castSwarm,
+  castWanderingSparks,
+} from './kit/greatSummons';
+import {
+  castAcid,
+  castBubble,
+  castCombustion,
+  castEclipse,
+  castGarden,
+  castHealingRain,
+  castHotSpring,
+  castImmolation,
+  castLifeLink,
+  castLifeWater,
+  castMist,
+  castPlague,
+  castPurify,
+  castSacrifice,
+  castSoulTide,
+  castSpeedTheft,
+  castStormEye,
+  castTailwind,
+} from './kit/greatSupport';
+import {
   castErraticOrb,
   castHurricane,
   castSkySpear,
@@ -119,6 +150,33 @@ const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   phantom: castPhantom,
   abyss: castAbyss,
   nightmare: castNightmare,
+  ashBird: castAshBird,
+  rootPack: castRootPack,
+  wanderingSparks: castWanderingSparks,
+  magmaGolem: castMagmaGolem,
+  glacier: castGlacier,
+  swarm: castSwarm,
+  ancientTree: castAncientTree,
+  shadowTwin: castShadowTwin,
+  carnivore: castCarnivore,
+  hotSpring: castHotSpring,
+  tailwind: castTailwind,
+  bubble: castBubble,
+  lifeWater: castLifeWater,
+  healingRain: castHealingRain,
+  sacrifice: castSacrifice,
+  garden: castGarden,
+  lifeLink: castLifeLink,
+  immolation: castImmolation,
+  stormEye: castStormEye,
+  purify: castPurify,
+  soulTide: castSoulTide,
+  combustion: castCombustion,
+  speedTheft: castSpeedTheft,
+  acid: castAcid,
+  mist: castMist,
+  eclipse: castEclipse,
+  plague: castPlague,
 };
 
 /** Hechizos que no delatan a quien está con Velo. */
@@ -137,6 +195,8 @@ const QUIET: ReadonlySet<SpellId> = new Set([
   'treeStride',
   'portal',
   'phantom',
+  'purify',
+  'lifeLink',
 ]);
 
 /** Los hechizos que viajan: el apuntado automático se adelanta al rival según su velocidad. */

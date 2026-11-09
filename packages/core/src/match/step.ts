@@ -1,3 +1,4 @@
+import { dealDamage } from '../combat/hit';
 import { canAct, canWeave, moveMultiplier, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
@@ -125,7 +126,17 @@ function startChannel(
   }
   const weave = wizard.weave;
   const baseTicks = rules.weave.castTicksByLength[weave.length - 1] ?? 1;
-  const castTicks = Math.max(1, Math.round(baseTicks * wizard.mods.castTime));
+  // La Fuente termal apura el tejido y el Vaho lo traba.
+  const pace =
+    (wizard.statuses.quickened ? rules.statuses.quickened.castMultiplier : 1) *
+    (wizard.statuses.sluggish ? rules.statuses.sluggish.castMultiplier : 1);
+  const castTicks = Math.max(1, Math.round(baseTicks * wizard.mods.castTime * pace));
+  // Con la Combustión, cada conjuro quema a quien lo teje.
+  const combusting = wizard.statuses.combusting;
+  if (combusting) {
+    dealDamage(state, wizard, combusting.sourceId, rules.statuses.combusting.damage, 'mark');
+    if (wizard.hp <= 0) return;
+  }
   // El cansancio empieza al lanzar: cada elemento usado descansa antes de volver a tejerse.
   for (const element of weave) {
     wizard.fatigue[element] = Math.round(rules.weave.fatigueTicks * wizard.mods.fatigue[element]);
