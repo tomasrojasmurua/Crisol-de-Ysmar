@@ -8,3 +8,10 @@ documentación van en español; los identificadores de código en inglés.
 - `packages/core` es puro y determinista: nada de imports externos, `Math.random`, `Date` ni DOM.
 - Los números de balance van en `packages/content`, nunca en código.
 - El juego es 100% original: no usar nombres, cartas, criaturas ni arte de otros juegos.
+
+## Si llegas nuevo al proyecto
+
+- Lee primero `docs/traspaso/README.md`: estado actual, decisiones tomadas, qué sigue y cómo trabaja
+  Tomás. Las copias de los documentos de diseño originales están en `docs/traspaso/referencia/`.
+- Tomás aprueba los PR escribiendo "merge"; recién ahí se fusionan, con el CI en verde.
+- Prioridad: la fluidez del multijugador (Hito 2), que todavía no existe.

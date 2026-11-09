@@ -1,7 +1,7 @@
 # Arquitectura del código
 
-El plan completo vive en Claude:
-[Crisol de Ysmar — Arquitectura del código](https://claude.ai/artifact/JqgEVJESRjiuA54rSY5tN2).
+El plan original está copiado en
+[traspaso/referencia/arquitectura-original.md](traspaso/referencia/arquitectura-original.md).
 
 ## Mapa de dependencias
 

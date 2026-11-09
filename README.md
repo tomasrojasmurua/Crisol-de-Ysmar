@@ -83,3 +83,4 @@ Más detalle en [docs/arquitectura.md](docs/arquitectura.md).
 - [Publicación en Cloudflare](docs/publicacion.md)
 - [Cómo contribuir](CONTRIBUTING.md)
 - [Decisiones técnicas](docs/decisiones/)
+- [Traspaso: estado actual y qué sigue](docs/traspaso/README.md)
