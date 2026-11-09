@@ -971,3 +971,482 @@ body {
     font-size: 19px;
   }
 }
+
+/* ---------- Identidad en el menú ---------- */
+
+.menu-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+#ui .menu-wizard,
+#ui .menu-grimoire {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-edge);
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+  text-align: left;
+}
+
+#ui .menu-wizard {
+  border-color: color-mix(in srgb, var(--element, var(--gold)) 45%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--element, var(--gold)) 18%, transparent);
+}
+
+.menu-wizard-sigil {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--element, var(--gold));
+  box-shadow: 0 0 12px var(--element, var(--gold));
+}
+
+.menu-wizard-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-wizard-name {
+  font-family: var(--display);
+  font-size: 15px;
+  color: var(--gold-bright);
+}
+
+.menu-wizard-affinity,
+.menu-grimoire-count {
+  font-size: 11px;
+  color: var(--ink-quiet);
+}
+
+.menu-wizard-edit {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+#ui .menu-grimoire {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.menu-grimoire strong {
+  font-family: var(--display);
+  font-size: 14px;
+  color: var(--gold-bright);
+}
+
+/* ---------- Vestidor ---------- */
+
+.wardrobe {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 35%, rgba(7, 7, 12, 0.6));
+}
+
+.wardrobe-panel {
+  width: min(420px, 54vw);
+  max-height: 100%;
+  overflow-y: auto;
+  touch-action: pan-y;
+  pointer-events: auto;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--panel-edge);
+  background: linear-gradient(180deg, rgba(20, 17, 28, 0.88), rgba(10, 9, 14, 0.92));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fade-in 0.4s ease both;
+}
+
+.wardrobe-panel * {
+  touch-action: pan-y;
+}
+
+.wardrobe-panel h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  color: var(--gold-bright);
+}
+
+.wardrobe-panel h3 {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.wardrobe-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.wardrobe-name input {
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: text;
+  -webkit-user-select: text;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  outline: none;
+}
+
+.wardrobe-name input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(216, 191, 138, 0.25);
+}
+
+.wardrobe-name input.missing {
+  border-color: var(--danger);
+  animation: shake 0.35s ease;
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+.wardrobe-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#ui .wardrobe-affinity {
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  border: 1px solid color-mix(in srgb, var(--element, #888) 50%, transparent);
+  background: color-mix(in srgb, var(--element, #888) 10%, rgba(0, 0, 0, 0.3));
+  color: var(--element, var(--ink-quiet));
+}
+
+#ui .wardrobe-affinity.selected {
+  background: color-mix(in srgb, var(--element, #888) 30%, rgba(0, 0, 0, 0.2));
+  color: #fff;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--element, #888) 55%, transparent);
+}
+
+.wardrobe-affinity-detail {
+  margin: 2px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-quiet);
+}
+
+.wardrobe-affinity-rule {
+  color: var(--ink);
+}
+
+.wardrobe-affinity-look {
+  font-style: italic;
+}
+
+#ui .wardrobe-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--swatch) 70%, #fff),
+    var(--swatch) 60%
+  );
+}
+
+#ui .wardrobe-swatch.selected {
+  border-color: var(--gold-bright);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.6),
+    0 0 14px rgba(243, 223, 176, 0.5);
+}
+
+.wardrobe-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#ui .wardrobe-piece {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+#ui .wardrobe-piece.selected {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.22), rgba(216, 191, 138, 0.06));
+}
+
+#ui .wardrobe-done {
+  position: sticky;
+  bottom: 0;
+  margin-top: 10px;
+  box-shadow:
+    0 -12px 18px rgba(10, 9, 14, 0.9),
+    0 0 24px rgba(233, 207, 149, 0.35);
+}
+
+@media (orientation: portrait) {
+  .wardrobe {
+    align-items: flex-end;
+    background: linear-gradient(180deg, transparent 30%, rgba(7, 7, 12, 0.7));
+  }
+
+  .wardrobe-panel {
+    width: 100%;
+    max-height: 58%;
+  }
+}
+
+/* ---------- Grimorio ---------- */
+
+.grimoire {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: radial-gradient(ellipse at center, rgba(12, 10, 22, 0.72), rgba(7, 7, 12, 0.94));
+  pointer-events: auto;
+  animation: fade-in 0.4s ease both;
+}
+
+.grimoire-book {
+  width: min(860px, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.grimoire-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.grimoire-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(22px, 4vw, 32px);
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+  text-shadow: 0 0 24px rgba(243, 223, 176, 0.4);
+}
+
+.grimoire-progress {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-quiet);
+}
+
+.grimoire-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  touch-action: pan-x;
+}
+
+#ui .grimoire-tab {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--element) 35%, transparent);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--element);
+}
+
+.grimoire-tabs * {
+  touch-action: pan-x;
+}
+
+.grimoire-tab strong {
+  font-family: var(--display);
+  font-size: 13px;
+}
+
+.grimoire-tab-count {
+  font-size: 10.5px;
+  color: var(--ink-quiet);
+}
+
+#ui .grimoire-tab.selected {
+  background: color-mix(in srgb, var(--element) 20%, rgba(0, 0, 0, 0.3));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--element) 35%, transparent);
+}
+
+.grimoire-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 6px;
+  align-content: start;
+  padding-bottom: 8px;
+}
+
+.grimoire-list * {
+  touch-action: pan-y;
+}
+
+.grimoire-spell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink-quiet);
+  font-size: 12.5px;
+  opacity: 0.7;
+}
+
+.grimoire-spell.known {
+  opacity: 1;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--element) 40%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--element) 14%, transparent),
+    rgba(0, 0, 0, 0.25)
+  );
+  color: var(--ink);
+}
+
+.grimoire-spell-name {
+  line-height: 1.2;
+}
+
+.weave-orbs {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+
+.weave-orb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--element);
+  box-shadow: 0 0 8px var(--element);
+}
+
+/* ---------- Descubrimiento ---------- */
+
+.hud-discovery {
+  position: absolute;
+  top: calc(var(--safe-top) + 96px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 22px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 223, 176, 0.45);
+  background: radial-gradient(ellipse at center, rgba(40, 32, 18, 0.9), rgba(12, 10, 16, 0.88));
+  box-shadow:
+    0 0 30px rgba(243, 223, 176, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.hud-discovery.show {
+  animation: discovery 3.2s ease both;
+}
+
+@keyframes discovery {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px) scale(0.85);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.06);
+  }
+  16% {
+    transform: translateX(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+
+.hud-discovery-kicker {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.hud-discovery-name {
+  font-family: var(--display);
+  font-size: 18px;
+  color: var(--gold-bright);
+  text-shadow: 0 0 14px rgba(243, 223, 176, 0.6);
+}
+
+.hud-discovery-count {
+  font-size: 10.5px;
+  color: var(--ink-quiet);
+}
+
+.hud-discovery .weave-orb {
+  width: 13px;
+  height: 13px;
+}

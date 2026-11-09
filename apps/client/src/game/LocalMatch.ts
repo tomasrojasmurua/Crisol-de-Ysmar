@@ -1,16 +1,20 @@
-import { GLYPHS, type Glyph, OMENS, type Omen } from '@crisol/content';
+import { AFFINITY_RULES, GLYPHS, type Glyph, OMENS, type Omen } from '@crisol/content';
 import {
+  affinityPatch,
   BotController,
   type Controller,
   combineMods,
   createMatch,
   createSeries,
   type DeathRule,
+  ELEMENT_IDS,
+  type ElementId,
   type GameEvent,
   type GameMode,
   type GameRules,
   type MatchState,
   modeSetup,
+  playerCount,
   recordRound,
   SeededRng,
   type SeriesState,
@@ -29,6 +33,8 @@ const INTERMISSION_TICKS = TICK_RATE * 4;
 export interface MatchOptions {
   readonly mode: GameMode;
   readonly deathRule: DeathRule;
+  /** La Afinidad del jugador, o ninguna. */
+  readonly affinity: ElementId | null;
 }
 
 export type MatchStage =
@@ -53,6 +59,8 @@ export class LocalMatch {
   readonly omen: Omen;
   /** Glifos elegidos por cada mago, por id. */
   readonly glyphs = new Map<number, Glyph[]>();
+  /** Afinidad de cada mago, por id: la del jugador y una al azar para cada bot. */
+  readonly affinities = new Map<number, ElementId | null>();
   private readonly rng: SeededRng;
   private bots = new Map<number, BotController>();
   private readonly previous = new Map<number, Vec2>();
@@ -66,6 +74,15 @@ export class LocalMatch {
     this.series = createSeries(teamCount(options.mode));
     this.rng = new SeededRng(seed ^ 0x2545f491);
     this.omen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
+    const total = playerCount(options.mode);
+    for (let id = 1; id <= total; id++) {
+      this.affinities.set(
+        id,
+        id === PLAYER_ID
+          ? options.affinity
+          : (ELEMENT_IDS[this.rng.int(0, ELEMENT_IDS.length - 1)] ?? null),
+      );
+    }
     this.state = this.startRound();
   }
 
@@ -168,11 +185,21 @@ export class LocalMatch {
     // Cada ronda tiene su propia semilla, derivada de la de la partida.
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
     const setup = modeSetup(this.options.mode, roundSeed, this.options.deathRule, this.rules);
-    // Cada mago lleva el Presagio de la partida y sus Glifos.
-    const wizards = setup.wizards.map((w, index) => ({
-      ...w,
-      mods: combineMods(this.omen.mods, ...this.glyphsOf(index + 1).map((g) => g.mods)),
-    }));
+    // Cada mago lleva el Presagio de la partida, su Afinidad y sus Glifos.
+    const wizards = setup.wizards.map((w, index) => {
+      const affinity = this.affinities.get(index + 1) ?? null;
+      const patches = this.glyphsOf(index + 1).map((g) => g.mods);
+      if (affinity) {
+        patches.push(
+          affinityPatch(
+            affinity,
+            AFFINITY_RULES.ownFatigueMultiplier,
+            AFFINITY_RULES.opposingFatigueMultiplier,
+          ),
+        );
+      }
+      return { ...w, affinity, mods: combineMods(this.omen.mods, ...patches) };
+    });
     const state = createMatch({ ...setup, wizards }, this.rules);
     this.bots = new Map(
       state.wizards

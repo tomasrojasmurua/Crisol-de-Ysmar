@@ -1,6 +1,16 @@
 export { AFFINITY_RULES } from './affinity';
+export {
+  AFFINITY_LOOKS,
+  FOCI,
+  HEADWEAR,
+  type LookOption,
+  ROBE_COLORS,
+  SKIN_TONES,
+  TRIM_COLORS,
+} from './appearance';
 export { ELEMENTS } from './elements';
 export { BEAST_NAMES, GLYPHS, type Glyph, OMENS, type Omen } from './glyphs';
+export { ALL_WEAVES, spellName, weaveKey } from './grimoire';
 export { WIZARD_NAMES } from './names';
 export { GAME_RULES } from './rules';
 export {

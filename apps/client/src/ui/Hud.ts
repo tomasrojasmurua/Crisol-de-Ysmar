@@ -53,6 +53,8 @@ export class Hud {
   private readonly resultTitle: HTMLElement;
   private readonly resultScore: HTMLElement;
   private bannerTimer: number | undefined;
+  private discoveryTimer: number | undefined;
+  private readonly discovery: HTMLElement;
   private readonly allyRows = new Map<number, HTMLElement>();
   private lastScoreKey = '';
   private lastHp = -1;
@@ -61,7 +63,7 @@ export class Hud {
     this.root = el('div', 'hud');
     this.root.innerHTML = `
       <div class="hud-player">
-        <div class="hud-name">Tú <span class="hud-lives"></span></div>
+        <div class="hud-name"><span class="hud-player-name">Tú</span> <span class="hud-lives"></span></div>
         <div class="hud-bar"><div class="hud-fill"></div></div>
         <div class="hud-essence"></div>
         <div class="hud-allies"></div>
@@ -73,6 +75,12 @@ export class Hud {
         <div class="hud-score"></div>
       </div>
       <div class="hud-omen" hidden></div>
+      <div class="hud-discovery" hidden>
+        <span class="hud-discovery-kicker">Nuevo conjuro</span>
+        <span class="hud-discovery-orbs"></span>
+        <strong class="hud-discovery-name"></strong>
+        <span class="hud-discovery-count"></span>
+      </div>
       <div class="hud-banner" hidden>
         <div class="hud-banner-title"></div>
         <div class="hud-banner-subtitle"></div>
@@ -94,6 +102,7 @@ export class Hud {
     this.essence = query(this.root, '.hud-essence');
     this.omen = query(this.root, '.hud-omen');
     this.allies = query(this.root, '.hud-allies');
+    this.discovery = query(this.root, '.hud-discovery');
     this.roundLabel = query(this.root, '.hud-round-label');
     this.clock = query(this.root, '.hud-clock');
     this.phase = query(this.root, '.hud-phase');
@@ -107,6 +116,25 @@ export class Hud {
     this.resultScore = query(this.root, '.hud-result-score');
     query(this.root, '.rematch').addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
+  }
+
+  setPlayerName(name: string): void {
+    query(this.root, '.hud-player-name').textContent = name || 'Tú';
+  }
+
+  /** Celebra un conjuro que el jugador lanzó por primera vez. */
+  celebrateDiscovery(name: string, orbs: HTMLElement, known: number, total: number): void {
+    query(this.discovery, '.hud-discovery-orbs').replaceChildren(orbs);
+    query(this.discovery, '.hud-discovery-name').textContent = name;
+    query(this.discovery, '.hud-discovery-count').textContent = `Grimorio ${known}/${total}`;
+    this.discovery.hidden = false;
+    this.discovery.classList.remove('show');
+    void this.discovery.offsetWidth;
+    this.discovery.classList.add('show');
+    window.clearTimeout(this.discoveryTimer);
+    this.discoveryTimer = window.setTimeout(() => {
+      this.discovery.hidden = true;
+    }, 3200);
   }
 
   /** El Presagio de la partida queda a la vista bajo el reloj. */

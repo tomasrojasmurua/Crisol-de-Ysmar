@@ -43,6 +43,8 @@ export interface Wizard {
   /** Vida máxima: la base de las reglas por sus Glifos y Presagio. */
   readonly maxHp: number;
   readonly mods: WizardMods;
+  /** Afinidad elegida antes de la partida, o ninguna. */
+  readonly affinity: ElementId | null;
   /** Esencia de cada elemento ganada cazando bestias en esta ronda. */
   essence: Record<ElementId, number>;
   /** Elementos tejidos y aún no lanzados. Lo ve todo el mundo. */

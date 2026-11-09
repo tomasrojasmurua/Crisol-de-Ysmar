@@ -22,6 +22,13 @@ de WhatsApp, sin instalar nada.
   recuperas vida y tu magia queda potenciada un rato.
 - **Glifos:** entre rondas eliges 1 de 3 (4 si perdiste). Te acompañan hasta el final de la partida.
 - **Presagio:** cada partida trae uno al azar que cambia las reglas para todos por igual.
+- **Tu hechicero:** la primera vez eliges nombre y aspecto en el Vestidor (túnica, adornos, piel,
+  cabeza y foco). Todo es cosmético y queda guardado en el celular.
+- **Afinidad:** el hilo con que te unes. Ese elemento descansa 25% más rápido y sus dos opuestos 15%
+  más lento, y te transforma: Brasa agrieta, Tormenta chisporrotea, Marea escarcha, Raíz brota y
+  Umbra se deshace en humo. Los rivales de la IA también tienen una, así que puedes leerla.
+- **Grimorio:** hay 155 conjuros con nombre propio. Cada uno que lanzas por primera vez se celebra
+  y queda anotado.
 
 - **Pulgar izquierdo:** toca y arrastra en cualquier parte de la mitad izquierda para moverte.
 - **Pulgar derecho:** toca hasta tres elementos para tejer (el orden importa) y luego **✦** para lanzar.

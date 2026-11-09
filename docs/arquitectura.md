@@ -31,8 +31,10 @@ apps/client   apps/server   apps/balance
   los santuarios de la Convergencia.
 - `mods.ts` combina los modificadores de Glifos y Presagios (`combineMods`) en un `WizardMods` por
   mago; `spells/payload.ts` los aplica al lanzar junto con la Esencia y el estado potenciado.
+- La Afinidad viaja en `WizardSetup.affinity` (para dibujarla) y su efecto entra como otro cambio de
+  `mods` con `affinityPatch`; los multiplicadores viven en `content/affinity.ts`.
 - `match/series.ts` lleva el mejor de 3 y `match/modes.ts` arma duelo, equipos y todos contra todos.
-- En el cliente, `game/LocalMatch.ts` encadena rondas con bots, ofrece Glifos entre rondas y sortea el Presagio; la red del Hito 2 reemplazará
+- En el cliente, `game/LocalMatch.ts` encadena rondas con bots, ofrece Glifos entre rondas y sortea el Presagio y las Afinidades de los bots; la red del Hito 2 reemplazará
   solo a los controladores.
 
 ## Red (desde el Hito 2)
@@ -60,3 +62,9 @@ y se corrige con suavidad; los demás se muestran ~100 ms en el pasado, interpol
 4. Identidad del jugador: perfiles, Vestidor, Afinidad, Grimorio y rivalidades.
 5. Se ve y suena como Ysmar: arte y audio.
 6. Balance y pulido: simulador bot contra bot.
+
+## Lo que se guarda en el celular
+
+`localStorage` guarda el perfil (`crisol.perfil`: nombre, aspecto y Afinidad), el Grimorio
+(`crisol.grimorio`: las claves de los tejidos ya lanzados) y la última elección del menú
+(`crisol.menu`). Si el navegador no deja guardar, el juego sigue igual y solo se pierde al cerrar.

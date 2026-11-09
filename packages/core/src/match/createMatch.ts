@@ -10,6 +10,8 @@ export interface WizardSetup {
   readonly spawn: Vec2;
   /** Glifos, Presagio y Afinidad ya combinados. */
   readonly mods?: WizardMods;
+  /** El hilo con que se unió el mago; cambia su fatiga (vía `mods`) y su aspecto. */
+  readonly affinity?: ElementId | null;
 }
 
 export interface MatchSetup {
@@ -40,6 +42,7 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
       hp: maxHp,
       maxHp,
       mods,
+      affinity: w.affinity ?? null,
       essence: zeroByElement(),
       weave: [],
       channel: null,

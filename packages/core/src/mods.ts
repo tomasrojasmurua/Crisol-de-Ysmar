@@ -1,9 +1,9 @@
-import { ELEMENT_IDS, type ElementId } from './elements';
+import { ELEMENT_IDS, type ElementId, opposingOf } from './elements';
 import type { StatusId } from './rules';
 import type { SpellForm } from './weaving/weave';
 
 /**
- * Lo que cambia a un mago concreto: Glifos, Presagio de la partida y, más adelante, su Afinidad.
+ * Lo que cambia a un mago concreto: Glifos, Presagio de la partida y su Afinidad.
  * Todos los campos son multiplicadores (1 = sin cambio), salvo `lifesteal`, que se suma.
  */
 export interface WizardMods {
@@ -85,4 +85,18 @@ function multiplyRecord<K extends string>(
     result[key] = (result[key] ?? 1) * (patch[key] ?? 1);
   }
   return result;
+}
+
+/**
+ * La Afinidad como cambio: el elemento propio se cansa menos y sus dos opuestos, más.
+ * Los multiplicadores vienen de las tablas de contenido.
+ */
+export function affinityPatch(
+  element: ElementId,
+  ownFatigueMultiplier: number,
+  opposingFatigueMultiplier: number,
+): ModsPatch {
+  const fatigue: Partial<Record<ElementId, number>> = { [element]: ownFatigueMultiplier };
+  for (const opposing of opposingOf(element)) fatigue[opposing] = opposingFatigueMultiplier;
+  return { fatigue };
 }
