@@ -82,6 +82,21 @@ export class Minimap {
     ctx.arc(0, 0, state.zoneRadius, 0, Math.PI * 2);
     ctx.stroke();
 
+    // La jungla de esta ronda: ceniza donde pasó el Incendio y árboles nuevos del Brote.
+    ctx.fillStyle = 'rgba(70, 58, 50, 0.9)';
+    for (const b of state.burnedTrees) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.z, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const s of state.spells) {
+      if (s.kind !== 'grownTree') continue;
+      ctx.fillStyle = '#0c140e';
+      ctx.beginPath();
+      ctx.arc(s.pos.x, s.pos.z, s.radius * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Campamentos: llenos si su bestia sigue ahí.
     for (const camp of this.rules.map.camps) {
       const alive = state.beasts.some(

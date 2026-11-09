@@ -142,6 +142,7 @@ export function createSummon(summon: Summon): THREE.Object3D {
       return createGuardian();
     case 'decoy':
     case 'shadowTwin':
+    case 'mirage':
       return new THREE.Group();
     default:
       return createGreatSummon(summon.summon, summon);
@@ -213,6 +214,7 @@ export function updateSummon(
     }
     case 'decoy':
     case 'shadowTwin':
+    case 'mirage':
       break;
     default:
       updateGreatSummon(view, summon.summon, summon, pos, time, particles);

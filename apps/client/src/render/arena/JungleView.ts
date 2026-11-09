@@ -66,10 +66,13 @@ function instanced(
 ): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, items.length));
   const matrix = new THREE.Matrix4();
+  const originals: THREE.Matrix4[] = [];
   items.forEach((o, i) => {
     place(o, matrix);
     mesh.setMatrixAt(i, matrix);
+    originals.push(matrix.clone());
   });
+  mesh.userData.originals = originals;
   mesh.count = items.length;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -91,6 +94,12 @@ export class JungleView {
     uJungleActive: { value: 0 },
   };
 
+  /** Los árboles de la jungla, en el orden de sus instancias, y las copas que se queman. */
+  private trees: readonly Obstacle[] = [];
+  private readonly crowns: THREE.InstancedMesh[] = [];
+  private burnedCount = 0;
+  private readonly hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+
   constructor(map: MapLayout) {
     const trees = map.obstacles.filter((o) => o.kind === 'tree');
     const rocks = map.obstacles.filter((o) => o.kind === 'rock');
@@ -104,6 +113,7 @@ export class JungleView {
     const trunk = new THREE.CylinderGeometry(0.16, 0.3, 2.6, 7);
     trunk.translate(0, 1.3, 0);
     const bark = new THREE.MeshStandardMaterial({ color: '#4a3b2c', roughness: 0.95 });
+    this.trees = trees;
     this.group.add(
       instanced(trunk, bark, trees, (o, m) => {
         const s = o.radius / 0.7;
@@ -122,12 +132,14 @@ export class JungleView {
     });
     for (const geometry of [crown, crownTop]) {
       this.group.add(
-        instanced(geometry, leaves, trees, (o, m) => {
-          const s = (o.radius / 0.7) * (0.85 + hash(o, 3) * 0.35);
-          const h = 0.9 + hash(o, 2) * 0.5;
-          quaternion.setFromAxisAngle(up, hash(o, 4) * Math.PI * 2);
-          m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, h, s));
-        }),
+        this.track(
+          instanced(geometry, leaves, trees, (o, m) => {
+            const s = (o.radius / 0.7) * (0.85 + hash(o, 3) * 0.35);
+            const h = 0.9 + hash(o, 2) * 0.5;
+            quaternion.setFromAxisAngle(up, hash(o, 4) * Math.PI * 2);
+            m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, h, s));
+          }),
+        ),
       );
     }
 
@@ -203,6 +215,31 @@ export class JungleView {
       }
     });
     this.group.add(stones);
+  }
+
+  private track(mesh: THREE.InstancedMesh): THREE.InstancedMesh {
+    this.crowns.push(mesh);
+    return mesh;
+  }
+
+  /**
+   * El Incendio forestal: los árboles quemados pierden la copa y quedan como troncos negros.
+   * Con la lista vacía (ronda nueva) la jungla vuelve entera.
+   */
+  setBurned(burned: readonly { x: number; z: number }[]): void {
+    if (burned.length === this.burnedCount) return;
+    const restore = burned.length < this.burnedCount;
+    this.burnedCount = burned.length;
+    const gone = new Set(burned.map((b) => `${b.x},${b.z}`));
+    this.trees.forEach((o, i) => {
+      const isGone = gone.has(`${o.x},${o.z}`);
+      if (!isGone && !restore) return;
+      for (const mesh of this.crowns) {
+        const original = mesh.userData.originals as THREE.Matrix4[];
+        mesh.setMatrixAt(i, isGone ? this.hidden : (original[i] ?? this.hidden));
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    });
   }
 
   /** `player` en null (menú, Vestidor) deja la jungla entera. */

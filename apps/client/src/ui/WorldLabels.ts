@@ -1,5 +1,7 @@
+import { ELEMENTS } from '@crisol/content';
 import {
   type Beast,
+  ELEMENT_IDS,
   type GameRules,
   isSpectre,
   type MatchState,
@@ -9,6 +11,8 @@ import {
 import * as THREE from 'three';
 import { el } from './dom';
 import type { WizardBadge } from './Hud';
+
+const elementHex = (id: string): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
 const LABEL_HEIGHT = 2.55;
 const BEAST_LABEL_RANGE = 26;
@@ -21,6 +25,9 @@ interface Label {
   readonly name: HTMLElement;
   readonly fill: HTMLElement;
   readonly arrow: HTMLElement;
+  /** Barómetro: cuánto le falta a cada elemento para descansar. */
+  readonly fatigue?: HTMLElement;
+  readonly fatigueBars?: readonly HTMLElement[];
 }
 
 /**
@@ -50,11 +57,21 @@ export class WorldLabels {
       const bar = el('div', 'world-label-bar');
       const fill = el('div', 'world-label-fill');
       bar.append(fill);
-      root.append(name, bar);
+      const fatigue = el('div', 'world-label-fatigue');
+      const fatigueBars = ELEMENT_IDS.map((element) => {
+        const slot = el('span', 'world-label-fatigue-slot');
+        slot.style.setProperty('--element', elementHex(element));
+        const level = el('span', 'world-label-fatigue-fill');
+        slot.append(level);
+        fatigue.append(slot);
+        return level;
+      });
+      fatigue.hidden = true;
+      root.append(name, bar, fatigue);
       const arrow = el('div', 'edge-arrow');
       arrow.style.setProperty('--team', badge.color);
       this.layer.append(root, arrow);
-      this.labels.set(id, { root, name, fill, arrow });
+      this.labels.set(id, { root, name, fill, arrow, fatigue, fatigueBars });
     }
   }
 
@@ -68,8 +85,10 @@ export class WorldLabels {
     camera: THREE.Camera,
     playerTeam: number,
     badges: ReadonlyMap<number, WizardBadge>,
-    _rules: GameRules,
+    rules: GameRules,
     seen: ReadonlySet<number>,
+    /** Con el Barómetro se ve el cansancio de los rivales. */
+    insight = false,
   ): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -92,6 +111,16 @@ export class WorldLabels {
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
         label.fill.style.width = `${(wizard.hp / wizard.maxHp) * 100}%`;
         label.root.classList.toggle('fallen', wizard.hp <= 0);
+        const showFatigue = insight && wizard.team !== playerTeam && wizard.hp > 0;
+        if (label.fatigue) label.fatigue.hidden = !showFatigue;
+        const bars = label.fatigueBars;
+        if (showFatigue && bars) {
+          ELEMENT_IDS.forEach((element, i) => {
+            const left = wizard.fatigue[element] / rules.weave.fatigueTicks;
+            const bar = bars[i];
+            if (bar) bar.style.height = `${Math.round((1 - Math.min(1, left)) * 100)}%`;
+          });
+        }
         const respawn = wizard.fallen?.respawnTicks;
         const badgeName = badges.get(wizard.id)?.name ?? '';
         label.name.textContent =

@@ -521,6 +521,33 @@ body {
   box-shadow: 0 0 6px var(--team);
 }
 
+.world-label-fatigue {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.world-label-fatigue[hidden] {
+  display: none;
+}
+
+.world-label-fatigue-slot {
+  position: relative;
+  width: 6px;
+  height: 9px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+/* Barómetro: se llena a medida que el elemento del rival descansa. */
+.world-label-fatigue-fill {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: var(--element);
+}
+
 .world-label.fallen .world-label-bar {
   display: none;
 }

@@ -52,6 +52,8 @@ function huntingScene(): MatchState {
     aggroTicks: 0,
     attackCooldown: 0,
     velocity: { x: 0, z: 0 },
+    tamedBy: null,
+    tamedTicks: 0,
   });
   return state;
 }

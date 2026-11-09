@@ -25,7 +25,21 @@ export const HARMFUL_STATUSES: readonly StatusId[] = [
   'exposed',
   'combusting',
   'plague',
+  'tracked',
 ];
+
+/** Lo que no le entra a una forma: el magma no se frena ni se enraíza, y las raíces no ceden. */
+const IMMUNE: Partial<Record<StatusId, readonly StatusId[]>> = {
+  magma: ['slow', 'root', 'soaked'],
+  deepRooted: ['airborne', 'root', 'slow', 'frozen', 'asleep', 'soaked', 'silenced'],
+};
+
+export function immuneTo(wizard: Wizard, status: StatusId): boolean {
+  for (const [form, list] of Object.entries(IMMUNE) as [StatusId, readonly StatusId[]][]) {
+    if (wizard.statuses[form] && list.includes(status)) return true;
+  }
+  return false;
+}
 
 /** Avanza un paso los estados de un mago: quemadura y maldición hacen daño en el tiempo. */
 export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules): void {
@@ -73,11 +87,14 @@ export function canAct(wizard: Wizard): boolean {
 
 /** Silenciado, se puede mover pero no tejer ni lanzar. */
 export function canWeave(wizard: Wizard): boolean {
-  return canAct(wizard) && !wizard.statuses.silenced;
+  const s = wizard.statuses;
+  // Hecho ola o pantera, no se teje.
+  return canAct(wizard) && !s.silenced && !s.surfing && !s.panther;
 }
 
 export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
-  if (wizard.statuses.root || !canAct(wizard)) {
+  const s = wizard.statuses;
+  if (s.root || s.deepRooted || !canAct(wizard)) {
     return 0;
   }
   let multiplier = wizard.statuses.slow ? rules.statuses.slow.moveMultiplier : 1;
@@ -87,6 +104,10 @@ export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
   if (wizard.statuses.haste) {
     multiplier *= rules.statuses.haste.moveMultiplier;
   }
+  if (s.hunting) multiplier *= rules.statuses.hunting.moveMultiplier;
+  if (s.magma) multiplier *= rules.statuses.magma.moveMultiplier;
+  if (s.surfing) multiplier *= rules.statuses.surfing.moveMultiplier;
+  if (s.panther) multiplier *= rules.statuses.panther.moveMultiplier;
   if (wizard.channel) {
     multiplier *= rules.wizard.channelMoveMultiplier;
   }

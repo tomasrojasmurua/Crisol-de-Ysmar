@@ -44,6 +44,9 @@ const ZONE_LOOK = {
   hotSpring: { color: new THREE.Color('#ff9a4a'), opacity: 0.22 },
   healingRain: { color: new THREE.Color('#6fe8a0'), opacity: 0.2 },
   mist: { color: new THREE.Color('#9aa0b8'), opacity: 0.12 },
+  crimsonMist: { color: new THREE.Color('#a01830'), opacity: 0.2 },
+  grove: { color: new THREE.Color('#3a2a55'), opacity: 0.3 },
+  moss: { color: new THREE.Color('#4f7a3a'), opacity: 0.18 },
 } as const;
 
 /** Una zona encantada: un disco tenue con un borde que gira. */
@@ -58,7 +61,40 @@ export function createAreaZone(zone: Zone & { effect: keyof typeof ZONE_LOOK }):
   group.add(disc, ring);
   group.userData.disc = disc;
   group.userData.ring = ring;
+  if (zone.effect === 'grove') group.add(createGrove(zone.radius, zone.id));
   return group;
+}
+
+/** Bosque maldito: troncos negros y retorcidos con copas violetas, que tapan la vista. */
+function createGrove(radius: number, seed: number): THREE.Object3D {
+  const grove = new THREE.Group();
+  const bark = new THREE.MeshStandardMaterial({
+    color: '#1c1520',
+    roughness: 1,
+    flatShading: true,
+  });
+  const leaves = new THREE.MeshStandardMaterial({
+    color: '#1e1828',
+    emissive: SHADOW,
+    emissiveIntensity: 0.04,
+    roughness: 1,
+    flatShading: true,
+  });
+  const trunk = new THREE.CylinderGeometry(0.1, 0.2, 2.2, 5).translate(0, 1.1, 0);
+  const crown = new THREE.ConeGeometry(0.9, 1.8, 6).translate(0, 2.6, 0);
+  const count = 9;
+  for (let i = 0; i < count; i++) {
+    // Un reparto fijo a partir del id, para que se vea igual en todas las pantallas.
+    const angle = i * 2.4 + seed;
+    const d = radius * (0.25 + ((i * 37 + seed) % 10) / 14);
+    const tree = new THREE.Group();
+    tree.add(new THREE.Mesh(trunk, bark), new THREE.Mesh(crown, leaves));
+    tree.position.set(Math.cos(angle) * d, 0, Math.sin(angle) * d);
+    tree.rotation.set(0.12 * Math.sin(i), angle, 0.1 * Math.cos(i));
+    grove.add(tree);
+  }
+  grove.userData.grows = true;
+  return grove;
 }
 
 export function updateAreaZone(
@@ -154,6 +190,51 @@ export function updateAreaZone(
       life: 1.6,
       size: 1.3,
     });
+  } else if (zone.effect === 'crimsonMist') {
+    // Niebla roja y espesa que se arrastra.
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      particles.emit({
+        x: x + Math.cos(angle) * d,
+        y: 0.3 + Math.random() * 2,
+        z: z + Math.sin(angle) * d,
+        vx: -Math.sin(angle) * 0.6,
+        vy: 0.05,
+        vz: Math.cos(angle) * 0.6,
+        color: new THREE.Color(i === 0 ? '#c0203a' : '#5a1020').multiplyScalar(0.7 * strength),
+        life: 1.6,
+        size: 1.6,
+      });
+    }
+  } else if (zone.effect === 'grove') {
+    // Hojas oscuras que caen y humo violeta entre los troncos.
+    const angle = Math.random() * Math.PI * 2;
+    const d = Math.sqrt(Math.random()) * r;
+    particles.emit({
+      x: x + Math.cos(angle) * d,
+      y: 2.5 + Math.random(),
+      z: z + Math.sin(angle) * d,
+      vx: 0.3,
+      vy: -0.8,
+      color: glow(Math.random() < 0.5 ? ROOT : SHADOW, 0.8 * strength),
+      life: 1.4,
+      size: 0.35,
+    });
+  } else if (zone.effect === 'moss') {
+    if (Math.random() < 0.4) {
+      const angle = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      particles.emit({
+        x: x + Math.cos(angle) * d,
+        y: 0.1,
+        z: z + Math.sin(angle) * d,
+        vy: 0.3,
+        color: glow(ROOT, 0.7 * strength),
+        life: 1.2,
+        size: 0.3,
+      });
+    }
   } else if (zone.effect === 'spores') {
     for (let i = 0; i < 2; i++) {
       const angle = Math.random() * Math.PI * 2;

@@ -11,7 +11,9 @@ import type { SpellRules } from './spells/spellRules';
  * `phased` (atraviesa magos, muros y árboles) y `soaked` (empapado: muy lento). La segunda
  * tanda suma `quickened` (teje más rápido), `sluggish` (teje más lento), `warded` (no le entran
  * estados dañinos), `exposed` (recibe más daño), `combusting` (tejer le quema), `plague` (daño que
- * contagia) y `linked` (sus golpes curan a un aliado).
+ * contagia) y `linked` (sus golpes curan a un aliado). La tercera suma la información
+ * (`insight`, `hunting`, `tracked`), el sigilo (`unseen`, `shrouded`, `disguised`, `shadowed`,
+ * `leeching`) y las transformaciones (`magma`, `surfing`, `deepRooted`, `panther`).
  */
 export type StatusId =
   | 'burn'
@@ -37,7 +39,19 @@ export type StatusId =
   | 'exposed'
   | 'combusting'
   | 'plague'
-  | 'linked';
+  | 'linked'
+  | 'insight'
+  | 'hunting'
+  | 'tracked'
+  | 'unseen'
+  | 'shrouded'
+  | 'disguised'
+  | 'shadowed'
+  | 'leeching'
+  | 'magma'
+  | 'surfing'
+  | 'deepRooted'
+  | 'panther';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -65,6 +79,18 @@ export const STATUS_IDS: readonly StatusId[] = [
   'combusting',
   'plague',
   'linked',
+  'insight',
+  'hunting',
+  'tracked',
+  'unseen',
+  'shrouded',
+  'disguised',
+  'shadowed',
+  'leeching',
+  'magma',
+  'surfing',
+  'deepRooted',
+  'panther',
 ];
 
 /**
@@ -170,6 +196,40 @@ export interface GameRules {
     };
     /** Cada golpe que da cura lo mismo a su aliado más cercano. */
     readonly linked: { readonly ticks: number };
+    /** Barómetro: ve cuánto le falta a cada elemento del rival para descansar. */
+    readonly insight: { readonly ticks: number };
+    /** Cazador: ve a todos los rivales del mapa y corre más. */
+    readonly hunting: { readonly ticks: number; readonly moveMultiplier: number };
+    /** Huella: el equipo de quien lo marcó lo ve aunque esté en la jungla. */
+    readonly tracked: { readonly ticks: number };
+    /** No aparece en el minimapa rival ni lo revelan Cazador, Huella o Centinela. */
+    readonly unseen: { readonly ticks: number };
+    /** Dentro del Bosque maldito: invisible salvo de cerca, como con Velo. */
+    readonly shrouded: { readonly ticks: number };
+    /** Ilusión de tejido: el rival ve elementos falsos en su tejido. */
+    readonly disguised: { readonly ticks: number };
+    /** Sombra prestada: invisible solo para un rival. */
+    readonly shadowed: { readonly ticks: number };
+    /** Niebla carmesí: cada golpe que da le devuelve parte en vida. */
+    readonly leeching: { readonly ticks: number; readonly lifesteal: number };
+    /** Forma de magma: lento, no lo frenan ni lo enraízan y deja el suelo ardiendo. */
+    readonly magma: {
+      readonly ticks: number;
+      readonly moveMultiplier: number;
+      readonly trailEvery: number;
+    };
+    /** Surf: muy rápido y empapa a los rivales que cruza, pero no teje. */
+    readonly surfing: { readonly ticks: number; readonly moveMultiplier: number };
+    /** Raíces profundas: no se mueve, no lo controlan y sus hechizos llegan más lejos. */
+    readonly deepRooted: { readonly ticks: number; readonly rangeMultiplier: number };
+    /** Pantera de sombra: rápida y con zarpazos que roban vida, pero no teje. */
+    readonly panther: {
+      readonly ticks: number;
+      readonly moveMultiplier: number;
+      readonly damage: number;
+      readonly reach: number;
+      readonly intervalTicks: number;
+    };
   };
   readonly interactions: {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */

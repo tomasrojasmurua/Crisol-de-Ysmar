@@ -13,13 +13,19 @@ export function enemiesOf(state: MatchState, wizard: Wizard): Wizard[] {
 }
 
 /**
- * Un rival con Velo no se puede elegir como blanco salvo de muy cerca,
- * y un mago cegado no ve a ningún rival más allá de unos pocos metros.
+ * Un rival con Velo (o dentro del Bosque maldito) no se puede elegir como blanco salvo de muy
+ * cerca, y un mago cegado no ve a ningún rival más allá de unos pocos metros.
  */
 export function isHiddenFrom(target: Wizard, viewer: Wizard, rules: GameRules): boolean {
   if (target.team === viewer.team) return false;
+  const t = target.statuses;
+  // La Sombra prestada esconde de un solo rival, hasta pegado.
+  if (t.shadowed?.targetId === viewer.id) return true;
+  // El Cazador ve a todos, salvo a quien borró su rastro con la Lluvia que borra.
+  if (viewer.statuses.hunting && !t.unseen) return false;
   const d = distance(target.pos, viewer.pos);
-  if (target.statuses.veiled && d > rules.statuses.veiled.revealRadius) return true;
+  const close = rules.statuses.veiled.revealRadius;
+  if ((t.veiled || t.shrouded) && d > close) return true;
   return viewer.statuses.blind !== undefined && d > rules.statuses.blind.sightRadius;
 }
 

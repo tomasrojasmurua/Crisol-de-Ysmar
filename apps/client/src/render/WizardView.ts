@@ -224,7 +224,11 @@ export class WizardView {
     const alive = wizard.hp > 0;
     const fallen = wizard.fallen;
     // Con Velo, los tuyos te ven como una sombra translúcida.
-    this.setGhostly(spectre || wizard.statuses.veiled !== undefined);
+    // También dentro del Bosque maldito o con la Sombra prestada.
+    const st = wizard.statuses;
+    this.setGhostly(
+      spectre || st.veiled !== undefined || st.shrouded !== undefined || st.shadowed !== undefined,
+    );
     this.body.visible = alive || spectre;
     this.grave.visible = !alive && !spectre;
     this.teamRing.visible = alive;
@@ -249,9 +253,15 @@ export class WizardView {
       const t = 1 - airborne.ticks / rules.statuses.airborne.ticks;
       float += Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6;
     }
+    // Raíces profundas: hundido en el suelo hasta las rodillas.
+    if (st.deepRooted) float -= 0.35;
     this.body.position.y = float + Math.abs(Math.sin(this.stride)) * 0.06 * moving;
-    // Dormido, se inclina hacia adelante.
-    this.body.rotation.x = wizard.statuses.asleep ? 0.45 : moving * 0.12;
+    // Dormido, se inclina hacia adelante; en Surf y como pantera, va casi echado.
+    const lean = st.surfing || st.panther ? 0.7 : moving * 0.12;
+    this.body.rotation.x = st.asleep ? 0.45 : lean;
+    // La pantera es baja y larga.
+    if (st.panther) this.body.scale.set(1.15, 0.65, 1.3);
+    else this.body.scale.set(1, 1, 1);
     this.staff.rotation.z = Math.sin(this.stride) * 0.06 * moving;
     if (this.floatingFocus) this.staff.position.y = Math.sin(timeSeconds * 2.2) * 0.05;
 
@@ -298,9 +308,19 @@ export class WizardView {
     if (wizard.statuses.curse) {
       emissive.add(elementColor('umbra').clone().multiplyScalar(0.06));
     }
+    // Forma de magma: la túnica brilla como roca fundida.
+    if (wizard.statuses.magma) {
+      emissive.add(
+        new THREE.Color('#ff5a1f').multiplyScalar(0.18 + 0.06 * Math.sin(timeSeconds * 6)),
+      );
+    }
+    if (wizard.statuses.panther) {
+      emissive.add(elementColor('umbra').clone().multiplyScalar(0.08));
+    }
     this.frost.visible =
       (wizard.statuses.slow !== undefined || wizard.statuses.soaked !== undefined) && alive;
-    this.rootRing.visible = wizard.statuses.root !== undefined && alive;
+    this.rootRing.visible =
+      (wizard.statuses.root !== undefined || wizard.statuses.deepRooted !== undefined) && alive;
     this.rootRing.rotation.z = -timeSeconds;
     this.curseRing.visible = wizard.statuses.curse !== undefined && alive;
     this.curseRing.rotation.z = timeSeconds * 2;

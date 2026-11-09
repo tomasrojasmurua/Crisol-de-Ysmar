@@ -259,6 +259,21 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
       beast.userData.gallop = i;
       group.add(beast);
     }
+  } else if (sweeper.mode === 'wildfire') {
+    // Un frente de llamas: lenguas de fuego a lo ancho, de distinta altura.
+    const flames = 9;
+    for (let i = 0; i < flames; i++) {
+      const flame = new THREE.Mesh(
+        new THREE.ConeGeometry(0.35, 1.6, 6).translate(0, 0.8, 0),
+        additive(glow(i % 3 === 0 ? MAGMA : FIRE, 1.4), 0.7),
+      );
+      flame.position.x = ((i / (flames - 1)) * 2 - 1) * sweeper.halfWidth;
+      flame.userData.flicker = i;
+      group.add(flame);
+    }
+    const light = halo(glow(FIRE, 0.5), sweeper.halfWidth * 2.5);
+    light.position.y = 0.9;
+    group.add(light);
   } else if (sweeper.mode === 'soulTide') {
     // Una ola de almas: un velo violeta con caras pálidas que se arrastran.
     const veil = new THREE.Mesh(
@@ -309,6 +324,9 @@ export function updateSweeper(
     if (twist) child.rotation.z += twist * delta;
     const flap = child.userData.flap as number | undefined;
     if (flap) child.rotation.z = flap * Math.sin(time * 14) * 0.6;
+    const flicker = child.userData.flicker as number | undefined;
+    if (flicker !== undefined)
+      child.scale.y = 0.8 + 0.5 * Math.abs(Math.sin(time * 9 + flicker * 1.3));
     const gallop = child.userData.gallop as number | undefined;
     if (gallop !== undefined)
       child.position.y = Math.abs(Math.sin(time * 12 + gallop * 1.7)) * 0.25;
@@ -323,6 +341,33 @@ export function updateSweeper(
       life: 0.6,
       size: 0.35,
       gravity: 1.5,
+    });
+    return;
+  }
+  if (sweeper.mode === 'wildfire') {
+    const dir = { x: Math.sin(view.rotation.y), z: Math.cos(view.rotation.y) };
+    for (let i = 0; i < 3; i++) {
+      const t = (Math.random() * 2 - 1) * sweeper.halfWidth;
+      particles.emit({
+        x: pos.x - dir.z * t,
+        y: 0.3 + Math.random() * 1.2,
+        z: pos.z + dir.x * t,
+        vy: 2 + Math.random() * 2,
+        color: glow(i === 0 ? MAGMA : FIRE, 1.6),
+        life: 0.6,
+        size: 0.45,
+        gravity: 1,
+      });
+    }
+    // Humo detrás del fuego.
+    particles.emit({
+      x: pos.x - dir.x * 1.2,
+      y: 1.5,
+      z: pos.z - dir.z * 1.2,
+      vy: 1.2,
+      color: new THREE.Color('#2a2420').multiplyScalar(0.8),
+      life: 1.5,
+      size: 1.2,
     });
     return;
   }

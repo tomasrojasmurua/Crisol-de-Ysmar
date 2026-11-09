@@ -14,6 +14,7 @@ import { add, distance, distanceToSegment, length, normalize, scale, sub } from 
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { insideStormEye, updateAura, updateBubble } from './kit/greatSupport';
+import { updateGrownTree } from './kit/greatThird';
 import {
   updateDrown,
   updateFireRain,
@@ -96,6 +97,8 @@ function updateSpell(
       return updateBubble(state, spell);
     case 'aura':
       return updateAura(state, spell, rules);
+    case 'grownTree':
+      return updateGrownTree(spell);
     case 'summon':
       return updateSummon(state, spell, rules);
   }

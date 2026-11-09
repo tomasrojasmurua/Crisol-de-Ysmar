@@ -11,6 +11,8 @@ import { blockByRings, blockByWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
 import { updateBeasts } from './beasts';
+import { updateForms } from './forms';
+import { liveRules } from './liveMap';
 import { placeInArena } from './obstacles';
 import { isAlive, resolveAim } from './queries';
 import {
@@ -30,7 +32,9 @@ export type IntentsByWizard = ReadonlyMap<EntityId, readonly Intent[]>;
  * Avanza la partida un paso de simulación. Es determinista:
  * el mismo estado con las mismas intenciones siempre da el mismo resultado.
  */
-export function stepMatch(state: MatchState, intents: IntentsByWizard, rules: GameRules): void {
+export function stepMatch(state: MatchState, intents: IntentsByWizard, baseRules: GameRules): void {
+  // La jungla cambia durante la ronda: árboles quemados y árboles nuevos.
+  const rules = liveRules(state, baseRules);
   state.events = [];
   if (state.winnerTeam !== null) {
     return;
@@ -200,6 +204,7 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }
   }
+  updateForms(state, wizard, rules);
 }
 
 /** Sale el conjuro: el hechizo del tejido. */
