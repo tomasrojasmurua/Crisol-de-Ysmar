@@ -103,7 +103,7 @@ export class JungleView {
     // Árboles: tronco oscuro y copa en capas, verde muy apagado para que la magia resalte.
     const trunk = new THREE.CylinderGeometry(0.16, 0.3, 2.6, 7);
     trunk.translate(0, 1.3, 0);
-    const bark = new THREE.MeshStandardMaterial({ color: '#3a2e22', roughness: 0.95 });
+    const bark = new THREE.MeshStandardMaterial({ color: '#4a3b2c', roughness: 0.95 });
     this.group.add(
       instanced(trunk, bark, trees, (o, m) => {
         const s = o.radius / 0.7;
@@ -116,7 +116,7 @@ export class JungleView {
     const crownTop = new THREE.ConeGeometry(1.05, 1.9, 7);
     crownTop.translate(0, 4.6, 0);
     const leaves = new THREE.MeshStandardMaterial({
-      color: '#2d4a37',
+      color: '#3b5e46',
       roughness: 0.9,
       flatShading: true,
     });

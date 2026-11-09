@@ -212,7 +212,7 @@ export function createGroundTexture(): THREE.Texture {
   const size = 512;
   const [element, ctx] = canvas(size);
   const random = seeded(11);
-  ctx.fillStyle = '#262520';
+  ctx.fillStyle = '#302e27';
   ctx.fillRect(0, 0, size, size);
   const blob = (x: number, y: number, r: number, color: string): void => {
     ctx.fillStyle = color;

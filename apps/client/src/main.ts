@@ -35,6 +35,7 @@ import {
 } from './game/Profile';
 import { visibleEnemies } from './game/Sight';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
+import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
@@ -74,7 +75,7 @@ const renderer = new THREE.WebGLRenderer({
   powerPreference: 'high-performance',
 });
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.3;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -96,6 +97,9 @@ const aimGuide = new AimGuide();
 scene.add(aimGuide.mesh);
 const targetMarker = new TargetMarker('#f3dfb0');
 scene.add(targetMarker.group);
+// Una luz suave sobre tu mago: en la jungla siempre se ve dónde estás.
+const lantern = new THREE.PointLight('#ffe2b0', 0, 11, 1.4);
+scene.add(lantern);
 
 // ---------- Interfaz ----------
 
@@ -104,6 +108,7 @@ const human = new HumanController(input, (screen) => rig.screenToGround(screen.r
 const labels = new WorldLabels(uiRoot);
 const controls = new TouchControls(uiRoot, input);
 const minimap = new Minimap(uiRoot, rules);
+const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
 const hud = new Hud(
   uiRoot,
   () => startMatch(match?.options ?? menu.options),
@@ -257,6 +262,8 @@ function showMenu(): void {
   labels.visible = false;
   controls.visible = false;
   minimap.show(false);
+  cameraDrag.enabled = false;
+  lantern.intensity = 0;
   hud.hideResult();
   wardrobe.hide();
   grimoireBook.hide();
@@ -308,6 +315,8 @@ function startMatch(options: MatchOptions): void {
   labels.visible = true;
   controls.visible = true;
   minimap.show(true);
+  cameraDrag.enabled = true;
+  lantern.intensity = 5;
   minimap.reset();
   shownRound = 0;
   resultShown = false;
@@ -542,6 +551,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
       : null;
   rig.update(playerPos, targetPos, delta, effects.shake);
   arena.focus(playerPos.x, playerPos.z);
+  lantern.position.set(playerPos.x, 3.2, playerPos.z);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
   const aim = input.aimPreview;
   aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);

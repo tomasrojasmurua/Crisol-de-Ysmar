@@ -9,7 +9,7 @@ import {
   createRuneCircleTexture,
 } from './textures';
 
-const BACKGROUND = '#07070c';
+const BACKGROUND = '#0e1019';
 const PILLAR_COUNT = 10;
 /** Lado de la zona con sombras alrededor del jugador: en el celular no alcanza para todo el mapa. */
 const SHADOW_EXTENT = 24;
@@ -32,7 +32,7 @@ export class ArenaView {
   private readonly braziers: Brazier[] = [];
   private readonly runeMaterial: THREE.MeshBasicMaterial;
   private readonly stars: THREE.Points;
-  private readonly moon = new THREE.DirectionalLight('#aeb9ff', 1.6);
+  private readonly moon = new THREE.DirectionalLight('#b8c2ff', 2.4);
   private emberTimer = 0;
 
   constructor(
@@ -41,7 +41,7 @@ export class ArenaView {
   ) {
     const scene = this.scene;
     scene.background = new THREE.Color(BACKGROUND);
-    scene.fog = new THREE.FogExp2(BACKGROUND, 0.024);
+    scene.fog = new THREE.FogExp2(BACKGROUND, 0.02);
 
     scene.add(createSky());
     this.stars = createStars();
@@ -181,7 +181,7 @@ export class ArenaView {
   }
 
   private createLights(): void {
-    this.scene.add(new THREE.HemisphereLight('#6f78a0', '#2a231c', 1.7));
+    this.scene.add(new THREE.HemisphereLight('#8a95c6', '#3a3024', 2.4));
     // La luna proyecta las sombras de los magos sobre la piedra.
     const moon = this.moon;
     moon.position.set(-12, 22, 10);
@@ -199,7 +199,7 @@ export class ArenaView {
     moon.shadow.normalBias = 0.03;
     this.scene.add(moon, moon.target);
     // Relleno cálido desde el lado opuesto, para que nadie quede negro de espaldas.
-    const fill = new THREE.DirectionalLight('#8a7660', 0.55);
+    const fill = new THREE.DirectionalLight('#9a8468', 0.9);
     fill.position.set(8, 10, -12);
     this.scene.add(fill);
   }
@@ -212,7 +212,7 @@ function createSky(): THREE.Mesh {
     fog: false,
     uniforms: {
       top: { value: new THREE.Color('#141a33') },
-      middle: { value: new THREE.Color('#0d0d18') },
+      middle: { value: new THREE.Color('#151829') },
       bottom: { value: new THREE.Color(BACKGROUND) },
     },
     vertexShader: /* glsl */ `
