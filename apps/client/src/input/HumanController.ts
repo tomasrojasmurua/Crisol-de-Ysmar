@@ -1,8 +1,8 @@
 import {
   type Controller,
+  currentTarget,
   type Intent,
   type MatchState,
-  nearestEnemy,
   type Vec2,
   type Wizard,
 } from '@crisol/core';
@@ -20,10 +20,10 @@ export class HumanController implements Controller {
     const move = this.toGround(this.input.move);
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
-    // En el duelo 1v1 el objetivo se fija solo en el rival más cercano.
-    const enemy = nearestEnemy(state as MatchState, self as Wizard);
-    if (enemy && self.lockTarget !== enemy.id) {
-      intents.push({ kind: 'lockTarget', targetId: enemy.id });
+    // Si el objetivo fijado cae, se pasa solo al enemigo más cercano.
+    const target = currentTarget(state as MatchState, self as Wizard);
+    if (target && self.lockTarget !== target.id) {
+      intents.push({ kind: 'lockTarget', targetId: target.id });
     }
 
     for (const action of this.input.drain()) {
@@ -33,6 +33,9 @@ export class HumanController implements Controller {
           break;
         case 'cancel':
           intents.push({ kind: 'cancelWeave' });
+          break;
+        case 'lock':
+          intents.push({ kind: 'lockTarget', targetId: action.targetId });
           break;
         case 'cast': {
           const aim = action.aim ? this.toGround(action.aim) : { x: 0, z: 0 };

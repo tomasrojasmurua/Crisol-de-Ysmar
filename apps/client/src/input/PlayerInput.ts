@@ -9,6 +9,8 @@ export interface ScreenVector {
 export type PlayerAction =
   | { readonly type: 'weave'; readonly element: ElementId }
   | { readonly type: 'cancel' }
+  /** Fijar un rival tocándolo en la pantalla. */
+  | { readonly type: 'lock'; readonly targetId: number }
   /** `aim` nulo: tocar sin arrastrar, apunta solo al rival. */
   | { readonly type: 'cast'; readonly aim: ScreenVector | null };
 

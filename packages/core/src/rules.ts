@@ -66,6 +66,44 @@ export interface GameRules {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */
     readonly tideExtinguishesBurn: boolean;
   };
+  readonly round: RoundRules;
+  readonly death: DeathRules;
+}
+
+/** Ritmo de una ronda: Caza, Convergencia y Duelo final, con una zona que se cierra. */
+export interface RoundRules {
+  /** Rondas que hay que ganar para llevarse la partida (2 en un mejor de 3). */
+  readonly roundsToWin: number;
+  /** Tope de rondas, por si hay empates. */
+  readonly maxRounds: number;
+  readonly durationTicks: number;
+  /** Fin de la Caza: la zona empieza a cerrarse. */
+  readonly huntEndTick: number;
+  /** Fin de la Convergencia: empieza el Duelo final. */
+  readonly convergenceEndTick: number;
+  /** Radio de la zona al terminar la Convergencia. */
+  readonly convergenceRadius: number;
+  /** Radio de la zona al terminar la ronda. */
+  readonly finalRadius: number;
+  /** Daño por segundo fuera de la zona. */
+  readonly zoneDamagePerSecond: number;
+}
+
+/** Qué pasa al caer: modo Espectro o Vidas, y cómo se revive a un aliado. */
+export interface DeathRules {
+  readonly lives: number;
+  readonly respawnTicks: number;
+  readonly revive: {
+    readonly radius: number;
+    readonly ticks: number;
+    readonly hpFraction: number;
+  };
+  readonly spectre: {
+    readonly moveMultiplier: number;
+    /** Lamento: el espectro ralentiza a un enemigo cercano. */
+    readonly hauntRange: number;
+    readonly hauntCooldownTicks: number;
+  };
 }
 
 export interface FormBase {

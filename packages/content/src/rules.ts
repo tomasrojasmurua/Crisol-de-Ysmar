@@ -60,4 +60,24 @@ export const GAME_RULES: GameRules = {
     stormVsSlowedMultiplier: 1.5,
     tideExtinguishesBurn: true,
   },
+  round: {
+    // Mejor de 3, con tope de 5 por si hay empates.
+    roundsToWin: 2,
+    maxRounds: 5,
+    // 6 minutos: Caza hasta el 2, Convergencia hasta el 4 y Duelo final hasta el 6.
+    durationTicks: 6 * 60 * 30,
+    huntEndTick: 2 * 60 * 30,
+    convergenceEndTick: 4 * 60 * 30,
+    convergenceRadius: 10,
+    finalRadius: 3,
+    zoneDamagePerSecond: 12,
+  },
+  death: {
+    lives: 3,
+    // 4 segundos para reaparecer en el borde.
+    respawnTicks: 120,
+    // Un aliado al lado durante 3 segundos te levanta con 40% de vida.
+    revive: { radius: 1.6, ticks: 90, hpFraction: 0.4 },
+    spectre: { moveMultiplier: 0.8, hauntRange: 7, hauntCooldownTicks: 240 },
+  },
 };

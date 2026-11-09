@@ -28,7 +28,7 @@ export function dealDamage(
   target: Wizard,
   sourceId: number,
   amount: number,
-  form: SpellPayload['form'],
+  form: SpellPayload['form'] | 'zone',
 ): void {
   if (amount <= 0 || target.hp <= 0) {
     return;

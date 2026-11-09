@@ -9,6 +9,14 @@ import { releaseSpell } from '../spells/release';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { isAlive, resolveAim } from './queries';
+import {
+  decideRoundWinner,
+  haunt,
+  processFalls,
+  updateFallen,
+  updateRevives,
+  updateZone,
+} from './round';
 import type { EntityId, MatchState, Wizard } from './state';
 
 export type IntentsByWizard = ReadonlyMap<EntityId, readonly Intent[]>;
@@ -24,18 +32,44 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, rules: Ga
   }
 
   for (const wizard of state.wizards) {
+    const wizardIntents = intents.get(wizard.id) ?? [];
     if (isAlive(wizard)) {
-      applyIntents(state, wizard, intents.get(wizard.id) ?? [], rules);
+      applyIntents(state, wizard, wizardIntents, rules);
+    } else {
+      applyFallenIntents(state, wizard, wizardIntents, rules);
     }
   }
   for (const wizard of state.wizards) {
     if (isAlive(wizard)) {
       updateWizard(state, wizard, rules);
+    } else {
+      updateFallen(state, wizard, rules);
     }
   }
   updateSpells(state, rules);
-  state.winnerTeam = decideWinner(state);
+  updateZone(state, rules);
+  processFalls(state, rules);
+  updateRevives(state, rules);
   state.tick++;
+  state.winnerTeam = decideRoundWinner(state, rules);
+}
+
+/** Un caído solo puede moverse (si es espectro), fijar objetivo y lanzar su Lamento. */
+function applyFallenIntents(
+  state: MatchState,
+  wizard: Wizard,
+  intents: readonly Intent[],
+  rules: GameRules,
+): void {
+  for (const intent of intents) {
+    if (intent.kind === 'move') {
+      wizard.moveInput = clampLength({ x: intent.x, z: intent.z }, 1);
+    } else if (intent.kind === 'lockTarget') {
+      wizard.lockTarget = intent.targetId;
+    } else if (intent.kind === 'cast') {
+      haunt(state, wizard, rules);
+    }
+  }
 }
 
 function applyIntents(
@@ -135,16 +169,6 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }
   }
-}
-
-function decideWinner(state: MatchState): number | null {
-  const teamsAlive = new Set(state.wizards.filter(isAlive).map((w) => w.team));
-  if (teamsAlive.size > 1) {
-    return null;
-  }
-  // Si caen todos a la vez, gana el equipo -1: empate.
-  const [team] = teamsAlive;
-  return team ?? -1;
 }
 
 export const NO_INTENTS: IntentsByWizard = new Map();

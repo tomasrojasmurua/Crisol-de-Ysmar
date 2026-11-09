@@ -4,11 +4,18 @@ Duelo de hechiceros para celular. La magia se **teje** en tiempo real combinando
 (Brasa, Tormenta, Marea, Raíz y Umbra) y se juega entre amigos que entran a la sala con un enlace
 de WhatsApp, sin instalar nada.
 
-> Estado: **Hito 1, el tejido se siente bien.** Un duelo en el celular contra un hechicero de la IA,
-> con los cinco elementos, tejido visible, fatiga, combate y cámara sobre el hombro.
+> Estado: **versión completa contra la IA, etapa 1.** Partidas al mejor de 3 rondas contra hechiceros
+> de la IA en duelo, equipos de 2 o 3 y todos contra todos hasta 6, con zona que se cierra,
+> modo Espectro o Vidas y aliados que se reviven.
 > Se juega en [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev).
 
-## Cómo se juega (Hito 1)
+## Cómo se juega
+
+- **Menú:** eliges el modo y qué pasa al caer. **Espectro:** sigues como espíritu, ralentizas
+  rivales con tu Lamento y un aliado a tu lado te revive. **Vidas:** 3 por ronda y reapareces en el borde.
+- **Ronda:** hasta 6 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
+  Gana el último equipo en pie, o el que tenga más vida si se acaba el tiempo.
+- **Objetivo:** el rival más cercano se fija solo; toca a otro rival en la pantalla para cambiarlo.
 
 - **Pulgar izquierdo:** toca y arrastra en cualquier parte de la mitad izquierda para moverte.
 - **Pulgar derecho:** toca hasta tres elementos para tejer (el orden importa) y luego **✦** para lanzar.

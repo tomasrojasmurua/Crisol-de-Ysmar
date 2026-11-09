@@ -43,4 +43,20 @@ export const TEST_RULES: GameRules = {
     curse: { ticks: 90, damagePerSecond: 3, lifesteal: 1 },
   },
   interactions: { stormVsSlowedMultiplier: 2, tideExtinguishesBurn: true },
+  round: {
+    roundsToWin: 2,
+    maxRounds: 5,
+    durationTicks: 3600,
+    huntEndTick: 1200,
+    convergenceEndTick: 2400,
+    convergenceRadius: 10,
+    finalRadius: 4,
+    zoneDamagePerSecond: 10,
+  },
+  death: {
+    lives: 3,
+    respawnTicks: 90,
+    revive: { radius: 1.5, ticks: 60, hpFraction: 0.5 },
+    spectre: { moveMultiplier: 0.7, hauntRange: 6, hauntCooldownTicks: 150 },
+  },
 };

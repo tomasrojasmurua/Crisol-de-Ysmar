@@ -1,5 +1,6 @@
 import { ELEMENTS } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
+import { el } from '../ui/dom';
 import type { PlayerInput } from './PlayerInput';
 
 const JOYSTICK_RADIUS = 56;
@@ -16,19 +17,47 @@ export class TouchControls {
   private readonly elementButtons = new Map<ElementId, HTMLButtonElement>();
   private readonly slots: HTMLElement[] = [];
   private readonly keys = new Set<string>();
+  private readonly root: HTMLElement;
+  private pad: HTMLElement | null = null;
+  private castButton: HTMLButtonElement | null = null;
   private lastWeaveKey = '';
+  /** Mientras está apagado (menú, pantalla final) no acepta teclas. */
+  enabled = false;
 
   constructor(
-    private readonly root: HTMLElement,
+    parent: HTMLElement,
     private readonly input: PlayerInput,
   ) {
+    this.root = el('div', 'controls');
+    parent.append(this.root);
     this.buildJoystick();
     this.buildWeavePad();
     this.bindKeyboard();
   }
 
-  /** Refleja el estado del mago: cansancio de cada elemento y tejido actual. */
-  render(wizard: Wizard, rules: GameRules): void {
+  set visible(value: boolean) {
+    this.root.hidden = !value;
+    this.enabled = value;
+    if (!value) {
+      this.input.move = { right: 0, up: 0 };
+      this.input.aimPreview = null;
+    }
+  }
+
+  /**
+   * Refleja el estado del mago: cansancio de cada elemento y tejido actual.
+   * Como espectro solo queda el botón central, que lanza el Lamento.
+   */
+  render(wizard: Wizard, rules: GameRules, spectre: boolean): void {
+    this.pad?.classList.toggle('spectre', spectre);
+    if (this.castButton) {
+      const cooldown =
+        spectre && wizard.fallen
+          ? wizard.fallen.hauntCooldown / rules.death.spectre.hauntCooldownTicks
+          : 0;
+      this.castButton.style.setProperty('--fatigue', cooldown.toFixed(2));
+      this.castButton.textContent = spectre ? '☾' : '✦';
+    }
     for (const [element, button] of this.elementButtons) {
       const fatigue = wizard.fatigue[element] / rules.weave.fatigueTicks;
       const value = fatigue.toFixed(2);
@@ -98,6 +127,7 @@ export class TouchControls {
 
   private buildWeavePad(): void {
     const pad = el('div', 'weave-pad');
+    this.pad = pad;
     ELEMENTS.forEach((element, index) => {
       const button = el('button', 'element-button');
       button.type = 'button';
@@ -126,6 +156,7 @@ export class TouchControls {
     cast.type = 'button';
     cast.setAttribute('aria-label', 'Lanzar el conjuro');
     cast.textContent = '✦';
+    this.castButton = cast;
     this.bindCast(cast);
 
     const cancel = el('button', 'cancel-button');
@@ -179,7 +210,7 @@ export class TouchControls {
 
   private bindKeyboard(): void {
     window.addEventListener('keydown', (event) => {
-      if (event.repeat) return;
+      if (event.repeat || !this.enabled) return;
       const key = event.key.toLowerCase();
       this.keys.add(key);
       const elementIndex = KEY_ELEMENTS.indexOf(key as (typeof KEY_ELEMENTS)[number]);
@@ -206,13 +237,4 @@ export class TouchControls {
     const len = Math.hypot(right, up) || 1;
     this.input.move = { right: right / len, up: up / len };
   }
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  element.className = className;
-  return element;
 }

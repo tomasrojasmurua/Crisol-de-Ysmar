@@ -23,6 +23,16 @@ export interface Leap {
   readonly payload: SpellPayload;
 }
 
+/** Un mago caído. En modo Espectro sigue moviéndose; en modo Vidas espera para reaparecer. */
+export interface Fallen {
+  /** Pasos para reaparecer; null si ya no le quedan vidas o la sala es de Espectros. */
+  respawnTicks: number | null;
+  /** Pasos que un aliado lleva reviviéndolo. */
+  reviveProgress: number;
+  /** Pasos para que el espectro pueda volver a lanzar su Lamento. */
+  hauntCooldown: number;
+}
+
 export interface Wizard {
   readonly id: EntityId;
   readonly team: number;
@@ -38,6 +48,9 @@ export interface Wizard {
   statuses: Partial<Record<StatusId, StatusInstance>>;
   lockTarget: EntityId | null;
   moveInput: Vec2;
+  /** Vidas que quedan en la ronda (en modo Espectro es 1). */
+  lives: number;
+  fallen: Fallen | null;
 }
 
 /** Lo que lleva un conjuro al salir: se arma una vez a partir del tejido. */
@@ -96,14 +109,31 @@ export type GameEvent =
       readonly targetId: EntityId;
       readonly sourceId: EntityId;
       readonly amount: number;
-      readonly form: SpellForm;
+      /** 'zone' es el daño por quedar fuera de la zona. */
+      readonly form: SpellForm | 'zone';
     }
   | { readonly type: 'blocked'; readonly pos: Vec2 }
   | { readonly type: 'fizzle'; readonly wizardId: EntityId }
-  | { readonly type: 'defeated'; readonly wizardId: EntityId };
+  | { readonly type: 'defeated'; readonly wizardId: EntityId }
+  | { readonly type: 'respawned'; readonly wizardId: EntityId }
+  | { readonly type: 'revived'; readonly wizardId: EntityId; readonly byId: EntityId }
+  | { readonly type: 'haunt'; readonly wizardId: EntityId; readonly targetId: EntityId }
+  | { readonly type: 'phase'; readonly phase: RoundPhase };
 
+/** Qué pasa al caer, según cómo se creó la sala. */
+export type DeathRule = 'spectre' | 'lives';
+
+/** Caza, Convergencia y Duelo final. */
+export type RoundPhase = 'hunt' | 'convergence' | 'final';
+
+/**
+ * El estado de una ronda. La partida al mejor de 3 encadena rondas con `series.ts`.
+ */
 export interface MatchState {
+  readonly deathRule: DeathRule;
   tick: number;
+  /** Radio de la zona segura; está centrada en la arena. */
+  zoneRadius: number;
   rngState: number;
   nextEntityId: EntityId;
   wizards: Wizard[];
