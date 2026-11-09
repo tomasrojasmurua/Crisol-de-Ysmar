@@ -1,14 +1,32 @@
 import type { GameRules, SpellEntity, Summon, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import {
+  createDrown,
+  createFireRain,
+  createMangrove,
+  createPortal,
+  createPyre,
+  createStrike,
+  createSweeper,
+  createThornRing,
+  createTrap,
+  updateDrown,
+  updateFireRain,
+  updateMangrove,
+  updatePortal,
+  updatePyre,
+  updateStrike,
+  updateSweeper,
+  updateThornRing,
+  updateTrap,
+} from './GreatSpellViews';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
 import {
-  createGeyser,
   createRootWall,
   createTether,
   createZone,
-  updateGeyser,
   updateRootWall,
   updateTether,
   updateZone,
@@ -91,6 +109,7 @@ export class SpellViews {
       case 'projectile':
         return this.createProjectile(spell, formColor(spell.payload.form));
       case 'wall':
+        if (spell.passable) return createMangrove(spell);
         return spell.solid ? createRootWall(spell) : createIceWall(spell);
       case 'zone':
         return spell.effect === 'burn'
@@ -98,8 +117,25 @@ export class SpellViews {
           : createAreaZone(spell as typeof spell & { effect: 'blizzard' | 'spring' | 'spores' });
       case 'current':
         return createCurrent(spell);
-      case 'geyser':
-        return createGeyser(spell);
+      case 'strike':
+        return createStrike(spell);
+      case 'sweeper':
+        return createSweeper(spell);
+      case 'pyre':
+        return createPyre();
+      case 'drown':
+        return createDrown();
+      case 'fireRain':
+        return createFireRain(this.rules.spells.fireRain.radius);
+      case 'portal':
+        return createPortal(spell);
+      case 'thornRing':
+        return createThornRing(spell);
+      case 'trap':
+        return createTrap(spell);
+      case 'tempest':
+        // Los destellos se dibujan al saltar.
+        return new THREE.Group();
       case 'tether':
         return createTether();
       case 'obsidian':
@@ -132,6 +168,9 @@ export class SpellViews {
     const size = spell.radius;
     // La Ceguera es una bola de sombra, no de luz.
     if (spell.payload.spell === 'blinding') color = new THREE.Color('#3a1f55');
+    // La Llama negra arde en negro y violeta; el Cometa negro, en sombra con borde de fuego.
+    if (spell.payload.spell === 'blackFlame') color = new THREE.Color('#5a1f7a');
+    if (spell.payload.spell === 'darkComet') color = new THREE.Color('#7a3a2a');
     const core = new THREE.Mesh(
       this.coreGeometry,
       new THREE.MeshBasicMaterial({ color: glow(color, 3) }),
@@ -173,8 +212,44 @@ export class SpellViews {
       case 'current':
         updateCurrent(view, spell, time, particles);
         return;
-      case 'geyser':
-        updateGeyser(view, spell, time, particles);
+      case 'strike':
+        updateStrike(view, spell, time, particles);
+        return;
+      case 'sweeper':
+        updateSweeper(view, spell, world.positionOf(spell), time, world.delta, particles);
+        return;
+      case 'pyre':
+        updatePyre(
+          view,
+          spell,
+          this.rules.spells.soulPyre.delayTicks,
+          world.wizardPos(spell.targetId),
+          time,
+          particles,
+        );
+        return;
+      case 'drown':
+        updateDrown(
+          view,
+          spell,
+          world.wizardPos(spell.ownerId),
+          world.wizardPos(spell.targetId),
+          particles,
+        );
+        return;
+      case 'fireRain':
+        updateFireRain(view, spell, world.wizardPos(spell.ownerId), time, particles);
+        return;
+      case 'portal':
+        updatePortal(view, spell, time, particles);
+        return;
+      case 'thornRing':
+        updateThornRing(view, spell, particles);
+        return;
+      case 'trap':
+        updateTrap(view, spell, time);
+        return;
+      case 'tempest':
         return;
       case 'tether':
         updateTether(
@@ -189,7 +264,8 @@ export class SpellViews {
         // Nada que mover: cada brote es un estallido.
         return;
       case 'wall':
-        if (spell.solid) updateRootWall(view, spell);
+        if (spell.passable) updateMangrove(view, spell);
+        else if (spell.solid) updateRootWall(view, spell);
         else updateIceWall(view, spell, particles);
         return;
       case 'obsidian':
@@ -253,7 +329,10 @@ export class SpellViews {
       y: 1.3 + (Math.random() - 0.5) * 0.15,
       z: pos.z + (Math.random() - 0.5) * 0.15,
       vy: 0.3,
-      color: spell.payload.spell === 'blinding' ? glow(color, 2.5) : glow(color, 1.4),
+      color:
+        spell.payload.spell === 'blinding' || spell.payload.spell === 'blackFlame'
+          ? glow(color, 2.5)
+          : glow(color, 1.4),
       life: 0.35,
       size: 0.45,
     });

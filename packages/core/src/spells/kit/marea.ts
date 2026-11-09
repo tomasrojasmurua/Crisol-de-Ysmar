@@ -11,7 +11,7 @@ import {
   sub,
 } from '../../math/vec2';
 import type { StatusId } from '../../rules';
-import { type CastContext, nextId, payloadFor, placeZone } from './context';
+import { type CastContext, nextId, payloadFor, placeStrike, placeZone } from './context';
 import { groundPoint } from './shared';
 
 /** Salpicón: un abanico de agua que moja y frena a todo lo que hay delante. */
@@ -46,21 +46,26 @@ export function castGeyser(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.geyser;
   const pos = groundPoint(state, caster, ctx.aim, spell.range, rules);
-  state.spells.push({
-    kind: 'geyser',
-    id: nextId(state),
-    ownerId: caster.id,
-    team: caster.team,
-    pos: clampToCircle(pos, rules.arenaRadius),
-    radius: spell.radius,
-    delayTicks: spell.delayTicks,
-    ticksLeft: spell.delayTicks,
-    payload: payloadFor(ctx, spell.damage, ['airborne']),
-  });
+  placeStrike(
+    ctx,
+    clampToCircle(pos, rules.arenaRadius),
+    spell,
+    'lift',
+    payloadFor(ctx, spell.damage),
+  );
 }
 
 /** Lo que el hielo quita al encerrarte; la bendición de un santuario, la Savia y el Velo se quedan. */
-const HARMFUL: readonly StatusId[] = ['burn', 'slow', 'root', 'curse', 'airborne'];
+const HARMFUL: readonly StatusId[] = [
+  'burn',
+  'slow',
+  'root',
+  'curse',
+  'airborne',
+  'frozen',
+  'asleep',
+  'soaked',
+];
 
 /** Ataúd helado: te encierras en hielo; nada te daña ni te afecta, y sales limpio. */
 export function castIceCoffin(ctx: CastContext): void {
@@ -102,6 +107,7 @@ export function castIceWall(ctx: CastContext): void {
     halfLength: spell.halfLength,
     thickness: spell.thickness,
     solid: false,
+    passable: false,
     durationTicks: spell.durationTicks,
     ticksLeft: spell.durationTicks,
     payload: payloadFor(ctx, 0),

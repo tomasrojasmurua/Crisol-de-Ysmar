@@ -2,8 +2,8 @@ import { type Weave, weaveKey } from '../weaving/weave';
 
 /**
  * Los hechizos: cada uno tiene su efecto, su visual y su lugar en el Grimorio.
- * Están los 5 básicos (1 elemento) y los 25 de 2 elementos; los Grandes hechizos
- * de 3 elementos llegan en las próximas tandas.
+ * Están los 5 básicos (1 elemento), los 25 de 2 elementos y los Grandes hechizos de
+ * 3 elementos que ya existen; el resto de los Grandes llega en las próximas tandas.
  */
 export const SPELL_IDS = [
   'spark',
@@ -36,6 +36,31 @@ export const SPELL_IDS = [
   'decoy',
   'blinding',
   'shackle',
+  'meteor',
+  'fireRain',
+  'blackFlame',
+  'emberStride',
+  'darkComet',
+  'skySpear',
+  'tempest',
+  'hurricane',
+  'swap',
+  'erraticOrb',
+  'iceAge',
+  'cauldron',
+  'steamJet',
+  'drown',
+  'mangrove',
+  'tidalWave',
+  'rootCatapult',
+  'sowing',
+  'thornRing',
+  'treeStride',
+  'soulPyre',
+  'portal',
+  'phantom',
+  'abyss',
+  'nightmare',
 ] as const;
 
 export type SpellId = (typeof SPELL_IDS)[number];
@@ -72,6 +97,31 @@ export const SPELL_WEAVES: Readonly<Record<SpellId, Weave>> = {
   decoy: ['umbra', 'tormenta'],
   blinding: ['umbra', 'marea'],
   shackle: ['umbra', 'raiz'],
+  meteor: ['brasa', 'brasa', 'brasa'],
+  fireRain: ['brasa', 'brasa', 'tormenta'],
+  blackFlame: ['brasa', 'umbra', 'marea'],
+  emberStride: ['brasa', 'umbra', 'tormenta'],
+  darkComet: ['brasa', 'tormenta', 'umbra'],
+  skySpear: ['tormenta', 'tormenta', 'brasa'],
+  tempest: ['tormenta', 'tormenta', 'tormenta'],
+  hurricane: ['tormenta', 'tormenta', 'marea'],
+  swap: ['tormenta', 'umbra', 'tormenta'],
+  erraticOrb: ['tormenta', 'brasa', 'marea'],
+  iceAge: ['marea', 'marea', 'marea'],
+  cauldron: ['marea', 'brasa', 'brasa'],
+  steamJet: ['marea', 'brasa', 'tormenta'],
+  drown: ['marea', 'umbra', 'brasa'],
+  mangrove: ['marea', 'raiz', 'brasa'],
+  tidalWave: ['marea', 'marea', 'tormenta'],
+  rootCatapult: ['raiz', 'tormenta', 'brasa'],
+  sowing: ['raiz', 'tormenta', 'marea'],
+  thornRing: ['raiz', 'raiz', 'brasa'],
+  treeStride: ['raiz', 'umbra', 'tormenta'],
+  soulPyre: ['umbra', 'umbra', 'brasa'],
+  portal: ['umbra', 'brasa', 'tormenta'],
+  phantom: ['umbra', 'tormenta', 'tormenta'],
+  abyss: ['umbra', 'tormenta', 'marea'],
+  nightmare: ['umbra', 'umbra', 'marea'],
 };
 
 const SPELL_BY_KEY = new Map<string, SpellId>(

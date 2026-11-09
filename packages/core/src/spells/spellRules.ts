@@ -149,6 +149,143 @@ export interface SpellRules {
     readonly damage: number;
     readonly rootTicks: number;
   };
+
+  // Grandes hechizos (3 elementos), primera tanda.
+
+  /** Brasa → Brasa → Brasa: tras el aviso cae del cielo y deja el suelo ardiendo. */
+  readonly meteor: StrikeSpell & {
+    readonly range: number;
+    readonly scorchRadius: number;
+    readonly scorchTicks: number;
+  };
+  /** Brasa → Brasa → Tormenta: cae fuego sobre cada rival cercano que se mueva. */
+  readonly fireRain: {
+    readonly damage: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+    readonly intervalTicks: number;
+    /** El fuego que cae deja un charco ardiendo de este tamaño. */
+    readonly scorchRadius: number;
+    readonly scorchTicks: number;
+  };
+  /** Brasa → Umbra → Marea: proyectil que atraviesa muros, escudos e invocaciones. */
+  readonly blackFlame: ProjectileSpell;
+  /** Brasa → Umbra → Tormenta: te teletransportas a un suelo que esté ardiendo. */
+  readonly emberStride: { readonly range: number };
+  /** Brasa → Tormenta → Umbra: si acierta, te lleva junto al rival y lo silencia. */
+  readonly darkComet: ProjectileSpell & {
+    /** A qué distancia del rival apareces. */
+    readonly beside: number;
+  };
+  /** Tormenta → Tormenta → Brasa: tras un instante cae un rayo en línea. */
+  readonly skySpear: {
+    readonly damage: number;
+    readonly length: number;
+    readonly halfWidth: number;
+    readonly delayTicks: number;
+  };
+  /** Tormenta → Tormenta → Tormenta: tres destellos seguidos que descargan al llegar. */
+  readonly tempest: {
+    readonly jumps: number;
+    readonly distance: number;
+    readonly intervalTicks: number;
+    readonly damage: number;
+    readonly radius: number;
+  };
+  /** Tormenta → Tormenta → Marea: un tornado lento que levanta por los aires a quien toca. */
+  readonly hurricane: SweeperSpell;
+  /** Tormenta → Umbra → Tormenta: cambias de lugar con cualquier mago a la vista. */
+  readonly swap: { readonly range: number; readonly coneDot: number };
+  /** Tormenta → Brasa → Marea: un orbe lento que da rayos a quien pase cerca. */
+  readonly erraticOrb: SweeperSpell & {
+    readonly zapRange: number;
+    readonly intervalTicks: number;
+  };
+  /** Marea → Marea → Marea: tras el aviso, congela a todos los rivales alrededor. */
+  readonly iceAge: StrikeSpell;
+  /** Marea → Brasa → Brasa: el suelo hierve y quema mucho a quien siga encima. */
+  readonly cauldron: StrikeSpell & { readonly range: number };
+  /** Marea → Brasa → Tormenta: te impulsas hacia atrás y el chorro quema hacia adelante. */
+  readonly steamJet: DashSpell & ConeSpell;
+  /** Marea → Umbra → Brasa: agua que sube por el rival; si no escapa, lo silencia y lo daña. */
+  readonly drown: {
+    readonly damage: number;
+    readonly range: number;
+    readonly coneDot: number;
+    readonly breakRange: number;
+    readonly durationTicks: number;
+    readonly silenceTicks: number;
+  };
+  /** Marea → Raíz → Brasa: muro que frena proyectiles pero deja pasar a los magos. */
+  readonly mangrove: {
+    readonly distance: number;
+    readonly halfLength: number;
+    readonly thickness: number;
+    readonly durationTicks: number;
+  };
+  /** Marea → Marea → Tormenta: una ola ancha cruza el campo y empapa a quien toca. */
+  readonly tidalWave: SweeperSpell & { readonly halfWidth: number };
+  /** Raíz → Tormenta → Brasa: una raíz te lanza en arco y enraízas al caer. */
+  readonly rootCatapult: DashSpell & {
+    readonly radius: number;
+    readonly damage: number;
+    readonly rootTicks: number;
+  };
+  /** Raíz → Tormenta → Marea: siembra trampas que enraízan al primero que las pise. */
+  readonly sowing: {
+    readonly range: number;
+    readonly count: number;
+    /** Qué tan lejos del centro quedan las trampas de alrededor. */
+    readonly spread: number;
+    readonly radius: number;
+    readonly armTicks: number;
+    readonly durationTicks: number;
+    readonly damage: number;
+  };
+  /** Raíz → Raíz → Brasa: anillo de espinas ardientes que no deja entrar ni salir. */
+  readonly thornRing: AreaSpell;
+  /** Raíz → Umbra → Tormenta: entras en un árbol y sales por otro. */
+  readonly treeStride: {
+    /** Qué tan cerca de un árbol tienes que estar. */
+    readonly entryRange: number;
+    readonly range: number;
+    readonly coneDot: number;
+  };
+  /** Umbra → Umbra → Brasa: marca rivales que arden según la vida que les falta. */
+  readonly soulPyre: {
+    readonly damage: number;
+    readonly missingFraction: number;
+    readonly range: number;
+    readonly targets: number;
+    readonly delayTicks: number;
+  };
+  /** Umbra → Brasa → Tormenta: dos portales unidos. */
+  readonly portal: {
+    readonly range: number;
+    readonly radius: number;
+    readonly durationTicks: number;
+  };
+  /** Umbra → Tormenta → Tormenta: atraviesas todo (la duración la da el estado `phased`). */
+  readonly phantom: Record<string, never>;
+  /** Umbra → Tormenta → Marea: tras el aviso, un vórtice silencia a todos adentro. */
+  readonly abyss: StrikeSpell & { readonly range: number; readonly silenceTicks: number };
+  /** Umbra → Umbra → Marea: el rival se duerme (la duración la da el estado `asleep`). */
+  readonly nightmare: { readonly range: number; readonly coneDot: number };
+}
+
+/** Un golpe con aviso: cae en un círculo tras unos pasos. */
+export interface StrikeSpell {
+  readonly damage: number;
+  readonly radius: number;
+  readonly delayTicks: number;
+}
+
+/** Algo que avanza solo por el campo y golpea al pasar. */
+export interface SweeperSpell {
+  readonly damage: number;
+  readonly speed: number;
+  readonly range: number;
+  readonly radius: number;
 }
 
 /** Un efecto en el suelo, a cierta distancia de quien lo lanza (0: a sus pies). */

@@ -1,12 +1,12 @@
 import { canAct, canWeave, moveMultiplier, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
-import { add, clampLength, length, normalize, scale } from '../math/vec2';
+import { add, clampLength, clampToCircle, length, normalize, scale } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { castSpell } from '../spells/cast';
 import { spellOf } from '../spells/catalog';
-import { blockByWalls } from '../spells/solidWalls';
+import { blockByRings, blockByWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
 import { updateBeasts } from './beasts';
@@ -136,9 +136,14 @@ function startChannel(
 }
 
 function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void {
+  const wasPhased = wizard.statuses.phased !== undefined;
   tickStatuses(state, wizard, rules);
   if (!isAlive(wizard)) {
     return;
+  }
+  // Al terminar el Fantasma, quien quedó dentro de un árbol sale por el costado.
+  if (wasPhased && !wizard.statuses.phased) {
+    wizard.pos = placeInArena(wizard.pos, rules.wizard.radius, rules);
   }
   for (const element of ELEMENT_IDS) {
     if (wizard.fatigue[element] > 0) {
@@ -170,8 +175,14 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   const speed = rules.wizard.moveSpeed * wizard.mods.moveSpeed * moveMultiplier(wizard, rules);
   const move = scale(wizard.moveInput, speed / TICK_RATE);
   if (length(move) > 0) {
-    const next = placeInArena(add(wizard.pos, move), rules.wizard.radius, rules);
-    wizard.pos = blockByWalls(state, wizard, next, rules.wizard.radius);
+    const radius = rules.wizard.radius;
+    if (wizard.statuses.phased) {
+      // Fantasma: atraviesa árboles, rocas, muros y zarzas; solo lo frena el borde de la arena.
+      wizard.pos = clampToCircle(add(wizard.pos, move), rules.arenaRadius - radius);
+    } else {
+      const next = placeInArena(add(wizard.pos, move), radius, rules);
+      wizard.pos = blockByRings(state, wizard, blockByWalls(state, wizard, next, radius), radius);
+    }
     if (!wizard.channel) {
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }

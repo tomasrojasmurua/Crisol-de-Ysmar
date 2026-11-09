@@ -1,4 +1,5 @@
 import { placeInArena } from '../../match/obstacles';
+import type { ProjectileTrait } from '../../match/state';
 import { add, scale } from '../../math/vec2';
 import type { ProjectileSpell } from '../spellRules';
 import { type CastContext, nextId, payloadFor, summon } from './context';
@@ -21,6 +22,7 @@ export function launch(
   ctx: CastContext,
   spell: ProjectileSpell,
   payload: ReturnType<typeof payloadFor>,
+  trait: ProjectileTrait | null = null,
 ): void {
   const { state, caster, aim } = ctx;
   state.spells.push({
@@ -35,6 +37,7 @@ export function launch(
     travelled: 0,
     maxRange: spell.range,
     payload,
+    trait,
   });
 }
 

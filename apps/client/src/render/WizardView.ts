@@ -250,7 +250,8 @@ export class WizardView {
       float += Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6;
     }
     this.body.position.y = float + Math.abs(Math.sin(this.stride)) * 0.06 * moving;
-    this.body.rotation.x = moving * 0.12;
+    // Dormido, se inclina hacia adelante.
+    this.body.rotation.x = wizard.statuses.asleep ? 0.45 : moving * 0.12;
     this.staff.rotation.z = Math.sin(this.stride) * 0.06 * moving;
     if (this.floatingFocus) this.staff.position.y = Math.sin(timeSeconds * 2.2) * 0.05;
 
@@ -297,12 +298,15 @@ export class WizardView {
     if (wizard.statuses.curse) {
       emissive.add(elementColor('umbra').clone().multiplyScalar(0.06));
     }
-    this.frost.visible = wizard.statuses.slow !== undefined && alive;
+    this.frost.visible =
+      (wizard.statuses.slow !== undefined || wizard.statuses.soaked !== undefined) && alive;
     this.rootRing.visible = wizard.statuses.root !== undefined && alive;
     this.rootRing.rotation.z = -timeSeconds;
     this.curseRing.visible = wizard.statuses.curse !== undefined && alive;
     this.curseRing.rotation.z = timeSeconds * 2;
-    this.iceBlock.visible = wizard.statuses.stasis !== undefined && alive;
+    // El Ataúd helado y la Era de hielo dejan al mago dentro de un bloque.
+    this.iceBlock.visible =
+      (wizard.statuses.stasis !== undefined || wizard.statuses.frozen !== undefined) && alive;
     this.iceBlock.rotation.y = timeSeconds * 0.3;
 
     this.affinityLook?.update(

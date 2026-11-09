@@ -17,7 +17,7 @@ export function applyHit(
     return;
   }
   const before = target.hp;
-  dealDamage(state, target, sourceId, payload.damage * damageScale, payload.form);
+  dealDamage(state, target, sourceId, payload.damage * damageScale, payload.form, payload.pierce);
   const dealt = before - target.hp;
   const caster = wizardById(state, sourceId);
   if (caster && caster.hp > 0 && caster.mods.lifesteal > 0) {
@@ -34,14 +34,17 @@ export function dealDamage(
   sourceId: number,
   damage: number,
   form: HitForm,
+  /** La Llama negra no se detiene en escudos. */
+  pierce = false,
 ): void {
   let amount = damage;
   if (amount <= 0 || target.hp <= 0 || target.statuses.stasis) {
     return;
   }
-  // Recibir daño rompe el Velo, aunque lo ataje la coraza.
+  // Recibir daño rompe el Velo, aunque lo ataje la coraza, y despierta de la Pesadilla.
   delete target.statuses.veiled;
-  if (target.shield > 0) {
+  delete target.statuses.asleep;
+  if (target.shield > 0 && !pierce) {
     const absorbed = Math.min(target.shield, amount);
     target.shield -= absorbed;
     amount -= absorbed;

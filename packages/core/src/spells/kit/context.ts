@@ -1,6 +1,7 @@
 import type {
   MatchState,
   SpellPayload,
+  StrikeEffect,
   Summon,
   SummonKind,
   Wizard,
@@ -90,4 +91,51 @@ export function summon(
   };
   state.spells.push(created);
   return created;
+}
+
+/** Marca un golpe con aviso: un círculo, o una línea si se da `line`. */
+export function placeStrike(
+  ctx: CastContext,
+  pos: Vec2,
+  spell: { readonly radius: number; readonly delayTicks: number },
+  effect: StrikeEffect,
+  payload: SpellPayload,
+  line: { readonly dir: Vec2; readonly length: number } | null = null,
+): void {
+  const { state, caster } = ctx;
+  state.spells.push({
+    kind: 'strike',
+    id: nextId(state),
+    ownerId: caster.id,
+    team: caster.team,
+    pos,
+    radius: spell.radius,
+    line,
+    delayTicks: spell.delayTicks,
+    ticksLeft: spell.delayTicks,
+    effect,
+    payload,
+  });
+}
+
+/** Deja el suelo ardiendo un rato: lo pisa el Paso de ascuas y quema a los rivales. */
+export function scorch(
+  state: MatchState,
+  ownerId: number,
+  team: number,
+  pos: Vec2,
+  radius: number,
+  ticks: number,
+): void {
+  state.spells.push({
+    kind: 'zone',
+    id: nextId(state),
+    ownerId,
+    team,
+    pos,
+    radius,
+    effect: 'burn',
+    durationTicks: ticks,
+    ticksLeft: ticks,
+  });
 }

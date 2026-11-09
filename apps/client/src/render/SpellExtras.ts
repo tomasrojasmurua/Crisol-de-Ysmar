@@ -1,15 +1,13 @@
-import type { Geyser, Wall, Zone } from '@crisol/core';
+import type { Wall, Zone } from '@crisol/core';
 import * as THREE from 'three';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
 const FIRE = elementColor('brasa');
-const WATER = elementColor('marea');
 const ROOT = elementColor('raiz');
 const SHADOW = elementColor('umbra');
 
 const discGeometry = new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2);
-const ringGeometry = new THREE.RingGeometry(0.88, 1, 48).rotateX(-Math.PI / 2);
 const rootGeometry = new THREE.ConeGeometry(0.28, 1, 6).translate(0, 0.5, 0);
 const tetherGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 6, 1, true)
   .translate(0, 0.5, 0)
@@ -53,45 +51,6 @@ export function updateZone(
       life: 0.5,
       size: 0.4,
       gravity: 1,
-    });
-  }
-}
-
-/** Géiser: un círculo que burbujea cada vez más fuerte hasta que brota. */
-export function createGeyser(geyser: Geyser): THREE.Object3D {
-  const group = new THREE.Group();
-  group.position.set(geyser.pos.x, 0.05, geyser.pos.z);
-  const ring = new THREE.Mesh(ringGeometry, additive(glow(WATER, 1.8), 0.8));
-  ring.scale.setScalar(geyser.radius);
-  const fill = new THREE.Mesh(discGeometry, additive(glow(WATER, 1.2), 0.15));
-  fill.scale.setScalar(geyser.radius);
-  group.add(ring, fill);
-  group.userData.fill = fill;
-  return group;
-}
-
-export function updateGeyser(
-  view: THREE.Object3D,
-  geyser: Geyser,
-  time: number,
-  particles: Particles,
-): void {
-  const progress = 1 - geyser.ticksLeft / geyser.delayTicks;
-  const fill = view.userData.fill as THREE.Mesh;
-  fill.scale.setScalar(geyser.radius * Math.max(0.05, progress));
-  (fill.material as THREE.MeshBasicMaterial).opacity = 0.15 + 0.3 * progress;
-  view.rotation.y = time * 2;
-  if (Math.random() < 0.4 + progress) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.random() * geyser.radius;
-    particles.emit({
-      x: geyser.pos.x + Math.cos(angle) * r,
-      y: 0.1,
-      z: geyser.pos.z + Math.sin(angle) * r,
-      vy: 0.8 + progress * 2,
-      color: glow(WATER, 1.6),
-      life: 0.4,
-      size: 0.35,
     });
   }
 }

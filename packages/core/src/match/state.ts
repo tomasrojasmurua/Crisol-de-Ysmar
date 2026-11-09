@@ -19,12 +19,14 @@ export interface Channel {
   readonly aim: Vec2;
 }
 
-/** Un desplazamiento en varios pasos: el Paso, el Cometa o el tirón de la Liana. */
+/** Un desplazamiento en varios pasos: el Paso, el Cometa, el tirón de la Liana o la Catapulta. */
 export interface Leap {
   ticksLeft: number;
   readonly step: Vec2;
   /** Rastro que deja en el suelo (el Cometa deja fuego). */
   readonly trail: 'fire' | null;
+  /** Lo que golpea al aterrizar (la Catapulta de raíz enraíza alrededor). */
+  readonly landing?: SpellPayload | null;
 }
 
 /** Un mago caído. En modo Espectro sigue moviéndose; en modo Vidas espera para reaparecer. */
@@ -78,7 +80,15 @@ export interface SpellPayload {
   readonly spell: SpellId;
   /** Radio de la explosión al impactar; 0 si no explota. */
   readonly blastRadius: number;
+  /** Si atraviesa escudos (la Llama negra). */
+  readonly pierce: boolean;
 }
+
+/**
+ * Lo que hace distinto a un proyectil: la Llama negra atraviesa muros, escudos e invocaciones;
+ * el Cometa negro lleva a quien lo lanzó junto al rival que toca.
+ */
+export type ProjectileTrait = 'pierce' | 'pull';
 
 export interface Projectile {
   readonly kind: 'projectile';
@@ -93,6 +103,7 @@ export interface Projectile {
   travelled: number;
   readonly maxRange: number;
   readonly payload: SpellPayload;
+  readonly trait: ProjectileTrait | null;
 }
 
 export interface Wall {
@@ -110,6 +121,8 @@ export interface Wall {
    * si no (el Muro de hielo), solo los de los rivales.
    */
   readonly solid: boolean;
+  /** El Manglar frena proyectiles pero deja pasar a los magos. */
+  readonly passable: boolean;
   readonly durationTicks: number;
   ticksLeft: number;
   readonly payload: SpellPayload;
@@ -147,16 +160,56 @@ export interface Current {
   ticksLeft: number;
 }
 
-/** Un géiser marcado en el suelo: tras el aviso, brota y levanta a quien esté encima. */
-export interface Geyser {
-  readonly kind: 'geyser';
+/**
+ * Lo que pasa al caer un golpe con aviso: el Géiser y el Huracán levantan por los aires,
+ * la Era de hielo congela, el Abismo silencia y el Meteoro deja el suelo ardiendo.
+ */
+export type StrikeEffect = 'lift' | 'freeze' | 'silence' | 'scorch' | null;
+
+/**
+ * Un golpe marcado en el suelo: tras el aviso, cae sobre quien siga dentro. Es un círculo
+ * (Géiser, Meteoro, Era de hielo, Hervidero, Abismo) o una línea (Lanza del cielo).
+ */
+export interface Strike {
+  readonly kind: 'strike';
   readonly id: EntityId;
   readonly ownerId: EntityId;
   readonly team: number;
+  /** Centro del círculo, o el punto donde empieza la línea. */
   readonly pos: Vec2;
+  /** Radio del círculo, o medio ancho de la línea. */
   readonly radius: number;
+  readonly line: { readonly dir: Vec2; readonly length: number } | null;
   readonly delayTicks: number;
   ticksLeft: number;
+  readonly effect: StrikeEffect;
+  readonly payload: SpellPayload;
+}
+
+/**
+ * Algo que avanza solo por el campo y golpea al pasar: el Huracán levanta por los aires,
+ * el Orbe errático da rayos alrededor y el Maremoto empapa todo lo que cruza.
+ */
+export type SweeperMode = 'tornado' | 'orb' | 'wave';
+
+export interface Sweeper {
+  readonly kind: 'sweeper';
+  readonly mode: SweeperMode;
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  pos: Vec2;
+  readonly velocity: Vec2;
+  /** Radio de lo que toca; con `halfWidth`, el grosor de la ola. */
+  readonly radius: number;
+  /** Medio largo de un frente ancho, de costado a su avance (0: un círculo). */
+  readonly halfWidth: number;
+  travelled: number;
+  readonly maxRange: number;
+  /** Pasos hasta el próximo rayo del Orbe. */
+  cooldown: number;
+  /** A quién ya golpeó: cada uno recibe el golpe una sola vez. */
+  readonly struck: EntityId[];
   readonly payload: SpellPayload;
 }
 
@@ -222,6 +275,94 @@ export interface Shackle {
   readonly payload: SpellPayload;
 }
 
+/** Pira de almas: a los 2 s, el marcado arde según la vida que le falta. */
+export interface Pyre {
+  readonly kind: 'pyre';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** Ahogo: agua que sube por el rival mientras no salga del alcance. */
+export interface Drown {
+  readonly kind: 'drown';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** Lluvia de fuego: cae fuego sobre cada rival que se mueva cerca de quien la lanzó. */
+export interface FireRain {
+  readonly kind: 'fireRain';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  ticksLeft: number;
+  /** Pasos hasta la próxima andanada. */
+  cooldown: number;
+  readonly payload: SpellPayload;
+}
+
+/** Tempestad: los destellos que quedan y cuándo sale el próximo. */
+export interface Tempest {
+  readonly kind: 'tempest';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  jumpsLeft: number;
+  ticksToNext: number;
+  readonly payload: SpellPayload;
+}
+
+/** Portal: dos bocas unidas; quien entra por una sale por la otra. */
+export interface Portal {
+  readonly kind: 'portal';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly a: Vec2;
+  readonly b: Vec2;
+  readonly radius: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  /** Quienes están parados en una boca: no vuelven a cruzar hasta salir de ella. */
+  inside: EntityId[];
+}
+
+/** Anillo de zarzas: nadie entra ni sale caminando, y las espinas queman a los rivales. */
+export interface ThornRing {
+  readonly kind: 'thornRing';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** Una trampa de la Siembra: se arma, y el primer rival que la pisa queda enraizado. */
+export interface Trap {
+  readonly kind: 'trap';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly pos: Vec2;
+  readonly radius: number;
+  /** Pasos hasta que se arma. */
+  armTicks: number;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
 /**
  * Lo que se invoca: el Fuego fatuo persigue y explota, el Pararrayos dispara desde su lugar,
  * el Guardián de musgo te sigue y pega, y el Señuelo corre fingiendo ser tú.
@@ -252,12 +393,20 @@ export type SpellEntity =
   | Wall
   | Zone
   | Current
-  | Geyser
+  | Strike
+  | Sweeper
   | ThornRush
   | Tether
   | Obsidian
   | Ignite
   | Shackle
+  | Pyre
+  | Drown
+  | FireRain
+  | Tempest
+  | Portal
+  | ThornRing
+  | Trap
   | Summon;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
@@ -303,6 +452,14 @@ export type GameEvent =
       readonly spell: SpellId;
       readonly pos: Vec2;
       readonly radius: number;
+    }
+  /** Un golpe en línea que cae de una vez: la Lanza del cielo. */
+  | {
+      readonly type: 'line';
+      readonly spell: SpellId;
+      readonly from: Vec2;
+      readonly to: Vec2;
+      readonly halfWidth: number;
     }
   /** El recorrido de un rayo en cadena, desde quien lo lanza. */
   | { readonly type: 'chain'; readonly points: readonly Vec2[] }

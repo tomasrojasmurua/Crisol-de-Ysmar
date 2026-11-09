@@ -15,7 +15,15 @@ export function spellPayload(
   blastRadius = 0,
 ): SpellPayload {
   const first = weave[0] ?? 'brasa';
-  return { form: SPELL_FORM_BY_ELEMENT[first], weave, damage, statuses, spell, blastRadius };
+  return {
+    form: SPELL_FORM_BY_ELEMENT[first],
+    weave,
+    damage,
+    statuses,
+    spell,
+    blastRadius,
+    pierce: false,
+  };
 }
 
 /**

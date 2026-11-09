@@ -1,4 +1,11 @@
-import { ELEMENT_IDS, type ElementId, type SpellId, spellOf, type Weave } from '@crisol/core';
+import {
+  ELEMENT_IDS,
+  type ElementId,
+  SPELL_WEAVES,
+  type SpellId,
+  spellOf,
+  type Weave,
+} from '@crisol/core';
 
 /** Los nombres de los hechizos propios. */
 export const SPELL_NAMES: Readonly<Record<SpellId, string>> = {
@@ -32,6 +39,31 @@ export const SPELL_NAMES: Readonly<Record<SpellId, string>> = {
   decoy: 'Señuelo',
   blinding: 'Ceguera',
   shackle: 'Grillete',
+  meteor: 'Meteoro',
+  fireRain: 'Lluvia de fuego',
+  blackFlame: 'Llama negra',
+  emberStride: 'Paso de ascuas',
+  darkComet: 'Cometa negro',
+  skySpear: 'Lanza del cielo',
+  tempest: 'Tempestad',
+  hurricane: 'Huracán',
+  swap: 'Intercambio',
+  erraticOrb: 'Orbe errático',
+  iceAge: 'Era de hielo',
+  cauldron: 'Hervidero',
+  steamJet: 'Chorro de vapor',
+  drown: 'Ahogo',
+  mangrove: 'Manglar',
+  tidalWave: 'Maremoto',
+  rootCatapult: 'Catapulta de raíz',
+  sowing: 'Siembra',
+  thornRing: 'Anillo de zarzas',
+  treeStride: 'Paso entre árboles',
+  soulPyre: 'Pira de almas',
+  portal: 'Portal',
+  phantom: 'Fantasma',
+  abyss: 'Abismo',
+  nightmare: 'Pesadilla',
 };
 
 /** Lo que agrega cada elemento cuando no va primero. */
@@ -45,7 +77,7 @@ const TOUCH: Record<ElementId, string> = {
 
 /**
  * El nombre de un conjuro en el Grimorio. Cada uno de los 155 tejidos tiene un nombre propio.
- * Los de 1 y 2 elementos usan el de su hechizo; un tejido de 3 cuyo Gran hechizo aún no existe
+ * Cada tejido usa el nombre de su hechizo; un tejido de 3 cuyo Gran hechizo aún no existe
  * es el eco del hechizo de sus dos primeros elementos, teñido por el tercero.
  */
 export function spellName(weave: Weave): string {
@@ -53,7 +85,8 @@ export function spellName(weave: Weave): string {
   if (!own) return '';
   const name = SPELL_NAMES[own];
   const third = weave[2];
-  return third ? `${name} · eco de ${TOUCH[third]}` : name;
+  const isEcho = third !== undefined && SPELL_WEAVES[own].length < weave.length;
+  return isEcho ? `${name} · eco de ${TOUCH[third]}` : name;
 }
 
 /** Clave estable de un tejido, para guardarlo en el Grimorio. */

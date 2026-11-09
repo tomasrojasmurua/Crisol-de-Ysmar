@@ -53,6 +53,7 @@ export function castRootWall(ctx: CastContext): void {
     halfLength: spell.halfLength,
     thickness: spell.thickness,
     solid: true,
+    passable: false,
     durationTicks: spell.durationTicks,
     ticksLeft: spell.durationTicks,
     payload: payloadFor(ctx, 0),

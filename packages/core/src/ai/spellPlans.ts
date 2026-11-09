@@ -33,7 +33,8 @@ export function spellOptions(s: Situation): Option[] {
   const { state, self, target, available, threatened } = s;
   const d = distance(self.pos, target.pos);
   const health = self.hp / self.maxHp;
-  const helpless = Boolean(target.statuses.airborne || target.statuses.root);
+  const t = target.statuses;
+  const helpless = Boolean(t.airborne || t.root || t.frozen || t.asleep);
   const owns = (kind: SummonKind): boolean =>
     state.spells.some((e) => e.kind === 'summon' && e.summon === kind && e.ownerId === self.id);
   const options: Option[] = [];
@@ -97,5 +98,67 @@ export function spellOptions(s: Situation): Option[] {
     add(['umbra', 'marea'], 'lead', d < 12 && !target.statuses.blind ? 1 : 0);
     add(['marea', 'tormenta'], 'target', health > 0.6 ? 1 : 0);
   }
+  greatOptions(s, add, d, health, helpless, bigCast);
   return options;
+}
+
+/**
+ * Los Grandes hechizos: tardan más y cansan tres elementos, así que el bot los guarda
+ * para cuando cuadran (rematar a quien no se mueve, cortar un conjuro, escapar de cerca).
+ */
+function greatOptions(
+  s: Situation,
+  add: (elements: ElementId[], aimMode: AimMode, weight: number) => void,
+  d: number,
+  health: number,
+  helpless: boolean,
+  bigCast: boolean,
+): void {
+  const { state, self, target, threatened } = s;
+  const targetHealth = target.hp / target.maxHp;
+  const near = d < 4;
+  const mid = d >= 4 && d <= 10;
+  const ownsEmbers = state.spells.some(
+    (e) =>
+      e.kind === 'zone' &&
+      e.effect === 'burn' &&
+      e.ownerId === self.id &&
+      distance(e.pos, self.pos) <= 15 &&
+      distance(e.pos, target.pos) > 6,
+  );
+
+  // Rematar a quien no se puede mover.
+  add(['brasa', 'brasa', 'brasa'], 'target', helpless && d < 13 ? 5 : mid ? 0.5 : 0);
+  add(['tormenta', 'tormenta', 'brasa'], 'target', helpless && d < 13 ? 5 : mid ? 0.8 : 0);
+  add(['marea', 'brasa', 'brasa'], 'target', helpless && d < 8 ? 4 : 0);
+  add(['umbra', 'umbra', 'brasa'], 'target', d < 12 ? (targetHealth < 0.5 ? 3 : 0.5) : 0);
+
+  // Control.
+  add(['marea', 'marea', 'marea'], 'target', d < 5 ? 2.5 : 0);
+  add(['umbra', 'umbra', 'marea'], 'target', d < 8 ? (health < 0.4 ? 2.5 : 1) : 0);
+  add(['umbra', 'tormenta', 'marea'], 'target', d < 10 ? (bigCast ? 3 : 0.6) : 0);
+  add(['marea', 'umbra', 'brasa'], 'target', d < 6 ? (bigCast ? 2 : 0.8) : 0);
+  add(['tormenta', 'tormenta', 'marea'], 'target', d >= 3 && d < 10 ? 1 : 0);
+  add(['marea', 'marea', 'tormenta'], 'target', d >= 4 && d < 14 ? 0.8 : 0);
+  add(['raiz', 'raiz', 'brasa'], 'target', mid ? 0.8 : 0);
+  add(['raiz', 'tormenta', 'marea'], 'target', mid ? 0.6 : 0);
+
+  // Daño a distancia.
+  add(['brasa', 'umbra', 'marea'], 'lead', d >= 4 && d < 14 ? (self.shield > 0 ? 1 : 0.8) : 0);
+  add(['brasa', 'umbra', 'marea'], 'lead', target.shield > 0 && d < 14 ? 3 : 0);
+  add(['brasa', 'brasa', 'tormenta'], 'target', d < 9 ? 0.8 : 0);
+  add(['tormenta', 'brasa', 'marea'], 'target', d >= 3 && d < 9 ? 0.8 : 0);
+
+  // Entrar a la pelea.
+  add(['brasa', 'tormenta', 'umbra'], 'lead', d >= 6 && d < 12 ? (bigCast ? 2 : 0.6) : 0);
+  add(['raiz', 'tormenta', 'brasa'], 'target', d >= 10 && d < 13 && health > 0.5 ? 1 : 0);
+  add(['tormenta', 'umbra', 'tormenta'], 'target', d >= 6 && d < 12 ? 0.3 : 0);
+
+  // Escapar o protegerse.
+  add(['marea', 'brasa', 'tormenta'], 'target', near ? 2.5 : 0);
+  add(['tormenta', 'tormenta', 'tormenta'], 'away', near && health < 0.6 ? 1.5 : 0);
+  add(['brasa', 'umbra', 'tormenta'], 'away', near && ownsEmbers ? 2.5 : 0);
+  add(['umbra', 'brasa', 'tormenta'], 'away', near && health < 0.35 ? 1.2 : 0);
+  add(['umbra', 'tormenta', 'tormenta'], 'away', near && health < 0.4 ? 1 : 0);
+  add(['marea', 'raiz', 'brasa'], 'target', threatened ? 2 : 0);
 }
