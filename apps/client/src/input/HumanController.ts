@@ -1,6 +1,7 @@
 import {
   type Controller,
   currentTarget,
+  type GameRules,
   type Intent,
   type MatchState,
   type Vec2,
@@ -13,6 +14,7 @@ export class HumanController implements Controller {
   constructor(
     private readonly input: PlayerInput,
     private readonly toGround: (screen: ScreenVector) => Vec2,
+    private readonly rules: GameRules,
   ) {}
 
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
@@ -23,7 +25,7 @@ export class HumanController implements Controller {
     // Si el objetivo fijado cae, se pasa solo al enemigo más cercano.
     // Una bestia fijada a mano se mantiene mientras viva.
     const huntingBeast = state.beasts.some((b) => b.id === self.lockTarget && b.hp > 0);
-    const target = currentTarget(state as MatchState, self as Wizard);
+    const target = currentTarget(state as MatchState, self as Wizard, this.rules);
     if (target && !huntingBeast && self.lockTarget !== target.id) {
       intents.push({ kind: 'lockTarget', targetId: target.id });
     }

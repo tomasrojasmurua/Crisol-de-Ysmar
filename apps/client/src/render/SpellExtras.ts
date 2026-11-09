@@ -1,0 +1,169 @@
+import type { Geyser, Wall, Zone } from '@crisol/core';
+import * as THREE from 'three';
+import type { Particles } from './Particles';
+import { elementColor, glow } from './palette';
+
+const FIRE = elementColor('brasa');
+const WATER = elementColor('marea');
+const ROOT = elementColor('raiz');
+const SHADOW = elementColor('umbra');
+
+const discGeometry = new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2);
+const ringGeometry = new THREE.RingGeometry(0.88, 1, 48).rotateX(-Math.PI / 2);
+const rootGeometry = new THREE.ConeGeometry(0.28, 1, 6).translate(0, 0.5, 0);
+const tetherGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 6, 1, true)
+  .translate(0, 0.5, 0)
+  .rotateX(Math.PI / 2);
+
+function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+}
+
+/** Rastro del Cometa: un charco de brasas que late y suelta chispas. */
+export function createZone(zone: Zone): THREE.Object3D {
+  const disc = new THREE.Mesh(discGeometry, additive(glow(FIRE, 1.4), 0.45));
+  disc.scale.setScalar(zone.radius);
+  disc.position.set(zone.pos.x, 0.05, zone.pos.z);
+  return disc;
+}
+
+export function updateZone(
+  view: THREE.Object3D,
+  zone: Zone,
+  time: number,
+  particles: Particles,
+): void {
+  const material = (view as THREE.Mesh).material as THREE.MeshBasicMaterial;
+  const fade = Math.min(1, zone.ticksLeft / 20);
+  material.opacity = (0.35 + 0.15 * Math.sin(time * 9 + zone.id)) * fade;
+  if (Math.random() < 0.25) {
+    particles.emit({
+      x: zone.pos.x + (Math.random() - 0.5) * zone.radius * 1.4,
+      y: 0.1,
+      z: zone.pos.z + (Math.random() - 0.5) * zone.radius * 1.4,
+      vy: 1.6,
+      color: glow(FIRE, 1.6),
+      life: 0.5,
+      size: 0.4,
+      gravity: 1,
+    });
+  }
+}
+
+/** Géiser: un círculo que burbujea cada vez más fuerte hasta que brota. */
+export function createGeyser(geyser: Geyser): THREE.Object3D {
+  const group = new THREE.Group();
+  group.position.set(geyser.pos.x, 0.05, geyser.pos.z);
+  const ring = new THREE.Mesh(ringGeometry, additive(glow(WATER, 1.8), 0.8));
+  ring.scale.setScalar(geyser.radius);
+  const fill = new THREE.Mesh(discGeometry, additive(glow(WATER, 1.2), 0.15));
+  fill.scale.setScalar(geyser.radius);
+  group.add(ring, fill);
+  group.userData.fill = fill;
+  return group;
+}
+
+export function updateGeyser(
+  view: THREE.Object3D,
+  geyser: Geyser,
+  time: number,
+  particles: Particles,
+): void {
+  const progress = 1 - geyser.ticksLeft / geyser.delayTicks;
+  const fill = view.userData.fill as THREE.Mesh;
+  fill.scale.setScalar(geyser.radius * Math.max(0.05, progress));
+  (fill.material as THREE.MeshBasicMaterial).opacity = 0.15 + 0.3 * progress;
+  view.rotation.y = time * 2;
+  if (Math.random() < 0.4 + progress) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * geyser.radius;
+    particles.emit({
+      x: geyser.pos.x + Math.cos(angle) * r,
+      y: 0.1,
+      z: geyser.pos.z + Math.sin(angle) * r,
+      vy: 0.8 + progress * 2,
+      color: glow(WATER, 1.6),
+      life: 0.4,
+      size: 0.35,
+    });
+  }
+}
+
+/** Muralla de raíces: raíces gruesas que suben del suelo a lo largo del muro. */
+export function createRootWall(wall: Wall): THREE.Object3D {
+  const group = new THREE.Group();
+  group.position.set(wall.center.x, 0, wall.center.z);
+  group.rotation.y = -Math.atan2(wall.along.z, wall.along.x);
+  const material = new THREE.MeshStandardMaterial({
+    color: '#3b2a1c',
+    emissive: ROOT,
+    emissiveIntensity: 0.25,
+    roughness: 0.9,
+    flatShading: true,
+  });
+  const count = Math.round(wall.halfLength * 3);
+  for (let i = 0; i <= count; i++) {
+    const t = i / count;
+    const root = new THREE.Mesh(rootGeometry, material);
+    const x = (t * 2 - 1) * wall.halfLength;
+    const height = 1.6 + Math.sin(i * 2.3) * 0.5 + Math.cos(i * 1.7) * 0.3;
+    root.position.set(x, 0, Math.sin(i * 3.1) * 0.15);
+    root.rotation.set(Math.sin(i) * 0.25, 0, Math.cos(i * 1.3) * 0.2);
+    root.userData.height = height;
+    root.scale.set(1, 0.01, 1);
+    root.castShadow = true;
+    group.add(root);
+  }
+  return group;
+}
+
+export function updateRootWall(view: THREE.Object3D, wall: Wall): void {
+  const rise = Math.min(1, (wall.durationTicks - wall.ticksLeft) / 6);
+  const sink = Math.min(1, wall.ticksLeft / 10);
+  const grow = Math.min(rise, sink);
+  for (const root of view.children) {
+    root.scale.y = Math.max(0.01, (root.userData.height as number) * grow);
+  }
+}
+
+/** Drenaje: un hilo violeta que late desde la víctima hacia quien lo lanzó. */
+export function createTether(): THREE.Object3D {
+  return new THREE.Mesh(tetherGeometry, additive(glow(SHADOW, 2.4), 0.9));
+}
+
+export function updateTether(
+  view: THREE.Object3D,
+  from: { x: number; z: number } | undefined,
+  to: { x: number; z: number } | undefined,
+  time: number,
+  particles: Particles,
+): void {
+  view.visible = from !== undefined && to !== undefined;
+  if (!from || !to) return;
+  const start = new THREE.Vector3(to.x, 1.2, to.z);
+  const end = new THREE.Vector3(from.x, 1.3, from.z);
+  view.position.copy(start);
+  view.lookAt(end);
+  const width = 1 + 0.6 * Math.sin(time * 14);
+  view.scale.set(width, width, start.distanceTo(end));
+  if (Math.random() < 0.5) {
+    const t = (time * 1.5 + Math.random() * 0.2) % 1;
+    particles.emit({
+      x: start.x + (end.x - start.x) * t,
+      y: 1.25,
+      z: start.z + (end.z - start.z) * t,
+      vx: (end.x - start.x) * 1.2,
+      vz: (end.z - start.z) * 1.2,
+      color: glow(SHADOW, 2),
+      life: 0.3,
+      size: 0.3,
+    });
+  }
+}

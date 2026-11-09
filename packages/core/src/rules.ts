@@ -1,9 +1,36 @@
 import type { ElementId } from './elements';
 import type { Vec2 } from './math/vec2';
+import type { SpellRules } from './spells/spellRules';
 import type { SpellForm } from './weaving/weave';
 
-/** `empowered` lo da un santuario: más daño por un rato. */
-export type StatusId = 'burn' | 'slow' | 'root' | 'curse' | 'empowered';
+/**
+ * `empowered` lo da un santuario: más daño por un rato.
+ * `airborne` (por los aires), `stasis` (Ataúd helado), `veiled` (Velo) y `regen` (Savia)
+ * vienen de los hechizos propios.
+ */
+export type StatusId =
+  | 'burn'
+  | 'slow'
+  | 'root'
+  | 'curse'
+  | 'empowered'
+  | 'airborne'
+  | 'stasis'
+  | 'veiled'
+  | 'regen';
+
+/** Todos los estados, en un orden fijo. */
+export const STATUS_IDS: readonly StatusId[] = [
+  'burn',
+  'slow',
+  'root',
+  'curse',
+  'empowered',
+  'airborne',
+  'stasis',
+  'veiled',
+  'regen',
+];
 
 /**
  * Todos los números que definen el balance. El núcleo solo declara su forma;
@@ -77,6 +104,8 @@ export interface GameRules {
   };
   /** Lo que aporta cada elemento cuando no es el primero del tejido. */
   readonly modifiers: Readonly<Record<ElementId, ModifierRules>>;
+  /** Los hechizos propios, cada uno con sus números. */
+  readonly spells: SpellRules;
   readonly statuses: {
     readonly burn: { readonly ticks: number; readonly damagePerSecond: number };
     readonly slow: { readonly ticks: number; readonly moveMultiplier: number };
@@ -87,6 +116,18 @@ export interface GameRules {
       readonly lifesteal: number;
     };
     readonly empowered: { readonly ticks: number; readonly damageMultiplier: number };
+    /** Por los aires: no se mueve ni teje. */
+    readonly airborne: { readonly ticks: number };
+    /** Congelado en hielo: no recibe daño ni estados, pero tampoco actúa. */
+    readonly stasis: { readonly ticks: number };
+    /** Invisible salvo de cerca; el primer hechizo que sale del velo pega más. */
+    readonly veiled: {
+      readonly ticks: number;
+      readonly revealRadius: number;
+      readonly damageMultiplier: number;
+    };
+    /** Se cura en el tiempo. */
+    readonly regen: { readonly ticks: number; readonly healPerSecond: number };
   };
   readonly interactions: {
     /** Tormenta se conduce por el agua: más daño contra quien está ralentizado. */

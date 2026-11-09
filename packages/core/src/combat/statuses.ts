@@ -1,10 +1,8 @@
 import { wizardById } from '../match/queries';
 import type { MatchState, Wizard } from '../match/state';
-import type { GameRules, StatusId } from '../rules';
+import { type GameRules, STATUS_IDS } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { dealDamage } from './hit';
-
-const STATUS_IDS: readonly StatusId[] = ['burn', 'slow', 'root', 'curse', 'empowered'];
 
 /** Avanza un paso los estados de un mago: quemadura y maldición hacen daño en el tiempo. */
 export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules): void {
@@ -27,6 +25,9 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
       caster.hp = Math.min(caster.maxHp, caster.hp + amount * rules.statuses.curse.lifesteal);
     }
   }
+  if (wizard.statuses.regen && wizard.hp > 0) {
+    wizard.hp = Math.min(wizard.maxHp, wizard.hp + rules.statuses.regen.healPerSecond / TICK_RATE);
+  }
   for (const id of STATUS_IDS) {
     const status = wizard.statuses[id];
     if (status && --status.ticks <= 0) {
@@ -35,8 +36,13 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
   }
 }
 
+/** Por los aires o congelado, un mago no se mueve ni teje. */
+export function canAct(wizard: Wizard): boolean {
+  return !wizard.statuses.airborne && !wizard.statuses.stasis;
+}
+
 export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
-  if (wizard.statuses.root) {
+  if (wizard.statuses.root || !canAct(wizard)) {
     return 0;
   }
   let multiplier = wizard.statuses.slow ? rules.statuses.slow.moveMultiplier : 1;

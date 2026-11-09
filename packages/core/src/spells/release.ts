@@ -1,7 +1,7 @@
 import { applyHit } from '../combat/hit';
 import { damageBeast } from '../match/beasts';
 import { lineBlocked } from '../match/obstacles';
-import { currentTarget, enemiesOf } from '../match/queries';
+import { currentTarget, enemiesOf, isHiddenFrom } from '../match/queries';
 import type { MatchState, SpellPayload, Wizard } from '../match/state';
 import {
   add,
@@ -17,6 +17,9 @@ import {
 } from '../math/vec2';
 import type { GameRules } from '../rules';
 
+/** Grosor del muro de agua de la gramática antigua. */
+const LEGACY_WALL_THICKNESS = 0.25;
+
 /** Hace salir un conjuro ya canalizado, según su forma. */
 export function releaseSpell(
   state: MatchState,
@@ -25,7 +28,7 @@ export function releaseSpell(
   aim: Vec2,
   rules: GameRules,
 ): void {
-  state.events.push({ type: 'release', wizardId: caster.id, form: payload.form });
+  state.events.push({ type: 'release', wizardId: caster.id, form: payload.form, spell: null });
   switch (payload.form) {
     case 'projectile':
       releaseProjectile(state, caster, payload, aim, rules);
@@ -60,6 +63,7 @@ function releaseProjectile(
     team: caster.team,
     pos: add(caster.pos, scale(aim, rules.wizard.radius + form.radius)),
     velocity: scale(aim, form.speed * payload.speedMultiplier),
+    radius: form.radius,
     travelled: 0,
     maxRange: form.range * payload.rangeMultiplier,
     payload,
@@ -82,6 +86,10 @@ function releaseWall(
     team: caster.team,
     center,
     along: perpendicular(aim),
+    halfLength: form.halfLength,
+    thickness: LEGACY_WALL_THICKNESS,
+    solid: false,
+    durationTicks: form.durationTicks,
     ticksLeft: form.durationTicks,
     payload,
   });
@@ -108,7 +116,7 @@ function releaseTrap(
   const form = rules.forms.trap;
   const range = form.range * payload.rangeMultiplier;
   // La trampa cae a los pies del objetivo si está a tiro; si no, al máximo alcance.
-  const target = currentTarget(state, caster);
+  const target = currentTarget(state, caster, rules);
   const toTarget = target ? sub(target.pos, caster.pos) : null;
   const aimedAtTarget =
     toTarget !== null && length(toTarget) <= range && dot(normalize(toTarget), aim) > 0.9;
@@ -132,6 +140,7 @@ function releaseLeap(caster: Wizard, payload: SpellPayload, aim: Vec2, rules: Ga
     ticksLeft: form.durationTicks,
     step: scale(aim, distanceTotal / form.durationTicks),
     payload,
+    trail: null,
   };
 }
 
@@ -150,7 +159,7 @@ function releaseMark(
   const seen = (pos: Vec2): boolean => !lineBlocked(caster.pos, pos, rules.map.obstacles);
   for (const enemy of enemiesOf(state, caster)) {
     const toEnemy = sub(enemy.pos, caster.pos);
-    if (length(toEnemy) > range || !seen(enemy.pos)) continue;
+    if (length(toEnemy) > range || !seen(enemy.pos) || isHiddenFrom(enemy, caster, rules)) continue;
     const alignment = dot(normalize(toEnemy), aim);
     if (alignment >= bestAlignment) {
       best = enemy;

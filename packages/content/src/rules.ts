@@ -1,5 +1,6 @@
 import type { GameRules } from '@crisol/core';
 import { MAP, MAP_RADIUS } from './map';
+import { SPELL_RULES } from './spells';
 
 /**
  * Todos los números del combate. Valores iniciales del Hito 1: el simulador de balance
@@ -52,6 +53,7 @@ export const GAME_RULES: GameRules = {
     raiz: { damageMultiplier: 1, status: 'root', speedMultiplier: 1, rangeMultiplier: 1 },
     umbra: { damageMultiplier: 1, status: 'curse', speedMultiplier: 1, rangeMultiplier: 1 },
   },
+  spells: SPELL_RULES,
   statuses: {
     burn: { ticks: 90, damagePerSecond: 4 },
     slow: { ticks: 75, moveMultiplier: 0.55 },
@@ -59,6 +61,14 @@ export const GAME_RULES: GameRules = {
     curse: { ticks: 90, damagePerSecond: 3, lifesteal: 0.5 },
     // La bendición de un santuario: 12 segundos con 25% más de daño.
     empowered: { ticks: 360, damageMultiplier: 1.25 },
+    // Géiser: 1 segundo por los aires.
+    airborne: { ticks: 30 },
+    // Ataúd helado: 1,5 segundos dentro del hielo.
+    stasis: { ticks: 45 },
+    // Velo: 4 segundos invisible; te ven a 2 m y el primer ataque hace 30% más.
+    veiled: { ticks: 120, revealRadius: 2, damageMultiplier: 1.3 },
+    // Savia: 15 de vida en 3 segundos.
+    regen: { ticks: 90, healPerSecond: 5 },
   },
   interactions: {
     stormVsSlowedMultiplier: 1.5,

@@ -19,7 +19,7 @@ export {
   teamCount,
 } from './match/modes';
 export { lineBlocked, obstacleAt, placeInArena, pushOutOfObstacles } from './match/obstacles';
-export { currentTarget, isAlive, nearestEnemy, wizardById } from './match/queries';
+export { currentTarget, isAlive, isHiddenFrom, nearestEnemy, wizardById } from './match/queries';
 export {
   decideRoundWinner,
   isSpectre,
@@ -34,6 +34,7 @@ export type {
   EntityId,
   Fallen,
   GameEvent,
+  Geyser,
   MatchState,
   Projectile,
   RoundPhase,
@@ -41,9 +42,12 @@ export type {
   SpellEntity,
   SpellPayload,
   StatusInstance,
+  Tether,
+  ThornRush,
   Trap,
   Wall,
   Wizard,
+  Zone,
 } from './match/state';
 export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
 export type { Vec2 } from './math/vec2';
@@ -64,9 +68,12 @@ export type {
   ShrineRules,
   StatusId,
 } from './rules';
+export { STATUS_IDS } from './rules';
 export { FixedStepClock, TICK_MS, TICK_RATE } from './sim/fixedStep';
 export { SeededRng } from './sim/rng';
+export { SPELL_IDS, SPELL_WEAVES, type SpellId, spellOf } from './spells/catalog';
 export { buildPayload, empowerPayload } from './spells/payload';
+export type { SpellRules } from './spells/spellRules';
 export {
   addToWeave,
   baseSpellCount,

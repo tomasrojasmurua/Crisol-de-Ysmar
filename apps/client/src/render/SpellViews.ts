@@ -3,6 +3,18 @@ import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
+import {
+  createGeyser,
+  createRootWall,
+  createTether,
+  createZone,
+  updateGeyser,
+  updateRootWall,
+  updateTether,
+  updateZone,
+} from './SpellExtras';
+
+type Position = { x: number; z: number };
 
 const WALL_HEIGHT = 2.4;
 
@@ -15,27 +27,34 @@ export class SpellViews {
   private readonly coreGeometry = new THREE.IcosahedronGeometry(1, 2);
   private readonly sparkGeometry = new THREE.SphereGeometry(0.08, 8, 6);
   private readonly glowTexture = createGlowTexture();
-  private readonly wallGeometry: THREE.PlaneGeometry;
+  private readonly wallGeometries = new Map<number, THREE.PlaneGeometry>();
   private readonly spikeGeometry = new THREE.ConeGeometry(0.09, 0.6, 5);
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly rules: GameRules,
     private readonly particles: Particles,
-  ) {
-    this.wallGeometry = new THREE.PlaneGeometry(
-      rules.forms.wall.halfLength * 2,
-      WALL_HEIGHT,
-      24,
-      8,
-    );
+  ) {}
+
+  private wallGeometry(halfLength: number): THREE.PlaneGeometry {
+    const key = Math.round(halfLength * 10);
+    let geometry = this.wallGeometries.get(key);
+    if (!geometry) {
+      geometry = new THREE.PlaneGeometry(halfLength * 2, WALL_HEIGHT, 24, 8);
+      this.wallGeometries.set(key, geometry);
+    }
+    return geometry;
   }
 
-  /** `positionOf` entrega la posición interpolada de los proyectiles. */
+  /**
+   * `positionOf` entrega la posición interpolada de los proyectiles;
+   * `wizardPos`, la de un mago (para el hilo del Drenaje).
+   */
   sync(
     spells: readonly SpellEntity[],
-    positionOf: (spell: SpellEntity) => { x: number; z: number },
+    positionOf: (spell: SpellEntity) => Position,
     timeSeconds: number,
+    wizardPos: (id: number) => Position | undefined = () => undefined,
   ): void {
     const alive = new Set<number>();
     for (const spell of spells) {
@@ -46,7 +65,7 @@ export class SpellViews {
         this.views.set(spell.id, view);
         this.scene.add(view);
       }
-      this.update(view, spell, positionOf(spell), timeSeconds);
+      this.update(view, spell, positionOf(spell), timeSeconds, wizardPos);
     }
     for (const [id, view] of this.views) {
       if (!alive.has(id)) {
@@ -57,20 +76,37 @@ export class SpellViews {
   }
 
   private create(spell: SpellEntity): THREE.Object3D {
-    const color = formColor(spell.payload.form);
     switch (spell.kind) {
       case 'projectile':
-        return this.createProjectile(spell, color);
+        return this.createProjectile(spell, formColor(spell.payload.form));
       case 'wall':
-        return this.createWall(spell, color);
+        return spell.solid
+          ? createRootWall(spell)
+          : this.createWall(spell, formColor(spell.payload.form));
       case 'trap':
-        return this.createTrap(spell, color);
+        return this.createTrap(spell, formColor(spell.payload.form));
+      case 'zone':
+        return createZone(spell);
+      case 'geyser':
+        return createGeyser(spell);
+      case 'tether':
+        return createTether();
+      case 'thornRush':
+        // Los brotes se dibujan como estallidos, a medida que salen.
+        return new THREE.Group();
     }
   }
 
-  private createProjectile(spell: SpellEntity, color: THREE.Color): THREE.Object3D {
+  private createProjectile(
+    spell: SpellEntity & { kind: 'projectile' },
+    color: THREE.Color,
+  ): THREE.Object3D {
     const group = new THREE.Group();
-    const size = this.rules.forms.projectile.radius * (1 + 0.25 * (spell.payload.weave.length - 1));
+    // La Bola ígnea es grande; los conjuros antiguos crecen con cada elemento.
+    const size =
+      spell.payload.spell === null
+        ? spell.radius * (1 + 0.25 * (spell.payload.weave.length - 1))
+        : spell.radius;
     const core = new THREE.Mesh(
       this.coreGeometry,
       new THREE.MeshBasicMaterial({ color: glow(color, 3) }),
@@ -141,7 +177,7 @@ export class SpellViews {
         }
       `,
     });
-    const wall = new THREE.Mesh(this.wallGeometry, material);
+    const wall = new THREE.Mesh(this.wallGeometry(spell.halfLength), material);
     wall.position.set(spell.center.x, WALL_HEIGHT / 2, spell.center.z);
     wall.rotation.y = -Math.atan2(spell.along.z, spell.along.x);
     this.particles.burst(spell.center.x, 0.4, spell.center.z, glow(color, 1.5), 24, 4, 0.4);
@@ -188,10 +224,23 @@ export class SpellViews {
   private update(
     view: THREE.Object3D,
     spell: SpellEntity,
-    pos: { x: number; z: number },
+    pos: Position,
     timeSeconds: number,
+    wizardPos: (id: number) => Position | undefined,
   ): void {
-    if (spell.kind === 'projectile') {
+    if (spell.kind === 'zone') {
+      updateZone(view, spell, timeSeconds, this.particles);
+    } else if (spell.kind === 'geyser') {
+      updateGeyser(view, spell, timeSeconds, this.particles);
+    } else if (spell.kind === 'tether') {
+      const from = wizardPos(spell.ownerId);
+      const to = wizardPos(spell.targetId);
+      updateTether(view, from, to, timeSeconds, this.particles);
+    } else if (spell.kind === 'thornRush') {
+      // Nada que mover: cada brote es un estallido.
+    } else if (spell.kind === 'wall' && spell.solid) {
+      updateRootWall(view, spell);
+    } else if (spell.kind === 'projectile') {
       view.position.set(pos.x, 1.3, pos.z);
       const color = view.userData.color as THREE.Color;
       // Estela de chispas detrás del proyectil.
@@ -220,12 +269,12 @@ export class SpellViews {
         : 0.2;
       ring.rotation.z = timeSeconds * 0.6;
       spikes.position.y = armed ? 0 : -0.5;
-    } else {
+    } else if (spell.kind === 'wall') {
       const material = (view as THREE.Mesh).material as THREE.ShaderMaterial;
       const uniforms = material.uniforms;
       if (uniforms.uTime) uniforms.uTime.value = timeSeconds;
       if (uniforms.uFade) uniforms.uFade.value = Math.min(1, spell.ticksLeft / 20);
-      const total = this.rules.forms.wall.durationTicks;
+      const total = spell.durationTicks;
       if (uniforms.uRise) uniforms.uRise.value = Math.min(1, (total - spell.ticksLeft) / 6);
     }
   }
