@@ -1,10 +1,8 @@
 import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
-import { beastStats, damageBeast } from '../../match/beasts';
 import { lineBlocked } from '../../match/obstacles';
 import { wizardById } from '../../match/queries';
 import type {
   Current,
-  Geyser,
   Ignite,
   MatchState,
   Obsidian,
@@ -57,27 +55,6 @@ export function updateCurrent(state: MatchState, current: Current, rules: GameRu
     }
   }
   return --current.ticksLeft > 0;
-}
-
-/** El géiser espera su aviso y brota: daña y levanta por los aires. */
-export function updateGeyser(state: MatchState, geyser: Geyser, rules: GameRules): boolean {
-  if (--geyser.ticksLeft > 0) return true;
-  state.events.push({ type: 'burst', spell: 'geyser', pos: geyser.pos, radius: geyser.radius });
-  for (const wizard of state.wizards) {
-    if (wizard.team === geyser.team || wizard.hp <= 0) continue;
-    if (distance(wizard.pos, geyser.pos) <= geyser.radius + rules.wizard.radius) {
-      applyHit(state, wizard, geyser.ownerId, geyser.payload, rules);
-      // Por los aires: lo que estaba tejiendo se pierde.
-      wizard.channel = null;
-      wizard.leap = null;
-    }
-  }
-  for (const beast of state.beasts) {
-    if (distance(beast.pos, geyser.pos) <= geyser.radius + beastStats(beast, rules).radius) {
-      damageBeast(state, beast, geyser.ownerId, geyser.payload.damage, rules);
-    }
-  }
-  return false;
 }
 
 /** Un brote de espinas por intervalo, cada uno más lejos en la línea. */

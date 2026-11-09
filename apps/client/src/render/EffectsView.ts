@@ -1,5 +1,6 @@
 import type { GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
+import { greatBlink, lineStrike } from './GreatSpellEffects';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
 import {
@@ -25,7 +26,17 @@ const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
 const SHRINE_COLOR = new THREE.Color('#f0d9a0');
 /** Explosiones que sacuden la cámara si te pillan cerca. */
-const SHAKERS: ReadonlySet<SpellId> = new Set(['fireball', 'geyser', 'obsidian', 'ignite', 'wisp']);
+const SHAKERS: ReadonlySet<SpellId> = new Set([
+  'fireball',
+  'geyser',
+  'obsidian',
+  'ignite',
+  'wisp',
+  'meteor',
+  'cauldron',
+  'iceAge',
+  'rootCatapult',
+]);
 
 /**
  * Lo que dura un instante: estallidos, ondas, rayos de la marca y columnas al revivir.
@@ -94,7 +105,12 @@ export class EffectsView {
         case 'chain':
           chainLightning(this, this.particles, event.points);
           break;
+        case 'line':
+          lineStrike(this, this.particles, event);
+          this.shakeNear(byId(this.playerId), event.from, 6);
+          break;
         case 'blink':
+          if (greatBlink(this, this.particles, event.spell, event.from, event.to)) break;
           if (event.spell === 'shadowStep')
             shadowStepped(this, this.particles, event.from, event.to);
           else blinked(this, this.particles, event.from, event.to);
@@ -364,6 +380,47 @@ export class EffectsView {
         size: 0.25,
       });
     }
+    if (wizard.statuses.asleep && Math.random() < chance * 0.15) {
+      // Burbujas violetas que suben despacio: está dormido.
+      this.particles.emit({
+        x: x + 0.2,
+        y: 2.2,
+        z,
+        vx: 0.3,
+        vy: 0.7,
+        color: glow(elementColor('umbra'), 1.6),
+        life: 1.2,
+        size: 0.35,
+      });
+    }
+    if (wizard.statuses.phased && Math.random() < chance * 0.5) {
+      // Se deshace en humo y chispas al caminar a través de todo.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.7,
+        y: 0.3 + Math.random() * 1.6,
+        z: z + (Math.random() - 0.5) * 0.7,
+        vy: 0.3,
+        color:
+          Math.random() < 0.7
+            ? elementColor('umbra').clone().multiplyScalar(0.7)
+            : glow(elementColor('tormenta'), 1.2),
+        life: 0.6,
+        size: 0.45,
+      });
+    }
+    if (wizard.statuses.soaked && Math.random() < chance * 0.4) {
+      // Gotas que le caen encima.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.6,
+        y: 2,
+        z: z + (Math.random() - 0.5) * 0.6,
+        vy: -2,
+        color: glow(elementColor('marea'), 1.4),
+        life: 0.5,
+        size: 0.22,
+        gravity: -6,
+      });
+    }
     if (spectre && Math.random() < chance * 0.6) {
       this.particles.emit({
         x: x + (Math.random() - 0.5) * 0.5,
@@ -400,6 +457,13 @@ export class EffectsView {
       (column.mesh.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.7;
       const width = ((column.mesh.userData.width as number | undefined) ?? 1) * (1 - t * 0.6);
       column.mesh.scale.set(width, 1, width);
+    }
+  }
+
+  /** Sacude la cámara si el jugador está cerca de un golpe. */
+  private shakeNear(player: Wizard | undefined, pos: Vec2, reach: number): void {
+    if (player && Math.hypot(player.pos.x - pos.x, player.pos.z - pos.z) < reach) {
+      this.shake = Math.min(1, this.shake + 0.35);
     }
   }
 

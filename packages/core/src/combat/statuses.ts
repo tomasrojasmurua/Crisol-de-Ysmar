@@ -36,9 +36,10 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
   }
 }
 
-/** Por los aires o congelado, un mago no se mueve ni teje. */
+/** Por los aires, en el Ataúd helado, congelado o dormido, un mago no se mueve ni teje. */
 export function canAct(wizard: Wizard): boolean {
-  return !wizard.statuses.airborne && !wizard.statuses.stasis;
+  const s = wizard.statuses;
+  return !s.airborne && !s.stasis && !s.frozen && !s.asleep;
 }
 
 /** Silenciado, se puede mover pero no tejer ni lanzar. */
@@ -51,6 +52,9 @@ export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
     return 0;
   }
   let multiplier = wizard.statuses.slow ? rules.statuses.slow.moveMultiplier : 1;
+  if (wizard.statuses.soaked) {
+    multiplier = Math.min(multiplier, rules.statuses.soaked.moveMultiplier);
+  }
   if (wizard.statuses.haste) {
     multiplier *= rules.statuses.haste.moveMultiplier;
   }

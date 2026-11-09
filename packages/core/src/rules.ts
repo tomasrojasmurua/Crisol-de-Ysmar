@@ -6,7 +6,9 @@ import type { SpellRules } from './spells/spellRules';
  * `empowered` lo da un santuario: más daño por un rato.
  * `airborne` (por los aires), `stasis` (Ataúd helado), `veiled` (Velo) y `regen` (Savia)
  * vienen de los hechizos propios, igual que `silenced` (no puede tejer), `weak` (pega menos),
- * `blind` (solo ve de cerca) y `haste` (corre más).
+ * `blind` (solo ve de cerca) y `haste` (corre más). Los Grandes hechizos suman `frozen`
+ * (congelado: no actúa, pero recibe daño), `asleep` (dormido hasta que lo golpean),
+ * `phased` (atraviesa magos, muros y árboles) y `soaked` (empapado: muy lento).
  */
 export type StatusId =
   | 'burn'
@@ -21,7 +23,11 @@ export type StatusId =
   | 'silenced'
   | 'weak'
   | 'blind'
-  | 'haste';
+  | 'haste'
+  | 'frozen'
+  | 'asleep'
+  | 'phased'
+  | 'soaked';
 
 /** Todos los estados, en un orden fijo. */
 export const STATUS_IDS: readonly StatusId[] = [
@@ -38,6 +44,10 @@ export const STATUS_IDS: readonly StatusId[] = [
   'weak',
   'blind',
   'haste',
+  'frozen',
+  'asleep',
+  'phased',
+  'soaked',
 ];
 
 /**
@@ -117,6 +127,14 @@ export interface GameRules {
     readonly blind: { readonly ticks: number; readonly sightRadius: number };
     /** Apurado: corre más rápido. */
     readonly haste: { readonly ticks: number; readonly moveMultiplier: number };
+    /** Congelado: no se mueve ni teje, pero el daño le llega. */
+    readonly frozen: { readonly ticks: number };
+    /** Dormido: no se mueve ni teje; despierta al recibir daño. */
+    readonly asleep: { readonly ticks: number };
+    /** Fantasma: atraviesa magos, muros y árboles caminando. */
+    readonly phased: { readonly ticks: number };
+    /** Empapado: mucho más lento que el `slow`. */
+    readonly soaked: { readonly ticks: number; readonly moveMultiplier: number };
   };
   readonly interactions: {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */

@@ -14,6 +14,30 @@ import {
 } from './kit/brasa';
 import type { CastContext } from './kit/context';
 import {
+  castBlackFlame,
+  castDarkComet,
+  castEmberStride,
+  castFireRain,
+  castMeteor,
+} from './kit/greatBrasa';
+import {
+  castCauldron,
+  castDrown,
+  castIceAge,
+  castMangrove,
+  castSteamJet,
+  castTidalWave,
+} from './kit/greatMarea';
+import { castRootCatapult, castSowing, castThornRing, castTreeStride } from './kit/greatRaiz';
+import {
+  castErraticOrb,
+  castHurricane,
+  castSkySpear,
+  castSwap,
+  castTempest,
+} from './kit/greatTormenta';
+import { castAbyss, castNightmare, castPhantom, castPortal, castSoulPyre } from './kit/greatUmbra';
+import {
   castCurrent,
   castGeyser,
   castIceCoffin,
@@ -70,6 +94,31 @@ const CASTERS: Readonly<Record<SpellId, (ctx: CastContext) => void>> = {
   decoy: castDecoy,
   blinding: castBlinding,
   shackle: castShackle,
+  meteor: castMeteor,
+  fireRain: castFireRain,
+  blackFlame: castBlackFlame,
+  emberStride: castEmberStride,
+  darkComet: castDarkComet,
+  skySpear: castSkySpear,
+  tempest: castTempest,
+  hurricane: castHurricane,
+  swap: castSwap,
+  erraticOrb: castErraticOrb,
+  iceAge: castIceAge,
+  cauldron: castCauldron,
+  steamJet: castSteamJet,
+  drown: castDrown,
+  mangrove: castMangrove,
+  tidalWave: castTidalWave,
+  rootCatapult: castRootCatapult,
+  sowing: castSowing,
+  thornRing: castThornRing,
+  treeStride: castTreeStride,
+  soulPyre: castSoulPyre,
+  portal: castPortal,
+  phantom: castPhantom,
+  abyss: castAbyss,
+  nightmare: castNightmare,
 };
 
 /** Hechizos que no delatan a quien está con Velo. */
@@ -83,6 +132,11 @@ const QUIET: ReadonlySet<SpellId> = new Set([
   'current',
   'spring',
   'decoy',
+  'emberStride',
+  'mangrove',
+  'treeStride',
+  'portal',
+  'phantom',
 ]);
 
 /** Los hechizos que viajan: el apuntado automático se adelanta al rival según su velocidad. */
@@ -90,6 +144,8 @@ function leadSpeedOf(spell: SpellId, rules: GameRules): number {
   if (spell === 'spark') return rules.spells.spark.speed;
   if (spell === 'fireball') return rules.spells.fireball.speed;
   if (spell === 'blinding') return rules.spells.blinding.speed;
+  if (spell === 'blackFlame') return rules.spells.blackFlame.speed;
+  if (spell === 'darkComet') return rules.spells.darkComet.speed;
   return 0;
 }
 

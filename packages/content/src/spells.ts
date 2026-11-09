@@ -83,4 +83,86 @@ export const SPELL_RULES: GameRules['spells'] = {
   blinding: { damage: 6, speed: 16, range: 12, radius: 0.3 },
   // Umbra → Raíz · Grillete: 4 s atado; si se aleja 4 m, enraizado 1,5 s y 15 de daño.
   shackle: { range: 8, coneDot: 0.7, durationTicks: 120, leash: 4, damage: 15, rootTicks: 45 },
+
+  // Grandes hechizos (3 elementos), primera tanda.
+
+  // Brasa → Brasa → Brasa · Meteoro: 1,5 s de aviso, 60 de daño y el cráter arde 4 s.
+  meteor: {
+    damage: 60,
+    range: 14,
+    radius: 2.5,
+    delayTicks: 45,
+    scorchRadius: 2,
+    scorchTicks: 120,
+  },
+  // Brasa → Brasa → Tormenta · Lluvia de fuego: 4 s; 8 por andanada a quien se mueva a 10 m.
+  fireRain: {
+    damage: 8,
+    radius: 10,
+    durationTicks: 120,
+    intervalTicks: 30,
+    scorchRadius: 0.9,
+    scorchTicks: 60,
+  },
+  // Brasa → Umbra → Marea · Llama negra: atraviesa muros, escudos e invocaciones.
+  blackFlame: { damage: 28, speed: 16, range: 16, radius: 0.35 },
+  // Brasa → Umbra → Tormenta · Paso de ascuas: a un suelo ardiendo a 15 m.
+  emberStride: { range: 15 },
+  // Brasa → Tormenta → Umbra · Cometa negro: te lleva junto al rival y lo silencia.
+  darkComet: { damage: 12, speed: 22, range: 12, radius: 0.3, beside: 1.3 },
+  // Tormenta → Tormenta → Brasa · Lanza del cielo: 0,5 s de aviso, línea de 14 m, 45 de daño.
+  skySpear: { damage: 45, length: 14, halfWidth: 0.9, delayTicks: 15 },
+  // Tormenta → Tormenta → Tormenta · Tempestad: tres destellos de 6 m; 10 de daño al llegar.
+  tempest: { jumps: 3, distance: 6, intervalTicks: 30, damage: 10, radius: 2 },
+  // Tormenta → Tormenta → Marea · Huracán: avanza 12 m a 4 m/s y levanta por los aires.
+  hurricane: { damage: 10, speed: 4, range: 12, radius: 1.4 },
+  // Tormenta → Umbra → Tormenta · Intercambio: con cualquier mago a la vista a 12 m.
+  swap: { range: 12, coneDot: 0.7 },
+  // Tormenta → Brasa → Marea · Orbe errático: 12 m en 4 s, un rayo de 6 cada 0,5 s a 4 m.
+  erraticOrb: { damage: 6, speed: 3, range: 12, radius: 0.45, zapRange: 4, intervalTicks: 15 },
+  // Marea → Marea → Marea · Era de hielo: 0,8 s de aviso y congela a todos a 6 m.
+  iceAge: { damage: 10, radius: 6, delayTicks: 24 },
+  // Marea → Brasa → Brasa · Hervidero: 3 s para salir de un círculo de 3 m, o 50 de daño.
+  cauldron: { damage: 50, range: 8, radius: 3, delayTicks: 90 },
+  // Marea → Brasa → Tormenta · Chorro de vapor: 7 m hacia atrás y 16 de daño hacia adelante.
+  steamJet: { distance: 7, durationTicks: 8, damage: 16, range: 4, coneDot: 0.6 },
+  // Marea → Umbra → Brasa · Ahogo: 2 s a menos de 6,5 m; luego 30 de daño y 2 s silenciado.
+  drown: {
+    damage: 30,
+    range: 6,
+    coneDot: 0.7,
+    breakRange: 6.5,
+    durationTicks: 60,
+    silenceTicks: 60,
+  },
+  // Marea → Raíz → Brasa · Manglar: 6 m por 6 s; frena proyectiles, no magos.
+  mangrove: { distance: 2.5, halfLength: 3, thickness: 0.5, durationTicks: 180 },
+  // Marea → Marea → Tormenta · Maremoto: ola de 10 m de ancho que empapa (lo lento lo da `soaked`).
+  tidalWave: { damage: 12, speed: 9, range: 18, radius: 0.8, halfWidth: 5 },
+  // Raíz → Tormenta → Brasa · Catapulta de raíz: 12 m en arco; enraíza 1,5 s a 3 m al caer.
+  rootCatapult: { distance: 12, durationTicks: 18, radius: 3, damage: 10, rootTicks: 45 },
+  // Raíz → Tormenta → Marea · Siembra: seis trampas por 15 s; se arman en 0,5 s.
+  sowing: {
+    range: 8,
+    count: 6,
+    spread: 2.2,
+    radius: 0.6,
+    armTicks: 15,
+    durationTicks: 450,
+    damage: 8,
+  },
+  // Raíz → Raíz → Brasa · Anillo de zarzas: 6 m de ancho por 4 s.
+  thornRing: { range: 8, radius: 3, durationTicks: 120 },
+  // Raíz → Umbra → Tormenta · Paso entre árboles: de un árbol a 2,5 m a otro a hasta 20 m.
+  treeStride: { entryRange: 2.5, range: 20, coneDot: 0.5 },
+  // Umbra → Umbra → Brasa · Pira de almas: hasta 3 rivales; a los 2 s, 25 más 10% de lo que les falta.
+  soulPyre: { damage: 25, missingFraction: 0.1, range: 12, targets: 3, delayTicks: 60 },
+  // Umbra → Brasa → Tormenta · Portal: una boca a tus pies y otra a 12 m, por 8 s.
+  portal: { range: 12, radius: 1.1, durationTicks: 240 },
+  // Umbra → Tormenta → Tormenta · Fantasma: sus números están en el estado `phased`.
+  phantom: {},
+  // Umbra → Tormenta → Marea · Abismo: 1 s de aviso; silencia 1,5 s a todos en 4 m.
+  abyss: { damage: 8, range: 10, radius: 4, delayTicks: 30, silenceTicks: 45 },
+  // Umbra → Umbra → Marea · Pesadilla: el sueño lo da el estado `asleep`.
+  nightmare: { range: 9, coneDot: 0.75 },
 };

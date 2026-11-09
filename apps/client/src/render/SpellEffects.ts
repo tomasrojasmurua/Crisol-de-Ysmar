@@ -1,6 +1,7 @@
 import type { GameEvent, SpellId, SummonKind, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import type { EffectsView } from './EffectsView';
+import { greatBurst, greatReleased } from './GreatSpellEffects';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -22,6 +23,7 @@ export function spellReleased(
   spell: SpellId,
   caster: Wizard,
 ): void {
+  if (greatReleased(fx, particles, spell, caster)) return;
   const { x, z } = caster.pos;
   switch (spell) {
     case 'comet':
@@ -86,11 +88,14 @@ export function spellReleased(
     case 'blinding':
     case 'shackle':
       break;
+    default:
+      break;
   }
 }
 
 /** Explosiones y brotes en área, cada uno con su aspecto. */
 export function spellBurst(fx: EffectsView, particles: Particles, event: Burst): void {
+  if (greatBurst(fx, particles, event)) return;
   const { x, z } = event.pos;
   const r = event.radius;
   switch (event.spell) {

@@ -44,6 +44,14 @@ export const GAME_RULES: GameRules = {
     blind: { ticks: 90, sightRadius: 3 },
     // Corriente: 50% más rápido mientras vas a favor del río.
     haste: { ticks: 6, moveMultiplier: 1.5 },
+    // Era de hielo: 1,2 segundos congelado.
+    frozen: { ticks: 36 },
+    // Pesadilla: 2 segundos dormido, salvo que lo despierten a golpes.
+    asleep: { ticks: 60 },
+    // Fantasma: 4 segundos atravesando todo.
+    phased: { ticks: 120 },
+    // Maremoto: 70% más lento por 2 segundos.
+    soaked: { ticks: 60, moveMultiplier: 0.3 },
   },
   interactions: {
     tideExtinguishesBurn: true,
