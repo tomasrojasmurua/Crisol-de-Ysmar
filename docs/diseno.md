@@ -13,8 +13,8 @@ El documento de diseño completo vive en Claude:
   jungla alrededor con senderos y diez campamentos de bestias, dos por elemento, en espejo para
   que ningún lado tenga ventaja. Los árboles, rocas y ruinas tapan el paso, los conjuros y la vista:
   a un rival en la jungla solo lo ves si alguien de tu equipo lo tiene cerca y a la vista.
-- **Campamentos:** dos bestias cada uno; un campamento vacío se vuelve a poblar a los 75 segundos
-  (si sigue dentro de la zona). Al minuto de Caza despierta el **Guardián del Crisol** en la plaza:
+- **Campamentos:** dos bestias cada uno; un campamento vacío se vuelve a poblar a los 45 segundos
+  (si sigue dentro de la zona). A los 40 segundos de Caza despierta el **Guardián del Crisol** en la plaza:
   vencerlo da una Esencia de cada elemento.
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
@@ -23,8 +23,8 @@ El documento de diseño completo vive en Claude:
   llegan por tandas; ya hay 52: daño, control, movilidad y terreno en la primera, e invocaciones,
   apoyo, refuerzo y estados en la segunda. Mientras tanto, un tejido de 3 sin Gran hechizo lanza el
   eco del hechizo de sus dos primeros).
-  El tejido es visible para el rival. Cada elemento tiene su propia fatiga.
-- **Partida:** mejor de 3 rondas de unos 6 minutos (Caza, Convergencia, Duelo final). Modos 1v1,
+  El tejido es visible para el rival y ninguno sale en menos de 0,15 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga.
+- **Partida:** mejor de 3 rondas de 3 minutos (Caza, Convergencia y Duelo final, un minuto cada una). Modos 1v1,
   2v2, 3v3 y todos contra todos hasta 6. Al morir: modo Espectro o 3 Vidas, según la sala.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Bestias neutrales** dan Esencia o se vinculan como familiares. **Glifos** entre rondas y
