@@ -1,4 +1,4 @@
-import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
+import { applyHit, applyStatus, dealDamage, healWizard } from '../../combat/hit';
 import { canAct } from '../../combat/statuses';
 import { beastStats, damageBeast } from '../../match/beasts';
 import { isBurned } from '../../match/liveMap';
@@ -31,6 +31,7 @@ import {
 import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
 import { scorch } from './context';
+import { touchTriggers } from './greatFieldUpdates';
 import { hitArea } from './shared';
 import { damageSummon } from './summons';
 
@@ -57,6 +58,7 @@ export function updateStrike(state: MatchState, strike: Strike, rules: GameRules
     state.events.push({ type: 'line', spell, from: strike.pos, to: end, halfWidth: strike.radius });
   } else {
     state.events.push({ type: 'burst', spell, pos: strike.pos, radius: strike.radius });
+    touchTriggers(state, strike.team, strike.pos, strike.radius, strike.payload.weave, rules);
   }
   for (const wizard of state.wizards) {
     if (wizard.team === strike.team || wizard.hp <= 0 || wizard.statuses.stasis) continue;
@@ -149,7 +151,7 @@ function sweep(state: MatchState, sweeper: Sweeper, rules: GameRules): void {
     if (soulTide) {
       const owner = wizardById(state, sweeper.ownerId);
       if (owner && owner.hp > 0) {
-        owner.hp = Math.min(owner.maxHp, owner.hp + rules.spells.soulTide.heal);
+        healWizard(state, owner, rules.spells.soulTide.heal);
       }
     }
     if (wizard.statuses.stasis || soulTide) continue;
@@ -338,7 +340,7 @@ export function updateTrap(state: MatchState, trap: Trap, rules: GameRules): boo
     if (trap.friendly) {
       // Una flor del Jardín: solo la usa un aliado herido.
       if (wizard.team !== trap.team || wizard.hp >= wizard.maxHp) continue;
-      wizard.hp = Math.min(wizard.maxHp, wizard.hp + trap.payload.damage);
+      healWizard(state, wizard, trap.payload.damage);
       state.events.push({ type: 'burst', spell: 'garden', pos: trap.pos, radius: 0.8 });
       return false;
     }

@@ -34,9 +34,22 @@ describe('catálogo', () => {
     for (const id of SPELL_IDS) expect(spellOf(SPELL_WEAVES[id])).toBe(id);
   });
 
-  it('un tejido de 3 sin Gran hechizo lanza el de sus dos primeros elementos', () => {
+  it('los 125 tejidos de 3 elementos tienen su propio Gran hechizo', () => {
+    const elements = ['brasa', 'tormenta', 'marea', 'raiz', 'umbra'] as const;
+    let greats = 0;
+    for (const a of elements) {
+      for (const b of elements) {
+        for (const c of elements) {
+          const spell = spellOf([a, b, c]);
+          expect(spell && SPELL_WEAVES[spell].length).toBe(3);
+          greats++;
+        }
+      }
+    }
+    expect(greats).toBe(125);
+    expect(SPELL_IDS).toHaveLength(155);
     expect(spellOf(['brasa', 'brasa', 'brasa'])).toBe('meteor');
-    expect(spellOf(['brasa', 'tormenta', 'tormenta'])).toBe('comet');
+    expect(spellOf(['brasa', 'tormenta', 'tormenta'])).toBe('propulsion');
     expect(spellOf([])).toBeNull();
   });
 });

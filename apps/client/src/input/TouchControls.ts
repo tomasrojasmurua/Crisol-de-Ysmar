@@ -1,4 +1,4 @@
-import { ELEMENTS } from '@crisol/content';
+import { ELEMENTS, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
 import { el } from '../ui/dom';
 import type { PlayerInput } from './PlayerInput';
@@ -21,6 +21,9 @@ export class TouchControls {
   private pad: HTMLElement | null = null;
   private castButton: HTMLButtonElement | null = null;
   private lastWeaveKey = '';
+  /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
+  private shift = 0;
+  private lastHeld = '';
   /** Mientras está apagado (menú, pantalla final) no acepta teclas. */
   enabled = false;
 
@@ -57,7 +60,15 @@ export class TouchControls {
           : 0;
       this.castButton.style.setProperty('--fatigue', cooldown.toFixed(2));
       this.castButton.textContent = spectre ? '☾' : '✦';
+      // Un hechizo copiado o robado sale en el próximo lanzamiento: se anuncia en el botón.
+      const held = !spectre && wizard.held ? SPELL_NAMES[wizard.held.spell] : '';
+      if (held !== this.lastHeld) {
+        this.lastHeld = held;
+        this.castButton.dataset.held = held;
+        this.castButton.classList.toggle('held', held !== '');
+      }
     }
+    this.applyHex(wizard.statuses.hexed?.power ?? 0);
     for (const [element, button] of this.elementButtons) {
       const fatigue = wizard.fatigue[element] / rules.weave.fatigueTicks;
       const value = fatigue.toFixed(2);
@@ -208,12 +219,27 @@ export class TouchControls {
     button.addEventListener('pointercancel', release);
   }
 
+  /** Mal de ojo: los botones de elementos cambian de lugar mientras dura. */
+  private applyHex(shift: number): void {
+    const next = Math.round(shift) % ELEMENTS.length;
+    if (next === this.shift) return;
+    this.shift = next;
+    this.pad?.classList.toggle('hexed', next !== 0);
+    ELEMENTS.forEach((element, index) => {
+      const button = this.elementButtons.get(element.id);
+      button?.style.setProperty('--index', String((index + next) % ELEMENTS.length));
+    });
+  }
+
   private bindKeyboard(): void {
     window.addEventListener('keydown', (event) => {
       if (event.repeat || !this.enabled) return;
       const key = event.key.toLowerCase();
       this.keys.add(key);
-      const elementIndex = KEY_ELEMENTS.indexOf(key as (typeof KEY_ELEMENTS)[number]);
+      const slot = KEY_ELEMENTS.indexOf(key as (typeof KEY_ELEMENTS)[number]);
+      // Con el Mal de ojo, cada tecla teje el elemento que quedó en su lugar.
+      const count = ELEMENTS.length;
+      const elementIndex = slot < 0 ? -1 : (slot - this.shift + count) % count;
       const element = ELEMENTS[elementIndex]?.id;
       if (elementIndex >= 0 && element && isElementId(element)) {
         this.input.push({ type: 'weave', element });

@@ -22,11 +22,12 @@ es lo vigente.
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. Cada tejido es un hechizo
-  propio con su efecto y su visual: 5 básicos, 25 de 2 elementos y 125 Grandes hechizos de 3 (estos
-  llegan por tandas; ya hay 70: daño, control, movilidad y terreno en la primera; invocaciones,
-  apoyo, refuerzo y estados en la segunda; y mapa vivo, información, sigilo y transformaciones en
-  la tercera. Mientras tanto, un tejido de 3 sin Gran hechizo lanza el eco del hechizo de sus dos
-  primeros).
+  propio con su efecto y su visual: 5 básicos, 25 de 2 elementos y los 125 Grandes hechizos de 3,
+  completos desde la cuarta tanda (daño, control, movilidad y terreno en la primera; invocaciones,
+  apoyo, refuerzo y estados en la segunda; mapa vivo, información, sigilo y transformaciones en la
+  tercera; y terreno, detonadores, tiempo, copias, contrahechizos y represalias en la cuarta).
+  Algunos Grandes hechizos guardan un hechizo ajeno (Reflejo, Hurto): sale en el próximo
+  lanzamiento, tejas lo que tejas.
   El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga.
 - **Jungla viva:** el Incendio forestal quema árboles y el Brote de árbol los planta; los cambios
   duran hasta el fin de la ronda.

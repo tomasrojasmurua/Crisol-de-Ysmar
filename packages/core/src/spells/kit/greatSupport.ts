@@ -1,4 +1,4 @@
-import { applyHit, applyStatus } from '../../combat/hit';
+import { applyHit, applyStatus, healWizard } from '../../combat/hit';
 import { HARMFUL_STATUSES } from '../../combat/statuses';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { isAlive, wizardById } from '../../match/queries';
@@ -147,7 +147,7 @@ export function castSacrifice(ctx: CastContext): void {
     return;
   }
   caster.hp -= amount;
-  ally.hp += amount;
+  healWizard(state, ally, amount);
   state.events.push({ type: 'zap', from: caster.pos, to: ally.pos });
   state.events.push({ type: 'burst', spell: 'sacrifice', pos: ally.pos, radius: 1 });
 }
@@ -253,7 +253,7 @@ function burnAround(state: MatchState, aura: Aura, owner: Wizard, rules: GameRul
     applyHit(state, wizard, owner.id, aura.payload, rules);
     dealt += before - wizard.hp;
   }
-  owner.hp = Math.min(owner.maxHp, owner.hp + dealt);
+  healWizard(state, owner, dealt);
 }
 
 function pushOut(state: MatchState, aura: Aura, owner: Wizard, rules: GameRules): void {

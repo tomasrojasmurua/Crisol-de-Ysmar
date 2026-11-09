@@ -1,7 +1,8 @@
 # Traspaso del proyecto Crisol de Ysmar
 
 Este documento junta todo lo que una cuenta nueva de Claude necesita para seguir el proyecto sin
-volver a preguntar. Estado al 9 de noviembre de 2026, con `main` al día hasta el PR #17.
+volver a preguntar. Estado al 9 de noviembre de 2026, con `main` al día hasta el PR #19 y la tanda 4
+de Grandes hechizos en su PR.
 
 **Si eres Claude y estás empezando:** lee este archivo, luego `CLAUDE.md`, `CONTRIBUTING.md`,
 `docs/diseno.md` y `docs/arquitectura.md`. Los documentos de diseño originales vivían en otra
@@ -67,18 +68,18 @@ se **teje** en tiempo real combinando cinco elementos. Hoy se juega completo con
 
 ## Estado actual
 
-| Área                                                                   | Estado                                                                                        |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Tejido, combate y estados                                              | Listo. 5 básicos y 25 hechizos de dos elementos propios.                                      |
-| Grandes hechizos                                                       | **70 de 125** (tandas 1, 2 y 3). Faltan 55: ver [tanda-4-pendiente.md](tanda-4-pendiente.md). |
-| Partida, modos, zona, Espectro, Vidas                                  | Listo contra la IA.                                                                           |
-| Bestias, santuarios, Glifos, Presagios, Guardián                       | Listo. Los bots no logran vencer al Guardián.                                                 |
-| Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`.                                                            |
-| Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                       |
-| Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales.     |
-| **Multijugador**                                                       | **No existe.** La Sala solo responde saludos y pings.                                         |
-| Audio                                                                  | No hay ningún sonido.                                                                         |
-| Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                                   |
+| Área                                                                   | Estado                                                                                    |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Tejido, combate y estados                                              | Listo. 5 básicos y 25 hechizos de dos elementos propios.                                  |
+| Grandes hechizos                                                       | **125 de 125** (tandas 1 a 4). La cuarta: ver [tanda-4.md](tanda-4.md).                   |
+| Partida, modos, zona, Espectro, Vidas                                  | Listo contra la IA.                                                                       |
+| Bestias, santuarios, Glifos, Presagios, Guardián                       | Listo. Los bots no logran vencer al Guardián.                                             |
+| Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`.                                                        |
+| Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
+| Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
+| **Multijugador**                                                       | **No existe.** La Sala solo responde saludos y pings.                                     |
+| Audio                                                                  | No hay ningún sonido.                                                                     |
+| Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 
 Medidas del diagnóstico: un paso de 6 magos cuesta 0,03 ms (límite 2 ms) y el juego descarga 216 KB.
 El estado completo pesa unos 8,5 KB en JSON: enviarlo tal cual por red serían ~170 KB/s por
@@ -99,6 +100,8 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 | #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                       |
 | #15           | Rondas de 3 minutos y básicos de 0,17 s.                             |
 | #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.        |
+| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                        |
+| Tanda 4       | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).             |
 
 ## Lo que sigue
 
@@ -114,10 +117,9 @@ Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendaci�
      familia de hechizo (proyectil, zona, movimiento, invocación); interacciones entre estados al
      estilo sistémico (mojado + Tormenta aturde, Raíz + Brasa arde); **choque de tejidos** (un
      tejido opuesto en el pentágono anula al del rival), a diseñar en papel e implementar con la red.
-2. **Tanda 4 de Grandes hechizos (pendiente).** Los 55 que faltan, sobre todo tiempo, copia,
-   contrahechizo, detonador, anti, carga y redirección: los que más piezas nuevas piden. Lista
-   completa en [tanda-4-pendiente.md](tanda-4-pendiente.md). Se recomendó congelar otro contenido
-   nuevo salvo esta tanda.
+2. **Tanda 4 de Grandes hechizos (hecha).** Los 55 que faltaban, en un solo PR como pidió Tomás.
+   Detalle, adaptaciones al 1v1 y preguntas abiertas en [tanda-4.md](tanda-4.md). Se recomendó
+   congelar otro contenido nuevo hasta el Hito 2.
 3. **Hito 2, multijugador**, en cuatro entregas (detalle en
    [estado-y-brechas.md](referencia/estado-y-brechas.md)): sala jugable con enlace de WhatsApp;
    fluidez (predicción, interpolación ~100 ms, mensajes binarios < 2 KB, no enviar rivales ocultos,
@@ -161,6 +163,13 @@ scripts/check-dependencies.mjs   Hace cumplir el mapa de dependencias
 docs/                    diseno.md, arquitectura.md, publicacion.md, decisiones/, traspaso/
 ```
 
+La cuarta tanda sumó `spells/kit/greatGround.ts` (terreno, detonadores, movilidad),
+`greatMind.ts` (estados, tiempo, copias, contrahechizos), `greatFieldUpdates.ts` (lo que queda en el
+campo: la entidad `Field` con sus modos, el Relámpago guiado, Mil pasos, el Rayo de enlace) y
+`greatReactions.ts` (lo que pasa antes y después de lanzar y las reacciones a los golpes, que se
+resuelven al final de cada paso). Toda curación pasa por `healWizard` en `combat/hit.ts`, para que
+la Podredumbre funcione en todas partes.
+
 Al agregar un Gran hechizo, el patrón de las tandas fue: efecto en `spells/kit/great*.ts`, números
 en `content/spells.ts`, nombre en `content/grimoire.ts`, visual en `apps/client/src/render/Great*`,
 uso por los bots, pruebas en `great*.test.ts`, y 200 duelos de bots con `pnpm balance` buscando
@@ -188,5 +197,5 @@ uso por los bots, pruebas en `great*.test.ts`, y 200 duelos de bots con `pnpm ba
 | [referencia/arquitectura-original.md](referencia/arquitectura-original.md) | Plan de arquitectura del código e hitos.                                                   |
 | [referencia/estado-y-brechas.md](referencia/estado-y-brechas.md)           | Diagnóstico tras el PR #9: qué hay, qué falta, plan del Hito 2 y aportes con herramientas. |
 | [referencia/rediseno-hechizos.md](referencia/rediseno-hechizos.md)         | Los 155 hechizos uno por uno, combos, decisiones abiertas y plan por tandas.               |
-| [tanda-4-pendiente.md](tanda-4-pendiente.md)                               | Los 55 Grandes hechizos que faltan.                                                        |
+| [tanda-4.md](tanda-4.md)                                                   | La cuarta tanda: los 55 Grandes hechizos, sus adaptaciones y lo que queda por decidir.     |
 | [prompt-inicial.md](prompt-inicial.md)                                     | El mensaje para pegar en la cuenta nueva.                                                  |

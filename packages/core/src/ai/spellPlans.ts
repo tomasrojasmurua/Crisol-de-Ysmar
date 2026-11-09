@@ -230,4 +230,128 @@ function greatOptions(
   add(['marea', 'tormenta', 'tormenta'], 'away', !transformed && near && health < 0.5 ? 1 : 0);
   add(['raiz', 'tormenta', 'raiz'], 'target', !transformed && d >= 12 && d < 18 ? 0.8 : 0);
   add(['umbra', 'raiz', 'tormenta'], 'target', !transformed && d < 5 && health > 0.4 ? 1.2 : 0);
+
+  fourthOptions(s, add, d, health, bigCast, allies.length > 0, hurtAlly);
+}
+
+/**
+ * Cuarta tanda: terreno, detonadores, tiempo, copias y contrahechizos. Casi todos son de
+ * oportunidad: cortar un conjuro, rematar, salvarse o aprovechar lo que ya tiene en el campo.
+ */
+function fourthOptions(
+  s: Situation,
+  add: (elements: ElementId[], aimMode: AimMode, weight: number) => void,
+  d: number,
+  health: number,
+  bigCast: boolean,
+  hasAllies: boolean,
+  hurtAlly: boolean,
+): void {
+  const { state, self, target, threatened } = s;
+  const targetHealth = target.hp / target.maxHp;
+  const near = d < 4;
+  const mid = d >= 4 && d <= 10;
+  const me = self.statuses;
+  const t = target.statuses;
+  const helpless = Boolean(t.airborne || t.root || t.frozen || t.asleep || t.stunned);
+  const mine = state.spells.filter((e) => e.ownerId === self.id);
+  const ownsSummons = mine.some(
+    (e) => e.kind === 'summon' && e.summon !== 'voodooDoll' && distance(e.pos, self.pos) < 8,
+  );
+  const ownsTriggers = mine.some(
+    (e) =>
+      (e.kind === 'trap' && !e.friendly) ||
+      (e.kind === 'field' && (e.mode === 'solarOrb' || e.mode === 'mandrake')),
+  );
+  const rivalStuff = state.spells.some(
+    (e) =>
+      e.team !== self.team &&
+      e.ownerId !== self.id &&
+      (e.kind === 'summon' || e.kind === 'zone' || e.kind === 'trap' || e.kind === 'field') &&
+      distance('pos' in e ? e.pos : self.pos, self.pos) < 9,
+  );
+  const tired = Object.values(self.fatigue).filter((f) => f > 0).length;
+  const past = self.past[0];
+
+  // Cortar, robar u olvidar el conjuro grande que le preparan.
+  add(['tormenta', 'brasa', 'raiz'], 'target', d <= 8 && !me.primed ? (bigCast ? 4 : 0.6) : 0);
+  add(['raiz', 'umbra', 'umbra'], 'target', bigCast && d < 10 ? 2.5 : 0);
+  add(['marea', 'umbra', 'umbra'], 'target', bigCast && d < 6 ? 3 : 0);
+  add(['tormenta', 'umbra', 'marea'], 'target', bigCast && d < 9 ? 2 : 0);
+  add(['umbra', 'marea', 'brasa'], 'target', d < 6 ? (threatened ? 2 : 0.8) : 0);
+  add(['tormenta', 'brasa', 'umbra'], 'target', d < 6 && target.lastWeave ? 0.8 : 0);
+  add(['marea', 'tormenta', 'umbra'], 'target', target.lastWeave?.length === 3 && d < 12 ? 1.2 : 0);
+
+  // Rematar o castigar.
+  add(['umbra', 'brasa', 'brasa'], 'target', targetHealth < 0.25 && d < 10 ? 6 : 0);
+  add(['brasa', 'umbra', 'raiz'], 'target', targetHealth < 0.45 && d < 10 ? 2 : 0);
+  add(['brasa', 'tormenta', 'marea'], 'target', mid ? (helpless ? 2 : 0.6) : 0);
+  add(['tormenta', 'raiz', 'brasa'], 'target', d >= 5 && d < 11 ? 0.8 : 0);
+  add(['tormenta', 'tormenta', 'umbra'], 'target', d < 8 && health > 0.4 ? 1 : 0);
+  add(['brasa', 'marea', 'tormenta'], 'target', d < 6 ? (target.shield > 0 ? 3 : 0.4) : 0);
+  add(['marea', 'tormenta', 'brasa'], 'lead', d >= 4 && d < 12 ? 0.6 : 0);
+  add(['umbra', 'raiz', 'brasa'], 'target', d < 10 ? 0.6 : 0);
+
+  // Terreno y trampas.
+  add(['brasa', 'brasa', 'marea'], 'target', mid ? 0.6 : 0);
+  add(['brasa', 'tormenta', 'brasa'], 'target', d < 8 ? 0.3 : 0);
+  add(['raiz', 'brasa', 'tormenta'], 'target', mid ? 0.4 : 0);
+  add(['tormenta', 'tormenta', 'raiz'], 'target', mid ? 0.5 : 0);
+  add(['raiz', 'umbra', 'raiz'], 'target', mid ? 0.5 : 0);
+  add(['marea', 'tormenta', 'marea'], 'target', d < 8 ? 0.4 : 0);
+  add(['umbra', 'raiz', 'raiz'], 'target', d > 6 ? 0.4 : 0);
+  add(['tormenta', 'raiz', 'raiz'], 'target', ownsSummons || ownsTriggers ? 1.5 : 0);
+  add(['tormenta', 'marea', 'umbra'], 'target', rivalStuff ? 2 : 0);
+
+  // Ritmo y carga.
+  add(['brasa', 'marea', 'brasa'], 'target', d > 6 && !me.forged ? 0.5 : 0);
+  add(['tormenta', 'brasa', 'brasa'], 'target', mid ? 0.4 : 0);
+  add(['brasa', 'umbra', 'umbra'], 'target', mid ? 0.4 : 0);
+  add(['brasa', 'tormenta', 'tormenta'], 'target', d >= 4 && d < 12 && health > 0.5 ? 0.4 : 0);
+  add(['raiz', 'marea', 'tormenta'], 'target', health < 0.7 ? 0.6 : 0);
+  add(['brasa', 'raiz', 'raiz'], 'target', d > 10 && tired >= 2 ? 0.8 : 0);
+  add(['raiz', 'marea', 'brasa'], 'target', ownsSummons ? 1.5 : 0);
+  add(['tormenta', 'raiz', 'marea'], 'target', ownsSummons ? 1 : 0);
+  add(['umbra', 'raiz', 'marea'], 'target', d > 10 ? 0.4 : 0);
+
+  // Defenderse.
+  add(['tormenta', 'brasa', 'tormenta'], 'target', threatened ? 2 : 0);
+  add(['marea', 'marea', 'umbra'], 'target', threatened ? 2 : 0);
+  add(['umbra', 'marea', 'marea'], 'target', threatened ? 1.5 : 0);
+  add(['marea', 'umbra', 'marea'], 'target', threatened && health < 0.5 ? 1.5 : 0);
+  add(['raiz', 'brasa', 'marea'], 'target', threatened && d > 6 ? 1 : 0);
+  add(['raiz', 'brasa', 'umbra'], 'target', near ? 1.2 : 0);
+  add(['brasa', 'raiz', 'brasa'], 'target', near ? 1 : 0);
+  add(['brasa', 'raiz', 'marea'], 'target', health < 0.4 && d < 8 ? 1 : 0);
+  add(['raiz', 'marea', 'marea'], 'target', me.soaked ? 1.5 : 0);
+  add(['umbra', 'brasa', 'umbra'], 'target', health < 0.3 && d < 9 ? 1.5 : 0);
+  add(['umbra', 'umbra', 'raiz'], 'target', health < 0.4 && health > 0.2 && d < 12 ? 1.5 : 0);
+
+  // Salvarse en las últimas.
+  const once = (spell: 'rebirth' | 'transfusion'): boolean => !self.spent.includes(spell);
+  add(['marea', 'raiz', 'umbra'], 'target', health < 0.3 && once('rebirth') ? 3 : 0);
+  add(
+    ['umbra', 'marea', 'umbra'],
+    'target',
+    health < targetHealth - 0.3 && once('transfusion') ? 4 : 0,
+  );
+  add(
+    ['tormenta', 'umbra', 'brasa'],
+    'target',
+    health < 0.35 && past && past.hp > self.hp + 25 ? 3 : 0,
+  );
+
+  // Moverse.
+  add(['tormenta', 'marea', 'marea'], 'away', near && health < 0.5 ? 0.8 : 0);
+  add(['tormenta', 'raiz', 'tormenta'], 'away', near && health < 0.4 ? 1 : 0);
+  add(['marea', 'raiz', 'tormenta'], 'away', near && health < 0.5 ? 0.6 : 0);
+  add(['umbra', 'tormenta', 'brasa'], 'away', near && health < 0.5 ? 1 : 0);
+
+  // Control y estados.
+  add(['tormenta', 'umbra', 'raiz'], 'target', d < 9 ? 0.5 : 0);
+  add(['umbra', 'brasa', 'marea'], 'target', d < 10 ? 0.5 : 0);
+  add(['raiz', 'marea', 'umbra'], 'target', d < 9 ? 0.6 : 0);
+
+  // Con aliados.
+  add(['raiz', 'marea', 'raiz'], 'target', hasAllies && hurtAlly ? 1.5 : 0);
 }

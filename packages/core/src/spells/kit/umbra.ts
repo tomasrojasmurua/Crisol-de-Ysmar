@@ -1,3 +1,4 @@
+import { healWizard } from '../../combat/hit';
 import { launch } from './brasa';
 import { type CastContext, nextId, payloadFor, summon } from './context';
 import { hitTarget, targetInCone } from './shared';
@@ -49,7 +50,7 @@ export function castDrain(ctx: CastContext): void {
 
 function heal(ctx: CastContext, amount: number): void {
   const caster = ctx.caster;
-  if (caster.hp > 0) caster.hp = Math.min(caster.maxHp, caster.hp + amount);
+  healWizard(ctx.state, caster, amount);
 }
 
 /** Señuelo: desapareces un momento y un doble tuyo sale corriendo hacia donde apuntas. */

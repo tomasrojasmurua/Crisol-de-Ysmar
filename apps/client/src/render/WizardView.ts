@@ -1,4 +1,4 @@
-import type { ElementId, GameRules, Wizard } from '@crisol/core';
+import type { ElementId, GameRules, StatusId, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { AffinityLook } from './AffinityLook';
 import type { Particles } from './Particles';
@@ -50,6 +50,12 @@ export class WizardView {
   private readonly frost: THREE.Mesh;
   /** Ataúd helado: un bloque de hielo alrededor del mago. */
   private readonly iceBlock: THREE.Mesh;
+  /** Un anillo por cada estado de la cuarta tanda. */
+  private readonly marks: {
+    readonly mesh: THREE.Mesh;
+    readonly status: StatusId;
+    readonly spin: number;
+  }[] = [];
   private readonly teamRing: THREE.Mesh;
   private readonly reviveRing: THREE.Mesh;
   private readonly grave: THREE.Mesh;
@@ -192,6 +198,16 @@ export class WizardView {
     this.iceBlock.visible = false;
     this.group.add(this.iceBlock);
 
+    for (const mark of STATUS_MARKS) {
+      const mesh = statusRing(
+        radius * mark.size + 0.2,
+        glow(new THREE.Color(mark.color), 1.8),
+        mark.height,
+      );
+      this.marks.push({ mesh, status: mark.status, spin: mark.spin });
+      this.group.add(mesh);
+    }
+
     const orbGeometry = new THREE.SphereGeometry(0.12, 14, 10);
     for (let i = 0; i < ORB_COUNT; i++) {
       const orb = new THREE.Mesh(orbGeometry, new THREE.MeshBasicMaterial());
@@ -332,6 +348,12 @@ export class WizardView {
     this.iceBlock.visible =
       ((stasis !== undefined && !swallowed) || wizard.statuses.frozen !== undefined) && alive;
     this.iceBlock.rotation.y = timeSeconds * 0.3;
+    for (const mark of this.marks) {
+      mark.mesh.visible = wizard.statuses[mark.status] !== undefined && alive;
+      if (mark.mesh.visible) mark.mesh.rotation.z = timeSeconds * mark.spin;
+    }
+    // Detenido en el tiempo: la túnica queda pálida, sin color.
+    if (wizard.statuses.halted) emissive.add(new THREE.Color('#9aa6c0').multiplyScalar(0.35));
 
     this.affinityLook?.update(
       x,
@@ -553,6 +575,50 @@ export class WizardView {
     this.staff.visible = !ghostly;
   }
 }
+
+/**
+ * Los estados de la cuarta tanda: un anillo de su color, a su altura y con su giro, para leerlos
+ * de lejos sin carteles. Los de arriba de la cabeza son de control; los de los pies, de zonas.
+ */
+const STATUS_MARKS: readonly {
+  readonly status: StatusId;
+  readonly color: string;
+  readonly height: number;
+  readonly size: number;
+  readonly spin: number;
+}[] = [
+  { status: 'stunned', color: '#ffe066', height: 2.45, size: 0.45, spin: 6 },
+  { status: 'halted', color: '#f2f6ff', height: 1.1, size: 1.25, spin: 0 },
+  { status: 'untouchable', color: '#d8c8ff', height: 1.0, size: 1.15, spin: 3 },
+  { status: 'thorny', color: '#7fd65a', height: 0.5, size: 1.1, spin: -1.5 },
+  { status: 'emberSeed', color: '#ff8a3a', height: 1.5, size: 0.35, spin: 2 },
+  { status: 'oath', color: '#f0d9a0', height: 1.9, size: 0.7, spin: 0.5 },
+  { status: 'rotting', color: '#8a9a3a', height: 0.3, size: 0.9, spin: 1 },
+  { status: 'muted', color: '#5a3a7a', height: 2.2, size: 0.5, spin: -2 },
+  { status: 'attracting', color: '#e9f6ff', height: 1.2, size: 1.4, spin: 5 },
+  { status: 'mirroring', color: '#5fe0ff', height: 1.2, size: 1.3, spin: -3 },
+  { status: 'wailing', color: '#4a2a6a', height: 1.2, size: 1.6, spin: 1 },
+  { status: 'depth', color: '#2a6aa0', height: 0.15, size: 1.2, spin: 0.8 },
+  { status: 'rebirth', color: '#9effc8', height: 0.15, size: 1.3, spin: -0.8 },
+  { status: 'vengeful', color: '#c0203a', height: 2.0, size: 0.6, spin: 1.5 },
+  { status: 'ashHunger', color: '#ff6a2a', height: 2.0, size: 0.6, spin: -1.5 },
+  { status: 'hexed', color: '#b05aff', height: 2.3, size: 0.4, spin: 4 },
+  { status: 'forgetful', color: '#9aa0b8', height: 2.3, size: 0.5, spin: -1 },
+  { status: 'robbed', color: '#3a1f55', height: 1.6, size: 0.8, spin: 2 },
+  { status: 'scalded', color: '#ffd0b0', height: 1.0, size: 1.0, spin: 2 },
+  { status: 'grafted', color: '#6fe8a0', height: 0.9, size: 0.95, spin: 1 },
+  { status: 'forged', color: '#ffb347', height: 1.3, size: 0.5, spin: 3 },
+  { status: 'overcharged', color: '#e9f6ff', height: 1.3, size: 0.55, spin: -4 },
+  { status: 'echoing', color: '#ff7a3a', height: 1.4, size: 0.6, spin: 2.5 },
+  { status: 'propelled', color: '#ff9a4a', height: 0.2, size: 0.8, spin: 4 },
+  { status: 'dewy', color: '#9effc8', height: 1.8, size: 0.6, spin: 1 },
+  { status: 'harvesting', color: '#7a5aa0', height: 0.15, size: 1.0, spin: 1 },
+  { status: 'steering', color: '#e9f6ff', height: 1.6, size: 0.55, spin: 6 },
+  { status: 'primed', color: '#9fd8ff', height: 1.5, size: 0.75, spin: -6 },
+  { status: 'grounded', color: '#5f8fc8', height: 0.1, size: 0.8, spin: 0 },
+  { status: 'withered', color: '#6b4a2a', height: 0.1, size: 0.85, spin: 0 },
+  { status: 'kindled', color: '#ffb060', height: 0.1, size: 0.75, spin: 0 },
+];
 
 function statusRing(radius: number, color: THREE.Color, height: number): THREE.Mesh {
   const ring = new THREE.Mesh(

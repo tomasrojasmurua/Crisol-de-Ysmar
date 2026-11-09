@@ -7,6 +7,15 @@ import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { castSpell } from '../spells/cast';
 import { spellOf } from '../spells/catalog';
+import { stealSpell } from '../spells/kit/greatMind';
+import {
+  fireEchoes,
+  jumpToShadow,
+  mayChannel,
+  overchargedTicks,
+  recordPast,
+  resolveReactions,
+} from '../spells/kit/greatReactions';
 import { blockByRings, blockByWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
@@ -56,9 +65,13 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, baseRules
     }
   }
   updateSpells(state, rules);
+  fireEchoes(state, rules, (caster, spell, weave, aim) =>
+    castSpell(state, caster, spell, weave, aim, rules, true),
+  );
   updateBeasts(state, rules);
   updateShrines(state, rules);
   updateZone(state, rules);
+  resolveReactions(state, rules);
   processFalls(state, rules);
   updateRevives(state, rules);
   state.tick++;
@@ -110,6 +123,10 @@ function applyIntents(
         }
         break;
       case 'cast':
+        // Sin tejer, ✦ lleva a la Sombra lanzada si hay una.
+        if (wizard.weave.length === 0 && !wizard.channel && jumpToShadow(state, wizard, rules)) {
+          break;
+        }
         startChannel(state, wizard, { x: intent.dirX, z: intent.dirZ }, rules);
         break;
       case 'lockTarget':
@@ -129,6 +146,8 @@ function startChannel(
     return;
   }
   const weave = wizard.weave;
+  // Con la Bruma del olvido, el último hechizo no se puede repetir.
+  if (!mayChannel(state, wizard, weave)) return;
   const baseTicks = rules.weave.castTicksByLength[weave.length - 1] ?? 1;
   // La Fuente termal apura el tejido y el Vaho lo traba.
   const pace =
@@ -136,7 +155,9 @@ function startChannel(
     (wizard.statuses.sluggish ? rules.statuses.sluggish.castMultiplier : 1);
   // Nada sale más rápido que un tejido de 1 elemento sin ayudas: el rival siempre ve el aviso.
   const floor = rules.weave.castTicksByLength[0];
-  const castTicks = Math.max(floor, Math.round(baseTicks * wizard.mods.castTime * pace));
+  const paced = Math.max(floor, Math.round(baseTicks * wizard.mods.castTime * pace));
+  // Con la Sobrecarga sale con el aviso mínimo, nunca antes.
+  const castTicks = overchargedTicks(wizard, paced, floor);
   // Con la Combustión, cada conjuro quema a quien lo teje.
   const combusting = wizard.statuses.combusting;
   if (combusting) {
@@ -162,11 +183,19 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   if (wasPhased && !wizard.statuses.phased) {
     wizard.pos = placeInArena(wizard.pos, rules.wizard.radius, rules);
   }
+  // Junto a la Hoguera se descansa más rápido; dentro de Marchitar, nada.
+  const rest = wizard.statuses.withered
+    ? 0
+    : wizard.statuses.kindled
+      ? rules.statuses.kindled.restMultiplier
+      : 1;
   for (const element of ELEMENT_IDS) {
     if (wizard.fatigue[element] > 0) {
-      wizard.fatigue[element]--;
+      wizard.fatigue[element] = Math.max(0, wizard.fatigue[element] - rest);
     }
   }
+  recordPast(state, wizard, rules);
+  if (wizard.held && --wizard.held.ticksLeft <= 0) wizard.held = null;
 
   // Por los aires o congelado, no se teje ni se salta.
   if (!canAct(wizard)) {
@@ -207,7 +236,10 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   updateForms(state, wizard, rules);
 }
 
-/** Sale el conjuro: el hechizo del tejido. */
+/**
+ * Sale el conjuro: el hechizo del tejido, o el que tenía guardado (Reflejo, Hurto).
+ * Si le pusieron el Hurto, no sale: se lo queda quien lo marcó.
+ */
 function release(
   state: MatchState,
   wizard: Wizard,
@@ -215,8 +247,17 @@ function release(
   rawAim: { x: number; z: number },
   rules: GameRules,
 ): void {
-  const spell = spellOf(weave);
-  if (spell) castSpell(state, wizard, spell, weave, rawAim, rules);
+  const held = wizard.held;
+  wizard.held = null;
+  const spell = held ? held.spell : spellOf(weave);
+  const castWeave = held ? held.weave : weave;
+  if (!spell) return;
+  if (wizard.statuses.robbed) {
+    stealSpell(state, wizard, spell, castWeave, rules);
+    wizard.lastWeave = castWeave;
+    return;
+  }
+  castSpell(state, wizard, spell, castWeave, rawAim, rules);
 }
 
 export const NO_INTENTS: IntentsByWizard = new Map();

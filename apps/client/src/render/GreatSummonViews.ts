@@ -52,7 +52,73 @@ export function createGreatSummon(kind: GreatSummonKind, summon: Summon): THREE.
       return createCarnivore();
     case 'sentinel':
       return createSentinel();
+    case 'mushroom':
+      return createMushroom(summon.radius);
+    case 'voodooDoll':
+      return createVoodooDoll();
   }
+}
+
+/** Hongo gigante: un tallo grueso y un sombrero ancho con manchas que brillan. */
+function createMushroom(radius: number): THREE.Object3D {
+  const group = new THREE.Group();
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.3, radius * 0.4, 2.4, 8).translate(0, 1.2, 0),
+    new THREE.MeshStandardMaterial({ color: '#d8ccb0', roughness: 1, flatShading: true }),
+  );
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(radius * 1.4, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1),
+    new THREE.MeshStandardMaterial({
+      color: '#5a2a5a',
+      emissive: new THREE.Color('#8f5aff'),
+      emissiveIntensity: 0.12,
+      roughness: 0.8,
+      flatShading: true,
+    }),
+  );
+  cap.position.y = 2.3;
+  const dots = new THREE.MeshBasicMaterial({ color: glow(ROOT, 1.8) });
+  for (let i = 0; i < 7; i++) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 4), dots);
+    const angle = i * 2.4;
+    const d = radius * (0.4 + (i % 3) * 0.3);
+    dot.position.set(
+      Math.cos(angle) * d,
+      2.3 + radius * 0.55 * Math.sqrt(1 - (d / (radius * 1.4)) ** 2),
+      Math.sin(angle) * d,
+    );
+    group.add(dot);
+  }
+  group.add(stem, cap);
+  group.userData.cap = cap;
+  return group;
+}
+
+/** Muñeco vudú: un muñeco de trapo con dos alfileres clavados. */
+function createVoodooDoll(): THREE.Object3D {
+  const group = new THREE.Group();
+  const cloth = new THREE.MeshStandardMaterial({
+    color: '#8a6a44',
+    roughness: 1,
+    flatShading: true,
+  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.28, 0.7, 6).translate(0, 0.35, 0),
+    cloth,
+  );
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 6), cloth);
+  head.position.y = 0.9;
+  const pin = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4);
+  const pinMaterial = new THREE.MeshBasicMaterial({ color: glow(SHADOW, 2) });
+  const pins = [-0.4, 0.5].map((tilt, i) => {
+    const p = new THREE.Mesh(pin, pinMaterial);
+    p.position.set(i === 0 ? 0.1 : -0.12, i === 0 ? 0.95 : 0.45, 0.18);
+    p.rotation.set(tilt, 0, tilt);
+    return p;
+  });
+  group.add(body, head, ...pins);
+  group.userData.head = head;
+  return group;
 }
 
 /** Centinela: un ojo de sombra que flota y mira alrededor. */
@@ -402,6 +468,40 @@ export function updateGreatSummon(
           color: SHADOW.clone().multiplyScalar(0.6),
           life: 0.8,
           size: 0.35,
+        });
+      }
+      return;
+    }
+    case 'mushroom': {
+      const cap = view.userData.cap as THREE.Mesh;
+      // Cuando lo golpean, el sombrero se encoge un instante.
+      const hit = summon.hp < summon.maxHp ? 1 - (summon.hp / summon.maxHp) * 0.1 : 1;
+      cap.scale.set(hit, 1, hit);
+      if (Math.random() < 0.08) {
+        particles.emit({
+          x: pos.x + (Math.random() - 0.5) * 2,
+          y: 2.2,
+          z: pos.z + (Math.random() - 0.5) * 2,
+          vy: -0.3,
+          color: glow(ROOT, 1.1),
+          life: 1.5,
+          size: 0.3,
+        });
+      }
+      return;
+    }
+    case 'voodooDoll': {
+      const head = view.userData.head as THREE.Mesh;
+      head.rotation.z = Math.sin(time * 5) * 0.25;
+      if (Math.random() < 0.15) {
+        particles.emit({
+          x: pos.x,
+          y: 1.1,
+          z: pos.z,
+          vy: 0.8,
+          color: glow(SHADOW, 1.6),
+          life: 0.6,
+          size: 0.3,
         });
       }
       return;

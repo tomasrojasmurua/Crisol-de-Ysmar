@@ -13,6 +13,7 @@ import type {
 import { add, distance, dot, length, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import type { SpellId } from '../catalog';
+import { touchTriggers } from './greatFieldUpdates';
 import { damageSummon } from './summons';
 
 /** Un blanco para un hechizo instantáneo: un rival, o si no hay, una bestia. */
@@ -105,6 +106,8 @@ export function hitArea(
       damageSummon(state, summon, payload.damage);
     }
   }
+  // Una explosión tuya hace estallar tu Granada solar, y una con Brasa enciende el Polen.
+  touchTriggers(state, team, pos, radius, payload.weave, rules);
 }
 
 /**

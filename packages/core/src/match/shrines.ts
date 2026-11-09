@@ -1,4 +1,4 @@
-import { applyStatus } from '../combat/hit';
+import { applyStatus, healWizard } from '../combat/hit';
 import { distance } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { placeInArena } from './obstacles';
@@ -52,7 +52,7 @@ export function updateShrines(state: MatchState, rules: GameRules): void {
     if (++shrine.progress < captureTicks) return true;
 
     for (const wizard of present) {
-      wizard.hp = Math.min(wizard.maxHp, wizard.hp + wizard.maxHp * healFraction);
+      healWizard(state, wizard, wizard.maxHp * healFraction);
       applyStatus(state, wizard, 'empowered', wizard.id, rules);
     }
     state.events.push({ type: 'shrineClaimed', shrineId: shrine.id, team });

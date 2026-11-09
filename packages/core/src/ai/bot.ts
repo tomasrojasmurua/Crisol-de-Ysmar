@@ -93,9 +93,19 @@ export class BotController implements Controller {
     if (hidden) {
       move = this.keepInZone(state, self, this.nav.directionTo(self.pos, goal));
     }
+    // Mientras dirige el Relámpago guiado, el pulgar de moverse lleva el rayo hacia el rival.
+    const bolt = state.spells.find((e) => e.kind === 'guidedBolt' && e.ownerId === self.id);
+    if (bolt?.kind === 'guidedBolt' && self.statuses.steering) {
+      move = normalize(sub(target.pos, bolt.pos), bolt.dir);
+    }
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
     if (self.channel || self.leap) {
+      return intents;
+    }
+    // Con la Sombra lanzada, salta a ella si lo encimaron o está mal.
+    if (self.weave.length === 0 && this.shouldJumpToShadow(state, self, target)) {
+      intents.push({ kind: 'cast', dirX: 0, dirZ: 0 });
       return intents;
     }
     // No gasta conjuros en un tronco: espera a tener el blanco a la vista.
@@ -113,6 +123,19 @@ export class BotController implements Controller {
       intents.push(weaveIntent);
     }
     return intents;
+  }
+
+  private shouldJumpToShadow(
+    state: Readonly<MatchState>,
+    self: Readonly<Wizard>,
+    target: Wizard,
+  ): boolean {
+    const mark = state.spells.find(
+      (e) => e.kind === 'field' && e.mode === 'shadowMark' && e.ownerId === self.id,
+    );
+    if (mark?.kind !== 'field') return false;
+    const close = distance(self.pos, target.pos) < 3.5;
+    return close || self.hp / self.maxHp < 0.35 || mark.ticksLeft < 10;
   }
 
   private chooseWeaveAction(

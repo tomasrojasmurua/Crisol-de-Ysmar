@@ -3,7 +3,7 @@ import type { MatchState, Wizard } from '../match/state';
 import { distance } from '../math/vec2';
 import { type GameRules, STATUS_IDS, type StatusId } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
-import { dealDamage } from './hit';
+import { dealDamage, healWizard } from './hit';
 
 /**
  * Los estados que hacen daño o estorban: el Ataúd helado y la Purificación los quitan,
@@ -26,6 +26,16 @@ export const HARMFUL_STATUSES: readonly StatusId[] = [
   'combusting',
   'plague',
   'tracked',
+  'stunned',
+  'scalded',
+  'withered',
+  'grounded',
+  'ashHunger',
+  'hexed',
+  'rotting',
+  'robbed',
+  'forgetful',
+  'muted',
 ];
 
 /** Lo que no le entra a una forma: el magma no se frena ni se enraíza, y las raíces no ceden. */
@@ -59,7 +69,7 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
     dealDamage(state, wizard, curse.sourceId, amount, 'mark');
     const caster = wizardById(state, curse.sourceId);
     if (caster && caster.hp > 0) {
-      caster.hp = Math.min(caster.maxHp, caster.hp + amount * rules.statuses.curse.lifesteal);
+      healWizard(state, caster, amount * rules.statuses.curse.lifesteal);
     }
   }
   const plague = wizard.statuses.plague;
@@ -69,8 +79,10 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
     spreadPlague(state, wizard, plague.sourceId, plague.ticks, spec.spreadRadius);
   }
   if (wizard.statuses.regen && wizard.hp > 0) {
-    wizard.hp = Math.min(wizard.maxHp, wizard.hp + rules.statuses.regen.healPerSecond / TICK_RATE);
+    healWizard(state, wizard, rules.statuses.regen.healPerSecond / TICK_RATE);
   }
+  // Escaldado, ningún escudo le dura.
+  if (wizard.statuses.scalded) wizard.shield = 0;
   for (const id of STATUS_IDS) {
     const status = wizard.statuses[id];
     if (status && --status.ticks <= 0) {
@@ -79,10 +91,13 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
   }
 }
 
-/** Por los aires, en el Ataúd helado, congelado o dormido, un mago no se mueve ni teje. */
+/**
+ * Por los aires, en el Ataúd helado, congelado, dormido, aturdido o detenido en el tiempo,
+ * un mago no se mueve ni teje.
+ */
 export function canAct(wizard: Wizard): boolean {
   const s = wizard.statuses;
-  return !s.airborne && !s.stasis && !s.frozen && !s.asleep;
+  return !s.airborne && !s.stasis && !s.frozen && !s.asleep && !s.stunned && !s.halted;
 }
 
 /** Silenciado, se puede mover pero no tejer ni lanzar. */
@@ -94,7 +109,8 @@ export function canWeave(wizard: Wizard): boolean {
 
 export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
   const s = wizard.statuses;
-  if (s.root || s.deepRooted || !canAct(wizard)) {
+  // Quien dirige el Relámpago guiado se queda quieto.
+  if (s.root || s.deepRooted || s.steering || !canAct(wizard)) {
     return 0;
   }
   let multiplier = wizard.statuses.slow ? rules.statuses.slow.moveMultiplier : 1;
