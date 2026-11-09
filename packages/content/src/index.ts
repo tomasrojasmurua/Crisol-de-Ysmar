@@ -9,9 +9,9 @@ export {
   TRIM_COLORS,
 } from './appearance';
 export { ELEMENTS } from './elements';
+export { FEATURES, type Features } from './features';
 export { BEAST_NAMES, GLYPHS, type Glyph, GUARDIAN_NAME, OMENS, type Omen } from './glyphs';
 export { ALL_WEAVES, SPELL_NAMES, spellName, weaveKey } from './grimoire';
-export { FEATURES, type Features } from './features';
 export { MAP, MAP_DECOR, MAP_RADIUS, PLAZA_ARENA_RADIUS, PLAZA_MAP } from './map';
 export { WIZARD_NAMES } from './names';
 export { DUEL_RULES, GAME_RULES, rulesForMode } from './rules';

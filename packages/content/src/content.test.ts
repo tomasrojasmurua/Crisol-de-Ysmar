@@ -2,8 +2,8 @@ import { ELEMENT_IDS, modeSetup, obstacleAt } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
 import { ELEMENTS } from './elements';
-import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
 import { FEATURES } from './features';
+import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
 import { MAP, MAP_RADIUS, PLAZA_MAP } from './map';
 import { DUEL_RULES, GAME_RULES, rulesForMode } from './rules';
 
