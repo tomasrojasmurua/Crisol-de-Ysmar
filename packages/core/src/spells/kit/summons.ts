@@ -5,6 +5,16 @@ import type { MatchState, Summon, Wizard } from '../../match/state';
 import { add, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
+import {
+  summonGone,
+  updateAncientTree,
+  updateCarnivore,
+  updateGlacier,
+  updateMagmaGolem,
+  updateShadowTwin,
+  updateSwarm,
+  updateWanderingSpark,
+} from './greatSummons';
 
 /** La invocación rival que toca ese punto, si hay alguna. */
 export function enemySummonAt(
@@ -32,9 +42,13 @@ export function damageSummon(state: MatchState, summon: Summon, amount: number):
 /** Avanza una invocación; devuelve false cuando desaparece. */
 export function updateSummon(state: MatchState, summon: Summon, rules: GameRules): boolean {
   const owner = wizardById(state, summon.ownerId);
-  if (summon.hp <= 0) return false;
+  if (summon.hp <= 0) {
+    summonGone(state, summon, rules);
+    return false;
+  }
   if (!owner || owner.hp <= 0 || --summon.ticksLeft <= 0) {
     state.events.push({ type: 'summonGone', summon: summon.summon, pos: summon.pos });
+    summonGone(state, summon, rules);
     return false;
   }
   switch (summon.summon) {
@@ -49,11 +63,29 @@ export function updateSummon(state: MatchState, summon: Summon, rules: GameRules
     case 'decoy':
       move(summon, summon.facing, rules.spells.decoy.speed, rules);
       return true;
+    case 'wanderingSpark':
+      return updateWanderingSpark(state, summon, owner, rules);
+    case 'magmaGolem':
+      updateMagmaGolem(state, summon, owner, rules);
+      return true;
+    case 'glacier':
+      return updateGlacier(state, summon, owner, rules);
+    case 'swarm':
+      updateSwarm(state, summon, owner, rules);
+      return true;
+    case 'ancientTree':
+      updateAncientTree(state, summon, rules);
+      return true;
+    case 'shadowTwin':
+      updateShadowTwin(state, summon, owner, rules);
+      return true;
+    case 'carnivore':
+      return updateCarnivore(state, summon, rules);
   }
 }
 
 /** El rival vivo y visible más cercano a un punto, dentro de cierto alcance. */
-function nearestVisibleEnemy(
+export function nearestVisibleEnemy(
   state: MatchState,
   owner: Wizard,
   from: Vec2,
@@ -74,7 +106,7 @@ function nearestVisibleEnemy(
   return best;
 }
 
-function move(summon: Summon, dir: Vec2, speed: number, rules: GameRules): void {
+export function move(summon: Summon, dir: Vec2, speed: number, rules: GameRules): void {
   const step = scale(normalize(dir), speed / TICK_RATE);
   if (step.x === 0 && step.z === 0) return;
   summon.pos = placeInArena(add(summon.pos, step), summon.radius, rules);

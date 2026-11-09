@@ -154,7 +154,8 @@ export function decideRoundWinner(state: MatchState, rules: GameRules): number |
   return leaders.length === 1 ? (leaders[0]?.[0] ?? -1) : -1;
 }
 
-function standUp(wizard: Wizard, hp: number): void {
+/** Pone de pie a un caído con cierta vida. */
+export function standUp(wizard: Wizard, hp: number): void {
   wizard.hp = hp;
   wizard.fallen = null;
   wizard.weave = [];

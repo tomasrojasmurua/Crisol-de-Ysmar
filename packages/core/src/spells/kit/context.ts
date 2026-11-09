@@ -71,6 +71,7 @@ export function summon(
   pos: Vec2,
   payload: SpellPayload,
   cooldown = 0,
+  slot = 0,
 ): Summon {
   const { state, caster } = ctx;
   const created: Summon = {
@@ -87,6 +88,8 @@ export function summon(
     durationTicks: spell.durationTicks,
     ticksLeft: spell.durationTicks,
     cooldown,
+    targetId: null,
+    slot,
     payload,
   };
   state.spells.push(created);

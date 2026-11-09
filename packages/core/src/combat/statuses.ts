@@ -1,8 +1,31 @@
 import { wizardById } from '../match/queries';
 import type { MatchState, Wizard } from '../match/state';
-import { type GameRules, STATUS_IDS } from '../rules';
+import { distance } from '../math/vec2';
+import { type GameRules, STATUS_IDS, type StatusId } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { dealDamage } from './hit';
+
+/**
+ * Los estados que hacen daño o estorban: el Ataúd helado y la Purificación los quitan,
+ * y no entran mientras dura la Purificación.
+ */
+export const HARMFUL_STATUSES: readonly StatusId[] = [
+  'burn',
+  'slow',
+  'root',
+  'curse',
+  'airborne',
+  'frozen',
+  'asleep',
+  'soaked',
+  'silenced',
+  'weak',
+  'blind',
+  'sluggish',
+  'exposed',
+  'combusting',
+  'plague',
+];
 
 /** Avanza un paso los estados de un mago: quemadura y maldición hacen daño en el tiempo. */
 export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules): void {
@@ -24,6 +47,12 @@ export function tickStatuses(state: MatchState, wizard: Wizard, rules: GameRules
     if (caster && caster.hp > 0) {
       caster.hp = Math.min(caster.maxHp, caster.hp + amount * rules.statuses.curse.lifesteal);
     }
+  }
+  const plague = wizard.statuses.plague;
+  if (plague) {
+    const spec = rules.statuses.plague;
+    dealDamage(state, wizard, plague.sourceId, spec.damagePerSecond / TICK_RATE, 'mark');
+    spreadPlague(state, wizard, plague.sourceId, plague.ticks, spec.spreadRadius);
   }
   if (wizard.statuses.regen && wizard.hp > 0) {
     wizard.hp = Math.min(wizard.maxHp, wizard.hp + rules.statuses.regen.healPerSecond / TICK_RATE);
@@ -62,4 +91,25 @@ export function moveMultiplier(wizard: Wizard, rules: GameRules): number {
     multiplier *= rules.wizard.channelMoveMultiplier;
   }
   return multiplier;
+}
+
+/**
+ * La Plaga salta a los rivales de quien la lanzó que se acerquen al enfermo, con el tiempo
+ * que a este le queda: así se apaga sola y no rebota para siempre entre dos.
+ */
+function spreadPlague(
+  state: MatchState,
+  carrier: Wizard,
+  sourceId: number,
+  ticksLeft: number,
+  radius: number,
+): void {
+  const source = wizardById(state, sourceId);
+  const team = source ? source.team : -1;
+  for (const other of state.wizards) {
+    if (other === carrier || other.hp <= 0 || other.team === team) continue;
+    if (other.statuses.plague || other.statuses.stasis || other.statuses.warded) continue;
+    if (distance(other.pos, carrier.pos) > radius) continue;
+    other.statuses.plague = { ticks: ticksLeft, sourceId };
+  }
 }

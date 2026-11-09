@@ -29,7 +29,9 @@ export function castSowing(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.sowing;
   // Una sola siembra por mago: la nueva reemplaza a la anterior.
-  state.spells = state.spells.filter((s) => !(s.kind === 'trap' && s.ownerId === caster.id));
+  state.spells = state.spells.filter(
+    (s) => !(s.kind === 'trap' && s.ownerId === caster.id && !s.friendly),
+  );
   const center = clampToCircle(
     groundPoint(state, caster, ctx.aim, spell.range, rules),
     rules.arenaRadius - 1,
@@ -57,6 +59,7 @@ export function castSowing(ctx: CastContext): void {
       pos,
       radius: spell.radius,
       armTicks: spell.armTicks,
+      friendly: false,
       ticksLeft: spell.durationTicks,
       payload,
     });

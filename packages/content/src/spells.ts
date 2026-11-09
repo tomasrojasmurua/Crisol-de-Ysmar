@@ -165,4 +165,112 @@ export const SPELL_RULES: GameRules['spells'] = {
   abyss: { damage: 8, range: 10, radius: 4, delayTicks: 30, silenceTicks: 45 },
   // Umbra → Umbra → Marea · Pesadilla: el sueño lo da el estado `asleep`.
   nightmare: { range: 9, coneDot: 0.75 },
+
+  // Grandes hechizos, segunda tanda: invocaciones, apoyo, refuerzo y estados.
+
+  // Brasa → Brasa → Raíz · Ave de ceniza: 12 m de ida y 12 de vuelta; 14 y quema a cada uno, en cada pasada.
+  ashBird: { damage: 14, speed: 12, range: 24, radius: 1 },
+  // Brasa → Raíz → Tormenta · Chispas errantes: tres por 8 s; salen al rival a 4 m con 10 y quema.
+  wanderingSparks: {
+    count: 3,
+    hp: 1,
+    radius: 0.3,
+    durationTicks: 240,
+    orbitRadius: 1.4,
+    seekRange: 4,
+    damage: 10,
+    speed: 18,
+  },
+  // Brasa → Raíz → Umbra · Gólem de magma: 70 de vida por 12 s; al caer estalla en 2,5 m con 25.
+  magmaGolem: {
+    hp: 70,
+    radius: 0.8,
+    durationTicks: 360,
+    damage: 25,
+    blastRadius: 2.5,
+    speed: 6,
+    guardDistance: 1.8,
+  },
+  // Marea → Raíz → Raíz · Glaciar vivo: 10 s; congela (estado `frozen`) y hace 10 al primero que toca.
+  glacier: { hp: 40, radius: 0.7, durationTicks: 300, damage: 10, speed: 3.5, seekRange: 14 },
+  // Raíz → Tormenta → Tormenta · Enjambre: 5 s pegado al rival; lo frena y lo ciega mientras esté a 1,3 m.
+  swarm: {
+    hp: 20,
+    radius: 0.6,
+    durationTicks: 150,
+    speed: 7,
+    range: 12,
+    coneDot: 0.6,
+    reach: 1.3,
+  },
+  // Raíz → Raíz → Tormenta · Manada de raíces: fila de 4 m de ancho; 10 y 1,5 s enraizado.
+  rootPack: { damage: 10, speed: 8, range: 14, radius: 0.7, halfWidth: 2, rootTicks: 45 },
+  // Raíz → Raíz → Raíz · Árbol ancestral: 120 de vida por 15 s; cada 2 s, 12 y enraíza a 3 m.
+  ancientTree: {
+    hp: 120,
+    radius: 1.3,
+    durationTicks: 450,
+    distance: 2.5,
+    damage: 12,
+    reach: 3,
+    intervalTicks: 60,
+  },
+  // Umbra → Umbra → Tormenta · Gemelo sombrío: 40 de vida por 8 s; un dardo de 6 por segundo.
+  shadowTwin: {
+    hp: 40,
+    radius: 0.5,
+    durationTicks: 240,
+    speed: 5,
+    keepDistance: 6,
+    damage: 6,
+    boltSpeed: 18,
+    boltRange: 12,
+    intervalTicks: 30,
+  },
+  // Raíz → Umbra → Brasa · Planta carnívora: 10 s; se traga 1,5 s al primero a 1,6 m y lo escupe con 20.
+  carnivore: {
+    hp: 50,
+    radius: 0.8,
+    durationTicks: 300,
+    distance: 3,
+    reach: 1.6,
+    swallowTicks: 45,
+    damage: 20,
+  },
+  // Brasa → Marea → Raíz · Fuente termal: 4 m por 6 s (lo rápido lo da `quickened`).
+  hotSpring: { range: 0, radius: 4, durationTicks: 180 },
+  // Tormenta → Marea → Tormenta · Viento de cola: tú y aliados a 8 m, 5 s apurados (estado `haste`).
+  tailwind: { radius: 8, hasteTicks: 150 },
+  // Marea → Brasa → Marea · Burbuja: absorbe 60 por 4 s.
+  bubble: { range: 10, coneDot: 0.6, shield: 60, durationTicks: 120 },
+  // Marea → Brasa → Raíz · Agua de vida: revive a un aliado caído a 8 m con 30% de vida.
+  lifeWater: { range: 8, hpFraction: 0.3 },
+  // Marea → Marea → Raíz · Lluvia de vida: 4 m por 6 s; 6 por segundo y limpia estados.
+  healingRain: { range: 6, radius: 4, durationTicks: 180, healPerSecond: 6 },
+  // Marea → Umbra → Raíz · Sacrificio: le pasas 40 de tu vida a un aliado a 10 m.
+  sacrifice: { range: 10, amount: 40 },
+  // Raíz → Raíz → Marea · Jardín: cinco flores por 15 s; cada una cura 20.
+  garden: { count: 5, spread: 2.5, radius: 0.6, durationTicks: 450, heal: 20 },
+  // Umbra → Brasa → Raíz · Vínculo vital: la duración la da el estado `linked`.
+  lifeLink: {},
+  // Brasa → Brasa → Umbra · Inmolación: 5 s; 8 por segundo a 2,5 m y te curas con eso.
+  immolation: { radius: 2.5, durationTicks: 150, damagePerSecond: 8, intervalTicks: 10 },
+  // Tormenta → Marea → Raíz · Ojo del huracán: 4 s; nada entra a 2 m.
+  stormEye: { radius: 2, durationTicks: 120 },
+  // Marea → Raíz → Marea · Purificación: la inmunidad la da el estado `warded`.
+  purify: {},
+  // Umbra → Marea → Tormenta · Marea de almas: 12 m; te cura 10 por cada mago que cruza.
+  soulTide: { damage: 0, speed: 10, range: 12, radius: 1.5, heal: 10 },
+  // Brasa → Umbra → Brasa · Combustión: el daño lo da el estado `combusting`.
+  combustion: { range: 10, coneDot: 0.7 },
+  // Tormenta → Umbra → Umbra · Robo de velocidad: 4 s lento el rival y apurado tú.
+  speedTheft: { range: 9, coneDot: 0.7, durationTicks: 120 },
+  // Marea → Brasa → Umbra · Ácido: el daño extra lo da el estado `exposed`.
+  acid: { damage: 8, speed: 15, range: 12, radius: 0.35 },
+  // Marea → Marea → Brasa · Vaho: 3 m por 5 s (lo lento lo da `sluggish`).
+  mist: { range: 7, radius: 3, durationTicks: 150 },
+  // Umbra → Umbra → Umbra · Eclipse: 5 s; todos los rivales ven solo de cerca (estado `blind`).
+  eclipse: { durationTicks: 150 },
+  // Umbra → Marea → Raíz · Plaga: el daño y el contagio los da el estado `plague`.
+  plague: { range: 9, coneDot: 0.7 },
 };

@@ -1,6 +1,7 @@
 import type { Summon } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { createGreatSummon, updateGreatSummon } from './GreatSummonViews';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -140,7 +141,10 @@ export function createSummon(summon: Summon): THREE.Object3D {
     case 'mossGuardian':
       return createGuardian();
     case 'decoy':
+    case 'shadowTwin':
       return new THREE.Group();
+    default:
+      return createGreatSummon(summon.summon, summon);
   }
 }
 
@@ -208,6 +212,9 @@ export function updateSummon(
       break;
     }
     case 'decoy':
+    case 'shadowTwin':
       break;
+    default:
+      updateGreatSummon(view, summon.summon, summon, pos, time, particles);
   }
 }

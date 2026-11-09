@@ -29,7 +29,9 @@ export {
 } from './match/round';
 export { createSeries, recordRound, type SeriesState } from './match/series';
 export type {
+  Aura,
   Beast,
+  Bubble,
   Current,
   DeathRule,
   Drown,

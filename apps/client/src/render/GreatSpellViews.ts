@@ -23,6 +23,7 @@ const SHADOW = elementColor('umbra');
 const ICE = new THREE.Color('#bfe6ff');
 const LIGHTNING = new THREE.Color('#e9f6ff');
 const MAGMA = new THREE.Color('#ff5a1f');
+const BLOSSOM = new THREE.Color('#ff9ad0');
 
 type Position = { x: number; z: number };
 
@@ -214,6 +215,59 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
     const glowSprite = halo(glow(STORM, 0.5), 1.8);
     glowSprite.position.y = 1.4;
     group.add(core, shell, glowSprite);
+  } else if (sweeper.mode === 'bird') {
+    // Un ave de fuego: cuerpo encendido y dos alas que aletean.
+    const body = new THREE.Mesh(
+      new THREE.ConeGeometry(0.28, 1.1, 6).rotateX(Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: glow(FIRE, 2.2) }),
+    );
+    body.position.y = 1.6;
+    group.add(body);
+    for (const side of [-1, 1]) {
+      const wing = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.3, 0.6).translate(side * 0.65, 0, 0).rotateX(-Math.PI / 2),
+        additive(glow(side < 0 ? FIRE : MAGMA, 1.6), 0.75),
+      );
+      wing.position.y = 1.6;
+      wing.userData.flap = side;
+      group.add(wing);
+    }
+    const light = halo(glow(FIRE, 0.7), 2.4);
+    light.position.y = 1.6;
+    group.add(light);
+  } else if (sweeper.mode === 'stampede') {
+    // Una fila de bestias de raíz y piedra que cargan juntas.
+    const hide = new THREE.MeshStandardMaterial({ color: '#4a3a26', roughness: 0.9 });
+    const moss = new THREE.MeshStandardMaterial({
+      color: '#3f6a2a',
+      emissive: ROOT,
+      emissiveIntensity: 0.25,
+    });
+    const count = 4;
+    for (let i = 0; i < count; i++) {
+      const beast = new THREE.Group();
+      const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45, 0), hide);
+      torso.scale.set(0.9, 0.7, 1.3);
+      torso.position.y = 0.55;
+      const back = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.6, 5), moss);
+      back.position.set(0, 0.95, -0.1);
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.45, 5).rotateX(Math.PI / 2), hide);
+      horn.position.set(0, 0.7, 0.7);
+      beast.add(torso, back, horn);
+      beast.position.x = ((i / (count - 1)) * 2 - 1) * sweeper.halfWidth;
+      beast.scale.setScalar(1.4);
+      beast.userData.gallop = i;
+      group.add(beast);
+    }
+  } else if (sweeper.mode === 'soulTide') {
+    // Una ola de almas: un velo violeta con caras pálidas que se arrastran.
+    const veil = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, sweeper.radius * 2, 16, 1, true, 0, Math.PI),
+      additive(glow(SHADOW, 1.1), 0.35),
+    );
+    veil.rotation.z = Math.PI / 2;
+    veil.position.y = 0.2;
+    group.add(veil);
   } else {
     // Una ola ancha, curvada hacia adelante.
     const wave = new THREE.Mesh(
@@ -246,11 +300,63 @@ export function updateSweeper(
   particles: Particles,
 ): void {
   view.position.set(pos.x, 0, pos.z);
+  // El Ave de ceniza da la vuelta: mira siempre hacia donde va.
+  view.rotation.y = Math.atan2(sweeper.velocity.x, sweeper.velocity.z);
   for (const child of view.children) {
     const spin = child.userData.spin as number | undefined;
     if (spin) child.rotation.y += spin * delta;
     const twist = child.userData.twist as number | undefined;
     if (twist) child.rotation.z += twist * delta;
+    const flap = child.userData.flap as number | undefined;
+    if (flap) child.rotation.z = flap * Math.sin(time * 14) * 0.6;
+    const gallop = child.userData.gallop as number | undefined;
+    if (gallop !== undefined)
+      child.position.y = Math.abs(Math.sin(time * 12 + gallop * 1.7)) * 0.25;
+  }
+  if (sweeper.mode === 'bird') {
+    particles.emit({
+      x: pos.x + (Math.random() - 0.5) * 0.6,
+      y: 1.6 + (Math.random() - 0.5) * 0.3,
+      z: pos.z + (Math.random() - 0.5) * 0.6,
+      vy: -0.6,
+      color: glow(Math.random() < 0.6 ? FIRE : MAGMA, 1.6),
+      life: 0.6,
+      size: 0.35,
+      gravity: 1.5,
+    });
+    return;
+  }
+  if (sweeper.mode === 'stampede') {
+    const dir = { x: Math.sin(view.rotation.y), z: Math.cos(view.rotation.y) };
+    const t = (Math.random() * 2 - 1) * sweeper.halfWidth;
+    particles.emit({
+      x: pos.x - dir.z * t - dir.x * 0.6,
+      y: 0.15,
+      z: pos.z + dir.x * t - dir.z * 0.6,
+      vy: 0.8,
+      color: new THREE.Color('#6a5a40').multiplyScalar(0.7),
+      life: 0.7,
+      size: 0.6,
+    });
+    return;
+  }
+  if (sweeper.mode === 'soulTide') {
+    const dir = { x: Math.sin(view.rotation.y), z: Math.cos(view.rotation.y) };
+    for (let i = 0; i < 2; i++) {
+      const t = (Math.random() * 2 - 1) * sweeper.radius;
+      particles.emit({
+        x: pos.x - dir.z * t,
+        y: 0.4 + Math.random() * 1.2,
+        z: pos.z + dir.x * t,
+        vx: dir.x * 2,
+        vy: 0.6,
+        vz: dir.z * 2,
+        color: glow(i === 0 ? SHADOW : LIGHTNING, i === 0 ? 1.4 : 0.6),
+        life: 0.6,
+        size: 0.45,
+      });
+    }
+    return;
   }
   if (sweeper.mode === 'tornado') {
     const angle = time * 9;
@@ -532,9 +638,10 @@ export function updateThornRing(view: THREE.Object3D, ring: ThornRing, particles
 export function createTrap(trap: Trap): THREE.Object3D {
   const group = new THREE.Group();
   group.position.set(trap.pos.x, 0.04, trap.pos.z);
+  // Las flores del Jardín son claras, para que tus aliados sepan que pueden pisarlas.
   const petals = new THREE.Mesh(
-    new THREE.CircleGeometry(trap.radius, 6).rotateX(-Math.PI / 2),
-    additive(glow(ROOT, 1.2), 0.45),
+    new THREE.CircleGeometry(trap.radius, trap.friendly ? 5 : 6).rotateX(-Math.PI / 2),
+    additive(glow(trap.friendly ? BLOSSOM : ROOT, 1.2), 0.45),
   );
   const seed = new THREE.Mesh(
     new THREE.SphereGeometry(0.14, 8, 6),

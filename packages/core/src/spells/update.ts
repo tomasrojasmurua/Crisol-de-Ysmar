@@ -13,6 +13,7 @@ import type {
 import { add, distance, distanceToSegment, length, normalize, scale, sub } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { insideStormEye, updateAura, updateBubble } from './kit/greatSupport';
 import {
   updateDrown,
   updateFireRain,
@@ -91,6 +92,10 @@ function updateSpell(
       return updateThornRing(state, spell, rules);
     case 'trap':
       return updateTrap(state, spell, rules);
+    case 'bubble':
+      return updateBubble(state, spell);
+    case 'aura':
+      return updateAura(state, spell, rules);
     case 'summon':
       return updateSummon(state, spell, rules);
   }
@@ -109,6 +114,11 @@ function updateProjectile(
   const radius = projectile.radius;
   // La Llama negra no se detiene en muros, invocaciones ni árboles.
   const pierce = projectile.trait === 'pierce';
+  // El Ojo del huracán deshace todo proyectil rival que entra.
+  if (insideStormEye(state, projectile.team, projectile.pos)) {
+    state.events.push({ type: 'blocked', pos: projectile.pos });
+    return false;
+  }
 
   for (const wall of pierce ? [] : walls) {
     // El Muro de hielo solo frena a los rivales; la Muralla de raíces, a todos.

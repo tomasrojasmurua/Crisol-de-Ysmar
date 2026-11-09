@@ -52,6 +52,20 @@ export const GAME_RULES: GameRules = {
     phased: { ticks: 120 },
     // Maremoto: 70% más lento por 2 segundos.
     soaked: { ticks: 60, moveMultiplier: 0.3 },
+    // Fuente termal: se teje 40% más rápido mientras se esté dentro.
+    quickened: { ticks: 6, castMultiplier: 0.6 },
+    // Vaho: se teje la mitad de rápido mientras se esté dentro.
+    sluggish: { ticks: 6, castMultiplier: 2 },
+    // Purificación: 3 segundos sin estados dañinos.
+    warded: { ticks: 90 },
+    // Ácido: 30% más de daño por 4 segundos.
+    exposed: { ticks: 120, damageMultiplier: 1.3 },
+    // Combustión: 5 segundos; cada hechizo que teje le hace 10.
+    combusting: { ticks: 150, damage: 10 },
+    // Plaga: 10 por segundo por 4 segundos; salta a 2 m.
+    plague: { ticks: 120, damagePerSecond: 10, spreadRadius: 2 },
+    // Vínculo vital: 6 segundos.
+    linked: { ticks: 180 },
   },
   interactions: {
     tideExtinguishesBurn: true,

@@ -99,6 +99,12 @@ export function updateSweeper(state: MatchState, sweeper: Sweeper, rules: GameRu
   } else {
     sweep(state, sweeper, rules);
   }
+  // El Ave de ceniza da la vuelta a mitad de camino y puede volver a quemar a los mismos.
+  if (sweeper.mode === 'bird' && !sweeper.returning && sweeper.travelled >= sweeper.maxRange / 2) {
+    sweeper.returning = true;
+    sweeper.velocity = scale(sweeper.velocity, -1);
+    sweeper.struck.length = 0;
+  }
   return sweeper.travelled < sweeper.maxRange && length(sweeper.pos) <= rules.arenaRadius + 1;
 }
 
@@ -109,17 +115,29 @@ function sweep(state: MatchState, sweeper: Sweeper, rules: GameRules): void {
   const b = add(sweeper.pos, side);
   const touches = (pos: Vec2, reach: number): boolean =>
     distanceToSegment(pos, a, b) <= sweeper.radius + reach;
+  const soulTide = sweeper.mode === 'soulTide';
   for (const wizard of state.wizards) {
-    if (wizard.team === sweeper.team || wizard.hp <= 0) continue;
+    if (wizard.hp <= 0 || wizard.id === sweeper.ownerId) continue;
+    // La Marea de almas cruza a todos, aliados también; lo demás solo toca rivales.
+    if (wizard.team === sweeper.team && !soulTide) continue;
     if (sweeper.struck.includes(wizard.id) || !touches(wizard.pos, rules.wizard.radius)) continue;
     sweeper.struck.push(wizard.id);
-    if (wizard.statuses.stasis) continue;
+    if (soulTide) {
+      const owner = wizardById(state, sweeper.ownerId);
+      if (owner && owner.hp > 0) {
+        owner.hp = Math.min(owner.maxHp, owner.hp + rules.spells.soulTide.heal);
+      }
+    }
+    if (wizard.statuses.stasis || soulTide) continue;
     applyHit(state, wizard, sweeper.ownerId, sweeper.payload, rules);
     if (sweeper.mode === 'tornado') {
       applyStatus(state, wizard, 'airborne', sweeper.ownerId, rules);
       interrupt(wizard);
-    } else {
+    } else if (sweeper.mode === 'wave') {
       applyStatus(state, wizard, 'soaked', sweeper.ownerId, rules);
+    } else if (sweeper.mode === 'stampede') {
+      applyStatus(state, wizard, 'root', sweeper.ownerId, rules, rules.spells.rootPack.rootTicks);
+      wizard.leap = null;
     }
     state.events.push({
       type: 'burst',
@@ -128,7 +146,7 @@ function sweep(state: MatchState, sweeper: Sweeper, rules: GameRules): void {
       radius: 1,
     });
   }
-  for (const beast of state.beasts) {
+  for (const beast of soulTide ? [] : state.beasts) {
     if (sweeper.struck.includes(beast.id)) continue;
     if (!touches(beast.pos, beastStats(beast, rules).radius)) continue;
     sweeper.struck.push(beast.id);
@@ -284,15 +302,23 @@ export function updateThornRing(state: MatchState, ring: ThornRing, rules: GameR
   return --ring.ticksLeft > 0;
 }
 
-/** Una trampa de la Siembra: armada, salta con el primer rival que la pisa. */
+/** Una trampa de la Siembra salta con el primer rival que la pisa; una flor del Jardín cura. */
 export function updateTrap(state: MatchState, trap: Trap, rules: GameRules): boolean {
   if (trap.armTicks > 0) {
     trap.armTicks--;
     return --trap.ticksLeft > 0;
   }
   for (const wizard of state.wizards) {
-    if (wizard.team === trap.team || wizard.hp <= 0 || wizard.leap) continue;
+    if (wizard.hp <= 0 || wizard.leap) continue;
     if (distance(wizard.pos, trap.pos) > trap.radius + rules.wizard.radius) continue;
+    if (trap.friendly) {
+      // Una flor del Jardín: solo la usa un aliado herido.
+      if (wizard.team !== trap.team || wizard.hp >= wizard.maxHp) continue;
+      wizard.hp = Math.min(wizard.maxHp, wizard.hp + trap.payload.damage);
+      state.events.push({ type: 'burst', spell: 'garden', pos: trap.pos, radius: 0.8 });
+      return false;
+    }
+    if (wizard.team === trap.team) continue;
     state.events.push({ type: 'burst', spell: 'sowing', pos: trap.pos, radius: 1 });
     applyHit(state, wizard, trap.ownerId, trap.payload, rules);
     applyStatus(state, wizard, 'root', trap.ownerId, rules);

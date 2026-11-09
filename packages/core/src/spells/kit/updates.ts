@@ -1,4 +1,5 @@
 import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
+import { HARMFUL_STATUSES } from '../../combat/statuses';
 import { lineBlocked } from '../../match/obstacles';
 import { wizardById } from '../../match/queries';
 import type {
@@ -18,23 +19,36 @@ import { hitArea } from './shared';
 
 /**
  * Suelo encantado: el fuego quema y la Ventisca frena a los rivales que lo pisan, las Esporas
- * los debilitan y el Manantial cura a los aliados. Devuelve false cuando se apaga.
+ * los debilitan y el Vaho les traba el tejido. El Manantial y la Lluvia de vida curan a los
+ * aliados (la Lluvia además los limpia) y la Fuente termal les apura el tejido.
+ * Devuelve false cuando se apaga.
  */
 export function updateZone(state: MatchState, zone: Zone, rules: GameRules): boolean {
   for (const wizard of state.wizards) {
     if (wizard.hp <= 0 || wizard.leap) continue;
     if (distance(wizard.pos, zone.pos) > zone.radius + rules.wizard.radius) continue;
     const ally = wizard.team === zone.team;
-    if (zone.effect === 'spring') {
-      if (ally) heal(wizard, rules.spells.spring.healPerSecond / TICK_RATE);
-    } else if (!ally) {
-      applyStatus(state, wizard, ZONE_STATUS[zone.effect], zone.ownerId, rules);
+    switch (zone.effect) {
+      case 'spring':
+        if (ally) heal(wizard, rules.spells.spring.healPerSecond / TICK_RATE);
+        break;
+      case 'healingRain':
+        if (ally) {
+          heal(wizard, rules.spells.healingRain.healPerSecond / TICK_RATE);
+          for (const id of HARMFUL_STATUSES) delete wizard.statuses[id];
+        }
+        break;
+      case 'hotSpring':
+        if (ally) applyStatus(state, wizard, 'quickened', zone.ownerId, rules);
+        break;
+      default:
+        if (!ally) applyStatus(state, wizard, ZONE_STATUS[zone.effect], zone.ownerId, rules);
     }
   }
   return --zone.ticksLeft > 0;
 }
 
-const ZONE_STATUS = { burn: 'burn', blizzard: 'slow', spores: 'weak' } as const;
+const ZONE_STATUS = { burn: 'burn', blizzard: 'slow', spores: 'weak', mist: 'sluggish' } as const;
 
 function heal(wizard: { hp: number; maxHp: number }, amount: number): void {
   wizard.hp = Math.min(wizard.maxHp, wizard.hp + amount);

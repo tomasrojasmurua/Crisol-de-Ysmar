@@ -20,8 +20,9 @@ El documento de diseño completo vive en Claude:
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. Cada tejido es un hechizo
   propio con su efecto y su visual: 5 básicos, 25 de 2 elementos y 125 Grandes hechizos de 3 (estos
-  llegan por tandas; ya hay 25, de daño, control, movilidad y terreno. Mientras tanto, un tejido de 3
-  sin Gran hechizo lanza el eco del hechizo de sus dos primeros).
+  llegan por tandas; ya hay 52: daño, control, movilidad y terreno en la primera, e invocaciones,
+  apoyo, refuerzo y estados en la segunda. Mientras tanto, un tejido de 3 sin Gran hechizo lanza el
+  eco del hechizo de sus dos primeros).
   El tejido es visible para el rival. Cada elemento tiene su propia fatiga.
 - **Partida:** mejor de 3 rondas de unos 6 minutos (Caza, Convergencia, Duelo final). Modos 1v1,
   2v2, 3v3 y todos contra todos hasta 6. Al morir: modo Espectro o 3 Vidas, según la sala.
