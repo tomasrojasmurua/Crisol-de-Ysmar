@@ -1,0 +1,150 @@
+import { moveMultiplier, tickStatuses } from '../combat/statuses';
+import type { Intent } from '../controllers/intent';
+import { ELEMENT_IDS } from '../elements';
+import { add, clampLength, clampToCircle, length, normalize, scale } from '../math/vec2';
+import type { GameRules } from '../rules';
+import { TICK_RATE } from '../sim/fixedStep';
+import { buildPayload } from '../spells/payload';
+import { releaseSpell } from '../spells/release';
+import { updateLeap, updateSpells } from '../spells/update';
+import { MAX_WEAVE_LENGTH } from '../weaving/weave';
+import { isAlive, resolveAim } from './queries';
+import type { EntityId, MatchState, Wizard } from './state';
+
+export type IntentsByWizard = ReadonlyMap<EntityId, readonly Intent[]>;
+
+/**
+ * Avanza la partida un paso de simulación. Es determinista:
+ * el mismo estado con las mismas intenciones siempre da el mismo resultado.
+ */
+export function stepMatch(state: MatchState, intents: IntentsByWizard, rules: GameRules): void {
+  state.events = [];
+  if (state.winnerTeam !== null) {
+    return;
+  }
+
+  for (const wizard of state.wizards) {
+    if (isAlive(wizard)) {
+      applyIntents(state, wizard, intents.get(wizard.id) ?? [], rules);
+    }
+  }
+  for (const wizard of state.wizards) {
+    if (isAlive(wizard)) {
+      updateWizard(state, wizard, rules);
+    }
+  }
+  updateSpells(state, rules);
+  state.winnerTeam = decideWinner(state);
+  state.tick++;
+}
+
+function applyIntents(
+  state: MatchState,
+  wizard: Wizard,
+  intents: readonly Intent[],
+  rules: GameRules,
+): void {
+  for (const intent of intents) {
+    switch (intent.kind) {
+      case 'move':
+        wizard.moveInput = clampLength({ x: intent.x, z: intent.z }, 1);
+        break;
+      case 'weave':
+        if (
+          !wizard.channel &&
+          wizard.weave.length < MAX_WEAVE_LENGTH &&
+          wizard.fatigue[intent.element] === 0
+        ) {
+          wizard.weave.push(intent.element);
+        }
+        break;
+      case 'cancelWeave':
+        if (!wizard.channel) {
+          wizard.weave = [];
+        }
+        break;
+      case 'cast':
+        startChannel(state, wizard, { x: intent.dirX, z: intent.dirZ }, rules);
+        break;
+      case 'lockTarget':
+        wizard.lockTarget = intent.targetId;
+        break;
+    }
+  }
+}
+
+function startChannel(
+  state: MatchState,
+  wizard: Wizard,
+  aim: { x: number; z: number },
+  rules: GameRules,
+): void {
+  if (wizard.channel || wizard.leap || wizard.weave.length === 0) {
+    return;
+  }
+  const weave = wizard.weave;
+  const castTicks = rules.weave.castTicksByLength[weave.length - 1] ?? 1;
+  // El cansancio empieza al lanzar: cada elemento usado descansa antes de volver a tejerse.
+  for (const element of weave) {
+    wizard.fatigue[element] = rules.weave.fatigueTicks;
+  }
+  wizard.channel = { ticksLeft: castTicks, weave, aim };
+  wizard.weave = [];
+  state.events.push({ type: 'cast', wizardId: wizard.id, weave });
+}
+
+function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void {
+  tickStatuses(state, wizard, rules);
+  if (!isAlive(wizard)) {
+    return;
+  }
+  for (const element of ELEMENT_IDS) {
+    if (wizard.fatigue[element] > 0) {
+      wizard.fatigue[element]--;
+    }
+  }
+
+  const channel = wizard.channel;
+  if (channel) {
+    wizard.facing = resolveAim(state, wizard, channel.aim);
+    if (--channel.ticksLeft <= 0) {
+      wizard.channel = null;
+      const payload = buildPayload(channel.weave, rules);
+      if (payload) {
+        // Los proyectiles apuntados solos se adelantan al rival; el resto va directo.
+        const leadSpeed =
+          payload.form === 'projectile'
+            ? rules.forms.projectile.speed * payload.speedMultiplier
+            : 0;
+        const aim = resolveAim(state, wizard, channel.aim, rules.wizard.moveSpeed, leadSpeed);
+        releaseSpell(state, wizard, payload, aim, rules);
+      }
+    }
+  }
+
+  if (wizard.leap) {
+    updateLeap(state, wizard, rules);
+    return;
+  }
+
+  const speed = rules.wizard.moveSpeed * moveMultiplier(wizard, rules);
+  const move = scale(wizard.moveInput, speed / TICK_RATE);
+  if (length(move) > 0) {
+    wizard.pos = clampToCircle(add(wizard.pos, move), rules.arenaRadius - rules.wizard.radius);
+    if (!wizard.channel) {
+      wizard.facing = normalize(wizard.moveInput, wizard.facing);
+    }
+  }
+}
+
+function decideWinner(state: MatchState): number | null {
+  const teamsAlive = new Set(state.wizards.filter(isAlive).map((w) => w.team));
+  if (teamsAlive.size > 1) {
+    return null;
+  }
+  // Si caen todos a la vez, gana el equipo -1: empate.
+  const [team] = teamsAlive;
+  return team ?? -1;
+}
+
+export const NO_INTENTS: IntentsByWizard = new Map();

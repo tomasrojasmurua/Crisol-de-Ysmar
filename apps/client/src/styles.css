@@ -3,10 +3,19 @@
   --bg: #0b0b10;
   --ink: #e8e4dc;
   --ink-quiet: #8e897f;
+  --player: #d9c9a3;
+  --rival: #a3454b;
+  --panel: rgba(16, 15, 20, 0.72);
+  --safe-left: max(16px, env(safe-area-inset-left));
+  --safe-right: max(16px, env(safe-area-inset-right));
+  --safe-top: max(12px, env(safe-area-inset-top));
+  --safe-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 * {
   box-sizing: border-box;
+  /* touch-action no se hereda: cada elemento debe bloquear el zoom y el desplazamiento. */
+  touch-action: none;
 }
 
 html,
@@ -19,6 +28,8 @@ body {
   font-family: system-ui, sans-serif;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #game {
@@ -29,22 +40,278 @@ body {
   display: block;
 }
 
-.hud {
+#ui {
   position: fixed;
-  top: max(16px, env(safe-area-inset-top));
-  left: max(16px, env(safe-area-inset-left));
+  inset: 0;
   pointer-events: none;
 }
 
-.hud h1 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+#ui button {
+  pointer-events: auto;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.hud p {
-  margin: 4px 0 0;
+/* ---------- HUD superior ---------- */
+
+.hud-top {
+  position: absolute;
+  top: var(--safe-top);
+  left: var(--safe-left);
+  right: var(--safe-right);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: var(--ink-quiet);
+}
+
+.health.rival {
+  flex-direction: row-reverse;
+}
+
+.bar {
+  width: min(30vw, 220px);
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.health.rival .bar {
+  transform: scaleX(-1);
+}
+
+.fill {
+  height: 100%;
+  width: 100%;
+  background: var(--player);
+  transition: width 120ms linear;
+}
+
+.health.rival .fill {
+  background: var(--rival);
+}
+
+.camera-button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 8px);
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(60vw, 420px);
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-quiet);
+  transition: opacity 600ms;
+}
+
+.hint.hidden {
+  opacity: 0;
+}
+
+/* ---------- Resultado ---------- */
+
+.result {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(8, 8, 12, 0.6);
+  pointer-events: auto;
+}
+
+.result[hidden] {
+  display: none;
+}
+
+.result h2 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.rematch {
+  border: 1px solid var(--player);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-size: 18px;
+}
+
+/* ---------- Joystick (pulgar izquierdo) ---------- */
+
+.joystick-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  height: 75%;
+  pointer-events: auto;
+}
+
+.joystick-base {
+  position: absolute;
+  left: calc(var(--safe-left) + 80px);
+  top: calc(100% - var(--safe-bottom) - 90px);
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.5;
+}
+
+.joystick-base.active {
+  opacity: 1;
+}
+
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  background: rgba(232, 228, 220, 0.35);
+}
+
+/* ---------- Tejido (pulgar derecho) ---------- */
+
+.weave-pad {
+  --cast-size: 80px;
+  --cast-x: calc(100% - var(--safe-right) - 84px);
+  --cast-y: calc(100% - var(--safe-bottom) - 72px);
+  --arc: 124px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  height: 300px;
+}
+
+.element-button,
+.cast-button,
+.cancel-button {
+  position: absolute;
+  border-radius: 50%;
+  touch-action: none;
+}
+
+.element-button {
+  --size: 56px;
+  left: var(--cast-x);
+  top: var(--cast-y);
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  /* Arco desde la izquierda (170°) hasta arriba (290°) alrededor del botón de lanzar. */
+  transform: rotate(calc(170deg + var(--index) * 30deg)) translate(var(--arc))
+    rotate(calc(-170deg - var(--index) * 30deg));
+  border: 2px solid var(--color);
+  background:
+    conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
+    color-mix(in srgb, var(--color) 28%, rgba(10, 10, 14, 0.8));
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.element-button.tired {
+  border-color: color-mix(in srgb, var(--color) 40%, transparent);
+}
+
+.element-button:active {
+  filter: brightness(1.4);
+}
+
+.element-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px #000;
+}
+
+.cast-button {
+  left: var(--cast-x);
+  top: var(--cast-y);
+  width: var(--cast-size);
+  height: var(--cast-size);
+  margin: calc(var(--cast-size) / -2) 0 0 calc(var(--cast-size) / -2);
+  border: 2px solid rgba(232, 228, 220, 0.5);
+  background: var(--panel);
+  font-size: 30px;
+}
+
+.cast-button:active {
+  background: rgba(232, 228, 220, 0.2);
+}
+
+.cancel-button {
+  left: calc(var(--cast-x) - 76px);
+  top: calc(var(--cast-y) + 28px);
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--panel);
+  font-size: 14px;
+}
+
+.weave-slots {
+  position: absolute;
+  left: var(--cast-x);
+  top: calc(var(--cast-y) + 52px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.weave-slot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.weave-slot[data-element="brasa"] {
+  background: var(--color-brasa);
+}
+.weave-slot[data-element="tormenta"] {
+  background: var(--color-tormenta);
+}
+.weave-slot[data-element="marea"] {
+  background: var(--color-marea);
+}
+.weave-slot[data-element="raiz"] {
+  background: var(--color-raiz);
+}
+.weave-slot[data-element="umbra"] {
+  background: var(--color-umbra);
+}
+
+.weave-slot.channeling {
+  box-shadow: 0 0 8px currentColor;
 }

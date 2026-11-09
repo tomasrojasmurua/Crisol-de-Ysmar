@@ -4,8 +4,29 @@ Duelo de hechiceros para celular. La magia se **teje** en tiempo real combinando
 (Brasa, Tormenta, Marea, Raíz y Umbra) y se juega entre amigos que entran a la sala con un enlace
 de WhatsApp, sin instalar nada.
 
-> Estado: **Hito 0, cimientos.** El repositorio, las pruebas y la publicación automática están listos;
-> la pantalla actual es una arena de prueba con los orbes de los cinco elementos.
+> Estado: **Hito 1, el tejido se siente bien.** Un duelo en el celular contra un hechicero de la IA,
+> con los cinco elementos, tejido visible, fatiga, combate y dos cámaras para comparar.
+> Se juega en [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev).
+
+## Cómo se juega (Hito 1)
+
+- **Pulgar izquierdo:** toca y arrastra en cualquier parte de la mitad izquierda para moverte.
+- **Pulgar derecho:** toca hasta tres elementos para tejer (el orden importa) y luego **✦** para lanzar.
+  Tocar ✦ apunta solo al rival; arrastrar desde ✦ elige la dirección. **✕** deshace el tejido.
+- **En computador:** WASD para moverte, 1 a 5 para tejer, espacio para lanzar, X para deshacer,
+  C para cambiar de cámara.
+
+| Primer elemento | Forma     | Qué hace                                    |
+| --------------- | --------- | ------------------------------------------- |
+| Brasa           | Proyectil | Vuela recto y daña al primer rival que toca |
+| Tormenta        | Salto     | Te lleva lejos y golpea al aterrizar        |
+| Marea           | Muro      | Bloquea proyectiles y estalla al levantarse |
+| Raíz            | Trampa    | Cae a los pies del rival y lo enraíza       |
+| Umbra           | Marca     | Maldice al instante y te devuelve vida      |
+
+Los elementos siguientes modifican el conjuro: Brasa quema, Tormenta acelera y alarga,
+Marea ralentiza, Raíz enraíza y Umbra maldice. Marea apaga la quemadura y Tormenta golpea
+más fuerte a quien está ralentizado. Cada elemento usado descansa 3 segundos.
 
 ## Empezar
 
