@@ -1,7 +1,7 @@
 import { moveMultiplier, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
-import { add, clampLength, clampToCircle, length, normalize, scale } from '../math/vec2';
+import { add, clampLength, length, normalize, scale } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { buildPayload, empowerPayload } from '../spells/payload';
@@ -9,6 +9,7 @@ import { releaseSpell } from '../spells/release';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { updateBeasts } from './beasts';
+import { placeInArena } from './obstacles';
 import { isAlive, resolveAim } from './queries';
 import {
   decideRoundWinner,
@@ -170,7 +171,7 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   const speed = rules.wizard.moveSpeed * wizard.mods.moveSpeed * moveMultiplier(wizard, rules);
   const move = scale(wizard.moveInput, speed / TICK_RATE);
   if (length(move) > 0) {
-    wizard.pos = clampToCircle(add(wizard.pos, move), rules.arenaRadius - rules.wizard.radius);
+    wizard.pos = placeInArena(add(wizard.pos, move), rules.wizard.radius, rules);
     if (!wizard.channel) {
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }

@@ -8,6 +8,11 @@ El documento de diseño completo vive en Claude:
 - **Pilares:** la magia se construye, descubrir es progresar, duelos con estrategia.
 - **Plataforma:** juego web que se abre desde un enlace de WhatsApp, celular en horizontal.
 - **Cámara:** tercera persona sobre el hombro con fijación de objetivo (elegida en el Hito 1 frente a la vista 3/4).
+  Gira hacia el rival solo si está a menos de 18 m; si no, conserva su dirección.
+- **Mapa:** 40 m de radio. Una plaza de piedra al centro (donde cierra la Convergencia), una
+  jungla alrededor con senderos y diez campamentos de bestias, dos por elemento, en espejo para
+  que ningún lado tenga ventaja. Los árboles, rocas y ruinas tapan el paso, los conjuros y la vista:
+  a un rival en la jungla solo lo ves si alguien de tu equipo lo tiene cerca y a la vista.
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. El primer elemento define

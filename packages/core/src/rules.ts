@@ -9,8 +9,31 @@ export type StatusId = 'burn' | 'slow' | 'root' | 'curse' | 'empowered';
  * los valores viven en `packages/content`, para balancear sin tocar código.
  * Los tiempos van en pasos de simulación (30 por segundo) y las distancias en metros.
  */
+/** Un árbol, una roca o una ruina: frena el paso, los proyectiles y la vista. */
+export interface Obstacle {
+  readonly x: number;
+  readonly z: number;
+  readonly radius: number;
+  /** Solo para el dibujo: tree, rock o ruin. */
+  readonly kind: string;
+}
+
+/** Un campamento de bestias: un claro en la jungla con criaturas de un elemento. */
+export interface Camp {
+  readonly x: number;
+  readonly z: number;
+  readonly element: ElementId;
+}
+
+/** El mapa: siempre el mismo, para que se pueda aprender. */
+export interface MapLayout {
+  readonly obstacles: readonly Obstacle[];
+  readonly camps: readonly Camp[];
+}
+
 export interface GameRules {
   readonly arenaRadius: number;
+  readonly map: MapLayout;
   readonly wizard: {
     readonly maxHp: number;
     readonly moveSpeed: number;

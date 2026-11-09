@@ -3,6 +3,7 @@ import { normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
 import { NEUTRAL_MODS, type WizardMods } from '../mods';
 import type { GameRules } from '../rules';
 import { spawnBeasts } from './beasts';
+import { placeInArena } from './obstacles';
 import type { DeathRule, EntityId, MatchState, Wizard } from './state';
 
 export interface WizardSetup {
@@ -36,7 +37,7 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
     return {
       id: (index + 1) as EntityId,
       team: w.team,
-      pos: w.spawn,
+      pos: placeInArena(w.spawn, rules.wizard.radius, rules),
       // Al empezar, cada mago mira hacia el centro de la arena.
       facing: normalize(scale(sub(ZERO, w.spawn), 1), { x: 0, z: 1 }),
       hp: maxHp,

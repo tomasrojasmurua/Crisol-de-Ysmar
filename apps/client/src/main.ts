@@ -31,12 +31,14 @@ import {
   randomAppearance,
   saveProfile,
 } from './game/Profile';
+import { visibleEnemies } from './game/Sight';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
 import { AimGuide } from './render/AimGuide';
 import { ArenaView } from './render/arena/ArenaView';
+import { JungleView } from './render/arena/JungleView';
 import { ZoneView } from './render/arena/ZoneView';
 import { CreatureViews } from './render/CreatureViews';
 import { EffectsView } from './render/EffectsView';
@@ -50,6 +52,7 @@ import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
 import { Menu } from './ui/Menu';
+import { Minimap } from './ui/Minimap';
 import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
 
@@ -77,6 +80,8 @@ const particles = new Particles();
 const arena = new ArenaView(rules.arenaRadius, particles);
 const scene = arena.scene;
 scene.add(particles.points);
+const jungle = new JungleView(rules.map);
+scene.add(jungle.group);
 const zone = new ZoneView(rules.arenaRadius);
 scene.add(zone.group);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
@@ -96,6 +101,7 @@ const input = new PlayerInput();
 const human = new HumanController(input, (screen) => rig.screenToGround(screen.right, screen.up));
 const labels = new WorldLabels(uiRoot);
 const controls = new TouchControls(uiRoot, input);
+const minimap = new Minimap(uiRoot, rules);
 const hud = new Hud(
   uiRoot,
   () => startMatch(match?.options ?? menu.options),
@@ -246,6 +252,7 @@ function showMenu(): void {
   hud.visible = false;
   labels.visible = false;
   controls.visible = false;
+  minimap.show(false);
   hud.hideResult();
   wardrobe.hide();
   grimoireBook.hide();
@@ -296,6 +303,8 @@ function startMatch(options: MatchOptions): void {
   hud.hideResult();
   labels.visible = true;
   controls.visible = true;
+  minimap.show(true);
+  minimap.reset();
   shownRound = 0;
   resultShown = false;
   pickerShown = false;
@@ -364,6 +373,7 @@ function updateMatchFlow(current: LocalMatch): void {
     shownRound = current.roundNumber;
     hud.reset(current.state, current.player, badges);
     creatures.clear();
+    minimap.reset();
     rig.snap();
     hud.announce(
       `Ronda ${shownRound}`,
@@ -476,6 +486,7 @@ renderer.setAnimationLoop((now) => {
   }
 
   arena.update(elapsed, delta);
+  jungle.update(elapsed, camera.position, current ? current.player.pos : null);
   effects.update(delta);
   particles.update(delta);
   post.render();
@@ -515,6 +526,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
       ? current.interpolated(target.id, target.pos, alpha)
       : null;
   rig.update(playerPos, targetPos, delta, effects.shake);
+  arena.focus(playerPos.x, playerPos.z);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
   const aim = input.aimPreview;
   aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);
@@ -522,6 +534,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
   controls.render(player, rules, isSpectre(state, player));
   hud.update(state, player, current.series, current.roundNumber, badges, rules);
   labels.updateBeasts(state, camera, beastName, elementColorHex, rules);
+  const seen = visibleEnemies(state, player.team, rules);
   labels.update(
     state,
     (id, pos) => current.interpolated(id, pos, alpha),
@@ -529,7 +542,9 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     player.team,
     badges,
     rules,
+    seen,
   );
+  minimap.update(state, player, rig.forward(), seen, badges, time);
 }
 
 showMenu();

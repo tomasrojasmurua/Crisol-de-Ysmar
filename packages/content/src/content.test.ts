@@ -1,8 +1,9 @@
-import { ELEMENT_IDS } from '@crisol/core';
+import { ELEMENT_IDS, modeSetup, obstacleAt } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
 import { ELEMENTS } from './elements';
 import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
+import { MAP, MAP_RADIUS } from './map';
 import { GAME_RULES } from './rules';
 
 describe('tablas de contenido', () => {
@@ -30,7 +31,9 @@ describe('reglas de combate', () => {
         for (const [key, child] of Object.entries(value)) check(child, `${path}.${key}`);
       }
     };
-    check(GAME_RULES, 'GAME_RULES');
+    // El mapa tiene coordenadas negativas: se revisa aparte.
+    const { map: _map, ...numbers } = GAME_RULES;
+    check(numbers, 'GAME_RULES');
   });
 
   it('un tejido más largo tarda más en salir', () => {
@@ -51,5 +54,39 @@ describe('Grimorio', () => {
     expect(spellName(['brasa'])).toBe('Dardo ígneo');
     expect(spellName(['marea', 'brasa', 'umbra'])).toBe('Muro de brasas y sombra');
     expect(spellName(['raiz', 'tormenta', 'tormenta'])).toBe('Trampa de trueno doble');
+  });
+});
+
+describe('mapa', () => {
+  const spawns = modeSetup({ kind: 'ffa', players: 6 }, 1, 'spectre', GAME_RULES)
+    .wizards.concat(modeSetup({ kind: 'teams', size: 3 }, 1, 'spectre', GAME_RULES).wizards)
+    .map((w) => w.spawn);
+
+  it('es simétrico respecto del centro, para que ningún equipo tenga ventaja', () => {
+    for (const o of MAP.obstacles) {
+      const mirror = MAP.obstacles.find(
+        (m) => Math.abs(m.x + o.x) < 1e-9 && Math.abs(m.z + o.z) < 1e-9 && m.radius === o.radius,
+      );
+      expect(mirror, `${o.x},${o.z}`).toBeDefined();
+    }
+    for (const camp of MAP.camps) {
+      const mirror = MAP.camps.find(
+        (c) => Math.abs(c.x + camp.x) < 1e-9 && Math.abs(c.z + camp.z) < 1e-9,
+      );
+      expect(mirror?.element).toBe(camp.element);
+    }
+  });
+
+  it('deja libres las bases, los campamentos y la plaza', () => {
+    for (const p of [...spawns, ...MAP.camps]) {
+      expect(obstacleAt(p, 1.5, MAP.obstacles), `${p.x},${p.z}`).toBeUndefined();
+    }
+    for (const o of MAP.obstacles) {
+      expect(Math.hypot(o.x, o.z) + o.radius).toBeLessThan(MAP_RADIUS);
+    }
+  });
+
+  it('tiene jungla de verdad: más de cien obstáculos', () => {
+    expect(MAP.obstacles.length).toBeGreaterThan(100);
   });
 });

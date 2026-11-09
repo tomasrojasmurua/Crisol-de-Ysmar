@@ -6,6 +6,7 @@ import type { GameRules } from '../rules';
  */
 export const TEST_RULES: GameRules = {
   arenaRadius: 16,
+  map: { obstacles: [], camps: [] },
   wizard: { maxHp: 100, moveSpeed: 6, radius: 0.5, channelMoveMultiplier: 0.5 },
   weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90 },
   forms: {

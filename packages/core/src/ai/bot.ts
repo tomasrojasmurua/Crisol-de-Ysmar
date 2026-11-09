@@ -1,6 +1,7 @@
 import type { Controller, Intent } from '../controllers/intent';
 import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
+import { lineBlocked } from '../match/obstacles';
 import { currentTarget, isAlive } from '../match/queries';
 import { isSpectre, roundPhase } from '../match/round';
 import type { Beast, MatchState, Projectile, Shrine, Wizard } from '../match/state';
@@ -18,6 +19,7 @@ import {
 import type { GameRules } from '../rules';
 import { SeededRng } from '../sim/rng';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
+import { Navigator } from './navigation';
 
 export interface BotProfile {
   /** Pasos de "pensar" entre un conjuro y el siguiente. */
@@ -52,6 +54,7 @@ export class BotController implements Controller {
   private thinkTicks = 20;
   private strafeSign = 1;
   private strafeTicks = 0;
+  private readonly nav: Navigator;
 
   constructor(
     seed: number,
@@ -59,6 +62,7 @@ export class BotController implements Controller {
     private readonly profile: BotProfile = DEFAULT_BOT,
   ) {
     this.rng = new SeededRng(seed);
+    this.nav = new Navigator(rules);
   }
 
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
@@ -88,9 +92,21 @@ export class BotController implements Controller {
     } else {
       move = this.chooseMove(state, self, target);
     }
+    // Si un árbol o una roca tapa la meta, la rodea por la jungla.
+    const goal = ally?.pos ?? beast?.pos ?? shrine?.pos ?? target.pos;
+    const obstacles = this.rules.map.obstacles;
+    const hidden = lineBlocked(self.pos, goal, obstacles, 0.5);
+    if (hidden) {
+      move = this.keepInZone(state, self, this.nav.directionTo(self.pos, goal));
+    }
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
     if (self.channel || self.leap) {
+      return intents;
+    }
+    // No gasta conjuros en un tronco: espera a tener el blanco a la vista.
+    const aimed = beast?.pos ?? target.pos;
+    if (lineBlocked(self.pos, aimed, obstacles, 0.3)) {
       return intents;
     }
     if (beast) {
@@ -204,9 +220,10 @@ export class BotController implements Controller {
     target: Wizard,
   ): Beast | undefined {
     if (roundPhase(state.tick, this.rules) !== 'hunt') return undefined;
-    if (distance(self.pos, target.pos) < 9) return undefined;
+    if (distance(self.pos, target.pos) < 12) return undefined;
     let best: Beast | undefined;
-    let bestDistance = 12;
+    // En un mapa grande vale la pena cruzar la jungla hasta un campamento.
+    let bestDistance = 30;
     for (const beast of state.beasts) {
       const d = distance(beast.pos, self.pos);
       if (d < bestDistance) {

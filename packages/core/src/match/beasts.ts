@@ -3,6 +3,7 @@ import { ELEMENT_IDS } from '../elements';
 import { add, distance, length, normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { placeInArena } from './obstacles';
 import { isAlive, wizardById } from './queries';
 import { withRng } from './random';
 import type { Beast, EntityId, MatchState } from './state';
@@ -13,13 +14,20 @@ const WANDER_TICKS = 90;
 /** Al empezar la ronda, las bestias aparecen repartidas por la arena, una por elemento en ronda. */
 export function spawnBeasts(state: MatchState, rules: GameRules): void {
   withRng(state, (rng) => {
-    const count = rules.beasts.count;
+    // Con campamentos en el mapa, cada uno tiene su bestia; si no, se reparten en ronda.
+    const camps = rules.map.camps;
+    const count = camps.length > 0 ? camps.length : rules.beasts.count;
     const offset = rng.next() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
+      const camp = camps[i];
       const angle = offset + (i / count) * Math.PI * 2 + (rng.next() - 0.5) * 0.4;
       const r = rules.arenaRadius * (0.3 + rng.next() * 0.35);
-      const home = { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
-      const element = ELEMENT_IDS[i % ELEMENT_IDS.length] ?? 'brasa';
+      const home = placeInArena(
+        camp ? { x: camp.x, z: camp.z } : { x: Math.cos(angle) * r, z: Math.sin(angle) * r },
+        rules.beasts.radius,
+        rules,
+      );
+      const element = camp?.element ?? ELEMENT_IDS[i % ELEMENT_IDS.length] ?? 'brasa';
       state.beasts.push({
         id: state.nextEntityId++,
         element,
@@ -111,7 +119,7 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
     const direction = normalize(offset);
     beast.velocity = scale(direction, step * TICK_RATE);
     if (step > 0) {
-      beast.pos = add(beast.pos, scale(direction, step));
+      beast.pos = placeInArena(add(beast.pos, scale(direction, step)), rules.beasts.radius, rules);
       beast.facing = direction;
     } else if (target && chasing) {
       beast.facing = normalize(sub(target.pos, beast.pos), beast.facing);

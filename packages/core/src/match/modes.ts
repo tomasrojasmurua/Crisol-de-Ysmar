@@ -45,14 +45,14 @@ export function modeSetup(
       const angle = -Math.PI / 2 + (i / count) * Math.PI * 2;
       wizards.push({
         team: i,
-        spawn: { x: Math.cos(angle) * r * 0.6, z: Math.sin(angle) * r * 0.6 },
+        spawn: { x: Math.cos(angle) * r * 0.8, z: Math.sin(angle) * r * 0.8 },
       });
     }
   } else {
     const size = mode.kind === 'teams' ? mode.size : 1;
     const spacing = 2.5;
     for (const team of [0, 1]) {
-      const z = (team === 0 ? -1 : 1) * r * 0.55;
+      const z = (team === 0 ? -1 : 1) * r * 0.8;
       for (let i = 0; i < size; i++) {
         const x = (i - (size - 1) / 2) * spacing;
         wizards.push({ team, spawn: { x, z } });

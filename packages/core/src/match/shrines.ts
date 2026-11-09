@@ -1,6 +1,7 @@
 import { applyStatus } from '../combat/hit';
 import { distance } from '../math/vec2';
 import type { GameRules } from '../rules';
+import { placeInArena } from './obstacles';
 import { isAlive } from './queries';
 import { withRng } from './random';
 import type { MatchState } from './state';
@@ -15,7 +16,11 @@ export function spawnShrines(state: MatchState, rules: GameRules): void {
       const r = rules.round.convergenceRadius * (0.45 + rng.next() * 0.2);
       state.shrines.push({
         id: state.nextEntityId++,
-        pos: { x: Math.cos(angle) * r, z: Math.sin(angle) * r },
+        pos: placeInArena(
+          { x: Math.cos(angle) * r, z: Math.sin(angle) * r },
+          rules.shrines.radius * 0.5,
+          rules,
+        ),
         team: null,
         progress: 0,
       });
