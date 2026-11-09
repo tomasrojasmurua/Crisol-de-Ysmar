@@ -1,5 +1,5 @@
 import type { ElementId } from '../elements';
-import type { Wizard } from '../match/state';
+import type { MatchState, SummonKind, Wizard } from '../match/state';
 import { distance } from '../math/vec2';
 
 export type AimMode = 'lead' | 'target' | 'away';
@@ -15,6 +15,7 @@ interface Option extends Plan {
 
 /** Lo que el bot mira para elegir un hechizo. */
 export interface Situation {
+  readonly state: Readonly<MatchState>;
   readonly self: Readonly<Wizard>;
   readonly target: Readonly<Wizard>;
   /** Elementos sin cansancio. */
@@ -24,14 +25,17 @@ export interface Situation {
 }
 
 /**
- * Los hechizos propios que tienen sentido ahora, con un peso cada uno: el bot se cura si está mal,
- * escapa si lo encimaron, castiga a un rival que no se puede mover y pelea según la distancia.
+ * Los hechizos que tienen sentido ahora, con un peso cada uno: el bot se cura o se protege si
+ * está mal, escapa si lo encimaron, castiga a un rival que no se puede mover, corta un conjuro
+ * grande que le están preparando y pelea según la distancia.
  */
 export function spellOptions(s: Situation): Option[] {
-  const { self, target, available, threatened } = s;
+  const { state, self, target, available, threatened } = s;
   const d = distance(self.pos, target.pos);
   const health = self.hp / self.maxHp;
   const helpless = Boolean(target.statuses.airborne || target.statuses.root);
+  const owns = (kind: SummonKind): boolean =>
+    state.spells.some((e) => e.kind === 'summon' && e.summon === kind && e.ownerId === self.id);
   const options: Option[] = [];
   const add = (elements: ElementId[], aimMode: AimMode, weight: number): void => {
     if (weight > 0 && elements.every((e) => available.includes(e))) {
@@ -42,9 +46,13 @@ export function spellOptions(s: Situation): Option[] {
   // Defensa.
   add(['marea', 'umbra'], 'target', health < 0.35 && d < 7 ? 6 : 0);
   add(['raiz'], 'target', health < 0.6 && d > 8 ? 3 : 0);
+  add(['marea', 'raiz'], 'target', health < 0.55 && d > 6 ? 2.5 : 0);
   add(['umbra', 'brasa'], 'target', health < 0.6 && d < 6.5 ? 3 : 0);
-  add(['raiz', 'raiz'], 'target', threatened ? 3 : 0);
+  add(['raiz', 'raiz'], 'target', threatened ? 2 : 0);
+  add(['marea', 'marea'], 'target', threatened ? 2.5 : 0);
+  add(['brasa', 'marea'], 'target', d < 5 && self.shield === 0 ? 2.5 : 0);
   add(['umbra', 'umbra'], 'target', health < 0.5 && d > 7 ? 1.5 : 0);
+  add(['umbra', 'tormenta'], 'away', health < 0.4 && d < 8 ? 2 : 0);
 
   // Escapar si lo encimaron.
   if (d < 3.5) {
@@ -52,10 +60,13 @@ export function spellOptions(s: Situation): Option[] {
     add(['marea'], 'target', 3);
     add(['tormenta'], 'away', 2);
     add(['umbra'], 'target', 1);
+    add(['marea', 'tormenta'], 'away', 1.5);
   }
 
-  // Castigar a quien no se puede mover.
+  // Castigar a quien no se puede mover, y cortar un Gran hechizo que le están preparando.
   add(['brasa', 'brasa'], 'target', helpless && d < 12 ? 6 : 0);
+  const bigCast = target.weave.length >= 2 || (target.channel?.weave.length ?? 0) >= 3;
+  add(['tormenta', 'umbra'], 'target', bigCast && d <= 6 ? 5 : 0);
 
   // Pelear según la distancia.
   if (d >= 3.5 && d <= 9) {
@@ -66,12 +77,25 @@ export function spellOptions(s: Situation): Option[] {
     add(['umbra'], 'target', d <= 6 ? 1.5 : 0);
     add(['umbra', 'brasa'], 'target', d <= 6.5 ? 1 : 0);
     add(['brasa'], 'lead', 1);
+    add(['brasa', 'raiz'], 'target', owns('wisp') ? 0 : 1.5);
+    add(['tormenta', 'raiz'], 'target', owns('lightningRod') ? 0 : 1.2);
+    add(['raiz', 'marea'], 'target', owns('mossGuardian') || d > 8 ? 0 : 1.2);
+    add(['raiz', 'umbra'], 'target', d <= 6 ? 1.5 : 0);
+    add(['tormenta', 'marea'], 'target', 1);
+    add(['tormenta', 'umbra'], 'target', d <= 6 ? 1 : 0);
+    add(['umbra', 'raiz'], 'target', d <= 8 ? 1.5 : 0);
+    add(['umbra', 'marea'], 'lead', target.statuses.blind ? 0 : 1.5);
+    add(['brasa', 'umbra'], 'target', 1.2);
+    add(['raiz', 'tormenta'], 'target', d > 6 && health > 0.6 ? 1 : 0);
   }
   if (d > 9) {
     add(['brasa'], 'lead', 3);
     add(['brasa', 'tormenta'], 'target', health > 0.6 && d < 14 ? 1.5 : 0);
     add(['brasa', 'brasa'], 'lead', d < 14 ? 1 : 0);
     add(['umbra', 'umbra'], 'target', 0.5);
+    add(['brasa', 'raiz'], 'target', owns('wisp') ? 0 : 1.5);
+    add(['umbra', 'marea'], 'lead', d < 12 && !target.statuses.blind ? 1 : 0);
+    add(['marea', 'tormenta'], 'target', health > 0.6 ? 1 : 0);
   }
   return options;
 }

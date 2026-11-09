@@ -12,13 +12,15 @@ export function enemiesOf(state: MatchState, wizard: Wizard): Wizard[] {
   return state.wizards.filter((w) => w.team !== wizard.team && isAlive(w));
 }
 
-/** Un rival con Velo no se puede elegir como blanco salvo de muy cerca. */
+/**
+ * Un rival con Velo no se puede elegir como blanco salvo de muy cerca,
+ * y un mago cegado no ve a ningún rival más allá de unos pocos metros.
+ */
 export function isHiddenFrom(target: Wizard, viewer: Wizard, rules: GameRules): boolean {
-  return (
-    target.statuses.veiled !== undefined &&
-    target.team !== viewer.team &&
-    distance(target.pos, viewer.pos) > rules.statuses.veiled.revealRadius
-  );
+  if (target.team === viewer.team) return false;
+  const d = distance(target.pos, viewer.pos);
+  if (target.statuses.veiled && d > rules.statuses.veiled.revealRadius) return true;
+  return viewer.statuses.blind !== undefined && d > rules.statuses.blind.sightRadius;
 }
 
 export function nearestEnemy(

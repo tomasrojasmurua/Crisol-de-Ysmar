@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addToWeave, baseSpellCount, EMPTY_WEAVE, recipeOf, weaveKey } from './weave';
+import { addToWeave, baseSpellCount, EMPTY_WEAVE, SPELL_FORM_BY_ELEMENT, weaveKey } from './weave';
 
 describe('tejido', () => {
   it('acepta hasta tres elementos, con repetición', () => {
@@ -11,17 +11,13 @@ describe('tejido', () => {
     expect(weave).toEqual(['marea', 'marea', 'umbra']);
   });
 
-  it('el primer elemento define la forma', () => {
-    expect(recipeOf(['brasa', 'marea'])?.form).toBe('projectile');
-    expect(recipeOf(['marea', 'brasa'])?.form).toBe('wall');
+  it('el primer elemento define la familia', () => {
+    expect(SPELL_FORM_BY_ELEMENT.brasa).toBe('projectile');
+    expect(SPELL_FORM_BY_ELEMENT.marea).toBe('wall');
   });
 
   it('el orden cambia el conjuro', () => {
     expect(weaveKey(['brasa', 'marea'])).not.toBe(weaveKey(['marea', 'brasa']));
-  });
-
-  it('un tejido vacío no produce conjuro', () => {
-    expect(recipeOf(EMPTY_WEAVE)).toBeNull();
   });
 
   it('hay 155 conjuros base', () => {

@@ -1,4 +1,4 @@
-import type { GameRules, SpellEntity } from '@crisol/core';
+import type { GameRules, SpellEntity, Summon, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
 import type { Particles } from './Particles';
@@ -13,10 +13,38 @@ import {
   updateTether,
   updateZone,
 } from './SpellExtras';
+import {
+  createAreaZone,
+  createCurrent,
+  createIceWall,
+  createIgnite,
+  createObsidian,
+  createShackle,
+  updateAreaZone,
+  updateCurrent,
+  updateIceWall,
+  updateIgnite,
+  updateObsidian,
+  updateShackle,
+} from './SpellScenery';
+import { createSummon, updateSummon } from './SummonViews';
+import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
 
-const WALL_HEIGHT = 2.4;
+/** Lo que las vistas de hechizos necesitan saber del mundo en este cuadro. */
+export interface SpellWorld {
+  /** Posición interpolada de un proyectil o una invocación. */
+  readonly positionOf: (spell: SpellEntity) => Position;
+  readonly time: number;
+  readonly delta: number;
+  readonly wizard: (id: number) => Wizard | undefined;
+  /** Posición interpolada de un mago. */
+  readonly wizardPos: (id: number) => Position | undefined;
+}
+
+/** Arma la vista de un Señuelo: un mago igual a quien lo lanzó. */
+export type DecoyFactory = (ownerId: number) => WizardView | null;
 
 /**
  * Dibuja los conjuros que existen en el mundo. Crea una vista al aparecer un conjuro
@@ -27,35 +55,16 @@ export class SpellViews {
   private readonly coreGeometry = new THREE.IcosahedronGeometry(1, 2);
   private readonly sparkGeometry = new THREE.SphereGeometry(0.08, 8, 6);
   private readonly glowTexture = createGlowTexture();
-  private readonly wallGeometries = new Map<number, THREE.PlaneGeometry>();
-  private readonly spikeGeometry = new THREE.ConeGeometry(0.09, 0.6, 5);
+  private readonly decoys = new Map<number, WizardView>();
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly rules: GameRules,
     private readonly particles: Particles,
+    private readonly makeDecoy: DecoyFactory = () => null,
   ) {}
 
-  private wallGeometry(halfLength: number): THREE.PlaneGeometry {
-    const key = Math.round(halfLength * 10);
-    let geometry = this.wallGeometries.get(key);
-    if (!geometry) {
-      geometry = new THREE.PlaneGeometry(halfLength * 2, WALL_HEIGHT, 24, 8);
-      this.wallGeometries.set(key, geometry);
-    }
-    return geometry;
-  }
-
-  /**
-   * `positionOf` entrega la posición interpolada de los proyectiles;
-   * `wizardPos`, la de un mago (para el hilo del Drenaje).
-   */
-  sync(
-    spells: readonly SpellEntity[],
-    positionOf: (spell: SpellEntity) => Position,
-    timeSeconds: number,
-    wizardPos: (id: number) => Position | undefined = () => undefined,
-  ): void {
+  sync(spells: readonly SpellEntity[], world: SpellWorld): void {
     const alive = new Set<number>();
     for (const spell of spells) {
       alive.add(spell.id);
@@ -65,12 +74,14 @@ export class SpellViews {
         this.views.set(spell.id, view);
         this.scene.add(view);
       }
-      this.update(view, spell, positionOf(spell), timeSeconds, wizardPos);
+      this.update(view, spell, world);
     }
     for (const [id, view] of this.views) {
       if (!alive.has(id)) {
         view.removeFromParent();
         this.views.delete(id);
+        this.decoys.get(id)?.dispose();
+        this.decoys.delete(id);
       }
     }
   }
@@ -80,33 +91,47 @@ export class SpellViews {
       case 'projectile':
         return this.createProjectile(spell, formColor(spell.payload.form));
       case 'wall':
-        return spell.solid
-          ? createRootWall(spell)
-          : this.createWall(spell, formColor(spell.payload.form));
-      case 'trap':
-        return this.createTrap(spell, formColor(spell.payload.form));
+        return spell.solid ? createRootWall(spell) : createIceWall(spell);
       case 'zone':
-        return createZone(spell);
+        return spell.effect === 'burn'
+          ? createZone(spell)
+          : createAreaZone(spell as typeof spell & { effect: 'blizzard' | 'spring' | 'spores' });
+      case 'current':
+        return createCurrent(spell);
       case 'geyser':
         return createGeyser(spell);
       case 'tether':
         return createTether();
+      case 'obsidian':
+        return createObsidian();
+      case 'ignite':
+        return createIgnite();
+      case 'shackle':
+        return createShackle(spell);
+      case 'summon':
+        return spell.summon === 'decoy' ? this.createDecoy(spell) : createSummon(spell);
       case 'thornRush':
         // Los brotes se dibujan como estallidos, a medida que salen.
         return new THREE.Group();
     }
   }
 
+  private createDecoy(decoy: Summon): THREE.Object3D {
+    const view = this.makeDecoy(decoy.ownerId);
+    if (!view) return new THREE.Group();
+    this.decoys.set(decoy.id, view);
+    return view.group;
+  }
+
   private createProjectile(
     spell: SpellEntity & { kind: 'projectile' },
-    color: THREE.Color,
+    baseColor: THREE.Color,
   ): THREE.Object3D {
+    let color = baseColor;
     const group = new THREE.Group();
-    // La Bola ígnea es grande; los conjuros antiguos crecen con cada elemento.
-    const size =
-      spell.payload.spell === null
-        ? spell.radius * (1 + 0.25 * (spell.payload.weave.length - 1))
-        : spell.radius;
+    const size = spell.radius;
+    // La Ceguera es una bola de sombra, no de luz.
+    if (spell.payload.spell === 'blinding') color = new THREE.Color('#3a1f55');
     const core = new THREE.Mesh(
       this.coreGeometry,
       new THREE.MeshBasicMaterial({ color: glow(color, 3) }),
@@ -138,144 +163,106 @@ export class SpellViews {
     return group;
   }
 
-  private createWall(spell: SpellEntity & { kind: 'wall' }, color: THREE.Color): THREE.Object3D {
-    const material = new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      uniforms: {
-        uTime: { value: 0 },
-        uColor: { value: color.clone() },
-        uFade: { value: 1 },
-        uRise: { value: 0 },
-      },
-      vertexShader: /* glsl */ `
-        uniform float uTime;
-        uniform float uRise;
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          vec3 p = position;
-          p.z += sin(uv.y * 8.0 + uTime * 3.0 + uv.x * 5.0) * 0.06;
-          p.y = mix(-1.2, p.y, uRise);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        uniform float uTime;
-        uniform vec3 uColor;
-        uniform float uFade;
-        varying vec2 vUv;
-        void main() {
-          float edge = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
-          float top = smoothstep(1.0, 0.7, vUv.y);
-          float waves = 0.55 + 0.45 * sin(vUv.y * 30.0 - uTime * 6.0 + sin(vUv.x * 12.0) * 2.0);
-          float crest = smoothstep(0.75, 1.0, vUv.y) * (1.0 - smoothstep(0.95, 1.0, vUv.y)) * 2.0;
-          float alpha = (0.35 * waves + crest) * edge * top * uFade;
-          gl_FragColor = vec4(uColor * (1.2 + crest * 2.0), alpha);
-        }
-      `,
-    });
-    const wall = new THREE.Mesh(this.wallGeometry(spell.halfLength), material);
-    wall.position.set(spell.center.x, WALL_HEIGHT / 2, spell.center.z);
-    wall.rotation.y = -Math.atan2(spell.along.z, spell.along.x);
-    this.particles.burst(spell.center.x, 0.4, spell.center.z, glow(color, 1.5), 24, 4, 0.4);
-    return wall;
-  }
-
-  private createTrap(spell: SpellEntity & { kind: 'trap' }, color: THREE.Color): THREE.Object3D {
-    const group = new THREE.Group();
-    group.position.set(spell.pos.x, 0, spell.pos.z);
-    const radius = this.rules.forms.trap.triggerRadius;
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius * 0.85, radius, 40),
-      new THREE.MeshBasicMaterial({
-        color: glow(color, 1.6),
-        transparent: true,
-        opacity: 0.4,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.04;
-    group.add(ring);
-    // Espinas de raíz alrededor, que asoman cuando la trampa está armada.
-    const spikes = new THREE.Group();
-    const spikeMaterial = new THREE.MeshStandardMaterial({
-      color: '#2b3a22',
-      emissive: color,
-      emissiveIntensity: 0.4,
-    });
-    for (let i = 0; i < 9; i++) {
-      const angle = (i / 9) * Math.PI * 2;
-      const spike = new THREE.Mesh(this.spikeGeometry, spikeMaterial);
-      spike.position.set(Math.cos(angle) * radius * 0.8, 0.2, Math.sin(angle) * radius * 0.8);
-      spike.rotation.set(Math.sin(angle) * 0.4, 0, -Math.cos(angle) * 0.4);
-      spikes.add(spike);
+  private update(view: THREE.Object3D, spell: SpellEntity, world: SpellWorld): void {
+    const { time, particles } = { time: world.time, particles: this.particles };
+    switch (spell.kind) {
+      case 'zone':
+        if (spell.effect === 'burn') updateZone(view, spell, time, particles);
+        else updateAreaZone(view, spell, time, particles);
+        return;
+      case 'current':
+        updateCurrent(view, spell, time, particles);
+        return;
+      case 'geyser':
+        updateGeyser(view, spell, time, particles);
+        return;
+      case 'tether':
+        updateTether(
+          view,
+          world.wizardPos(spell.ownerId),
+          world.wizardPos(spell.targetId),
+          time,
+          particles,
+        );
+        return;
+      case 'thornRush':
+        // Nada que mover: cada brote es un estallido.
+        return;
+      case 'wall':
+        if (spell.solid) updateRootWall(view, spell);
+        else updateIceWall(view, spell, particles);
+        return;
+      case 'obsidian':
+        updateObsidian(
+          view,
+          world.wizard(spell.ownerId),
+          world.wizardPos(spell.ownerId),
+          this.rules,
+          time,
+          particles,
+        );
+        return;
+      case 'ignite':
+        updateIgnite(view, spell, world.wizardPos(spell.targetId), time, particles);
+        return;
+      case 'shackle':
+        updateShackle(view, spell, world.wizardPos(spell.targetId), this.rules, time);
+        return;
+      case 'summon':
+        if (spell.summon === 'decoy') this.updateDecoy(spell, world);
+        else updateSummon(view, spell, world.positionOf(spell), time, particles);
+        return;
+      case 'projectile':
+        this.updateProjectile(view, spell, world.positionOf(spell), time);
+        return;
     }
-    group.add(spikes);
-    group.userData.ring = ring;
-    group.userData.spikes = spikes;
-    return group;
   }
 
-  private update(
+  /** El Señuelo se dibuja como su dueño, corriendo, sin estados ni tejido. */
+  private updateDecoy(decoy: Summon, world: SpellWorld): void {
+    const view = this.decoys.get(decoy.id);
+    const owner = world.wizard(decoy.ownerId);
+    if (!view || !owner) return;
+    const pos = world.positionOf(decoy);
+    const double: Wizard = {
+      ...owner,
+      pos,
+      facing: decoy.facing,
+      hp: owner.maxHp,
+      statuses: {},
+      weave: [],
+      channel: null,
+      leap: null,
+      fallen: null,
+      moveInput: decoy.facing,
+    };
+    view.update(double, pos.x, pos.z, world.time, world.delta, false, this.rules);
+  }
+
+  private updateProjectile(
     view: THREE.Object3D,
-    spell: SpellEntity,
+    spell: SpellEntity & { kind: 'projectile' },
     pos: Position,
     timeSeconds: number,
-    wizardPos: (id: number) => Position | undefined,
   ): void {
-    if (spell.kind === 'zone') {
-      updateZone(view, spell, timeSeconds, this.particles);
-    } else if (spell.kind === 'geyser') {
-      updateGeyser(view, spell, timeSeconds, this.particles);
-    } else if (spell.kind === 'tether') {
-      const from = wizardPos(spell.ownerId);
-      const to = wizardPos(spell.targetId);
-      updateTether(view, from, to, timeSeconds, this.particles);
-    } else if (spell.kind === 'thornRush') {
-      // Nada que mover: cada brote es un estallido.
-    } else if (spell.kind === 'wall' && spell.solid) {
-      updateRootWall(view, spell);
-    } else if (spell.kind === 'projectile') {
-      view.position.set(pos.x, 1.3, pos.z);
-      const color = view.userData.color as THREE.Color;
-      // Estela de chispas detrás del proyectil.
-      this.particles.emit({
-        x: pos.x + (Math.random() - 0.5) * 0.15,
-        y: 1.3 + (Math.random() - 0.5) * 0.15,
-        z: pos.z + (Math.random() - 0.5) * 0.15,
-        vy: 0.3,
-        color: glow(color, 1.4),
-        life: 0.35,
-        size: 0.45,
-      });
-      view.children.forEach((child) => {
-        const phase = child.userData.phase as number | undefined;
-        if (phase === undefined) return;
-        const angle = timeSeconds * 18 + phase;
-        child.position.set(Math.cos(angle) * 0.45, Math.sin(angle) * 0.45, 0);
-      });
-      view.rotation.y = Math.atan2(spell.velocity.x, spell.velocity.z);
-    } else if (spell.kind === 'trap') {
-      const ring = view.userData.ring as THREE.Mesh;
-      const spikes = view.userData.spikes as THREE.Group;
-      const armed = spell.armTicks === 0;
-      (ring.material as THREE.MeshBasicMaterial).opacity = armed
-        ? 0.55 + 0.3 * Math.sin(timeSeconds * 5)
-        : 0.2;
-      ring.rotation.z = timeSeconds * 0.6;
-      spikes.position.y = armed ? 0 : -0.5;
-    } else if (spell.kind === 'wall') {
-      const material = (view as THREE.Mesh).material as THREE.ShaderMaterial;
-      const uniforms = material.uniforms;
-      if (uniforms.uTime) uniforms.uTime.value = timeSeconds;
-      if (uniforms.uFade) uniforms.uFade.value = Math.min(1, spell.ticksLeft / 20);
-      const total = spell.durationTicks;
-      if (uniforms.uRise) uniforms.uRise.value = Math.min(1, (total - spell.ticksLeft) / 6);
-    }
+    view.position.set(pos.x, 1.3, pos.z);
+    const color = view.userData.color as THREE.Color;
+    // Estela de chispas detrás del proyectil.
+    this.particles.emit({
+      x: pos.x + (Math.random() - 0.5) * 0.15,
+      y: 1.3 + (Math.random() - 0.5) * 0.15,
+      z: pos.z + (Math.random() - 0.5) * 0.15,
+      vy: 0.3,
+      color: spell.payload.spell === 'blinding' ? glow(color, 2.5) : glow(color, 1.4),
+      life: 0.35,
+      size: 0.45,
+    });
+    view.children.forEach((child) => {
+      const phase = child.userData.phase as number | undefined;
+      if (phase === undefined) return;
+      const angle = timeSeconds * 18 + phase;
+      child.position.set(Math.cos(angle) * 0.45, Math.sin(angle) * 0.45, 0);
+    });
+    view.rotation.y = Math.atan2(spell.velocity.x, spell.velocity.z);
   }
 }

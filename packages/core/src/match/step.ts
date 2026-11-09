@@ -1,4 +1,4 @@
-import { canAct, moveMultiplier, tickStatuses } from '../combat/statuses';
+import { canAct, canWeave, moveMultiplier, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
 import { add, clampLength, length, normalize, scale } from '../math/vec2';
@@ -6,9 +6,7 @@ import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { castSpell } from '../spells/cast';
 import { spellOf } from '../spells/catalog';
-import { buildPayload, empowerPayload } from '../spells/payload';
-import { releaseSpell } from '../spells/release';
-import { blockBySolidWalls } from '../spells/solidWalls';
+import { blockByWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
 import { updateBeasts } from './beasts';
@@ -93,7 +91,7 @@ function applyIntents(
         break;
       case 'weave':
         if (
-          canAct(wizard) &&
+          canWeave(wizard) &&
           !wizard.channel &&
           wizard.weave.length < MAX_WEAVE_LENGTH &&
           wizard.fatigue[intent.element] === 0
@@ -122,7 +120,7 @@ function startChannel(
   aim: { x: number; z: number },
   rules: GameRules,
 ): void {
-  if (wizard.channel || wizard.leap || wizard.weave.length === 0 || !canAct(wizard)) {
+  if (wizard.channel || wizard.leap || wizard.weave.length === 0 || !canWeave(wizard)) {
     return;
   }
   const weave = wizard.weave;
@@ -173,14 +171,14 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
   const move = scale(wizard.moveInput, speed / TICK_RATE);
   if (length(move) > 0) {
     const next = placeInArena(add(wizard.pos, move), rules.wizard.radius, rules);
-    wizard.pos = blockBySolidWalls(state, wizard.pos, next, rules.wizard.radius);
+    wizard.pos = blockByWalls(state, wizard, next, rules.wizard.radius);
     if (!wizard.channel) {
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }
   }
 }
 
-/** Sale el conjuro: el hechizo propio del tejido o, si aún no tiene, la gramática antigua. */
+/** Sale el conjuro: el hechizo del tejido. */
 function release(
   state: MatchState,
   wizard: Wizard,
@@ -189,26 +187,7 @@ function release(
   rules: GameRules,
 ): void {
   const spell = spellOf(weave);
-  if (spell) {
-    castSpell(state, wizard, spell, weave, rawAim, rules);
-    return;
-  }
-  const base = buildPayload(weave, rules);
-  if (!base) return;
-  // Salir del Velo con un conjuro lo rompe y lo potencia.
-  const veiled = wizard.statuses.veiled !== undefined;
-  delete wizard.statuses.veiled;
-  const payload = empowerPayload(
-    base,
-    wizard,
-    rules,
-    veiled ? rules.statuses.veiled.damageMultiplier : 1,
-  );
-  // Los proyectiles apuntados solos se adelantan al rival; el resto va directo.
-  const leadSpeed =
-    payload.form === 'projectile' ? rules.forms.projectile.speed * payload.speedMultiplier : 0;
-  const aim = resolveAim(state, wizard, rawAim, rules, leadSpeed);
-  releaseSpell(state, wizard, payload, aim, rules);
+  if (spell) castSpell(state, wizard, spell, weave, rawAim, rules);
 }
 
 export const NO_INTENTS: IntentsByWizard = new Map();

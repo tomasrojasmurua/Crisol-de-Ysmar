@@ -16,8 +16,8 @@ export function addToWeave(weave: Weave, element: ElementId): Weave {
 }
 
 /**
- * Gramática del tejido: el primer elemento define la forma del conjuro
- * y los siguientes le agregan efectos.
+ * La familia de cada hechizo según su primer elemento. Ya no decide qué hace el hechizo:
+ * sirve para los Glifos que potencian una familia y para el color de los golpes.
  */
 export const SPELL_FORM_BY_ELEMENT = {
   brasa: 'projectile',
@@ -28,21 +28,6 @@ export const SPELL_FORM_BY_ELEMENT = {
 } as const satisfies Record<ElementId, string>;
 
 export type SpellForm = (typeof SPELL_FORM_BY_ELEMENT)[ElementId];
-
-export interface SpellRecipe {
-  readonly form: SpellForm;
-  readonly modifiers: readonly ElementId[];
-  readonly weave: Weave;
-}
-
-/** Traduce un tejido a su receta de conjuro. Devuelve null si el tejido está vacío. */
-export function recipeOf(weave: Weave): SpellRecipe | null {
-  const [first, ...rest] = weave;
-  if (first === undefined) {
-    return null;
-  }
-  return { form: SPELL_FORM_BY_ELEMENT[first], modifiers: rest, weave };
-}
 
 /** Clave estable de un tejido, por ejemplo "brasa>marea". */
 export function weaveKey(weave: Weave): string {

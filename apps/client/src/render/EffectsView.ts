@@ -1,8 +1,17 @@
-import type { GameEvent, MatchState, Vec2, Wizard } from '@crisol/core';
+import type { GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import type { Particles } from './Particles';
 import { elementColor, formColor, glow } from './palette';
-import { blinked, chainLightning, spellBurst, spellReleased } from './SpellEffects';
+import {
+  blinked,
+  chainLightning,
+  shadowStepped,
+  spellBurst,
+  spellReleased,
+  summonGone,
+  vine,
+  zap,
+} from './SpellEffects';
 
 interface Timed {
   readonly mesh: THREE.Mesh;
@@ -15,6 +24,8 @@ const SPECTRE_COLOR = new THREE.Color('#a9b8ff');
 const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
 const SHRINE_COLOR = new THREE.Color('#f0d9a0');
+/** Explosiones que sacuden la cámara si te pillan cerca. */
+const SHAKERS: ReadonlySet<SpellId> = new Set(['fireball', 'geyser', 'obsidian', 'ignite', 'wisp']);
 
 /**
  * Lo que dura un instante: estallidos, ondas, rayos de la marca y columnas al revivir.
@@ -68,20 +79,12 @@ export class EffectsView {
         }
         case 'release': {
           const caster = byId(event.wizardId);
-          if (!caster) break;
-          if (event.spell) {
-            spellReleased(this, this.particles, event.spell, caster);
-            break;
-          }
-          const color = formColor(event.form);
-          if (event.form === 'leap' || event.form === 'wall') {
-            this.ring(caster.pos.x, caster.pos.z, color, 2.5, 0.4);
-          }
+          if (caster) spellReleased(this, this.particles, event.spell, caster);
           break;
         }
         case 'burst':
           spellBurst(this, this.particles, event);
-          if (event.spell === 'fireball' || event.spell === 'geyser') {
+          if (SHAKERS.has(event.spell)) {
             const player = byId(this.playerId);
             if (player && Math.hypot(player.pos.x - event.pos.x, player.pos.z - event.pos.z) < 8) {
               this.shake = Math.min(1, this.shake + 0.35);
@@ -92,7 +95,20 @@ export class EffectsView {
           chainLightning(this, this.particles, event.points);
           break;
         case 'blink':
-          blinked(this, this.particles, event.from, event.to);
+          if (event.spell === 'shadowStep')
+            shadowStepped(this, this.particles, event.from, event.to);
+          else blinked(this, this.particles, event.from, event.to);
+          break;
+        case 'zap':
+          zap(this, this.particles, event.from, event.to);
+          break;
+        case 'vine': {
+          const caster = byId(event.wizardId);
+          if (caster) vine(this, this.particles, caster.pos, event.to, event.hit);
+          break;
+        }
+        case 'summonGone':
+          summonGone(this.particles, event.summon, event.pos);
           break;
         case 'hit': {
           const target = byId(event.targetId);
@@ -299,6 +315,55 @@ export class EffectsView {
         size: 0.45,
       });
     }
+    if (wizard.statuses.silenced && Math.random() < chance * 0.4) {
+      // Chispas violetas que giran sobre la cabeza: no puede tejer.
+      const angle = Math.random() * Math.PI * 2;
+      this.particles.emit({
+        x: x + Math.cos(angle) * 0.35,
+        y: 2.3,
+        z: z + Math.sin(angle) * 0.35,
+        vx: -Math.sin(angle) * 1.5,
+        vz: Math.cos(angle) * 1.5,
+        color: glow(elementColor('umbra'), 2),
+        life: 0.35,
+        size: 0.22,
+      });
+    }
+    if (wizard.statuses.weak && Math.random() < chance * 0.3) {
+      // Esporas que se le pegan y caen.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.7,
+        y: 1.6 + Math.random() * 0.5,
+        z: z + (Math.random() - 0.5) * 0.7,
+        vy: -0.6,
+        color: glow(Math.random() < 0.5 ? elementColor('raiz') : elementColor('umbra'), 0.9),
+        life: 0.9,
+        size: 0.35,
+      });
+    }
+    if (wizard.statuses.blind && Math.random() < chance * 0.5) {
+      // Niebla negra en la cabeza.
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.4,
+        y: 1.8 + Math.random() * 0.3,
+        z: z + (Math.random() - 0.5) * 0.4,
+        vy: 0.2,
+        color: elementColor('umbra').clone().multiplyScalar(0.6),
+        life: 0.8,
+        size: 0.7,
+      });
+    }
+    if (wizard.statuses.haste && Math.random() < chance * 0.5) {
+      this.particles.emit({
+        x: x + (Math.random() - 0.5) * 0.5,
+        y: 0.15,
+        z: z + (Math.random() - 0.5) * 0.5,
+        vy: 0.6,
+        color: glow(elementColor('marea'), 1.3),
+        life: 0.35,
+        size: 0.25,
+      });
+    }
     if (spectre && Math.random() < chance * 0.6) {
       this.particles.emit({
         x: x + (Math.random() - 0.5) * 0.5,
@@ -350,9 +415,11 @@ export class EffectsView {
     to: { x: number; z: number },
     color: THREE.Color,
     duration: number,
+    /** Altura de donde sale: la mano de un mago o la punta de un tótem. */
+    fromHeight = 1.5,
   ): void {
     const beam = this.take(this.beams, this.beamGeometry, duration);
-    const start = new THREE.Vector3(from.x, 1.5, from.z);
+    const start = new THREE.Vector3(from.x, fromHeight, from.z);
     const end = new THREE.Vector3(to.x, HIT_HEIGHT, to.z);
     beam.mesh.position.copy(start);
     beam.mesh.lookAt(end);

@@ -19,12 +19,10 @@ export interface Channel {
   readonly aim: Vec2;
 }
 
-/** Un desplazamiento en varios pasos: el salto de Tormenta, el Paso o el Cometa. */
+/** Un desplazamiento en varios pasos: el Paso, el Cometa o el tirón de la Liana. */
 export interface Leap {
   ticksLeft: number;
   readonly step: Vec2;
-  /** Lo que descarga al aterrizar; null si no golpea. */
-  readonly payload: SpellPayload | null;
   /** Rastro que deja en el suelo (el Cometa deja fuego). */
   readonly trail: 'fire' | null;
 }
@@ -64,6 +62,10 @@ export interface Wizard {
   /** Vidas que quedan en la ronda (en modo Espectro es 1). */
   lives: number;
   fallen: Fallen | null;
+  /** Lo que absorbe la coraza de Obsidiana antes de que el daño llegue a la vida. */
+  shield: number;
+  /** Todo el daño recibido en la ronda: la Ignición mide cuánto creció. */
+  damageTaken: number;
 }
 
 /** Lo que lleva un conjuro al salir: se arma una vez a partir del tejido. */
@@ -72,11 +74,8 @@ export interface SpellPayload {
   readonly weave: Weave;
   readonly damage: number;
   readonly statuses: readonly StatusId[];
-  readonly speedMultiplier: number;
-  readonly rangeMultiplier: number;
-  readonly hasStorm: boolean;
-  /** El hechizo propio que lo lanzó, o null si usa la gramática antigua. */
-  readonly spell: SpellId | null;
+  /** El hechizo que lo lanzó. */
+  readonly spell: SpellId;
   /** Radio de la explosión al impactar; 0 si no explota. */
   readonly blastRadius: number;
 }
@@ -87,7 +86,9 @@ export interface Projectile {
   readonly ownerId: EntityId;
   readonly team: number;
   pos: Vec2;
-  readonly velocity: Vec2;
+  /** La Ventisca puede desviarlo una vez. */
+  velocity: Vec2;
+  deflected: boolean;
   readonly radius: number;
   travelled: number;
   readonly maxRange: number;
@@ -104,25 +105,22 @@ export interface Wall {
   readonly along: Vec2;
   readonly halfLength: number;
   readonly thickness: number;
-  /** Un muro sólido corta el paso y los proyectiles de todos, no solo los rivales. */
+  /**
+   * Un muro sólido (la Muralla de raíces) corta el paso y los proyectiles de todos;
+   * si no (el Muro de hielo), solo los de los rivales.
+   */
   readonly solid: boolean;
   readonly durationTicks: number;
   ticksLeft: number;
   readonly payload: SpellPayload;
 }
 
-export interface Trap {
-  readonly kind: 'trap';
-  readonly id: EntityId;
-  readonly ownerId: EntityId;
-  readonly team: number;
-  readonly pos: Vec2;
-  armTicks: number;
-  ticksLeft: number;
-  readonly payload: SpellPayload;
-}
+/**
+ * Suelo encantado por un rato: el rastro del Cometa quema, la Ventisca frena y desvía,
+ * el Manantial cura a los aliados y las Esporas debilitan a los rivales.
+ */
+export type ZoneEffect = 'burn' | 'blizzard' | 'spring' | 'spores';
 
-/** Suelo encantado por un rato: el rastro del Cometa quema a los rivales que lo pisan. */
 export interface Zone {
   readonly kind: 'zone';
   readonly id: EntityId;
@@ -130,7 +128,22 @@ export interface Zone {
   readonly team: number;
   readonly pos: Vec2;
   readonly radius: number;
-  readonly effect: 'burn';
+  readonly effect: ZoneEffect;
+  readonly durationTicks: number;
+  ticksLeft: number;
+}
+
+/** La Corriente: un río recto que apura a los aliados a favor y frena a los rivales. */
+export interface Current {
+  readonly kind: 'current';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly origin: Vec2;
+  readonly dir: Vec2;
+  readonly length: number;
+  readonly halfWidth: number;
+  readonly durationTicks: number;
   ticksLeft: number;
 }
 
@@ -172,7 +185,80 @@ export interface Tether {
   readonly payload: SpellPayload;
 }
 
-export type SpellEntity = Projectile | Wall | Trap | Zone | Geyser | ThornRush | Tether;
+/** La coraza de Obsidiana: cuando se rompe o se acaba, estalla alrededor de quien la lleva. */
+export interface Obsidian {
+  readonly kind: 'obsidian';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/** La Ignición: guarda cuánto daño llevaba el rival para estallar con una parte de lo que reciba. */
+export interface Ignite {
+  readonly kind: 'ignite';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  readonly takenAtStart: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  /** Su daño es la parte del daño recibido que devuelve al estallar. */
+  readonly payload: SpellPayload;
+}
+
+/** El Grillete: ata al rival a un punto; si se aleja demasiado, se tensa y lo castiga. */
+export interface Shackle {
+  readonly kind: 'shackle';
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  readonly targetId: EntityId;
+  readonly anchor: Vec2;
+  ticksLeft: number;
+  readonly payload: SpellPayload;
+}
+
+/**
+ * Lo que se invoca: el Fuego fatuo persigue y explota, el Pararrayos dispara desde su lugar,
+ * el Guardián de musgo te sigue y pega, y el Señuelo corre fingiendo ser tú.
+ * Los rivales pueden destruirlos a golpes.
+ */
+export type SummonKind = 'wisp' | 'lightningRod' | 'mossGuardian' | 'decoy';
+
+export interface Summon {
+  readonly kind: 'summon';
+  readonly summon: SummonKind;
+  readonly id: EntityId;
+  readonly ownerId: EntityId;
+  readonly team: number;
+  pos: Vec2;
+  facing: Vec2;
+  hp: number;
+  readonly maxHp: number;
+  readonly radius: number;
+  readonly durationTicks: number;
+  ticksLeft: number;
+  /** Pasos hasta su próximo golpe o rayo. */
+  cooldown: number;
+  readonly payload: SpellPayload;
+}
+
+export type SpellEntity =
+  | Projectile
+  | Wall
+  | Zone
+  | Current
+  | Geyser
+  | ThornRush
+  | Tether
+  | Obsidian
+  | Ignite
+  | Shackle
+  | Summon;
 
 /** Bestia neutral de un elemento. No toma partido: ataca a quien la ataque. */
 export interface Beast {
@@ -209,9 +295,9 @@ export type GameEvent =
       readonly type: 'release';
       readonly wizardId: EntityId;
       readonly form: SpellForm;
-      readonly spell: SpellId | null;
+      readonly spell: SpellId;
     }
-  /** Una explosión o un brote en área: Bola ígnea, espinas, géiser, Salpicón. */
+  /** Una explosión o un brote en área: Bola ígnea, espinas, géiser, Salpicón, Obsidiana… */
   | {
       readonly type: 'burst';
       readonly spell: SpellId;
@@ -220,7 +306,19 @@ export type GameEvent =
     }
   /** El recorrido de un rayo en cadena, desde quien lo lanza. */
   | { readonly type: 'chain'; readonly points: readonly Vec2[] }
-  | { readonly type: 'blink'; readonly wizardId: EntityId; readonly from: Vec2; readonly to: Vec2 }
+  /** Un rayo de un punto a otro: el del Pararrayos. */
+  | { readonly type: 'zap'; readonly from: Vec2; readonly to: Vec2 }
+  | {
+      readonly type: 'blink';
+      readonly spell: SpellId;
+      readonly wizardId: EntityId;
+      readonly from: Vec2;
+      readonly to: Vec2;
+    }
+  /** La Liana sale de quien la lanza hasta donde se engancha (o hasta donde llegó si falló). */
+  | { readonly type: 'vine'; readonly wizardId: EntityId; readonly to: Vec2; readonly hit: boolean }
+  /** Una invocación destruida o consumida. */
+  | { readonly type: 'summonGone'; readonly summon: SummonKind; readonly pos: Vec2 }
   | {
       readonly type: 'hit';
       readonly targetId: EntityId;

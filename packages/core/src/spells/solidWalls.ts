@@ -1,14 +1,16 @@
-import type { MatchState } from '../match/state';
+import type { MatchState, Wizard } from '../match/state';
 import { add, dot, perpendicular, scale, sub, type Vec2 } from '../math/vec2';
 
 /**
- * Las murallas sólidas cortan el paso: quien camina contra una se queda del lado en que estaba.
- * `from` es dónde estaba antes de moverse; decide de qué lado del muro queda.
+ * Los muros cortan el paso: quien camina contra uno se queda del lado en que estaba.
+ * La Muralla de raíces frena a todos; el Muro de hielo, solo a los rivales de quien lo levantó.
  */
-export function blockBySolidWalls(state: MatchState, from: Vec2, to: Vec2, radius: number): Vec2 {
+export function blockByWalls(state: MatchState, wizard: Wizard, to: Vec2, radius: number): Vec2 {
+  const from = wizard.pos;
   let pos = to;
   for (const wall of state.spells) {
-    if (wall.kind !== 'wall' || !wall.solid) continue;
+    if (wall.kind !== 'wall') continue;
+    if (!wall.solid && wall.team === wizard.team) continue;
     const offset = sub(pos, wall.center);
     const along = dot(offset, wall.along);
     if (Math.abs(along) > wall.halfLength + radius) continue;

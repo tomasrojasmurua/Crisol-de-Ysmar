@@ -1,10 +1,11 @@
+import { applyStatus } from '../../combat/hit';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
 import { isHiddenFrom } from '../../match/queries';
 import type { MatchState, Wizard } from '../../match/state';
-import { add, distance, scale, type Vec2 } from '../../math/vec2';
+import { add, clampToCircle, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
-import { type CastContext, payloadFor } from './context';
-import { hitTarget, type SpellTarget, targetInCone, targetPos } from './shared';
+import { type CastContext, payloadFor, placeZone, summon } from './context';
+import { groundPoint, hitTarget, type SpellTarget, targetInCone, targetPos } from './shared';
 
 /** Paso: un desplazamiento corto hacia donde apuntas. */
 export function castStep(ctx: CastContext): void {
@@ -12,7 +13,6 @@ export function castStep(ctx: CastContext): void {
   ctx.caster.leap = {
     ticksLeft: rules.durationTicks,
     step: scale(ctx.aim, rules.distance / rules.durationTicks),
-    payload: null,
     trail: null,
   };
 }
@@ -26,7 +26,7 @@ export function castBlink(ctx: CastContext): void {
     rules.wizard.radius,
     rules,
   );
-  state.events.push({ type: 'blink', wizardId: caster.id, from, to: caster.pos });
+  state.events.push({ type: 'blink', spell: 'blink', wizardId: caster.id, from, to: caster.pos });
 }
 
 /** Rayo en cadena: golpea al primer blanco y salta a los más cercanos, cada vez más débil. */
@@ -81,4 +81,51 @@ function nextBounce(
     consider({ kind: 'beast', beast }, beast.id);
   }
   return best;
+}
+
+/** Ventisca: un torbellino fijo que frena a los rivales y tuerce sus proyectiles. */
+export function castBlizzard(ctx: CastContext): void {
+  const { state, caster, rules } = ctx;
+  const spell = rules.spells.blizzard;
+  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules);
+  placeZone(ctx, 'blizzard', spell, clampToCircle(pos, rules.arenaRadius));
+}
+
+/** Pararrayos: un poste delante tuyo que da un rayo al rival más cercano cada tanto. */
+export function castLightningRod(ctx: CastContext): void {
+  const { caster, rules } = ctx;
+  const spell = rules.spells.lightningRod;
+  const pos = placeInArena(add(caster.pos, scale(ctx.aim, spell.distance)), spell.radius, rules);
+  summon(ctx, 'lightningRod', spell, pos, payloadFor(ctx, spell.damage), spell.intervalTicks / 2);
+}
+
+/** Paso sombrío: apareces detrás del rival y lo silencias; lo que estaba tejiendo se pierde. */
+export function castShadowStep(ctx: CastContext): void {
+  const { state, caster, rules } = ctx;
+  const spell = rules.spells.shadowStep;
+  const target = targetInCone(state, caster, ctx.aim, spell.range, spell.coneDot, rules);
+  if (target?.kind !== 'wizard') {
+    state.events.push({ type: 'fizzle', wizardId: caster.id });
+    return;
+  }
+  const victim = target.wizard;
+  const from = caster.pos;
+  const through = normalize(sub(victim.pos, from), ctx.aim);
+  caster.pos = placeInArena(
+    add(victim.pos, scale(through, spell.behind)),
+    rules.wizard.radius,
+    rules,
+  );
+  caster.facing = normalize(sub(victim.pos, caster.pos), through);
+  state.events.push({
+    type: 'blink',
+    spell: 'shadowStep',
+    wizardId: caster.id,
+    from,
+    to: caster.pos,
+  });
+  if (victim.statuses.stasis) return;
+  applyStatus(state, victim, 'silenced', caster.id, rules);
+  victim.channel = null;
+  victim.weave = [];
 }
