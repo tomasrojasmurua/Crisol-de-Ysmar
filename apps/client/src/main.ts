@@ -3,6 +3,7 @@ import { FixedStepClock, TICK_MS } from '@crisol/core';
 import * as THREE from 'three';
 import { CameraRig } from './camera/cameraRigs';
 import { LocalDuel } from './game/LocalDuel';
+import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
@@ -15,6 +16,8 @@ import { Hud } from './ui/Hud';
 
 const rules = GAME_RULES;
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
+blockBrowserGestures();
+
 const uiRoot = document.querySelector<HTMLElement>('#ui');
 if (!canvas || !uiRoot) {
   throw new Error('Faltan el canvas o la capa de interfaz');
