@@ -290,3 +290,18 @@ describe('Grandes hechizos: estados', () => {
     expect(wizard(state, 2).hp).toBeLessThan(wizard(state, 2).maxHp);
   });
 });
+
+describe('piso del tejido', () => {
+  it('ni con la Fuente termal un tejido sale antes que uno de 1 elemento', () => {
+    const state = scene([{ x: 20, z: 20 }]);
+    const self = wizard(state, 1);
+    self.statuses.quickened = { ticks: 300, sourceId: 1 };
+    run(state, 1, [
+      { kind: 'weave', element: 'brasa' },
+      { kind: 'cast', dirX: 0, dirZ: 1 },
+    ]);
+    expect(self.channel?.ticksLeft ?? 0).toBeGreaterThanOrEqual(
+      rules.weave.castTicksByLength[0] - 1,
+    );
+  });
+});
