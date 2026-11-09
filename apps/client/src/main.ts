@@ -2,6 +2,7 @@ import {
   BEAST_NAMES,
   ELEMENTS,
   GAME_RULES,
+  GUARDIAN_NAME,
   ROBE_COLORS,
   SKIN_TONES,
   spellName,
@@ -9,6 +10,7 @@ import {
   WIZARD_NAMES,
 } from '@crisol/content';
 import {
+  type Beast,
   createMatch,
   currentTarget,
   type ElementId,
@@ -140,8 +142,10 @@ const elementColorHex = (element: string): string =>
   ELEMENTS.find((e) => e.id === element)?.color ?? '#ffffff';
 const elementName = (element: string): string =>
   ELEMENTS.find((e) => e.id === element)?.name ?? element;
-const beastName = (element: string): string =>
-  BEAST_NAMES[element as keyof typeof BEAST_NAMES] ?? 'Bestia';
+const beastName = (beast: Beast): string =>
+  beast.guardian
+    ? GUARDIAN_NAME
+    : (BEAST_NAMES[beast.element as keyof typeof BEAST_NAMES] ?? 'Bestia');
 
 /** El aspecto de un mago en pantalla: sus piezas, su Afinidad y el color de su bando. */
 function lookOf(
@@ -342,6 +346,17 @@ function announceEvents(events: readonly GameEvent[], current: LocalMatch): void
       hud.announce('Caíste', subtitle);
     } else if (event.type === 'revived' && event.wizardId === PLAYER_ID) {
       hud.announce('De pie', `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`);
+    } else if (event.type === 'guardianAwake') {
+      hud.announce('El Guardián despertó', 'Está en la plaza: vencerlo da Esencia de todo', 2.6);
+    } else if (event.type === 'beastSlain' && event.guardian) {
+      const killer = event.killerId === PLAYER_ID ? 'Tú' : badges.get(event.killerId ?? -1)?.name;
+      hud.announce(
+        'Cayó el Guardián',
+        event.killerId === PLAYER_ID
+          ? 'Esencia de los cinco elementos'
+          : `${killer ?? 'Alguien'} se llevó su Esencia`,
+        2.4,
+      );
     } else if (event.type === 'beastSlain' && event.killerId === PLAYER_ID) {
       const bonus = Math.round(rules.beasts.essenceDamagePerStack * 100);
       hud.announce(
@@ -533,7 +548,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
 
   controls.render(player, rules, isSpectre(state, player));
   hud.update(state, player, current.series, current.roundNumber, badges, rules);
-  labels.updateBeasts(state, camera, beastName, elementColorHex, rules);
+  labels.updateBeasts(state, camera, beastName, elementColorHex);
   const seen = visibleEnemies(state, player.team, rules);
   labels.update(
     state,

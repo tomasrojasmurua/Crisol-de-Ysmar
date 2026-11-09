@@ -41,6 +41,9 @@ function huntingScene(): MatchState {
   state.beasts.push({
     id: 99,
     element: 'brasa',
+    camp: null,
+    guardian: false,
+    maxHp: TEST_RULES.beasts.maxHp,
     home: { x: 0, z: 4 },
     pos: { x: 0, z: 4 },
     facing: { x: 0, z: 1 },

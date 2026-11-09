@@ -132,7 +132,7 @@ function buildMap(): MapLayout {
     obstacles.push({ x, z, radius, kind });
     obstacles.push({ x: -x, z: -z, radius, kind });
   }
-  return { obstacles, camps };
+  return { obstacles, camps, guardianLair: { x: 0, z: 0 } };
 }
 
 export const MAP: MapLayout = buildMap();

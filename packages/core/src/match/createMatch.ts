@@ -66,6 +66,8 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
     wizards,
     spells: [],
     beasts: [],
+    campRespawn: rules.map.camps.map(() => -1),
+    guardianAwake: false,
     shrines: [],
     events: [],
     winnerTeam: null,

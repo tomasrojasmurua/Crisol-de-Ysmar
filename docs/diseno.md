@@ -13,6 +13,9 @@ El documento de diseño completo vive en Claude:
   jungla alrededor con senderos y diez campamentos de bestias, dos por elemento, en espejo para
   que ningún lado tenga ventaja. Los árboles, rocas y ruinas tapan el paso, los conjuros y la vista:
   a un rival en la jungla solo lo ves si alguien de tu equipo lo tiene cerca y a la vista.
+- **Campamentos:** dos bestias cada uno; un campamento vacío se vuelve a poblar a los 75 segundos
+  (si sigue dentro de la zona). Al minuto de Caza despierta el **Guardián del Crisol** en la plaza:
+  vencerlo da una Esencia de cada elemento.
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. El primer elemento define

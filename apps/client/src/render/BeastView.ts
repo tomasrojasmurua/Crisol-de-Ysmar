@@ -1,6 +1,9 @@
 import type { Beast, ElementId } from '@crisol/core';
 import * as THREE from 'three';
-import { elementColor, glow } from './palette';
+import { ELEMENT_COLORS, elementColor, glow } from './palette';
+
+/** El Guardián es la misma criatura, mucho más grande. */
+const GUARDIAN_SCALE = 2.2;
 
 /**
  * Una bestia neutral: cuerpo de piedra y sombra con un núcleo que brilla del color de su elemento,
@@ -17,8 +20,12 @@ export class BeastView {
   private stride = 0;
   private lastX = 0;
   private lastZ = 0;
+  private readonly shards = new THREE.Group();
 
-  constructor(readonly element: ElementId) {
+  constructor(
+    readonly element: ElementId,
+    readonly guardian = false,
+  ) {
     const color = elementColor(element);
     this.skin = new THREE.MeshStandardMaterial({
       color: new THREE.Color('#3a3631').lerp(color, 0.3),
@@ -69,6 +76,27 @@ export class BeastView {
     this.addFeature(element, color, glowMaterial);
     this.group.add(this.body);
 
+    if (guardian) {
+      // Cinco esquirlas, una por elemento, giran sobre su lomo: el Guardián los guarda a todos.
+      const shardGeometry = new THREE.OctahedronGeometry(0.09);
+      let i = 0;
+      for (const shardColor of ELEMENT_COLORS.values()) {
+        const shard = new THREE.Mesh(
+          shardGeometry,
+          new THREE.MeshBasicMaterial({ color: glow(shardColor, 2.2) }),
+        );
+        const angle = (i / ELEMENT_COLORS.size) * Math.PI * 2;
+        shard.position.set(Math.cos(angle) * 0.55, 0, Math.sin(angle) * 0.55);
+        shard.scale.set(1, 1.8, 1);
+        this.shards.add(shard);
+        i++;
+      }
+      this.shards.position.y = 1.45;
+      this.body.add(this.shards);
+      this.group.scale.setScalar(GUARDIAN_SCALE);
+      this.skin.color.multiplyScalar(0.8);
+    }
+
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.75, 0.85, 32),
       new THREE.MeshBasicMaterial({
@@ -99,6 +127,8 @@ export class BeastView {
     });
     const hover = this.element === 'tormenta' ? 0.35 + Math.sin(timeSeconds * 3) * 0.1 : 0;
     this.body.position.y = hover + Math.abs(Math.sin(this.stride)) * 0.05 * moving;
+    this.shards.rotation.y = timeSeconds * 0.9;
+    this.shards.position.y = 1.45 + Math.sin(timeSeconds * 1.6) * 0.06;
     for (const wing of this.wings) {
       wing.rotation.z = (wing.userData.side as number) * (0.4 + Math.sin(timeSeconds * 14) * 0.5);
     }

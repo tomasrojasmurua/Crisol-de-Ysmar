@@ -1,5 +1,5 @@
 import { applyHit } from '../combat/hit';
-import { damageBeast } from '../match/beasts';
+import { beastStats, damageBeast } from '../match/beasts';
 import { obstacleAt, placeInArena } from '../match/obstacles';
 import { enemiesOf } from '../match/queries';
 import type { MatchState, Projectile, SpellEntity, Trap, Wall, Wizard } from '../match/state';
@@ -63,7 +63,7 @@ function updateProjectile(
   }
 
   for (const beast of state.beasts) {
-    if (distance(beast.pos, projectile.pos) <= radius + rules.beasts.radius) {
+    if (distance(beast.pos, projectile.pos) <= radius + beastStats(beast, rules).radius) {
       damageBeast(state, beast, projectile.ownerId, projectile.payload.damage, rules);
       return false;
     }

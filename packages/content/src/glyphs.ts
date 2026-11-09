@@ -133,6 +133,9 @@ export const OMENS: readonly Omen[] = [
 ];
 
 /** Nombre de la bestia de cada elemento, en el bestiario de Ysmar. */
+/** La bestia enorme que despierta en la plaza a mitad de la Caza. */
+export const GUARDIAN_NAME = 'Guardián del Crisol';
+
 export const BEAST_NAMES = {
   brasa: 'Ascuario',
   tormenta: 'Zumbador',

@@ -96,6 +96,15 @@ export class Minimap {
     ctx.globalAlpha = 1;
     // Bestias que salieron a perseguir a alguien.
     for (const beast of state.beasts) {
+      if (beast.guardian && beast.hp > 0) {
+        // El Guardián: grande y con borde dorado, siempre a la vista.
+        ctx.fillStyle = elementHex(beast.element);
+        this.dot(beast.pos, 3.6 * px * unit);
+        ctx.strokeStyle = '#f3dfb0';
+        ctx.lineWidth = 1.4 * px * unit;
+        ctx.stroke();
+        continue;
+      }
       if (beast.hp <= 0 || Math.hypot(beast.pos.x - beast.home.x, beast.pos.z - beast.home.z) < 3)
         continue;
       ctx.fillStyle = elementHex(beast.element);
