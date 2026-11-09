@@ -1,4 +1,4 @@
-import { GAME_RULES } from '@crisol/content';
+import { rulesForMode } from '@crisol/content';
 import {
   BotController,
   createMatch,
@@ -16,6 +16,8 @@ import {
 const matches = Number(process.argv[2] ?? 200);
 const firstSeed = Number(process.argv[3] ?? 1);
 const MAX_TICKS = TICK_RATE * 60 * 6;
+/** Las reglas del 1v1 real: en la plaza, salvo que la jungla esté encendida para el duelo. */
+const RULES = rulesForMode({ kind: 'duel' });
 
 interface Result {
   readonly winnerTeam: number | null;
@@ -24,16 +26,16 @@ interface Result {
 }
 
 function playDuel(seed: number): Result {
-  const state: MatchState = createMatch(duelSetup(seed, GAME_RULES), GAME_RULES);
+  const state: MatchState = createMatch(duelSetup(seed, RULES), RULES);
   const bots = new Map(
-    state.wizards.map((w) => [w.id, new BotController(seed * 31 + w.id, GAME_RULES)]),
+    state.wizards.map((w) => [w.id, new BotController(seed * 31 + w.id, RULES)]),
   );
   const releases: GameEvent[] = [];
   while (state.winnerTeam === null && state.tick < MAX_TICKS) {
     const intents = new Map(
       state.wizards.map((w) => [w.id, bots.get(w.id)?.intentsFor(state, w) ?? []]),
     );
-    stepMatch(state, intents, GAME_RULES);
+    stepMatch(state, intents, RULES);
     releases.push(...state.events.filter((e) => e.type === 'release'));
   }
   return { winnerTeam: state.winnerTeam, seconds: state.tick / TICK_RATE, releases };

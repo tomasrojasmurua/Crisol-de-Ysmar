@@ -4,6 +4,7 @@ import {
   GAME_RULES,
   GUARDIAN_NAME,
   ROBE_COLORS,
+  rulesForMode,
   SKIN_TONES,
   spellName,
   TRIM_COLORS,
@@ -17,6 +18,7 @@ import {
   type ElementId,
   FixedStepClock,
   type GameEvent,
+  type GameRules,
   isSpectre,
   SeededRng,
   TICK_MS,
@@ -42,7 +44,7 @@ import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
 import { AimGuide } from './render/AimGuide';
 import { ArenaView } from './render/arena/ArenaView';
-import { JungleView } from './render/arena/JungleView';
+import { MapViews } from './render/arena/MapViews';
 import { ZoneView } from './render/arena/ZoneView';
 import { CreatureViews } from './render/CreatureViews';
 import { EffectsView } from './render/EffectsView';
@@ -61,7 +63,8 @@ import { Minimap } from './ui/Minimap';
 import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
 
-const rules = GAME_RULES;
+/** Las reglas de la partida en curso: cambian de mapa entre el 1v1 (plaza) y los equipos (jungla). */
+let rules: GameRules = GAME_RULES;
 blockBrowserGestures();
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -85,10 +88,9 @@ const particles = new Particles();
 const arena = new ArenaView(rules.arenaRadius, particles);
 const scene = arena.scene;
 scene.add(particles.points);
-const jungle = new JungleView(rules.map);
-scene.add(jungle.group);
 const zone = new ZoneView(rules.arenaRadius);
 scene.add(zone.group);
+const maps = new MapViews(scene, arena, zone, rules);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
 const post = new PostProcessing(renderer, scene, camera);
@@ -269,8 +271,16 @@ function teamColor(team: number): string {
   return (member && badges.get(member.id)?.color) ?? '#ffffff';
 }
 
+/** Cambia el mapa que se dibuja y el que usan el minimapa y la vista. */
+function useRules(next: GameRules): void {
+  rules = next;
+  maps.apply(next);
+  minimap.setRules(next);
+}
+
 function showMenu(): void {
   match = null;
+  useRules(GAME_RULES);
   targetMarker.update(null, 0);
   creatures.clear();
   glyphPicker.hide();
@@ -293,6 +303,7 @@ function showMenu(): void {
 
 function startMatch(options: MatchOptions): void {
   const seed = (Math.random() * 2 ** 32) >>> 0;
+  useRules(rulesForMode(options.mode));
   const current = new LocalMatch(options, rules, human, seed);
   match = current;
   const ffa = options.mode.kind === 'ffa';
@@ -527,9 +538,9 @@ renderer.setAnimationLoop((now) => {
     zone.update(rules.arenaRadius, elapsed);
   }
 
-  if (!current) jungle.setBurned([]);
+  if (!current) maps.jungle.setBurned([]);
   arena.update(elapsed, delta);
-  jungle.update(elapsed, camera.position, current ? current.player.pos : null);
+  maps.jungle.update(elapsed, camera.position, current ? current.player.pos : null);
   effects.update(delta);
   particles.update(delta);
   post.render();
@@ -619,7 +630,7 @@ function renderMatch(current: LocalMatch, alpha: number, delta: number): void {
     seen,
     player.statuses.insight !== undefined,
   );
-  jungle.setBurned(state.burnedTrees);
+  maps.jungle.setBurned(state.burnedTrees);
   minimap.update(state, player, rig.forward(), seen, badges, time);
 }
 

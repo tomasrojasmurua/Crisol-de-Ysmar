@@ -10,7 +10,11 @@ export class ZoneView {
   private readonly veil: THREE.Mesh;
   private readonly shadeMaterial: THREE.ShaderMaterial;
 
-  constructor(private readonly arenaRadius: number) {
+  /**
+   * `arenaRadius` es el de la arena más grande (el disco oscuro la cubre entera); la partida
+   * dice con `setArenaRadius` desde dónde empieza a cerrarse.
+   */
+  constructor(private arenaRadius: number) {
     this.veilMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
@@ -74,6 +78,11 @@ export class ZoneView {
     shade.rotation.x = -Math.PI / 2;
     shade.position.y = 0.03;
     this.group.add(this.veil, shade);
+  }
+
+  /** Radio de la arena de esta partida: la zona se ve solo cuando se cierra por debajo de él. */
+  setArenaRadius(radius: number): void {
+    this.arenaRadius = radius;
   }
 
   update(radius: number, timeSeconds: number): void {

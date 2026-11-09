@@ -6,6 +6,7 @@ import {
   type Obstacle,
   SeededRng,
 } from '@crisol/core';
+import { FEATURES } from './features';
 
 /** Radio del mapa, en metros. Cruzarlo caminando toma unos 15 segundos. */
 export const MAP_RADIUS = 40;
@@ -69,6 +70,14 @@ function plazaBraziers(): { x: number; z: number; element: ElementId }[] {
   });
 }
 
+/** Lo que hay en la plaza en cualquier mapa: las ruinas del Crisol y los braseros. */
+function plazaObstacles(): Obstacle[] {
+  return [
+    ...plazaRuins(),
+    ...plazaBraziers().map((b) => ({ x: b.x, z: b.z, radius: 0.55, kind: 'brazier' })),
+  ];
+}
+
 function distanceToRay(x: number, z: number, angle: number): number {
   // Distancia a la semirrecta desde el centro con ese ángulo.
   const dx = Math.cos(angle);
@@ -84,10 +93,7 @@ function distanceToRay(x: number, z: number, angle: number): number {
  */
 function buildMap(): MapLayout {
   const camps = campLayout();
-  const obstacles: Obstacle[] = [
-    ...plazaRuins(),
-    ...plazaBraziers().map((b) => ({ x: b.x, z: b.z, radius: 0.55, kind: 'brazier' })),
-  ];
+  const obstacles: Obstacle[] = plazaObstacles();
   const spawnAngles = Array.from({ length: 12 }, (_, i) => deg(-90 + 30 * i));
   const pathAngles = [...camps.map((c) => Math.atan2(c.z, c.x)), deg(-90), deg(90)];
   const rng = new SeededRng(0x5eed_1a55);
@@ -132,10 +138,20 @@ function buildMap(): MapLayout {
     obstacles.push({ x, z, radius, kind });
     obstacles.push({ x: -x, z: -z, radius, kind });
   }
-  return { obstacles, camps, guardianLair: { x: 0, z: 0 } };
+  return { obstacles, camps, guardianLair: FEATURES.guardian ? { x: 0, z: 0 } : null };
 }
 
+/** La jungla completa: para 2v2 en adelante (y para el 1v1 si `FEATURES.duelInJungle`). */
 export const MAP: MapLayout = buildMap();
+
+/**
+ * Radio de la arena del duelo: la plaza con sus braseros adentro y un poco de aire para
+ * rodearlos. Los magos aparecen al 80%, a unos 27 m uno del otro.
+ */
+export const PLAZA_ARENA_RADIUS = 17;
+
+/** El 1v1: solo la plaza, sin jungla, campamentos ni Guardián. Las ruinas sirven de cobertura. */
+export const PLAZA_MAP: MapLayout = { obstacles: plazaObstacles(), camps: [], guardianLair: null };
 
 /** Lo que el cliente necesita para dibujar el mapa y que el núcleo no usa: senderos y braseros. */
 export const MAP_DECOR = {

@@ -19,13 +19,13 @@ export class Minimap {
   private readonly root: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly background: HTMLCanvasElement;
+  private background: HTMLCanvasElement;
   private readonly lastSeen = new Map<number, { pos: Vec2; time: number }>();
   private readonly ratio = Math.min(window.devicePixelRatio || 1, 2);
 
   constructor(
     parent: HTMLElement,
-    private readonly rules: GameRules,
+    private rules: GameRules,
   ) {
     this.root = el('div', 'minimap');
     this.root.hidden = true;
@@ -37,6 +37,13 @@ export class Minimap {
     this.ctx = ctx;
     this.root.append(this.canvas);
     parent.append(this.root);
+    this.background = this.drawBackground();
+  }
+
+  /** Cambia de mapa (plaza o jungla) y vuelve a dibujar el fondo. */
+  setRules(rules: GameRules): void {
+    if (rules.map === this.rules.map && rules.arenaRadius === this.rules.arenaRadius) return;
+    this.rules = rules;
     this.background = this.drawBackground();
   }
 
@@ -216,18 +223,8 @@ export class Minimap {
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(150, 128, 98, 0.55)';
-    ctx.lineWidth = MAP_DECOR.ringPath.to - MAP_DECOR.ringPath.from;
-    ctx.beginPath();
-    ctx.arc(0, 0, (MAP_DECOR.ringPath.to + MAP_DECOR.ringPath.from) / 2, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.lineWidth = MAP_DECOR.pathHalfWidth * 1.6;
-    for (const angle of MAP_DECOR.pathAngles) {
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(angle) * MAP_DECOR.plazaRadius, Math.sin(angle) * MAP_DECOR.plazaRadius);
-      ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-      ctx.stroke();
-    }
+    // Los senderos solo existen en la jungla.
+    if (this.rules.map.camps.length > 0) this.drawPaths(ctx, radius);
 
     ctx.fillStyle = 'rgba(92, 86, 80, 0.9)';
     ctx.beginPath();
@@ -248,6 +245,21 @@ export class Minimap {
     ctx.arc(0, 0, radius - 0.4, 0, Math.PI * 2);
     ctx.stroke();
     return canvas;
+  }
+
+  private drawPaths(ctx: CanvasRenderingContext2D, radius: number): void {
+    ctx.strokeStyle = 'rgba(150, 128, 98, 0.55)';
+    ctx.lineWidth = MAP_DECOR.ringPath.to - MAP_DECOR.ringPath.from;
+    ctx.beginPath();
+    ctx.arc(0, 0, (MAP_DECOR.ringPath.to + MAP_DECOR.ringPath.from) / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = MAP_DECOR.pathHalfWidth * 1.6;
+    for (const angle of MAP_DECOR.pathAngles) {
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * MAP_DECOR.plazaRadius, Math.sin(angle) * MAP_DECOR.plazaRadius);
+      ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      ctx.stroke();
+    }
   }
 }
 
