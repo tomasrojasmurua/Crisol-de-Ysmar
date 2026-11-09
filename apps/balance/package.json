@@ -1,0 +1,19 @@
+{
+  "name": "@crisol/balance",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Simulador sin pantalla: partidas de bots contra bots para medir el balance.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crisol/content": "workspace:*",
+    "@crisol/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15"
+  }
+}

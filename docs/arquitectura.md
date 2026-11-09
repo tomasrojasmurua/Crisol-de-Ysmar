@@ -1,0 +1,50 @@
+# Arquitectura del código
+
+El plan completo vive en Claude:
+[Crisol de Ysmar — Arquitectura del código](https://claude.ai/artifact/JqgEVJESRjiuA54rSY5tN2).
+
+## Mapa de dependencias
+
+```text
+apps/client   apps/server   apps/balance
+      \             |             /
+       packages/content   packages/protocol
+                 \             /
+                  packages/core   (no depende de nadie)
+```
+
+`scripts/check-dependencies.mjs` falla si un archivo importa algo fuera de lo permitido.
+
+## Principios
+
+1. **Núcleo determinista:** 30 pasos por segundo, azar con semilla, sin reloj.
+2. **Todo mago recibe intenciones** de un controlador intercambiable: dedo, IA o red.
+3. **Los datos mandan:** balancear es editar tablas en `packages/content`.
+4. **Los conjuros se componen:** forma + efectos, según la gramática del tejido.
+5. **Dibujar no es simular:** el render interpola entre pasos para verse a 60 cuadros por segundo.
+
+## Red (desde el Hito 2)
+
+La Sala (Durable Object) corre el núcleo y es la única verdad. Los celulares envían intenciones
+numeradas cada 33 ms y reciben el estado unas 20 veces por segundo. Tu mago se predice en local
+y se corrige con suavidad; los demás se muestran ~100 ms en el pasado, interpolados.
+
+## Presupuestos de rendimiento
+
+| Presupuesto                   | Límite    |
+| ----------------------------- | --------- |
+| Llamadas de dibujo por cuadro | < 150     |
+| Triángulos en pantalla        | < 150.000 |
+| Descarga inicial              | < 5 MB    |
+| Paso de simulación (6 magos)  | < 2 ms    |
+| Memoria de texturas           | < 128 MB  |
+
+## Hitos
+
+0. Cimientos: repositorio, pruebas y publicación.
+1. El tejido se siente bien: un mago contra un bot, local, dos cámaras.
+2. Jugar con amigos: Sala, enlace de WhatsApp, predicción y reconexión.
+3. La partida completa: rondas, bestias, Glifos, Presagios y modos.
+4. Identidad del jugador: perfiles, Vestidor, Afinidad, Grimorio y rivalidades.
+5. Se ve y suena como Ysmar: arte y audio.
+6. Balance y pulido: simulador bot contra bot.

@@ -1,0 +1,17 @@
+{
+  "name": "@crisol/content",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tablas de datos del juego, validadas: elementos, Afinidades, conjuros, Glifos y Presagios.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crisol/core": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

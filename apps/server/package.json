@@ -1,0 +1,20 @@
+{
+  "name": "@crisol/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Worker de entrada y Durable Object Sala en Cloudflare.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crisol/core": "workspace:*",
+    "@crisol/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261109.1",
+    "wrangler": "4.158.0"
+  }
+}

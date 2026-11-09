@@ -1,0 +1,34 @@
+{
+  "name": "crisol-de-ysmar",
+  "private": true,
+  "description": "Duelo de hechiceros para celular: la magia se teje combinando cinco elementos.",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @crisol/client dev",
+    "dev:server": "pnpm --filter @crisol/server dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check:deps": "node scripts/check-dependencies.mjs",
+    "check": "pnpm lint && pnpm check:deps && pnpm typecheck && pnpm test",
+    "balance": "pnpm --filter @crisol/balance start"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@crisol/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mensajes entre el celular y la Sala.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crisol/core": "workspace:*"
+  }
+}
