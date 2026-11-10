@@ -16,6 +16,7 @@ export function decodeClientMessage(raw: string): ClientMessage | null {
     'rematch',
     'away',
     'begin',
+    'settings',
     'ping',
   ]);
 }

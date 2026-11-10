@@ -8,6 +8,7 @@ function botDuel(): DuelHost {
   const duel = new DuelHost(11, () => `token-${++n}`);
   duel.join({ name: 'A' });
   duel.join({ name: 'B' });
+  duel.begin(1);
   duel.leave(1);
   duel.leave(2);
   return duel;

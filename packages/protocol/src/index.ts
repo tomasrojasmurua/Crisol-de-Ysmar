@@ -12,4 +12,13 @@ export {
   type ServerMessage,
   type StateFrame,
 } from './messages';
+export {
+  BEST_OF,
+  cleanRoomSettings,
+  DEFAULT_ROOM_SETTINGS,
+  ROOM_MODES,
+  ROUND_MINUTES,
+  type RoomSettings,
+  sameMode,
+} from './settings';
 export { FRAME_DELTA, FRAME_FULL, StateDecoder, StateEncoder } from './stateCodec';

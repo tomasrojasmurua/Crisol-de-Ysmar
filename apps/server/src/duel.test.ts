@@ -12,12 +12,15 @@ function until(duel: DuelHost, done: () => boolean, max = 30 * 600): void {
 }
 
 describe('Sala de duelo 1v1', () => {
-  it('espera a dos jugadores y entonces empieza', () => {
+  it('espera a que quien creó la sala empiece', () => {
     const duel = host();
     expect(duel.join({ name: 'Tomás' })?.playerId).toBe(1);
     expect(duel.inLobby).toBe(true);
     expect(duel.state).toBeNull();
     expect(duel.join({ name: 'Amigo' })?.playerId).toBe(2);
+    expect(duel.inLobby).toBe(true);
+    expect(duel.begin(2)).toBe(false);
+    expect(duel.begin(1)).toBe(true);
     expect(duel.inLobby).toBe(false);
     expect(duel.state?.wizards).toHaveLength(2);
     expect(duel.players.map((p) => p.team)).toEqual([0, 1]);
@@ -28,12 +31,14 @@ describe('Sala de duelo 1v1', () => {
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
     expect(duel.join({ name: 'C' })).toBeNull();
+    expect(duel.joinError).toBe('La sala está llena');
   });
 
   it('las intenciones de cada jugador mueven a su mago', () => {
     const duel = host();
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
+    duel.begin(1);
     const start = duel.state?.wizards[0]?.pos;
     for (let i = 0; i < 10; i++) {
       duel.intents(1, [{ kind: 'move', x: 1, z: 0 }]);
@@ -46,6 +51,7 @@ describe('Sala de duelo 1v1', () => {
     const duel = host();
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
+    duel.begin(1);
     const bad = [
       { kind: 'move', x: 50, z: 0 },
       { kind: 'teleport' },
@@ -61,6 +67,7 @@ describe('Sala de duelo 1v1', () => {
     const duel = host();
     duel.join({ name: 'A' });
     const second = duel.join({ name: 'B' });
+    duel.begin(1);
     duel.leave(2);
     expect(duel.connectedCount).toBe(1);
     expect(duel.players[1]?.connected).toBe(false);
@@ -81,6 +88,7 @@ describe('Sala de duelo 1v1', () => {
     const duel = host();
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
+    duel.begin(1);
     // Los dos se desconectan: la IA juega todo y elige los Glifos.
     duel.leave(1);
     duel.leave(2);
@@ -101,6 +109,7 @@ describe('Sala de duelo 1v1', () => {
     const duel = host();
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
+    duel.begin(1);
     // Se fuerza el fin de la primera ronda.
     const loser = duel.state?.wizards[1];
     if (loser) loser.hp = 0;
@@ -123,6 +132,7 @@ describe('Sala de duelo: celular de fondo y sin señal', () => {
     const duel = host();
     duel.join({ name: 'A' });
     duel.join({ name: 'B' });
+    duel.begin(1);
     return duel;
   }
 
@@ -169,75 +179,110 @@ describe('Sala de duelo: celular de fondo y sin señal', () => {
   });
 });
 
-describe('Salas de más de dos', () => {
-  function room(mode: Parameters<DuelHost['join']>[0]['mode']): DuelHost {
+describe('Salas de más de dos y ajustes', () => {
+  function room(): DuelHost {
     const duel = host();
-    duel.join({ name: 'Ana', mode });
+    duel.join({ name: 'Ana' });
     return duel;
   }
+  const teams2 = { mode: { kind: 'teams', size: 2 } };
 
-  it('el modo lo pone quien crea la sala; los demás lo ignoran', () => {
-    const duel = room({ kind: 'teams', size: 2 });
-    duel.join({ name: 'Beto', mode: { kind: 'duel' } });
+  it('solo quien creó la sala cambia los ajustes, y a la vista de todos', () => {
+    const duel = room();
+    duel.join({ name: 'Beto' });
+    expect(duel.configure(2, teams2)).toBeNull();
+    expect(duel.configure(1, { ...teams2, minutes: 5, bestOf: 1, glyphs: false })).not.toBeNull();
+    expect(duel.settings).toMatchObject({ minutes: 5, bestOf: 1, glyphs: false, omen: true });
     expect(duel.gameMode).toEqual({ kind: 'teams', size: 2 });
+    expect(duel.rules.round.durationTicks).toBe(5 * 60 * 30);
+    expect(duel.rules.round.roundsToWin).toBe(1);
   });
 
-  it('un modo inventado se vuelve duelo', () => {
-    const duel = room({ kind: 'ffa', players: 40 });
-    expect(duel.gameMode).toEqual({ kind: 'duel' });
-  });
-
-  it('en equipos reparte a los amigos entre los dos bandos', () => {
-    const duel = room({ kind: 'teams', size: 2 });
+  it('al cambiar el modo reparte los puestos de nuevo y avisa quién cambió', () => {
+    const duel = room();
     duel.join({ name: 'Beto' });
     duel.join({ name: 'Caro' });
+    expect(duel.players.map((p) => p.id)).toEqual([1, 2]);
+    // No se puede pasar a duelo con tres personas... pero sí a 2 contra 2.
+    duel.configure(1, { mode: { kind: 'ffa', players: 4 } });
+    duel.join({ name: 'Caro' });
+    expect(duel.configure(1, { mode: { kind: 'duel' } })).toBeNull();
+    const moved = duel.configure(1, teams2);
+    expect(moved).toEqual(
+      new Map([
+        [2, 3],
+        [3, 2],
+      ]),
+    );
     expect(duel.players.map((p) => [p.name, p.team])).toEqual([
       ['Ana', 0],
       ['Caro', 0],
       ['Beto', 1],
     ]);
-    expect(duel.inLobby).toBe(true);
-    duel.join({ name: 'Dani' });
-    expect(duel.inLobby).toBe(false);
-    expect(duel.state?.wizards).toHaveLength(4);
   });
 
-  it('quien crea la sala puede empezar ya: la IA ocupa los puestos libres', () => {
-    const duel = room({ kind: 'ffa', players: 4 });
+  it('en equipos reparte a los amigos entre los dos bandos', () => {
+    const duel = room();
+    duel.configure(1, teams2);
     duel.join({ name: 'Beto' });
-    expect(duel.begin(2)).toBe(false);
+    duel.join({ name: 'Caro' });
+    duel.join({ name: 'Dani' });
+    expect(duel.players.map((p) => p.team)).toEqual([0, 0, 1, 1]);
+    expect(duel.join({ name: 'Eli' })).toBeNull();
+  });
+
+  it('al empezar, la IA ocupa los puestos libres', () => {
+    const duel = room();
+    duel.configure(1, { mode: { kind: 'ffa', players: 4 } });
+    duel.join({ name: 'Beto' });
     expect(duel.begin(1)).toBe(true);
-    expect(duel.inLobby).toBe(false);
     expect(duel.players).toHaveLength(4);
     expect(duel.players.filter((p) => p.bot)).toHaveLength(2);
     expect(new Set(duel.players.map((p) => p.team)).size).toBe(4);
     expect(duel.seriesInfo().wins).toHaveLength(4);
-    // La IA juega por los puestos libres y la partida avanza.
     for (let i = 0; i < 30; i++) duel.tick();
     expect(duel.state?.tick).toBeGreaterThan(20);
   });
 
-  it('con la partida empezada no entra nadie nuevo', () => {
-    const duel = room({ kind: 'teams', size: 2 });
+  it('con la partida empezada no entra nadie ni cambian los ajustes', () => {
+    const duel = room();
     duel.begin(1);
     expect(duel.join({ name: 'Tarde' })).toBeNull();
     expect(duel.joinError).toBe('La partida ya empezó');
+    expect(duel.configure(1, teams2)).toBeNull();
   });
 
   it('si se va quien creó la sala antes de empezar, manda el siguiente', () => {
-    const duel = room({ kind: 'teams', size: 3 });
+    const duel = room();
+    duel.configure(1, { mode: { kind: 'teams', size: 3 } });
     duel.join({ name: 'Beto' });
     duel.leave(1);
     expect(duel.hostId).toBe(4);
     expect(duel.begin(4)).toBe(true);
   });
 
-  it('una partida de equipos se juega hasta el final con revancha', () => {
-    const duel = room({ kind: 'teams', size: 2 });
+  it('sin Presagio ni Glifos, a 1 ronda corta: se juega hasta el final', () => {
+    const duel = room();
+    duel.configure(1, { ...teams2, minutes: 2, bestOf: 1, glyphs: false, omen: false });
     duel.begin(1);
     duel.leave(1);
-    for (let i = 0; i < 30 * 60 * 30 && duel.stageFor(1).kind !== 'finished'; i++) duel.tick();
+    expect(duel.omenId).toBe('ninguno');
+    for (let i = 0; i < 30 * 60 * 10 && duel.stageFor(1).kind !== 'finished'; i++) duel.tick();
     expect(duel.stageFor(1).kind).toBe('finished');
-    expect(duel.seriesInfo().seriesWinner).not.toBeNull();
+    expect(duel.seriesInfo().roundsPlayed).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a mejor de 3 sin Glifos, entre rondas no se elige nada', () => {
+    const duel = room();
+    duel.configure(1, { minutes: 2, glyphs: false });
+    duel.begin(1);
+    duel.leave(1);
+    const kinds = new Set<string>();
+    for (let i = 0; i < 30 * 60 * 20 && duel.stageFor(1).kind !== 'finished'; i++) {
+      duel.tick();
+      kinds.add(duel.stageFor(1).kind);
+    }
+    expect(kinds.has('choosing')).toBe(false);
+    expect(kinds.has('intermission')).toBe(true);
   });
 });

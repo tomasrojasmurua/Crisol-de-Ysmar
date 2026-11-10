@@ -138,7 +138,11 @@ export class Hud {
   }
 
   /** El Presagio de la partida queda a la vista bajo el reloj. */
-  setOmen(name: string, description: string): void {
+  setOmen(name: string | null, description = ''): void {
+    if (name === null) {
+      this.omen.hidden = true;
+      return;
+    }
     this.omen.textContent = `Presagio: ${name}`;
     this.omen.title = description;
     this.omen.hidden = false;

@@ -275,6 +275,44 @@ export const DUEL_RULES: GameRules = {
 };
 
 /** Las reglas de un modo: el 1v1 va en la plaza; 2v2 en adelante, en la jungla. */
+/**
+ * Las reglas con el largo de ronda y la cantidad de rondas que eligió la sala. Las fases se
+ * reparten igual que en la ronda de 3 minutos (un tercio cada una) y el Guardián despierta en
+ * la misma proporción de la Caza.
+ */
+export function withRoundLength(rules: GameRules, minutes: number, bestOf: number): GameRules {
+  const duration = Math.round(minutes * 60 * 30);
+  const scale = duration / rules.round.durationTicks;
+  return {
+    ...rules,
+    round: {
+      ...rules.round,
+      roundsToWin: Math.ceil(bestOf / 2),
+      // Con empates (todos caen a la vez) puede hacer falta alguna más.
+      maxRounds: bestOf + 2,
+      durationTicks: duration,
+      huntEndTick: Math.round(rules.round.huntEndTick * scale),
+      convergenceEndTick: Math.round(rules.round.convergenceEndTick * scale),
+    },
+    beasts: {
+      ...rules.beasts,
+      guardian: {
+        ...rules.beasts.guardian,
+        spawnTick: Math.round(rules.beasts.guardian.spawnTick * scale),
+      },
+    },
+  };
+}
+
+/** Las reglas de una sala en red: su modo, su tiempo por ronda y sus rondas. */
+export function rulesForRoom(settings: {
+  readonly mode: GameMode;
+  readonly minutes: number;
+  readonly bestOf: number;
+}): GameRules {
+  return withRoundLength(rulesForMode(settings.mode), settings.minutes, settings.bestOf);
+}
+
 export function rulesForMode(mode: GameMode): GameRules {
   return mode.kind === 'duel' && !FEATURES.duelInJungle ? DUEL_RULES : GAME_RULES;
 }

@@ -1,7 +1,8 @@
-import type { ElementId, GameMode, Intent, MatchState } from '@crisol/core';
+import type { ElementId, Intent, MatchState } from '@crisol/core';
+import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -50,10 +51,10 @@ export type ClientMessage =
       readonly affinity?: ElementId | null;
       /** Para volver a tu mago si se cortó la conexión. */
       readonly token?: string;
-      /** El modo de la sala; solo cuenta el de quien la crea (el primero en entrar). */
-      readonly mode?: GameMode;
     }
-  /** Quien manda en la sala empieza sin esperar: la IA ocupa los puestos libres. */
+  /** Quien manda en la sala cambia los ajustes (modo, tiempo, rondas…) antes de empezar. */
+  | { readonly type: 'settings'; readonly settings: RoomSettings }
+  /** Quien manda en la sala empieza: la IA ocupa los puestos libres. */
   | { readonly type: 'begin' }
   | { readonly type: 'intents'; readonly seq: number; readonly intents: readonly Intent[] }
   | { readonly type: 'glyph'; readonly glyphId: string }
@@ -74,8 +75,8 @@ export type ServerMessage =
   | {
       readonly type: 'players';
       readonly players: readonly PlayerInfo[];
-      /** El modo de la sala y el puesto de quien manda en la sala de espera. */
-      readonly mode: GameMode;
+      /** Los ajustes de la sala y el puesto de quien manda en la sala de espera. */
+      readonly settings: RoomSettings;
       readonly hostId: number;
     }
   /**
@@ -86,6 +87,7 @@ export type ServerMessage =
       readonly type: 'start';
       readonly omenId: string;
       readonly players: readonly PlayerInfo[];
+      readonly settings: RoomSettings;
       readonly resume?: boolean;
     }
   | { readonly type: 'pong'; readonly sentAt: number }

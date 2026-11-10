@@ -25,11 +25,20 @@ export { SPELL_DESCRIPTIONS } from './descriptions';
 export { ELEMENTS } from './elements';
 export { FAMILY_NAMES, SPELL_FAMILIES, type SpellFamily } from './families';
 export { FEATURES, type Features } from './features';
-export { BEAST_NAMES, GLYPHS, type Glyph, GUARDIAN_NAME, OMENS, type Omen } from './glyphs';
+export {
+  BEAST_NAMES,
+  GLYPHS,
+  type Glyph,
+  GUARDIAN_NAME,
+  NO_OMEN,
+  OMENS,
+  type Omen,
+  omenById,
+} from './glyphs';
 export { ALL_WEAVES, SPELL_NAMES, spellName, weaveKey } from './grimoire';
 export { MAP, MAP_DECOR, MAP_RADIUS, PLAZA_ARENA_RADIUS, PLAZA_MAP } from './map';
 export { WIZARD_NAMES } from './names';
-export { DUEL_RULES, GAME_RULES, rulesForMode } from './rules';
+export { DUEL_RULES, GAME_RULES, rulesForMode, rulesForRoom, withRoundLength } from './rules';
 export {
   type AffinityRules,
   affinityRulesSchema,

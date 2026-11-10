@@ -84,11 +84,15 @@ ellos.
   - **Volver:** el pase para recuperar tu mago dura 3 horas en `localStorage`, así sirve aunque
     el sistema cierre la pestaña o entres de nuevo por el enlace. Al volver a la misma partida
     (`start` con `resume`), se sigue sin rearmar la escena. Se reintenta por 5 minutos.
-- Salas de 2 a 6: quien crea la sala manda el modo en su `hello` (el elegido en el menú: duelo,
-  2v2, 3v3, libre de 4 o de 6). En equipos los puestos se alternan (1, 4, 2, 5…) para repartir a
-  los amigos entre bandos. La sala empieza sola al llenarse, o antes si quien la creó toca
-  "Empezar ya" (`begin`): la IA ocupa los puestos libres con nombre, aspecto y Afinidad al azar.
-  Con la partida empezada no entra nadie nuevo (sí vuelve quien se cortó, con su pase).
+- Salas de 2 a 6 y sus ajustes (`packages/protocol/src/settings.ts`): en la sala de espera, quien
+  la creó elige el modo (duelo, 2v2, 3v3, libre de 4 o de 6), los minutos por ronda (2 a 5), las
+  rondas (a 1, mejor de 3 o de 5) y si hay Glifos y Presagio; todos lo ven al instante (mensaje
+  `settings`, que vuelve en `players`). `rulesForRoom` (content) estira o acorta las tres fases y
+  el despertar del Guardián en proporción. Un modo con menos puestos que la gente que ya está no
+  se acepta; si cambia el modo, los puestos se reparten de nuevo por orden de llegada y a quien
+  cambió de número se le manda otro `welcome`. En equipos los puestos se alternan (1, 4, 2, 5…).
+  Nada empieza solo: quien creó la sala toca "Empezar" y la IA ocupa los puestos libres. Con la
+  partida empezada no entra nadie nuevo (sí vuelve quien se cortó, con su pase).
 
 ## Sonido
 

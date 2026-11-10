@@ -1,6 +1,12 @@
 import { DEFAULT_LOOK, rulesForMode } from '@crisol/content';
 import { createMatch, type Intent, modeSetup } from '@crisol/core';
-import { encode, type ServerMessage, StateEncoder, type StateFrame } from '@crisol/protocol';
+import {
+  DEFAULT_ROOM_SETTINGS,
+  encode,
+  type ServerMessage,
+  StateEncoder,
+  type StateFrame,
+} from '@crisol/protocol';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NetListener, NetMatch } from './NetMatch';
 
@@ -101,7 +107,7 @@ describe('duelo en red: el celular', () => {
     const socket = FakeSocket.last as FakeSocket;
     socket.emit('open');
     socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
-    socket.receive({ type: 'start', omenId: 'x', players: [] });
+    socket.receive({ type: 'start', omenId: 'x', players: [], settings: DEFAULT_ROOM_SETTINGS });
     socket.receive(stateMessage(0));
     return { net, socket };
   }
@@ -182,7 +188,7 @@ describe('duelo en red: el celular', () => {
     const socket = FakeSocket.last as FakeSocket;
     socket.emit('open');
     socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
-    socket.receive({ type: 'start', omenId: 'x', players: [] });
+    socket.receive({ type: 'start', omenId: 'x', players: [], settings: DEFAULT_ROOM_SETTINGS });
     socket.receive(stateMessage(0));
     net.step();
     net.step();
@@ -243,10 +249,16 @@ describe('duelo en red: el celular', () => {
     const socket = FakeSocket.last as FakeSocket;
     socket.emit('open');
     socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
-    socket.receive({ type: 'start', omenId: 'x', players: [] });
+    socket.receive({ type: 'start', omenId: 'x', players: [], settings: DEFAULT_ROOM_SETTINGS });
     socket.receive(stateMessage(0));
     expect(starts).toBe(1);
-    socket.receive({ type: 'start', omenId: 'x', players: [], resume: true });
+    socket.receive({
+      type: 'start',
+      omenId: 'x',
+      players: [],
+      settings: DEFAULT_ROOM_SETTINGS,
+      resume: true,
+    });
     socket.receive(stateMessage(90));
     expect(starts).toBe(1);
     expect(net.state.tick).toBe(90);
@@ -260,5 +272,28 @@ describe('duelo en red: el celular', () => {
     const again = FakeSocket.last as FakeSocket;
     again.emit('open');
     expect(JSON.parse(again.sent[0] ?? '{}').token).toBe('t');
+  });
+
+  it('toma los ajustes de la sala: modo, tiempo por ronda y rondas', () => {
+    const net = new NetMatch(
+      'K7QF',
+      { name: 'T', look: DEFAULT_LOOK, affinity: null },
+      human,
+      listener(),
+    );
+    const socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    const settings = {
+      ...DEFAULT_ROOM_SETTINGS,
+      mode: { kind: 'ffa', players: 4 } as const,
+      minutes: 5,
+      bestOf: 5,
+    };
+    socket.receive({ type: 'players', players: [], settings, hostId: 1 });
+    expect(net.options.mode).toEqual({ kind: 'ffa', players: 4 });
+    expect(net.rules.round.durationTicks).toBe(5 * 60 * 30);
+    expect(net.rules.round.roundsToWin).toBe(3);
+    net.configure({ ...settings, omen: false });
+    expect(JSON.parse(socket.sent.at(-1) ?? '{}')).toMatchObject({ type: 'settings' });
   });
 });
