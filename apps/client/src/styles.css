@@ -1086,8 +1086,8 @@ body {
 
 .world-label-bar {
   width: 54px;
-  height: 5px;
-  border-radius: 3px;
+  height: 6px;
+  border-radius: 2px;
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.15);
   overflow: hidden;
@@ -1095,7 +1095,15 @@ body {
 
 .world-label-fill {
   height: 100%;
-  background: var(--team);
+  /* Cortes cada cuarto de vida: se lee cuánto queda sin mirar fijo. */
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(25% - 1px),
+      rgba(0, 0, 0, 0.7) calc(25% - 1px) 25%
+    )
+    0 0 / 54px 100%,
+    var(--team);
   box-shadow: 0 0 6px var(--team);
 }
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { addRimLight } from './rim';
 
 /** Altura del centro de la cabeza en los linajes de cabeza redonda. */
 export const HEAD_Y = 1.74;
@@ -65,6 +66,25 @@ export class ModelKit {
     this.beard = new THREE.MeshStandardMaterial({ color: '#bdb6aa', roughness: 0.95 });
     this.dark = new THREE.MeshBasicMaterial({ color: '#050407' });
     this.paint = new THREE.MeshBasicMaterial({ color: eye.color.clone().multiplyScalar(0.55) });
+  }
+
+  /** Enciende el contorno de todas las telas, pieles y adornos con el color del bando. */
+  applyRim(color: THREE.Color, strength: number): void {
+    for (const material of [
+      this.robe,
+      this.trim,
+      this.skin,
+      this.cloth,
+      this.cape,
+      this.bone,
+      this.horn,
+      this.wood,
+      this.fur,
+      this.hair,
+      this.beard,
+    ]) {
+      addRimLight(material, color, strength);
+    }
   }
 
   /** Una pieza opaca del cuerpo. */
