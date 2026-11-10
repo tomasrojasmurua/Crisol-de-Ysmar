@@ -75,6 +75,7 @@ import { Hud, type WizardBadge } from './ui/Hud';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
+import { PauseMenu } from './ui/PauseMenu';
 import { TrainingPanel } from './ui/TrainingPanel';
 import { UiObstacles } from './ui/UiObstacles';
 import { Wardrobe } from './ui/Wardrobe';
@@ -211,6 +212,34 @@ const netBadge = document.createElement('div');
 netBadge.className = 'net-badge';
 netBadge.hidden = true;
 uiRoot.append(netBadge);
+/** Con la pausa abierta contra la IA, la partida se detiene; en red sigue corriendo. */
+let paused = false;
+let lastAlpha = 1;
+const pauseMenu = new PauseMenu(
+  uiRoot,
+  audio.engine,
+  {
+    onPause: (value) => {
+      paused = value;
+      if (value && match && match !== net) controls.visible = false;
+    },
+    onMenu: () => showMenu(),
+    onDiagnostics: (on) => {
+      fpsMeter.enabled = on;
+      netBadge.hidden = !(on && net);
+    },
+  },
+  fpsMeter.enabled,
+);
+// Si el celular cambia de app en plena partida contra la IA, queda en pausa.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && match && match !== net) pauseMenu.open();
+});
+window.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !match) return;
+  if (pauseMenu.isOpen) pauseMenu.close();
+  else pauseMenu.open();
+});
 const wizardViews = new Map<number, WizardView>();
 let badges = new Map<number, WizardBadge>();
 let shownRound = 0;
@@ -345,6 +374,8 @@ function showMenu(): void {
   lobby.hide();
   netBadge.hidden = true;
   watchBadge.hidden = true;
+  pauseMenu.setAvailable(false, false);
+  paused = false;
   match = null;
   useRules(GAME_RULES);
   targetMarker.update(null, 0);
@@ -411,7 +442,8 @@ function startNetMatch(current: NetMatch): void {
   useRules(current.rules);
   const info = (id: number): PlayerInfo | undefined => current.roster.find((p) => p.id === id);
   lobby.hide();
-  netBadge.hidden = false;
+  // Los datos de la conexión solo se ven si se pidieron en Pausa.
+  netBadge.hidden = !fpsMeter.enabled;
   beginMatch(current, (id) => ({
     name: info(id)?.name ?? 'Rival',
     look: info(id)?.look ?? profile.look,
@@ -468,6 +500,8 @@ function beginMatch(
   else hud.setOmen(current.omen.name, current.omen.description);
   hud.setPlayerName(profile.name);
   hud.training = current instanceof TrainingMatch;
+  pauseMenu.training = current instanceof TrainingMatch;
+  pauseMenu.setAvailable(true, current === net);
   screenAwake.active = true;
   resolution.restart();
   obstacles.invalidate();
@@ -773,8 +807,13 @@ renderer.setAnimationLoop((now) => {
   elapsed += delta;
 
   const current = match;
-  if (current) {
+  const pausedHere = paused && current !== null && current !== net;
+  const simDelta = pausedHere ? 0 : delta;
+  if (current && pausedHere) {
+    renderMatch(current, lastAlpha, 0);
+  } else if (current) {
     const { steps, alpha } = clock.advance(frameMs);
+    lastAlpha = alpha;
     for (let i = 0; i < steps; i++) {
       const events = current.step();
       effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
@@ -804,8 +843,8 @@ renderer.setAnimationLoop((now) => {
   if (!current) maps.jungle.setBurned([]);
   arena.update(elapsed, delta);
   maps.jungle.update(elapsed, camera.position, current ? current.player.pos : null);
-  effects.update(delta);
-  particles.update(delta);
+  effects.update(simDelta);
+  particles.update(simDelta);
   post.render();
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;

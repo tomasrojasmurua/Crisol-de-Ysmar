@@ -44,6 +44,7 @@ export const MENU_ICONS = {
   ),
   /** Todos contra todos: una corona para el último en pie. */
   ffa: icon('<path d="M3 18h18M4 15l-1-9 5 4 4-6 4 6 5-4-1 9Z"/>'),
+  pause: icon('<path d="M9 5v14M15 5v14"/>'),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
   /** Estrella de cuatro puntas, sólida: adorna el botón principal. */
   star: icon(
