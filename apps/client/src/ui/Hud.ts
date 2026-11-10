@@ -10,6 +10,13 @@ import {
   type Wizard,
 } from '@crisol/core';
 import { el, formatClock, query } from './dom';
+import { CAST_ICON, elementIcon } from './icons';
+
+/** Reloj de arena de la cinta de ronda. */
+const HOURGLASS_ICON =
+  '<svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M9 4H23M9 28H23M10 4C10 11 22 13 22 16C22 19 10 21 10 28M22 4C22 11 10 13 10 16C10 19 22 21 22 28"/></svg>';
 
 export const PHASE_NAMES: Record<RoundPhase, string> = {
   hunt: 'Caza',
@@ -37,6 +44,9 @@ export class Hud {
   private readonly root: HTMLElement;
   private readonly playerFill: HTMLElement;
   private readonly playerLives: HTMLElement;
+  private readonly playerHp: HTMLElement;
+  private readonly portrait: HTMLElement;
+  private lastPortrait: string | undefined;
   private readonly essence: HTMLElement;
   private readonly omen: HTMLElement;
   private lastEssenceKey = '';
@@ -63,15 +73,20 @@ export class Hud {
     this.root = el('div', 'hud');
     this.root.innerHTML = `
       <div class="hud-player">
-        <div class="hud-name"><span class="hud-player-name">Tú</span> <span class="hud-lives"></span></div>
-        <div class="hud-bar"><div class="hud-fill"></div></div>
+        <div class="hud-player-head">
+          <div class="hud-portrait"></div>
+          <div class="hud-player-main">
+            <div class="hud-name"><span class="hud-player-name">Tú</span> <span class="hud-lives"></span></div>
+            <div class="hud-bar"><div class="hud-fill"></div><span class="hud-hp"></span></div>
+          </div>
+        </div>
         <div class="hud-omen" hidden></div>
         <div class="hud-essence"></div>
         <div class="hud-allies"></div>
       </div>
       <div class="hud-round">
         <div class="hud-round-label"></div>
-        <div class="hud-clock">6:00</div>
+        <div class="hud-clock-wrap">${HOURGLASS_ICON}<span class="hud-clock">6:00</span></div>
         <div class="hud-phase"></div>
         <div class="hud-score"></div>
       </div>
@@ -99,6 +114,8 @@ export class Hud {
     parent.append(this.root);
     this.playerFill = query(this.root, '.hud-fill');
     this.playerLives = query(this.root, '.hud-lives');
+    this.playerHp = query(this.root, '.hud-hp');
+    this.portrait = query(this.root, '.hud-portrait');
     this.essence = query(this.root, '.hud-essence');
     this.omen = query(this.root, '.hud-omen');
     this.allies = query(this.root, '.hud-allies');
@@ -170,7 +187,7 @@ export class Hud {
       if (ally.team !== player.team || ally.id === player.id) continue;
       const badge = badges.get(ally.id);
       const row = el('div', 'hud-ally');
-      row.append(el('span', 'hud-ally-name', badge?.name ?? ''));
+      row.append(el('span', 'hud-ally-dot'), el('span', 'hud-ally-name', badge?.name ?? ''));
       const bar = el('div', 'hud-bar small');
       bar.append(el('div', 'hud-fill'));
       row.append(bar);
@@ -181,6 +198,7 @@ export class Hud {
     this.lastScoreKey = '';
     this.lastEssenceKey = '';
     this.lastHp = -1;
+    this.lastPortrait = undefined;
   }
 
   update(
@@ -195,6 +213,15 @@ export class Hud {
       this.lastHp = player.hp;
       this.playerFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
       this.playerFill.classList.toggle('low', player.hp < player.maxHp * 0.3);
+      this.playerHp.textContent = `${Math.max(0, Math.ceil(player.hp))} / ${Math.round(player.maxHp)}`;
+    }
+    // El medallón muestra tu Afinidad; sin Afinidad, la estrella del Crisol.
+    const portraitKey = player.affinity ?? '';
+    if (portraitKey !== this.lastPortrait) {
+      this.lastPortrait = portraitKey;
+      this.portrait.innerHTML = player.affinity ? elementIcon(player.affinity) : CAST_ICON;
+      const element = ELEMENTS.find((e) => e.id === player.affinity);
+      this.portrait.style.setProperty('--icon-color', element?.color ?? 'var(--player)');
     }
     this.playerLives.textContent =
       state.deathRule === 'lives'

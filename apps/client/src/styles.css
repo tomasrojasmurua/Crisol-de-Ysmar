@@ -618,17 +618,48 @@ body {
   position: absolute;
   top: var(--safe-top);
   left: var(--safe-left);
-  width: min(30vw, 240px);
+  width: min(32vw, 250px);
+}
+
+.hud-player-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Medallón de bronce con tu Afinidad: la identidad del mago sin un retrato pesado. */
+.hud-portrait {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(216, 191, 138, 0.7);
+  background: radial-gradient(circle, rgba(30, 27, 38, 0.9), rgba(10, 9, 14, 0.92) 72%);
+  box-shadow:
+    inset 0 0 0 3px rgba(10, 9, 14, 0.9),
+    inset 0 0 0 4px var(--bronze),
+    0 2px 8px rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  --icon-size: 56%;
+}
+
+.hud-player-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .hud-name {
   font-family: var(--display);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   color: var(--player);
   text-shadow: 0 1px 3px #000;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hud-lives {
@@ -639,29 +670,47 @@ body {
 }
 
 .hud-bar {
-  height: 11px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  height: 14px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--bronze);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
   overflow: hidden;
 }
 
 .hud-bar.small {
   height: 6px;
   flex: 1;
+  border-radius: 2px;
 }
 
 .hud-fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #b99f68, var(--player));
-  box-shadow: 0 0 10px rgba(232, 215, 168, 0.5);
+  background: linear-gradient(180deg, #f1e3bb, #b99f68);
+  box-shadow: 0 0 10px rgba(232, 215, 168, 0.45);
   transition: width 140ms linear;
 }
 
 .hud-fill.low {
-  background: linear-gradient(90deg, #8c2a30, var(--danger));
+  background: linear-gradient(180deg, #e0646b, #8c2a30);
   box-shadow: 0 0 12px rgba(208, 74, 82, 0.7);
+}
+
+/* La cifra va sobre la barra, a la derecha: no ocupa una línea más. */
+.hud-hp {
+  position: absolute;
+  inset: 0 6px 0 auto;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-shadow:
+    0 0 2px #000,
+    0 1px 2px #000;
 }
 
 .hud-allies {
@@ -669,6 +718,7 @@ body {
   flex-direction: column;
   gap: 4px;
   margin-top: 8px;
+  padding-left: 50px;
 }
 
 .hud-ally {
@@ -677,6 +727,17 @@ body {
   gap: 6px;
   font-size: 11px;
   color: var(--team);
+}
+
+.hud-ally-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--team);
+  box-shadow:
+    0 0 0 1.5px rgba(10, 9, 14, 0.9),
+    0 0 0 2.5px var(--bronze);
 }
 
 .hud-ally .hud-fill {
@@ -695,18 +756,48 @@ body {
   white-space: nowrap;
 }
 
+/* Cinta de la ronda: todo en una línea para gastar poca altura. */
 .hud-round {
   position: absolute;
   top: var(--safe-top);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 4px 16px 6px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(10, 9, 14, 0.75), rgba(10, 9, 14, 0.35));
-  border: 1px solid var(--panel-edge);
+  padding: 4px 18px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(14, 12, 20, 0.88), rgba(10, 9, 14, 0.7));
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+/* Rombos de bronce en las puntas de la cinta. */
+.hud-round::before,
+.hud-round::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(216, 191, 138, 0.7);
+  background: var(--bg);
+  rotate: 45deg;
+  translate: 0 -50%;
+}
+
+.hud-round::before {
+  left: -4.5px;
+}
+
+.hud-round::after {
+  right: -4.5px;
+}
+
+.hud-round > * + * {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--bronze);
 }
 
 /* En el entrenamiento el reloj marcaría ∞: se esconde y deja la esquina al panel. */
@@ -714,22 +805,27 @@ body {
   display: none;
 }
 
-.hud-round-label,
-.hud-phase {
-  font-size: 10px;
-  letter-spacing: 0.22em;
+.hud-round-label {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-quiet);
+  color: var(--ink);
 }
 
-.hud-phase {
-  color: var(--trama);
+.hud-clock-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--gold);
+  --icon-size: 14px;
 }
 
 .hud-clock {
   font-family: var(--display);
   font-weight: 700;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.1;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -740,10 +836,45 @@ body {
   text-shadow: 0 0 12px rgba(208, 74, 82, 0.7);
 }
 
+.hud-phase {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--trama);
+}
+
+.hud-phase::before {
+  content: "‹ ";
+  opacity: 0.6;
+}
+
+.hud-phase::after {
+  content: " ›";
+  opacity: 0.6;
+}
+
 .hud-score {
   display: flex;
   gap: 10px;
-  margin-top: 3px;
+}
+
+/* Pantallas angostas: la fase baja bajo la cinta para no chocar con la vida ni el minimapa. */
+@media (max-width: 760px) {
+  .hud-phase {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 50%;
+    translate: -50% 0;
+    font-size: 10px;
+    text-shadow: 0 1px 3px #000;
+  }
+
+  .hud-round > .hud-phase {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+  }
 }
 
 .hud-score-team {
@@ -763,6 +894,27 @@ body {
   background: var(--team);
   box-shadow: 0 0 8px var(--team);
   opacity: 1;
+}
+
+/* Medidor de rendimiento (?fps=1): abajo al centro, donde no hay controles. */
+.fps-meter {
+  position: absolute;
+  left: 50%;
+  bottom: var(--safe-bottom);
+  translate: -50% 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  font:
+    600 11px / 1.4 ui-monospace,
+    monospace;
+  color: #9fe39f;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.fps-meter.slow {
+  color: var(--danger);
 }
 
 .hud-banner {
@@ -1190,6 +1342,21 @@ body {
     0 0 24px rgba(243, 223, 176, 0.45);
 }
 
+/* Filete de bronce que une el arco de elementos alrededor de Lanzar. */
+.weave-arc {
+  position: absolute;
+  left: var(--cast-x);
+  top: var(--cast-y);
+  width: calc(var(--arc) * 2);
+  height: calc(var(--arc) * 2);
+  margin: calc(var(--arc) * -1) 0 0 calc(var(--arc) * -1);
+  border-radius: 50%;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  /* Solo el tramo entre Brasa (izquierda) y Umbra (arriba a la derecha). */
+  mask: conic-gradient(from 270deg, #000 0 120deg, transparent 120deg);
+  pointer-events: none;
+}
+
 /* Deshacer abajo a la izquierda de Lanzar, lejos de Brasa y del borde. */
 .cancel-button {
   left: calc(var(--cast-x) - var(--arc) * 0.58);
@@ -1202,6 +1369,7 @@ body {
 
 /* El tejido actual, justo encima de Lanzar: el pulgar no lo tapa al lanzar. */
 .weave-slots {
+  counter-reset: weave;
   position: absolute;
   left: var(--cast-x);
   top: calc(var(--cast-y) - var(--cast-size) / 2 - 24px);
@@ -1221,12 +1389,33 @@ body {
   color: var(--slot-color);
   display: grid;
   place-items: center;
+  position: relative;
+  counter-increment: weave;
   --icon-size: 16px;
   transition: scale 0.16s ease;
 }
 
 .weave-slot[data-element]:not([data-element=""]) {
   scale: 1.08;
+}
+
+/* Número de orden bajo cada ranura llena: el orden del tejido decide el conjuro. */
+.weave-slot[data-element]:not([data-element=""])::after {
+  content: counter(weave);
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  translate: -50% 0;
+  min-width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--bronze);
+  background: var(--bg);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 8px;
+  text-align: center;
+  color: var(--gold-bright);
 }
 
 .weave-slot[data-element="brasa"] {
@@ -1261,6 +1450,7 @@ body {
   }
 }
 
+#ui .weave-pad.spectre .weave-arc,
 #ui .weave-pad.spectre .element-button,
 #ui .weave-pad.spectre .cancel-button,
 #ui .weave-pad.spectre .weave-slots {
@@ -2099,8 +2289,11 @@ body {
   height: var(--minimap);
   border-radius: 50%;
   pointer-events: none;
+  /* Doble anillo de bronce, como los botones. */
   box-shadow:
-    0 0 0 1px rgb(243 223 176 / 0.35),
+    0 0 0 1px rgb(216 191 138 / 0.6),
+    0 0 0 4px rgb(10 9 14 / 0.85),
+    0 0 0 5px var(--bronze),
     0 4px 18px rgb(0 0 0 / 0.55);
 }
 
