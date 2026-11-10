@@ -24,4 +24,6 @@ export interface MatchView {
   interpolated(id: number, current: Vec2, alpha: number): Vec2;
   /** Cómo se ve un mago en este celular, si difiere del estado (en red, tu tejido predicho). */
   present?(wizard: Wizard): Wizard;
+  /** En red: si la Sala dice que no ves a ese rival. */
+  isHidden?(id: number): boolean;
 }

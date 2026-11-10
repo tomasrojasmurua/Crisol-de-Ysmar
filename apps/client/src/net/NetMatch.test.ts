@@ -1,6 +1,6 @@
 import { DEFAULT_LOOK, rulesForMode } from '@crisol/content';
 import { createMatch, type Intent, modeSetup } from '@crisol/core';
-import { encode, type ServerMessage } from '@crisol/protocol';
+import { encode, type ServerMessage, StateEncoder, type StateFrame } from '@crisol/protocol';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NetListener, NetMatch } from './NetMatch';
 
@@ -10,6 +10,10 @@ class FakeSocket {
   static readonly OPEN = 1;
   readyState = 1;
   sent: string[] = [];
+  closedWith: number | null = null;
+  binaryType = 'blob';
+  /** Como la Sala: lo que cambió desde el último estado, en binario. */
+  private readonly encoder = new StateEncoder();
   private readonly handlers = new Map<string, ((event: unknown) => void)[]>();
   constructor(readonly url: string) {
     FakeSocket.last = this;
@@ -20,12 +24,23 @@ class FakeSocket {
   send(text: string): void {
     this.sent.push(text);
   }
-  close(): void {}
+  close(code = 1000): void {
+    this.closedWith = code;
+  }
   emit(type: string, event: unknown = {}): void {
     for (const handler of this.handlers.get(type) ?? []) handler(event);
   }
-  receive(message: ServerMessage): void {
-    this.emit('message', { data: encode(message) });
+  receive(message: ServerMessage | StateFrame): void {
+    if ('type' in message) {
+      this.emit('message', { data: encode(message) });
+      return;
+    }
+    const bytes = this.encoder.encode(message);
+    this.emit('message', { data: bytes.buffer });
+  }
+  /** Bytes que no calzan con nada: un estado roto. */
+  receiveGarbage(): void {
+    this.emit('message', { data: new Uint8Array([2, 99, 99]).buffer });
   }
 }
 
@@ -38,11 +53,11 @@ const listener = (): NetListener => ({
 });
 const human = { intentsFor: (): readonly Intent[] => [{ kind: 'move', x: 1, z: 0 }] };
 
-function stateMessage(tick: number, ack = 0): ServerMessage {
+function stateMessage(tick: number, ack = 0, hidden: number[] = []): StateFrame {
   const state = createMatch(modeSetup({ kind: 'duel' }, 1, 'out', RULES), RULES);
   state.tick = tick;
   return {
-    type: 'state',
+    hidden,
     ack,
     state,
     stage: { kind: 'playing' },
@@ -156,5 +171,29 @@ describe('duelo en red: el celular', () => {
     if (!me) throw new Error('sin mago');
     expect(me.weave).toEqual([]);
     expect(net.present(me).weave).toEqual(['brasa', 'brasa']);
+  });
+
+  it('los estados llegan en binario y con lo que cambió; el primero, completo', () => {
+    const { net, socket } = joined();
+    for (const tick of [1, 2, 3]) socket.receive(stateMessage(tick));
+    net.step();
+    net.step();
+    expect(net.state.tick).toBe(2);
+    expect(net.state.wizards).toHaveLength(2);
+    expect(socket.binaryType).toBe('arraybuffer');
+  });
+
+  it('no dibuja a los rivales que la Sala dice que no ves', () => {
+    const { net, socket } = joined();
+    expect(net.isHidden(1)).toBe(false);
+    for (const tick of [1, 2]) socket.receive(stateMessage(tick, 0, [1]));
+    net.step();
+    expect(net.isHidden(1)).toBe(true);
+  });
+
+  it('si un estado llega roto, cierra para reconectar y recibir uno completo', () => {
+    const { socket } = joined();
+    socket.receiveGarbage();
+    expect(socket.closedWith).toBe(4003);
   });
 });

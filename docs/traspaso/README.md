@@ -78,7 +78,7 @@ red con un amigo (menú → Jugar con un amigo).
 | Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`. Vestidor con linajes, ropas y arquetipos.              |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
-| **Multijugador**                                                       | **1v1 en red** con predicción local de tu mago. Falta mandar menos datos y más jugadores. |
+| **Multijugador**                                                       | **1v1 en red**, predicción local, estado binario por diferencias. Faltan más jugadores.   |
 | Audio                                                                  | Sintetizado en código (notas, acordes, efectos, música). Ver [audio.md](../audio.md).     |
 | Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 
@@ -106,7 +106,8 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 | #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.     |
 | #26           | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`).  |
 | #27           | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
-| Vestidor      | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
+| #28           | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
+| Red liviana   | Estado binario por diferencias, rivales ocultos y simulador de lag.     |
 
 ## Lo que sigue
 
@@ -159,7 +160,7 @@ packages/content/src/    Números y tablas: spells.ts, rules.ts, glyphs.ts, affi
 packages/protocol/       Mensajes celular ↔ Sala (casi vacío hasta el Hito 2)
 apps/client/src/         Vite + Three.js
   game/LocalMatch.ts     Encadena rondas con bots, Glifos y Presagio (la red lo reemplazará)
-  game/Sight.ts          Qué rivales se ven en la jungla
+  (content) sight.ts     Qué rivales se ven en la jungla
   render/                Vistas de magos, hechizos, invocaciones, bestias; arena/JungleView.ts
   ui/                    Hud, Menu, Minimap, GlyphPicker, GrimoireBook, BlindVeil
   input/ camera/         Controles táctiles y cámara

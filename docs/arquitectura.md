@@ -39,16 +39,16 @@ apps/client   apps/server   apps/balance
 - `match/series.ts` lleva el mejor de 3 y `match/modes.ts` arma duelo, equipos y todos contra todos.
 - En el cliente, `render/arena/JungleView.ts` dibuja la jungla con mallas instanciadas (lo que
   queda entre la cámara y tu mago se transparenta), `ui/Minimap.ts` muestra el mapa y
-  `game/Sight.ts` decide qué rivales se ven.
+  `content/src/sight.ts` decide qué rivales se ven (lo usan el celular y la Sala).
 - En el cliente, `game/LocalMatch.ts` encadena rondas con bots, ofrece Glifos entre rondas y sortea el Presagio y las Afinidades de los bots; la red del Hito 2 reemplazará
   solo a los controladores.
 
 ## Red (desde el Hito 2)
 
 La Sala (Durable Object, creada en Sudamérica) corre el núcleo y es la única verdad. Los celulares
-envían intenciones numeradas cada 33 ms y reciben el estado completo en cada paso (30 por segundo,
-unos 5 KB en JSON, comprimido por el WebSocket). El celular guarda dos pasos de colchón y dibuja
-interpolando entre ellos.
+envían intenciones numeradas cada 33 ms y reciben el estado en cada paso (30 por segundo): en
+binario y solo con lo que cambió. El celular guarda dos pasos de colchón y dibuja interpolando entre
+ellos.
 
 - Primera versión (1v1): `apps/server/src/duel.ts` (`DuelHost`, puro y con pruebas) lleva la partida
   al mejor de 3 con Glifos; `room.ts` conecta los sockets y el reloj. En el cliente,
@@ -59,7 +59,21 @@ interpolando entre ellos.
   tuyo ya jugó (`ack`); el celular parte de tu mago en el estado más nuevo y repite encima lo que
   falta con `walkTarget`, la misma función con que camina el núcleo. Tu tejido también se ve al
   tocar. Los demás se ven un poco en el pasado, interpolados. El colchón se adapta a la red.
-- Pendiente: mandar solo lo que cambia y en binario, y salas de más de dos.
+- Estado en binario y por diferencias (`packages/protocol/src/stateCodec.ts`): cada conexión tiene
+  un codificador en la Sala y un decodificador en el celular. El primer cuadro va completo y los
+  siguientes solo con lo que cambió respecto del anterior (el WebSocket entrega en orden y sin
+  perder). Las listas con `id` se comparan por id; los decimales viajan a milésimas; los textos
+  repetidos, por su número en una tabla. En un duelo entre bots: unos 6 KB por paso en JSON contra
+  ~220 B de promedio y < 700 B de máximo. Si un estado no se puede leer, el celular reconecta y
+  recibe uno completo. El resto de los mensajes (sala, Glifos, ping) siguen en JSON.
+- Rivales ocultos: si no ves a un rival (Velo, Bosque maldito, Sombra prestada o tu Ceguera), la
+  Sala no manda dónde está ni qué teje (`DuelHost.frameFor`): llega quieto donde lo viste por
+  última vez y en la lista `hidden`, y no se dibuja ni sale en el mapa. La lógica de visión vive en
+  `packages/content/src/sight.ts`, compartida por celular y Sala.
+- Medir: `?lag=150&perdida=5` en la dirección simula 150 ms de ida y vuelta y un 5% de mensajes
+  atrasados (`net/LagSimulator.ts`). El indicador de red muestra ping, colchón, cortes, kB/s y el
+  estado más grande del último rato.
+- Pendiente: salas de más de dos y robustez en celular (reconexión más fina, pestaña oculta).
 
 ## Sonido
 

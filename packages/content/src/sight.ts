@@ -1,4 +1,3 @@
-import { MAP_DECOR } from '@crisol/content';
 import {
   type GameRules,
   isHiddenFrom,
@@ -7,6 +6,7 @@ import {
   type MatchState,
   type Wizard,
 } from '@crisol/core';
+import { MAP_DECOR } from './map';
 
 const CLOSE = 5;
 
