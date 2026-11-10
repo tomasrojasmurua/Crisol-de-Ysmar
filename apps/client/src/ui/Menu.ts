@@ -57,6 +57,7 @@ export class Menu {
     onPlay: (options: MatchOptions) => void,
     onWardrobe: () => void,
     onGrimoire: () => void,
+    onFriend: () => void,
   ) {
     this.restore();
     this.root = el('div', 'menu');
@@ -87,6 +88,7 @@ export class Menu {
         <h2 class="menu-rules-title">Al caer</h2>
         <div class="menu-rules"></div>
         <button type="button" class="primary menu-play">Entrar al Crisol</button>
+        <button type="button" class="secondary menu-friend">Jugar con un amigo</button>
       </section>`;
     parent.append(this.root);
     this.wizardName = query(this.root, '.menu-wizard-name');
@@ -123,6 +125,7 @@ export class Menu {
       });
       rules.append(button);
     }
+    query(this.root, '.menu-friend').addEventListener('click', onFriend);
     query(this.root, '.menu-play').addEventListener('click', () => {
       this.save();
       onPlay(this.options);

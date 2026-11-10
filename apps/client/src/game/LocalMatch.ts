@@ -24,6 +24,7 @@ import {
   type Vec2,
   type Wizard,
 } from '@crisol/core';
+import type { MatchView } from './MatchView';
 
 export const PLAYER_ID = 1;
 
@@ -42,6 +43,8 @@ export type MatchStage =
   | { readonly kind: 'intermission'; readonly roundWinner: number; ticksLeft: number }
   /** Entre rondas: el jugador elige un Glifo entre estas opciones. */
   | { readonly kind: 'choosing'; readonly options: readonly Glyph[] }
+  /** En red: ya elegiste tu Glifo y esperas al rival. */
+  | { readonly kind: 'waiting' }
   | { readonly kind: 'finished' };
 
 /** Glifos que se ofrecen entre rondas; quien perdió la ronda ve uno más. */
@@ -51,7 +54,8 @@ const GLYPH_OPTIONS = 3;
  * Una partida completa en el celular: tú y hechiceros de la IA, al mejor de 3 rondas.
  * Guarda las posiciones del paso anterior para que el dibujo pueda interpolar.
  */
-export class LocalMatch {
+export class LocalMatch implements MatchView {
+  readonly playerId = PLAYER_ID;
   state: MatchState;
   readonly series: SeriesState;
   stage: MatchStage = { kind: 'playing' };
@@ -104,7 +108,7 @@ export class LocalMatch {
       }
       return [];
     }
-    if (this.stage.kind === 'finished' || this.stage.kind === 'choosing') {
+    if (this.stage.kind !== 'playing') {
       return [];
     }
 

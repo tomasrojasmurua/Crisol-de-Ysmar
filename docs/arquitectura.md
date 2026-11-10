@@ -45,9 +45,18 @@ apps/client   apps/server   apps/balance
 
 ## Red (desde el Hito 2)
 
-La Sala (Durable Object) corre el núcleo y es la única verdad. Los celulares envían intenciones
-numeradas cada 33 ms y reciben el estado unas 20 veces por segundo. Tu mago se predice en local
-y se corrige con suavidad; los demás se muestran ~100 ms en el pasado, interpolados.
+La Sala (Durable Object, creada en Sudamérica) corre el núcleo y es la única verdad. Los celulares
+envían intenciones numeradas cada 33 ms y reciben el estado completo en cada paso (30 por segundo,
+unos 5 KB en JSON, comprimido por el WebSocket). El celular guarda dos pasos de colchón y dibuja
+interpolando entre ellos.
+
+- Primera versión (1v1): `apps/server/src/duel.ts` (`DuelHost`, puro y con pruebas) lleva la partida
+  al mejor de 3 con Glifos; `room.ts` conecta los sockets y el reloj. En el cliente,
+  `net/NetMatch.ts` cumple la misma interfaz que `LocalMatch` (`game/MatchView.ts`), así que el
+  dibujo y el HUD no cambian. Si alguien se corta, la IA juega por él y puede volver en 60 s con su
+  token (guardado en la pestaña).
+- Pendiente: predecir tu mago en local (hoy tus movimientos se ven con el retraso de la red más
+  ~66 ms de colchón), mandar solo lo que cambia y en binario, y salas de más de dos.
 
 ## Presupuestos de rendimiento
 

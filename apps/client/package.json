@@ -13,6 +13,7 @@
   "dependencies": {
     "@crisol/content": "workspace:*",
     "@crisol/core": "workspace:*",
+    "@crisol/protocol": "workspace:*",
     "three": "0.187.0"
   },
   "devDependencies": {
