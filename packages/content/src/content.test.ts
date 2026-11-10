@@ -1,8 +1,10 @@
 import { ELEMENT_IDS, modeSetup, obstacleAt, SPELL_IDS } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
+import { ARCHETYPES, cleanLook, DEFAULT_LOOK } from './appearance';
 import { SPELL_DESCRIPTIONS } from './descriptions';
 import { ELEMENTS } from './elements';
+import { SPELL_FAMILIES } from './families';
 import { FEATURES } from './features';
 import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
 import { MAP, MAP_RADIUS, PLAZA_MAP } from './map';
@@ -140,5 +142,33 @@ describe('el 1v1 en la plaza', () => {
 describe('piezas en pausa', () => {
   it('el Guardián solo existe si está encendido', () => {
     expect(MAP.guardianLair === null).toBe(!FEATURES.guardian);
+  });
+});
+
+describe('Vestidor', () => {
+  it('cada arquetipo usa piezas que existen y combinan', () => {
+    for (const archetype of ARCHETYPES) {
+      expect(cleanLook(archetype.look)).toEqual(archetype.look);
+    }
+  });
+
+  it('un perfil viejo, sin rostro ni ropa, queda con las piezas de siempre', () => {
+    const old = { robe: 'vino', trim: 'jade', skin: 'canela', headwear: 'sombrero', focus: 'orbe' };
+    expect(cleanLook(old)).toEqual({ ...DEFAULT_LOOK, ...old });
+  });
+
+  it('lo que no existe o no calza vuelve al valor por defecto', () => {
+    const look = cleanLook({ face: 'lobo', mask: 'barba', robe: 'inventado', cape: 42 });
+    expect(look.mask).toBe(DEFAULT_LOOK.mask);
+    expect(look.robe).toBe(DEFAULT_LOOK.robe);
+    expect(look.cape).toBe(DEFAULT_LOOK.cape);
+    expect(look.face).toBe('lobo');
+    expect(cleanLook(null)).toEqual(DEFAULT_LOOK);
+  });
+});
+
+describe('familias de hechizos', () => {
+  it('cada hechizo tiene familia', () => {
+    for (const id of SPELL_IDS) expect(SPELL_FAMILIES[id]).toBeDefined();
   });
 });

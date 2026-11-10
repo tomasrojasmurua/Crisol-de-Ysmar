@@ -1688,12 +1688,6 @@ body {
     0 0 14px rgba(243, 223, 176, 0.5);
 }
 
-.wardrobe-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
 #ui .wardrobe-piece {
   padding: 6px 10px;
   border-radius: 10px;
@@ -1705,6 +1699,52 @@ body {
 #ui .wardrobe-piece.selected {
   border-color: var(--gold);
   background: linear-gradient(180deg, rgba(216, 191, 138, 0.22), rgba(216, 191, 138, 0.06));
+}
+
+.wardrobe-tabs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#ui .wardrobe-tab {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: 10px;
+  font-family: var(--display);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+  border: 1px solid transparent;
+  background: transparent;
+  touch-action: manipulation;
+}
+
+#ui .wardrobe-tab.selected {
+  color: var(--gold-bright);
+  border-color: var(--panel-edge);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.18), rgba(216, 191, 138, 0.04));
+}
+
+.wardrobe-page {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wardrobe-page[hidden] {
+  display: none;
+}
+
+#ui .wardrobe-piece.unavailable {
+  opacity: 0.3;
+}
+
+#ui .wardrobe-random {
+  color: var(--gold-bright);
+  border-color: var(--panel-edge);
 }
 
 #ui .wardrobe-done {

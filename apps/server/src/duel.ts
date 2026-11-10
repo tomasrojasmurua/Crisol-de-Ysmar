@@ -1,5 +1,6 @@
 import {
   AFFINITY_RULES,
+  cleanLook,
   GLYPHS,
   type Glyph,
   OMENS,
@@ -36,14 +37,6 @@ const GLYPH_OPTIONS = 3;
 const MAX_PENDING = 64;
 const NAME_MAX = 14;
 const PLAYERS = 2;
-
-const DEFAULT_LOOK: PlayerLook = {
-  robe: 'ceniza',
-  trim: 'oro',
-  skin: 'arena',
-  headwear: 'capucha',
-  focus: 'baculo',
-};
 
 /** Lo que manda un celular al entrar. */
 export interface JoinRequest {
@@ -394,19 +387,6 @@ export class DuelHost {
 
 function cleanName(raw: unknown): string {
   return typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX) : '';
-}
-
-function cleanLook(look: PlayerLook | undefined): PlayerLook {
-  if (!look || typeof look !== 'object') return DEFAULT_LOOK;
-  const pick = (value: unknown, fallback: string): string =>
-    typeof value === 'string' && value.length <= 24 ? value : fallback;
-  return {
-    robe: pick(look.robe, DEFAULT_LOOK.robe),
-    trim: pick(look.trim, DEFAULT_LOOK.trim),
-    skin: pick(look.skin, DEFAULT_LOOK.skin),
-    headwear: pick(look.headwear, DEFAULT_LOOK.headwear),
-    focus: pick(look.focus, DEFAULT_LOOK.focus),
-  };
 }
 
 const finite = (n: unknown): boolean => typeof n === 'number' && Number.isFinite(n);

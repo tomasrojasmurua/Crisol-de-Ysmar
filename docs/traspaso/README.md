@@ -75,7 +75,7 @@ red con un amigo (menú → Jugar con un amigo).
 | Grandes hechizos                                                       | **125 de 125** (tandas 1 a 4). La cuarta: ver [tanda-4.md](tanda-4.md).                   |
 | Partida, modos, zona, Espectro, Vidas                                  | Listo contra la IA.                                                                       |
 | Bestias, santuarios, Glifos, Presagios, Guardián                       | Listo. Los bots no logran vencer al Guardián.                                             |
-| Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`.                                                        |
+| Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`. Vestidor con linajes, ropas y arquetipos.              |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
 | **Multijugador**                                                       | **1v1 en red** con predicción local de tu mago. Falta mandar menos datos y más jugadores. |
@@ -105,7 +105,8 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 | #20           | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).                |
 | #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.     |
 | #26           | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`).  |
-| Lectura       | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
+| #27           | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
+| Vestidor      | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
 
 ## Lo que sigue
 

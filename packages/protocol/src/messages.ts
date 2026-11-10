@@ -8,7 +8,11 @@ export interface PlayerLook {
   readonly robe: string;
   readonly trim: string;
   readonly skin: string;
+  readonly face: string;
+  readonly outfit: string;
   readonly headwear: string;
+  readonly mask: string;
+  readonly cape: string;
   readonly focus: string;
 }
 

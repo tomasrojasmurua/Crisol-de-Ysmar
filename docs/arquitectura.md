@@ -88,6 +88,6 @@ efectos. Cada sonido tiene una clave que puede reemplazarse por un archivo (ver 
 
 ## Lo que se guarda en el celular
 
-`localStorage` guarda el perfil (`crisol.perfil`: nombre, aspecto y Afinidad), el Grimorio
+`localStorage` guarda el perfil (`crisol.perfil`: nombre, aspecto y Afinidad; `cleanLook` completa lo que falte), el Grimorio
 (`crisol.grimorio`: las claves de los tejidos ya lanzados) y la última elección del menú
 (`crisol.menu`). Si el navegador no deja guardar, el juego sigue igual y solo se pierde al cerrar.
