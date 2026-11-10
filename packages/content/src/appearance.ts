@@ -194,6 +194,24 @@ export function cleanLook(raw: unknown): LookIds {
   return look;
 }
 
+/** Un aspecto al azar que respeta las combinaciones (para la IA y el botón "Al azar"). */
+export function randomLook(rng: { int(min: number, max: number): number }): LookIds {
+  const any = (options: readonly LookOption[]): string =>
+    options[rng.int(0, options.length - 1)]?.id ?? '';
+  const face = any(FACES);
+  return {
+    robe: any(ROBE_COLORS),
+    trim: any(TRIM_COLORS),
+    skin: any(SKIN_TONES),
+    face,
+    outfit: any(OUTFITS),
+    headwear: any(HEADWEAR),
+    mask: any(MASKS.filter((m) => fitsFace(m, face))),
+    cape: any(CAPES),
+    focus: any(FOCI),
+  };
+}
+
 /** Hechiceros armados de una vez: un punto de partida para cambiar lo que quieras. */
 export interface Archetype {
   readonly id: string;

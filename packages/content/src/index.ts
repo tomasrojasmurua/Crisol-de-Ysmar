@@ -16,6 +16,7 @@ export {
   MASKS,
   OUTFITS,
   ROBE_COLORS,
+  randomLook,
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';

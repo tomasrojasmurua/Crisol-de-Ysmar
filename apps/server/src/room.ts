@@ -86,9 +86,10 @@ export class Room extends DurableObject<Env> {
           look: message.look,
           affinity: message.affinity,
           token: message.token,
+          mode: message.mode,
         });
         if (!joined) {
-          send(socket, { type: 'error', reason: 'La sala ya tiene dos jugadores' });
+          send(socket, { type: 'error', reason: this.duel.joinError || 'La sala está llena' });
           socket.close(4001, 'Sala llena');
           return;
         }
@@ -123,6 +124,9 @@ export class Room extends DurableObject<Env> {
         return;
       case 'rematch':
         if (playerId !== undefined) this.duel.rematch(playerId);
+        return;
+      case 'begin':
+        if (playerId !== undefined && this.duel.begin(playerId)) this.broadcastPlayers();
         return;
       case 'away':
         if (playerId === undefined) return;
@@ -202,7 +206,12 @@ export class Room extends DurableObject<Env> {
 
   private broadcastPlayers(): void {
     if (!this.host) return;
-    const message = encode({ type: 'players', players: this.host.players });
+    const message = encode({
+      type: 'players',
+      players: this.host.players,
+      mode: this.host.gameMode,
+      hostId: this.host.hostId,
+    });
     for (const socket of this.ctx.getWebSockets()) trySend(socket, message);
   }
 

@@ -15,6 +15,7 @@ export function decodeClientMessage(raw: string): ClientMessage | null {
     'glyph',
     'rematch',
     'away',
+    'begin',
     'ping',
   ]);
 }

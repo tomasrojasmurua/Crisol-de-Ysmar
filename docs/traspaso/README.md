@@ -78,7 +78,7 @@ red con un amigo (menú → Jugar con un amigo).
 | Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`. Vestidor con linajes, ropas y arquetipos.              |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
-| **Multijugador**                                                       | **1v1 en red**, predicción local, estado binario por diferencias. Faltan más jugadores.   |
+| **Multijugador**                                                       | **En red de 2 a 6**, predicción local, estado binario por diferencias.                    |
 | Audio                                                                  | Sintetizado en código (notas, acordes, efectos, música). Ver [audio.md](../audio.md).     |
 | Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 
@@ -108,7 +108,8 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 | #27           | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
 | #28           | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
 | #29           | Estado binario por diferencias, rivales ocultos y simulador de lag.     |
-| Celular       | App de fondo, silencio, conexión colgada y volver con el pase.          |
+| #30           | App de fondo, silencio, conexión colgada y volver con el pase.          |
+| Salas grandes | 2v2, 3v3 y libres de 4 y 6 en red; la IA llena los puestos libres.      |
 
 ## Lo que sigue
 

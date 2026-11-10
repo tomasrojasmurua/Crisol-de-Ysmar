@@ -504,7 +504,7 @@ body {
 }
 
 .lobby-panel {
-  width: min(420px, 92vw);
+  width: min(640px, 94vw);
   max-height: 100%;
   overflow: auto;
   padding: 18px 18px 16px;
@@ -2083,4 +2083,66 @@ body {
 .grimoire-combo-detail {
   font-size: 11px;
   color: var(--ink-quiet);
+}
+
+/* Sala de espera en horizontal: el código a la izquierda, quiénes están a la derecha. */
+.lobby-waiting:not([hidden]) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.lobby-invite,
+.lobby-people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-mode {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+
+.lobby-roster {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.lobby-player {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.lobby-player.me {
+  border-color: var(--panel-edge);
+}
+
+.lobby-player[data-team="0"] {
+  box-shadow: inset 3px 0 0 #e8c26a;
+}
+
+.lobby-player[data-team="1"] {
+  box-shadow: inset 3px 0 0 #8fb4ff;
+}
+
+.lobby-player-tag {
+  font-size: 11px;
+  color: var(--ink-quiet);
+  white-space: nowrap;
 }
