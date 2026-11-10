@@ -18,7 +18,7 @@ const HOURGLASS_ICON =
   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
   '<path d="M9 4H23M9 28H23M10 4C10 11 22 13 22 16C22 19 10 21 10 28M22 4C22 11 10 13 10 16C10 19 22 21 22 28"/></svg>';
 
-export const PHASE_NAMES: Record<RoundPhase, string> = {
+const PHASE_NAMES: Record<RoundPhase, string> = {
   hunt: 'Caza',
   convergence: 'Convergencia',
   final: 'Duelo final',

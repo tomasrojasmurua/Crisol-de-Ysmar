@@ -16,7 +16,7 @@ export interface StatusInstance {
   readonly targetId?: EntityId;
 }
 
-export interface Channel {
+interface Channel {
   ticksLeft: number;
   readonly weave: Weave;
   /** Dirección elegida al lanzar; cero significa apuntar solo al objetivo. */
@@ -24,7 +24,7 @@ export interface Channel {
 }
 
 /** Un desplazamiento en varios pasos: el Paso, el Cometa, el tirón de la Liana o la Catapulta. */
-export interface Leap {
+interface Leap {
   ticksLeft: number;
   readonly step: Vec2;
   /** Rastro que deja en el suelo (el Cometa deja fuego). */

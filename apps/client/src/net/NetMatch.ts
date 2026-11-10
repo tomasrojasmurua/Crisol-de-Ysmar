@@ -98,7 +98,7 @@ export interface NetListener {
   stats(stats: NetStats): void;
 }
 
-export interface NetStats {
+interface NetStats {
   /** Ida y vuelta al servidor, en milisegundos. */
   readonly ping: number;
   /** Pasos guardados ahora y el tamaño buscado. */

@@ -12,7 +12,7 @@ import { FEATURES } from './features';
 export const MAP_RADIUS = 40;
 
 /** La plaza del centro queda libre: ahí termina la Convergencia. */
-export const PLAZA_RADIUS = 15;
+const PLAZA_RADIUS = 15;
 /** Los campamentos están en un anillo a media distancia, sobre los senderos. */
 const CAMP_RADIUS = 24;
 const CAMP_CLEARING = 5;

@@ -631,14 +631,14 @@ export interface SpellRules {
 }
 
 /** Un golpe con aviso: cae en un círculo tras unos pasos. */
-export interface StrikeSpell {
+interface StrikeSpell {
   readonly damage: number;
   readonly radius: number;
   readonly delayTicks: number;
 }
 
 /** Algo que avanza solo por el campo y golpea al pasar. */
-export interface SweeperSpell {
+interface SweeperSpell {
   readonly damage: number;
   readonly speed: number;
   readonly range: number;
@@ -646,14 +646,14 @@ export interface SweeperSpell {
 }
 
 /** Un efecto en el suelo, a cierta distancia de quien lo lanza (0: a sus pies). */
-export interface AreaSpell {
+interface AreaSpell {
   readonly range: number;
   readonly radius: number;
   readonly durationTicks: number;
 }
 
 /** Algo que se invoca y se puede destruir a golpes. */
-export interface SummonSpell {
+interface SummonSpell {
   readonly hp: number;
   readonly radius: number;
   readonly durationTicks: number;
@@ -666,12 +666,12 @@ export interface ProjectileSpell {
   readonly radius: number;
 }
 
-export interface DashSpell {
+interface DashSpell {
   readonly distance: number;
   readonly durationTicks: number;
 }
 
-export interface ConeSpell {
+interface ConeSpell {
   readonly damage: number;
   readonly range: number;
   /** Coseno mínimo entre la dirección apuntada y el blanco. */

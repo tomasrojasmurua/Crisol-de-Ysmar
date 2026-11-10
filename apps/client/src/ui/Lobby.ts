@@ -13,7 +13,7 @@ import { el, query } from './dom';
 import { MENU_ICONS } from './menuIcons';
 
 /** Cómo se llama un modo en la sala de espera. */
-export function modeLabel(mode: GameMode): string {
+function modeLabel(mode: GameMode): string {
   switch (mode.kind) {
     case 'duel':
       return 'Duelo 1 contra 1';

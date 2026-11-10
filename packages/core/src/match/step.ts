@@ -249,5 +249,3 @@ function release(
   }
   castSpell(state, wizard, spell, castWeave, rawAim, rules);
 }
-
-export const NO_INTENTS: IntentsByWizard = new Map();

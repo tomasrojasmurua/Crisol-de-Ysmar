@@ -42,7 +42,7 @@ function allyInCone(ctx: CastContext, range: number, coneDot: number): Wizard | 
 }
 
 /** Aplica un estado y le anota para quién vale (el Juramento, el Injerto, la Venganza). */
-export function markStatus(
+function markStatus(
   state: MatchState,
   wizard: Wizard,
   status: StatusId,

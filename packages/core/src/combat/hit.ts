@@ -43,11 +43,7 @@ export function applyHit(
  * La reacción que provoca este golpe, si hay: el primer elemento del tejido contra un estado que
  * ya tiene el blanco (empapado + Tormenta, enraizado + Brasa…). Solo una por golpe.
  */
-export function comboFor(
-  target: Wizard,
-  payload: SpellPayload,
-  rules: GameRules,
-): ElementCombo | null {
+function comboFor(target: Wizard, payload: SpellPayload, rules: GameRules): ElementCombo | null {
   const element = payload.weave[0];
   if (!element) return null;
   for (const combo of rules.interactions.combos) {
