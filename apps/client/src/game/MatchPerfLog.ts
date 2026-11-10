@@ -3,6 +3,20 @@ const SLOW_FRAME_MS = 20;
 /** Los cuadros se agrupan por milisegundo: alcanza para sacar promedios y percentiles. */
 const BINS = 101;
 
+/** Lo que costó un cuadro por dentro, medido en el bucle principal. */
+export interface FrameWork {
+  /** La simulación de la partida (pasos fijos). */
+  readonly simMs: number;
+  /** Todo el trabajo de JavaScript del cuadro, simulación incluida. */
+  readonly jsMs: number;
+  /** Llamadas de dibujo a la tarjeta gráfica (sombras y resplandor incluidos). */
+  readonly calls: number;
+  readonly triangles: number;
+}
+
+export type QualityName = 'alta' | 'liviana';
+const QUALITY_LABEL: Record<QualityName, string> = { alta: 'Alta', liviana: 'Liviana' };
+
 /**
  * Informe de rendimiento de una partida entera. Un pantallazo del medidor de FPS solo muestra
  * un instante; esto junta todo lo que pasó, para leerlo en la pantalla de resultado (con los
@@ -21,8 +35,22 @@ export class MatchPerfLog {
   private readonly audioCuts: number[] = [];
   private startRatio = 1;
   private ratio = 1;
+  private worked = 0;
+  private simMs = 0;
+  private jsMs = 0;
+  private calls = 0;
+  private triangles = 0;
+  private startQuality: QualityName = 'alta';
+  private readonly qualityChanges: { atMs: number; quality: QualityName }[] = [];
 
-  start(pixelRatio: number): void {
+  start(pixelRatio: number, quality: QualityName = 'alta'): void {
+    this.worked = 0;
+    this.simMs = 0;
+    this.jsMs = 0;
+    this.calls = 0;
+    this.triangles = 0;
+    this.startQuality = quality;
+    this.qualityChanges.length = 0;
     this.histogram.fill(0);
     this.frames = 0;
     this.playedMs = 0;
@@ -38,8 +66,15 @@ export class MatchPerfLog {
   }
 
   /** Un cuadro de juego (no se llama en pausa). */
-  frame(frameMs: number): void {
+  frame(frameMs: number, work?: FrameWork): void {
     if (frameMs <= 0) return;
+    if (work) {
+      this.worked += 1;
+      this.simMs += work.simMs;
+      this.jsMs += work.jsMs;
+      this.calls += work.calls;
+      this.triangles += work.triangles;
+    }
     const bin = Math.min(BINS - 1, Math.round(frameMs));
     this.histogram[bin] = (this.histogram[bin] ?? 0) + 1;
     this.frames += 1;
@@ -69,6 +104,10 @@ export class MatchPerfLog {
     this.resolutionChanges.push({ atMs: this.playedMs, ratio: pixelRatio });
   }
 
+  qualityChanged(quality: QualityName): void {
+    this.qualityChanges.push({ atMs: this.playedMs, quality });
+  }
+
   audioCut(): void {
     this.audioCuts.push(this.playedMs);
   }
@@ -82,6 +121,38 @@ export class MatchPerfLog {
     const lines = [
       `Duración ${clock(this.playedMs)} · típico ${typical} fps · peor 1% ${worst} fps`,
     ];
+
+    if (this.worked > 0) {
+      const sim = this.simMs / this.worked;
+      const js = this.jsMs / this.worked;
+      const frame = this.playedMs / this.frames;
+      const wait = Math.max(0, frame - js);
+      // Si el JavaScript se come casi todo el cuadro, frena el procesador; si sobra mucho
+      // tiempo y aun así va lento, se está esperando a la tarjeta gráfica.
+      const verdict =
+        frame <= SLOW_FRAME_MS
+          ? ''
+          : js > frame * 0.75
+            ? ' (frena el procesador)'
+            : js < frame * 0.5
+              ? ' (frena la tarjeta gráfica)'
+              : '';
+      lines.push(
+        `Por cuadro: lógica ${ms(sim)} · dibujo ${ms(js - sim)} · espera ${ms(wait)}${verdict}`,
+      );
+      lines.push(
+        `Dibujos por cuadro ${Math.round(this.calls / this.worked)} · ${Math.round(this.triangles / this.worked / 1000)} mil triángulos`,
+      );
+    }
+
+    const quality =
+      this.qualityChanges.length === 0
+        ? `Calidad: ${QUALITY_LABEL[this.startQuality]}`
+        : `Calidad: ${QUALITY_LABEL[this.startQuality]}; ${this.qualityChanges
+            .slice(0, 3)
+            .map((change) => `${QUALITY_LABEL[change.quality]} en ${clock(change.atMs)}`)
+            .join(', ')}`;
+    lines.push(quality);
 
     const slowShare = Math.round((this.slowSeconds / seconds) * 100);
     lines.push(
@@ -133,6 +204,10 @@ export class MatchPerfLog {
     }
     return BINS - 1;
   }
+}
+
+function ms(value: number): string {
+  return `${value.toFixed(1)} ms`;
 }
 
 function fps(frameMs: number): number {

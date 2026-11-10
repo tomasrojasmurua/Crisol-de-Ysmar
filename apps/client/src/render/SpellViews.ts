@@ -96,6 +96,10 @@ export class SpellViews {
     this.trails = new Trails(scene);
   }
 
+  set trailsEnabled(value: boolean) {
+    this.trails.enabled = value;
+  }
+
   sync(spells: readonly SpellEntity[], world: SpellWorld): void {
     const alive = new Set<number>();
     for (const spell of spells) {

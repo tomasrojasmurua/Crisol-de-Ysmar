@@ -12,8 +12,14 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 export class PostProcessing {
   private readonly composer: EffectComposer;
   private readonly bloom: UnrealBloomPass;
+  /** Con gráficos livianos se dibuja directo, sin resplandor ni corrección de color. */
+  enabled = true;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+  constructor(
+    private readonly renderer: THREE.WebGLRenderer,
+    private readonly scene: THREE.Scene,
+    private readonly camera: THREE.Camera,
+  ) {
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.9, 0.55, 0.82);
@@ -30,7 +36,8 @@ export class PostProcessing {
   }
 
   render(): void {
-    this.composer.render();
+    if (this.enabled) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
   }
 }
 

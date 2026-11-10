@@ -79,6 +79,7 @@ export class Trails {
     width: number,
     jagged: boolean,
   ): void {
+    if (!this.mesh.visible) return;
     let trail = this.trails.get(id);
     if (!trail) {
       if (this.trails.size >= MAX_TRAILS) return;
@@ -101,8 +102,15 @@ export class Trails {
     trail.points[0]?.set(x, y, z);
   }
 
+  /** Con gráficos livianos las estelas no se arman ni se dibujan. */
+  set enabled(value: boolean) {
+    this.mesh.visible = value;
+    if (!value) this.trails.clear();
+  }
+
   /** Arma la cinta de este cuadro. Lo que no se vio en `track` se va apagando. */
   update(deltaSeconds: number): void {
+    if (!this.mesh.visible) return;
     let slot = 0;
     for (const [id, trail] of this.trails) {
       if (!trail.seen) {
