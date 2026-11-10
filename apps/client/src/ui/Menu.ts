@@ -112,6 +112,7 @@ export class Menu {
     this.root = el('div', 'menu');
     this.root.innerHTML = `
       <div class="menu-veil"></div>
+      <small class="menu-version"></small>
       <aside class="menu-card menu-wizard-card">
         <button type="button" class="menu-portrait" aria-label="Abrir el Vestidor"></button>
         <strong class="menu-wizard-name"></strong>
@@ -144,6 +145,8 @@ export class Menu {
         </div>
       </aside>`;
     parent.append(this.root);
+    query(this.root, '.menu-version').textContent =
+      typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
     this.wizardName = query(this.root, '.menu-wizard-name');
     this.wizardAffinity = query(this.root, '.menu-affinity-text');
     this.affinityIcon = query(this.root, '.menu-affinity-icon');

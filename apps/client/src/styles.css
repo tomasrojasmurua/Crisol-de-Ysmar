@@ -204,6 +204,19 @@ body {
   pointer-events: none;
 }
 
+/* Versión del juego: chica y tenue, en la esquina inferior izquierda. */
+.menu-version {
+  position: absolute;
+  left: var(--safe-left);
+  bottom: max(4px, env(safe-area-inset-bottom));
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Tarjetas de vidrio ahumado con filete de bronce. */
 .menu-card {
   position: relative;
