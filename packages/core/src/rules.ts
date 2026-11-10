@@ -385,6 +385,18 @@ export interface GameRules {
     readonly combos: readonly ElementCombo[];
   };
   readonly round: RoundRules;
+  /** Apuntado automático: a qué se dispara cuando se toca el botón sin arrastrar. */
+  readonly aim: {
+    /** Hasta dónde se busca un blanco (magos y bestias), en metros. */
+    readonly range: number;
+    /** Un blanco fijado a mano se sigue usando hasta este alcance; más lejos, se suelta. */
+    readonly lockRange: number;
+    /**
+     * Cuánto pesa estar delante: con 0 gana el más cercano; con 1, uno a tu espalda cuenta
+     * como si estuviera al doble de distancia.
+     */
+    readonly frontWeight: number;
+  };
   readonly death: DeathRules;
   readonly beasts: BeastRules;
   readonly shrines: ShrineRules;

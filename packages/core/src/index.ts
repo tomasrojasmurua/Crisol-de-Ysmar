@@ -21,7 +21,15 @@ export {
   teamCount,
 } from './match/modes';
 export { lineBlocked, obstacleAt, placeInArena, pushOutOfObstacles } from './match/obstacles';
-export { currentTarget, isAlive, isHiddenFrom, nearestEnemy, wizardById } from './match/queries';
+export {
+  type AimTarget,
+  autoTarget,
+  currentTarget,
+  isAlive,
+  isHiddenFrom,
+  nearestEnemy,
+  wizardById,
+} from './match/queries';
 export {
   decideRoundWinner,
   isSpectre,

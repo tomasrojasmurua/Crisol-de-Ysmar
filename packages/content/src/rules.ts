@@ -215,6 +215,8 @@ export const GAME_RULES: GameRules = {
     finalRadius: 4,
     zoneDamagePerSecond: 12,
   },
+  // Los proyectiles básicos llegan a 14 m: más allá no tiene sentido apuntar solo.
+  aim: { range: 14, lockRange: 20, frontWeight: 0.6 },
   death: {
     lives: 3,
     // 4 segundos para reaparecer en el borde.
