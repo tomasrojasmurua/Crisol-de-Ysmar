@@ -1,5 +1,6 @@
 import {
   BEAST_NAMES,
+  DEFAULT_LOOK,
   ELEMENTS,
   GAME_RULES,
   GUARDIAN_NAME,
@@ -231,7 +232,11 @@ function lookOf(
     robe: lookColor(ROBE_COLORS, look.robe),
     trim: lookColor(TRIM_COLORS, look.trim),
     skin: lookColor(SKIN_TONES, look.skin),
+    face: look.face,
+    outfit: look.outfit,
     headwear: look.headwear,
+    mask: look.mask,
+    cape: look.cape,
     focus: look.focus,
     affinity,
   };
@@ -305,8 +310,8 @@ function previewCamera(time: number, delta: number): void {
   const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
   wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
   view.update(wizard, 0, 0, time, delta, false, rules);
-  camera.position.set(-1.1, 1.55, -3.9);
-  camera.lookAt(-1.1, 1.05, 0);
+  camera.position.set(-0.8, 1.65, -3.0);
+  camera.lookAt(-0.8, 1.25, 0);
 }
 
 /** Color del bando de un equipo, a partir de cualquiera de sus magos. */
@@ -386,7 +391,7 @@ function startTraining(): void {
   useRules(current.rules);
   beginMatch(current, () => ({
     name: 'Muñeco',
-    look: { robe: 'ceniza', trim: 'oro', skin: 'arena', headwear: 'capucha', focus: 'baculo' },
+    look: { ...DEFAULT_LOOK, robe: 'hueso', headwear: 'ninguno', face: 'automata' },
   }));
   trainingPanel.visible = true;
   obstacles.invalidate();

@@ -5,6 +5,9 @@ import { CastSigil } from './CastSigil';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 import { WeaveHalo } from './WeaveHalo';
+import { buildWizardModel } from './wizard/build';
+import { FLOATING_FOCI } from './wizard/foci';
+import { ModelKit } from './wizard/kit';
 
 const REVIVE_SEGMENTS = 48;
 
@@ -16,14 +19,15 @@ export interface WizardLook {
   readonly robe: string;
   readonly trim: string;
   readonly skin: string;
-  /** capucha, sombrero o diadema. */
+  /** Ids de las piezas del Vestidor (ver `content/appearance.ts`). */
+  readonly face: string;
+  readonly outfit: string;
   readonly headwear: string;
-  /** baculo, cetro u orbe. */
+  readonly mask: string;
+  readonly cape: string;
   readonly focus: string;
   readonly affinity: ElementId | null;
 }
-
-const HEAD_Y = 1.74;
 
 /**
  * Un mago en pantalla: túnica, capucha con ojos que brillan, báculo con cristal,
@@ -41,15 +45,12 @@ export class WizardView {
   private readonly body = new THREE.Group();
   private readonly staff = new THREE.Group();
   private readonly robeMaterial: THREE.MeshStandardMaterial;
-  private readonly trimMaterial: THREE.MeshStandardMaterial;
   private readonly crystalMaterial: THREE.MeshBasicMaterial;
   private readonly eyeMaterial: THREE.MeshBasicMaterial;
-  private readonly skinMaterial: THREE.MeshStandardMaterial;
-  private robe: THREE.Mesh | null = null;
   private readonly affinityLook: AffinityLook | null = null;
   private readonly floatingFocus: boolean;
   private readonly ghostMaterial: THREE.MeshStandardMaterial;
-  private readonly solidMeshes: THREE.Mesh[] = [];
+  private readonly solidMeshes: THREE.Mesh[];
   private readonly halo = new WeaveHalo();
   private readonly sigil = new CastSigil();
   private readonly rootRing: THREE.Mesh;
@@ -82,22 +83,9 @@ export class WizardView {
     this.teamColor = new THREE.Color(look.teamColor);
     const radius = rules.wizard.radius;
 
-    this.robeMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(look.robe),
-      roughness: 0.85,
-    });
-    this.trimMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(look.trim),
-      roughness: 0.45,
-      metalness: 0.45,
-    });
-    this.skinMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(look.skin),
-      roughness: 0.75,
-    });
     this.crystalMaterial = new THREE.MeshBasicMaterial({ color: glow(this.teamColor, 2.2) });
     this.eyeMaterial = new THREE.MeshBasicMaterial({ color: glow(this.teamColor, 2.2) });
-    this.floatingFocus = look.focus === 'orbe';
+    this.floatingFocus = FLOATING_FOCI.has(look.focus);
     this.ghostMaterial = new THREE.MeshStandardMaterial({
       color: '#9fb4ff',
       emissive: new THREE.Color('#6d7fd6'),
@@ -107,18 +95,28 @@ export class WizardView {
       depthWrite: false,
     });
 
-    this.buildBody(radius, look.headwear);
-    this.buildFocus(look.focus);
+    const kit = new ModelKit(
+      this.body,
+      this.staff,
+      look,
+      this.crystalMaterial,
+      this.eyeMaterial,
+      radius,
+    );
+    this.robeMaterial = kit.robe;
+    const model = buildWizardModel(kit, look);
+    this.solidMeshes = kit.merge();
+    this.body.add(this.staff);
     this.group.add(this.body);
 
-    if (look.affinity && this.robe) {
+    if (look.affinity) {
       this.affinityLook = new AffinityLook(look.affinity, {
         body: this.body,
-        robe: this.robe,
+        robe: model.robe,
         robeMaterial: this.robeMaterial,
         eyeMaterial: this.eyeMaterial,
-        headY: look.headwear === 'sombrero' ? 2.02 : 1.9,
-        mouthY: HEAD_Y - 0.04,
+        headY: model.headTop,
+        mouthY: model.mouthY,
         radius,
       });
       this.affinityLook.attach(this.group);
@@ -364,197 +362,6 @@ export class WizardView {
 
   dispose(): void {
     this.group.removeFromParent();
-  }
-
-  private buildBody(radius: number, headwear: string): void {
-    // Túnica: un perfil girado, ancho abajo y ceñido en la cintura.
-    const robeProfile = [
-      [0.0, 0.0],
-      [radius * 1.25, 0.0],
-      [radius * 1.15, 0.25],
-      [radius * 0.82, 0.85],
-      [radius * 0.78, 1.05],
-      [radius * 0.86, 1.3],
-      [radius * 0.72, 1.48],
-      [radius * 0.3, 1.58],
-      [0.0, 1.6],
-    ].map(([r, y]) => new THREE.Vector2(r, y));
-    const robe = new THREE.Mesh(new THREE.LatheGeometry(robeProfile, 18), this.robeMaterial);
-    this.robe = robe;
-    this.addSolid(robe);
-
-    // Faja del color del bando.
-    const sash = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.8, 0.045, 6, 20),
-      this.trimMaterial,
-    );
-    sash.rotation.x = Math.PI / 2;
-    sash.position.y = 0.98;
-    this.addSolid(sash);
-
-    // Hombreras.
-    const mantle = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 0.95, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2.4),
-      this.robeMaterial,
-    );
-    mantle.position.y = 1.32;
-    mantle.scale.set(1.1, 0.7, 0.95);
-    this.addSolid(mantle);
-
-    if (headwear === 'capucha') this.buildHood(radius);
-    else this.buildHead(radius, headwear);
-  }
-
-  /** Capucha en punta con el rostro en sombra: solo se ven los ojos. */
-  private buildHood(radius: number): void {
-    const hoodProfile = [
-      [0.0, 0.0],
-      [radius * 0.62, 0.02],
-      [radius * 0.66, 0.25],
-      [radius * 0.5, 0.48],
-      [radius * 0.2, 0.68],
-      [0.0, 0.82],
-    ].map(([r, y]) => new THREE.Vector2(r, y));
-    const hood = new THREE.Mesh(new THREE.LatheGeometry(hoodProfile, 16), this.robeMaterial);
-    hood.position.set(0, 1.5, -0.04);
-    hood.rotation.x = -0.18;
-    this.addSolid(hood);
-
-    const face = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 0.42, 12, 10),
-      new THREE.MeshBasicMaterial({ color: '#050407' }),
-    );
-    face.position.set(0, HEAD_Y, radius * 0.22);
-    face.scale.set(1, 1.1, 0.6);
-    this.body.add(face);
-    this.addEyes(radius * 0.45, 1.77);
-  }
-
-  /** Cabeza descubierta con sombrero de ala ancha o con diadema. */
-  private buildHead(_radius: number, headwear: string): void {
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), this.skinMaterial);
-    head.position.set(0, HEAD_Y, 0.03);
-    head.scale.set(0.95, 1.1, 1);
-    this.addSolid(head);
-    this.addEyes(0.18, HEAD_Y + 0.02);
-
-    if (headwear === 'sombrero') {
-      const brim = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.44, 0.46, 0.03, 24),
-        this.robeMaterial,
-      );
-      brim.position.set(0, HEAD_Y + 0.13, 0);
-      brim.rotation.x = -0.12;
-      this.addSolid(brim);
-      const crown = new THREE.Mesh(
-        new THREE.ConeGeometry(0.2, 0.62, 16, 1, true),
-        this.robeMaterial,
-      );
-      crown.position.set(0, HEAD_Y + 0.43, -0.06);
-      crown.rotation.x = -0.32;
-      this.addSolid(crown);
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 20), this.trimMaterial);
-      band.position.set(0, HEAD_Y + 0.17, -0.01);
-      band.rotation.x = Math.PI / 2 - 0.12;
-      this.addSolid(band);
-    } else {
-      // Diadema con una gema que brilla del color del bando, y el pelo recogido.
-      const hair = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 14, 10, 0, Math.PI * 2, 0, Math.PI / 1.8),
-        new THREE.MeshStandardMaterial({ color: '#1a1512', roughness: 0.9 }),
-      );
-      hair.position.set(0, HEAD_Y + 0.02, -0.01);
-      hair.rotation.x = -0.5;
-      this.addSolid(hair);
-      const circlet = new THREE.Mesh(
-        new THREE.TorusGeometry(0.168, 0.016, 6, 24),
-        this.trimMaterial,
-      );
-      circlet.position.set(0, HEAD_Y + 0.08, 0.02);
-      circlet.rotation.x = Math.PI / 2 + 0.15;
-      this.addSolid(circlet);
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.035), this.crystalMaterial);
-      gem.position.set(0, HEAD_Y + 0.1, 0.19);
-      gem.scale.set(0.8, 1.3, 0.6);
-      this.body.add(gem);
-      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.04, 6, 20), this.trimMaterial);
-      collar.position.set(0, 1.55, 0.02);
-      collar.rotation.x = Math.PI / 2;
-      this.addSolid(collar);
-    }
-  }
-
-  private addEyes(depth: number, height: number): void {
-    const eyeGeometry = new THREE.SphereGeometry(0.035, 8, 6);
-    for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(eyeGeometry, this.eyeMaterial);
-      eye.position.set(side * 0.07, height, depth);
-      this.body.add(eye);
-    }
-  }
-
-  /** Báculo largo, cetro corto u orbe que flota junto a la mano. */
-  private buildFocus(focus: string): void {
-    const wood = new THREE.MeshStandardMaterial({ color: '#3b2a1d', roughness: 0.7 });
-    if (focus === 'cetro') {
-      const rod = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.025, 0.03, 0.75, 6),
-        this.trimMaterial,
-      );
-      rod.position.y = 1.0;
-      rod.rotation.x = 0.35;
-      this.staff.add(rod);
-      const head = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.018, 6, 14), this.trimMaterial);
-      head.position.set(0, 1.4, 0.13);
-      head.rotation.x = 0.35;
-      this.staff.add(head);
-      const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.075), this.crystalMaterial);
-      crystal.position.set(0, 1.42, 0.14);
-      crystal.scale.set(0.8, 1.3, 0.8);
-      this.staff.add(crystal);
-      this.staff.position.set(0.42, 0, 0.18);
-    } else if (focus === 'orbe') {
-      const crystal = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), this.crystalMaterial);
-      crystal.position.y = 1.22;
-      this.staff.add(crystal);
-      const cage = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.012, 6, 24), this.trimMaterial);
-      cage.position.y = 1.22;
-      cage.rotation.x = Math.PI / 2.4;
-      this.staff.add(cage);
-      const cage2 = cage.clone();
-      cage2.rotation.set(0, Math.PI / 2, Math.PI / 3);
-      this.staff.add(cage2);
-      this.staff.position.set(0.46, 0, 0.3);
-    } else {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2, 6), wood);
-      pole.position.y = 1;
-      this.staff.add(pole);
-      const claw = new THREE.Mesh(
-        new THREE.TorusGeometry(0.11, 0.025, 6, 12, Math.PI * 1.5),
-        this.trimMaterial,
-      );
-      claw.position.y = 2.02;
-      this.staff.add(claw);
-      const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), this.crystalMaterial);
-      crystal.position.y = 2.06;
-      crystal.scale.set(0.8, 1.4, 0.8);
-      this.staff.add(crystal);
-      this.staff.position.set(0.48, 0, 0.12);
-    }
-    for (const child of this.staff.children) {
-      if (child instanceof THREE.Mesh && child.material !== this.crystalMaterial) {
-        this.solidMeshes.push(child);
-        child.castShadow = true;
-      }
-    }
-    this.body.add(this.staff);
-  }
-
-  private addSolid(mesh: THREE.Mesh): void {
-    mesh.castShadow = true;
-    mesh.userData.solidMaterial = mesh.material;
-    this.solidMeshes.push(mesh);
-    this.body.add(mesh);
   }
 
   /** El espectro se ve como humo translúcido y sin báculo. */

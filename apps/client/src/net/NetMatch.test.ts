@@ -1,4 +1,4 @@
-import { rulesForMode } from '@crisol/content';
+import { DEFAULT_LOOK, rulesForMode } from '@crisol/content';
 import { createMatch, type Intent, modeSetup } from '@crisol/core';
 import { encode, type ServerMessage } from '@crisol/protocol';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,13 +62,7 @@ describe('duelo en red: el celular', () => {
   });
 
   function joined(): { net: NetMatch; socket: FakeSocket } {
-    const look = {
-      robe: 'ceniza',
-      trim: 'oro',
-      skin: 'arena',
-      headwear: 'capucha',
-      focus: 'baculo',
-    };
+    const look = DEFAULT_LOOK;
     const net = new NetMatch('K7QF', { name: 'Tomás', look, affinity: null }, human, listener());
     const socket = FakeSocket.last as FakeSocket;
     socket.emit('open');
@@ -149,13 +143,7 @@ describe('duelo en red: el celular', () => {
 
   it('muestra tu tejido en el acto', () => {
     const tapping = { intentsFor: (): readonly Intent[] => [{ kind: 'weave', element: 'brasa' }] };
-    const look = {
-      robe: 'ceniza',
-      trim: 'oro',
-      skin: 'arena',
-      headwear: 'capucha',
-      focus: 'baculo',
-    };
+    const look = DEFAULT_LOOK;
     const net = new NetMatch('K7QF', { name: 'T', look, affinity: null }, tapping, listener());
     const socket = FakeSocket.last as FakeSocket;
     socket.emit('open');

@@ -68,3 +68,27 @@ es lo vigente.
 | Vapor         | Marea    | Quemándose | +20%, apaga el fuego y quita escudos 3 s |
 | Brasa maldita | Umbra    | Quemándose | +20% y el fuego se vuelve maldición      |
 | Lodazal       | Raíz     | Empapado   | Enraíza 1 s; seca el agua                |
+
+## Vestidor
+
+Todo es cosmético salvo la Afinidad. Las piezas viven en `packages/content/src/appearance.ts` y se
+arman en `apps/client/src/render/wizard/` (una función por tipo de pieza; al final las mallas se
+juntan por material para gastar pocas llamadas de dibujo).
+
+| Pieza   | Opciones                                                                                                                                       |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linaje  | Humano, orejas largas, lagarto, lobo, zorro, cuervo, carnero, sapo, calavera, autómata                                                         |
+| Ropa    | Túnica, hábito de monje, vestido de bruja, manto de secta, pieles de chamán, coraza, harapos, cuello alto                                      |
+| Cabeza  | Capucha honda, capucha abierta, sombrero, sombrero torcido, diadema, gorro de cresta, turbante, corona de hueso, yelmo, tocado de plumas, nada |
+| Rostro  | Nada, barba larga, bigote, máscara de hueso, velo, runas pintadas, vendas                                                                      |
+| Capa    | Sin capa, corta, larga, raída                                                                                                                  |
+| Foco    | Báculo, cetro, orbe, grimorio, linterna, hoz, cuenco, varita                                                                                   |
+| Colores | 12 de ropa, 8 de adornos y metal, 14 de piel, escamas o pelaje                                                                                 |
+
+- **Combinaciones:** la barba solo crece en humanos, orejas largas y carneros; el bigote, en los dos
+  primeros. Con capucha honda la cara queda en sombra y solo asoman el hocico, el pico, los cuernos,
+  la máscara de hueso o la barba.
+- **Arquetipos:** 13 hechiceros armados de una vez (bruja del pantano, monje de la cumbre, sectario
+  del abismo, mago lagarto, brujo lobo, chamán carnero, nigromante, autómata errante, cuervo
+  vidente, zorro peregrino, sapo alquimista, tejedora de la Trama y el clásico) y un botón Al azar.
+- Los perfiles guardados antes conservan su aspecto: las piezas nuevas toman el valor de siempre.

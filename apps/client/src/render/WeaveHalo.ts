@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { elementColor, glow } from './palette';
 
 /** Altura del tejido sobre el suelo: por encima de cualquier sombrero. */
-const HALO_Y = 2.6;
+const HALO_Y = 2.75;
 const SLOT_GAP = 0.42;
 const ORB_RADIUS = 0.16;
 
