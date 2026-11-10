@@ -34,6 +34,9 @@ export interface WizardLook {
  * anillo de bando, orbes del tejido y señales de estado. Formas simples y bien iluminadas
  * hasta que lleguen los modelos del Hito 5.
  */
+/** Cuánto se enciende el contorno del mago con el color de su bando. */
+const RIM_STRENGTH = 0.9;
+
 export class WizardView {
   /**
    * Hacia dónde mira la cámara (ángulo en el suelo), para que el tejido sobre la cabeza quede
@@ -103,6 +106,7 @@ export class WizardView {
       this.eyeMaterial,
       radius,
     );
+    kit.applyRim(this.teamColor, RIM_STRENGTH);
     this.robeMaterial = kit.robe;
     const model = buildWizardModel(kit, look);
     this.solidMeshes = kit.merge();
