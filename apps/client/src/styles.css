@@ -69,6 +69,10 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Safari en iPhone agranda por su cuenta los textos largos al poner el celular en
+     horizontal: el informe de rendimiento empujaba los botones fuera de la pantalla. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -89,8 +93,10 @@ body {
   pointer-events: none;
 }
 
+/* Gana siempre: antes, reglas como la del botón de pausa (display: grid) lo pisaban y el
+   botón seguía a la vista en el menú y el Vestidor. */
 #ui [hidden] {
-  display: none;
+  display: none !important;
 }
 
 #ui button {
@@ -1297,10 +1303,10 @@ body {
 
 /* Medidor de rendimiento (?fps=1): abajo al centro, donde no hay controles. */
 .fps-meter {
+  /* Junto a los datos de conexión, bajo el minimapa: lejos de los botones y los textos. */
   position: absolute;
-  left: 50%;
-  bottom: var(--safe-bottom);
-  translate: -50% 0;
+  top: calc(var(--safe-top) + var(--minimap) + 22px);
+  right: var(--safe-right);
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.65);
@@ -1397,6 +1403,10 @@ body {
 }
 
 .hud-result-card {
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  box-sizing: border-box;
   text-align: center;
 }
 
@@ -1418,7 +1428,7 @@ body {
 }
 
 .hud-result-perf {
-  margin: -10px auto 18px;
+  margin: 14px auto 0;
   padding: 8px 12px;
   max-width: min(560px, 80vw);
   list-style: none;
@@ -2147,7 +2157,7 @@ body {
 }
 
 .glyph-text {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.35;
   color: var(--ink-quiet);
 }

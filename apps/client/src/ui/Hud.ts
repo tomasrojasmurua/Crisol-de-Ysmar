@@ -106,11 +106,11 @@ export class Hud {
         <div class="hud-result-card">
           <h2></h2>
           <p class="hud-result-score"></p>
-          <ul class="hud-result-perf" hidden></ul>
           <div class="hud-result-actions">
             <button type="button" class="primary rematch">Revancha</button>
             <button type="button" class="secondary to-menu">Menú</button>
           </div>
+          <ul class="hud-result-perf" hidden></ul>
         </div>
       </div>`;
     parent.append(this.root);

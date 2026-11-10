@@ -913,7 +913,8 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   // Si caíste, la cámara sigue a quien miras.
   const watched = watchedOf(current);
   watchedId = watched?.id ?? -1;
-  watchBadge.hidden = watched === null;
+  // Entre rondas y al final, la pantalla de Glifos o el resultado ocupan el centro.
+  watchBadge.hidden = watched === null || resultShown || glyphPicker.isOpen;
   if (watched)
     watchBadge.textContent = `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`;
   const focus = watched ?? player;

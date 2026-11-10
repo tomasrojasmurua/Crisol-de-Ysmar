@@ -56,6 +56,10 @@ export class GlyphPicker {
   hide(): void {
     this.root.hidden = true;
   }
+
+  get isOpen(): boolean {
+    return !this.root.hidden;
+  }
 }
 
 /** Un signo simple para cada Glifo, según su elemento. */
