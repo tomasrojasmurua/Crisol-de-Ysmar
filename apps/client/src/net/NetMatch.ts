@@ -48,10 +48,17 @@ const SHRINK_AFTER = 300;
 const CATCH_UP_SLACK = 2;
 /** Si se juntan muchísimos (la pestaña estuvo en segundo plano), se salta directo. */
 const HARD_SKIP = 30;
-/** Cuánto se intenta volver si se corta la conexión. */
-const RECONNECT_MS = 60_000;
+/**
+ * Cuánto se intenta volver si se corta la conexión (con la app a la vista; al volver a la app
+ * se cuenta de nuevo). Mientras tanto, la IA juega por ti.
+ */
+const RECONNECT_MS = 5 * 60_000;
 const RECONNECT_EVERY_MS = 1500;
 const PING_EVERY_MS = 2000;
+/** Si no llega nada en este tiempo con la app a la vista, la conexión está muerta aunque no avise. */
+const SILENCE_MS = 6000;
+/** Cuánto se recuerda el pase para volver a una sala (por si se cierra la pestaña). */
+const TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
 /** Si la predicción y el servidor difieren más que esto (un salto, un empujón), no se suaviza. */
 const SNAP_DISTANCE = 3;
 /** Toques guardados a la espera de que el servidor los confirme (unos 4 s). */
@@ -75,6 +82,8 @@ export interface NetListener {
   start(match: NetMatch): void;
   /** Un problema que el jugador debe ver; `fatal` si ya no se puede seguir. */
   problem(reason: string, fatal: boolean): void;
+  /** Una buena noticia breve (por ejemplo, que volvió la conexión). */
+  notice(text: string): void;
   /** Cómo va la red: latencia, colchón y cortes, para el indicador. */
   stats(stats: NetStats): void;
 }
@@ -149,6 +158,12 @@ export class NetMatch implements MatchView {
   /** Rivales que la Sala dice que no ves: no se dibujan aunque lleguen en el estado. */
   private hidden: ReadonlySet<number> = new Set();
   private readonly lag = SIMULATED_LAG;
+  /** Volviste a la misma partida (tras un corte o al volver a la app): sigue sin rearmar nada. */
+  private resuming = false;
+  private lastHeard = 0;
+  private readonly onVisibility = (): void => this.visibilityChanged();
+  private readonly onOnline = (): void => this.retryNow();
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private bytesIn = 0;
   private biggest = 0;
   private measuredAt = 0;
@@ -161,6 +176,8 @@ export class NetMatch implements MatchView {
     private readonly listener: NetListener,
   ) {
     this.connect();
+    document.addEventListener('visibilitychange', this.onVisibility);
+    window.addEventListener('online', this.onOnline);
   }
 
   get player(): Wizard {
@@ -318,6 +335,9 @@ export class NetMatch implements MatchView {
   /** Te vas de la sala: la IA juega por ti. */
   close(): void {
     this.closed = true;
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    window.removeEventListener('online', this.onOnline);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.socket?.close(1000, 'Salió');
     this.socket = null;
@@ -334,7 +354,9 @@ export class NetMatch implements MatchView {
     this.socket = socket;
     this.decoder = new StateDecoder();
     socket.addEventListener('open', () => {
+      if (this.lostAt !== 0) this.listener.notice('Conexión recuperada');
       this.lostAt = 0;
+      this.lastHeard = performance.now();
       this.send({
         type: 'hello',
         protocol: PROTOCOL_VERSION,
@@ -343,17 +365,14 @@ export class NetMatch implements MatchView {
         affinity: this.profile.affinity,
         ...(this.token ? { token: this.token } : {}),
       });
-      if (!this.pingTimer) {
-        this.pingTimer = setInterval(
-          () => this.send({ type: 'ping', sentAt: performance.now() }),
-          PING_EVERY_MS,
-        );
-      }
+      if (document.hidden) this.send({ type: 'away', away: true });
+      if (!this.pingTimer) this.pingTimer = setInterval(() => this.heartbeat(), PING_EVERY_MS);
     });
     socket.addEventListener('message', (event) => {
       const data: unknown = event.data;
       const handle = (): void => {
         if (socket !== this.socket) return;
+        this.lastHeard = performance.now();
         if (data instanceof ArrayBuffer) {
           this.countBytes(data.byteLength);
           this.receiveFrame(socket, new Uint8Array(data));
@@ -377,6 +396,8 @@ export class NetMatch implements MatchView {
       return;
     }
     if (code === 4002) return;
+    // Ya hay un intento en camino (el corte se detectó dos veces): no se duplica.
+    if (this.retryTimer) return;
     const now = Date.now();
     if (this.lostAt === 0) {
       this.lostAt = now;
@@ -387,9 +408,61 @@ export class NetMatch implements MatchView {
       this.close();
       return;
     }
-    setTimeout(() => {
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
       if (!this.closed) this.connect();
     }, RECONNECT_EVERY_MS);
+  }
+
+  /** Cada 2 s: mide el ping y revisa que la conexión siga viva aunque no lo haya avisado. */
+  private heartbeat(): void {
+    const socket = this.socket;
+    if (!socket || socket.readyState !== WebSocket.OPEN || document.hidden) return;
+    if (performance.now() - this.lastHeard > SILENCE_MS) {
+      // Cambio de wifi a 4G, túnel…: el socket queda colgado sin cerrarse. Se fuerza el corte.
+      socket.close(4004, 'Sin respuesta');
+      this.onClose(socket, 4004);
+      return;
+    }
+    this.send({ type: 'ping', sentAt: performance.now() });
+  }
+
+  /** Volvió la señal: no se espera al próximo intento. */
+  private retryNow(): void {
+    if (this.closed || this.lostAt === 0 || !this.retryTimer) return;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.connect();
+  }
+
+  /**
+   * Saliste de la app o volviste. Afuera, la IA juega por ti y la Sala deja de mandarte el estado
+   * (ahorra batería y datos). Al volver se descarta lo viejo y se sigue desde el estado nuevo.
+   */
+  private visibilityChanged(): void {
+    if (this.closed) return;
+    const away = document.hidden;
+    if (!away) {
+      this.lastHeard = performance.now();
+      this.resync();
+      if (this.lostAt !== 0) {
+        // Afuera los intentos se frenan: al volver se da otra ventana completa y se intenta ya.
+        this.lostAt = Date.now();
+        this.retryNow();
+      }
+    }
+    this.send({ type: 'away', away });
+  }
+
+  /** Descarta lo guardado y muestra en el acto el próximo estado que llegue. */
+  private resync(): void {
+    if (!this.started) return;
+    this.buffer.length = 0;
+    this.primed = false;
+    this.previous.clear();
+    this.sent.length = 0;
+    this.resuming = true;
+    this.awaitingFirst = true;
   }
 
   private receive(message: ServerMessage): void {
@@ -404,6 +477,11 @@ export class NetMatch implements MatchView {
         return;
       case 'start':
         this.roster = message.players;
+        if (message.resume && this.started) {
+          // Misma partida tras un corte: se sigue desde el próximo estado, sin rearmar nada.
+          this.resync();
+          return;
+        }
         this.omen = OMENS.find((o) => o.id === message.omenId) ?? (OMENS[0] as Omen);
         this.affinities = new Map(message.players.map((p) => [p.id, p.affinity]));
         this.buffer.length = 0;
@@ -452,7 +530,8 @@ export class NetMatch implements MatchView {
     if (this.awaitingFirst) {
       this.awaitingFirst = false;
       this.apply(frame);
-      this.listener.start(this);
+      if (this.resuming) this.resuming = false;
+      else this.listener.start(this);
       return;
     }
     this.buffer.push(frame);
@@ -509,10 +588,18 @@ export class NetMatch implements MatchView {
     } else socket.send(text);
   }
 
-  /** Para volver a tu mago si se corta; vive mientras la pestaña siga abierta. */
+  /**
+   * Para volver a tu mago si se corta. Dura unas horas en el celular, así funciona aunque el
+   * sistema cierre la pestaña de fondo o vuelvas a entrar por el enlace de WhatsApp.
+   */
   private get token(): string | null {
     try {
-      return sessionStorage.getItem(`crisol.sala.${this.code}`);
+      const saved = JSON.parse(localStorage.getItem(`crisol.sala.${this.code}`) ?? 'null') as {
+        token?: unknown;
+        at?: unknown;
+      } | null;
+      if (!saved || typeof saved.token !== 'string' || typeof saved.at !== 'number') return null;
+      return Date.now() - saved.at < TOKEN_TTL_MS ? saved.token : null;
     } catch {
       return null;
     }
@@ -520,7 +607,12 @@ export class NetMatch implements MatchView {
 
   private set token(value: string | null) {
     try {
-      if (value) sessionStorage.setItem(`crisol.sala.${this.code}`, value);
+      if (value) {
+        localStorage.setItem(
+          `crisol.sala.${this.code}`,
+          JSON.stringify({ token: value, at: Date.now() }),
+        );
+      }
     } catch {
       // Sin almacenamiento: si se corta, entras como jugador nuevo.
     }

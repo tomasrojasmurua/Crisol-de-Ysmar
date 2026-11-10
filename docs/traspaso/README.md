@@ -107,7 +107,8 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 | #26           | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`).  |
 | #27           | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
 | #28           | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
-| Red liviana   | Estado binario por diferencias, rivales ocultos y simulador de lag.     |
+| #29           | Estado binario por diferencias, rivales ocultos y simulador de lag.     |
+| Celular       | App de fondo, silencio, conexión colgada y volver con el pase.          |
 
 ## Lo que sigue
 

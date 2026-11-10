@@ -32,6 +32,7 @@ export class Room extends DurableObject<Env> {
   private clock = 0;
   private sentTicks = 0;
   private lastStage = '';
+  private lastAway = '';
   /** Lo último que se le mandó a cada conexión, para mandarle solo lo que cambió. */
   private readonly encoders = new Map<WebSocket, StateEncoder>();
 
@@ -107,7 +108,7 @@ export class Room extends DurableObject<Env> {
         });
         this.broadcastPlayers();
         // Si la partida ya iba (volvió alguien), se le presenta; si recién empieza, avisa el reloj.
-        if (!this.duel.inLobby && !this.duel.startedNew) this.announceStart(socket);
+        if (!this.duel.inLobby && !this.duel.startedNew) this.announceStart(socket, true);
         this.ensureClock();
         return;
       }
@@ -122,6 +123,14 @@ export class Room extends DurableObject<Env> {
         return;
       case 'rematch':
         if (playerId !== undefined) this.duel.rematch(playerId);
+        return;
+      case 'away':
+        if (playerId === undefined) return;
+        if (!message.away) {
+          // Vuelve a la app: el próximo estado va completo, por si se perdió el hilo.
+          this.encoders.set(socket, new StateEncoder());
+        }
+        if (this.duel.setAway(playerId, message.away === true)) this.broadcastPlayers();
         return;
     }
   }
@@ -173,11 +182,22 @@ export class Room extends DurableObject<Env> {
       }
       this.broadcastState();
     }
+    // Alguien se quedó callado (sin señal) o volvió a hablar: se avisa a todos.
+    const away = duel.awayKey;
+    if (away !== this.lastAway) {
+      this.lastAway = away;
+      this.broadcastPlayers();
+    }
   }
 
-  private announceStart(socket: WebSocket): void {
+  private announceStart(socket: WebSocket, resume = false): void {
     if (!this.host) return;
-    send(socket, { type: 'start', omenId: this.host.omenId, players: this.host.players });
+    send(socket, {
+      type: 'start',
+      omenId: this.host.omenId,
+      players: this.host.players,
+      ...(resume ? { resume: true } : {}),
+    });
   }
 
   private broadcastPlayers(): void {
@@ -201,7 +221,7 @@ export class Room extends DurableObject<Env> {
     const snapshot = structuredClone(duel.state);
     for (const socket of this.ctx.getWebSockets()) {
       const playerId = (socket.deserializeAttachment() as Attachment | null)?.playerId;
-      if (playerId === undefined) continue;
+      if (playerId === undefined || !duel.wantsState(playerId)) continue;
       let encoder = this.encoders.get(socket);
       if (!encoder) {
         // La Sala despertó sin recordar lo mandado: se parte de nuevo con un cuadro completo.

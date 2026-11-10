@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHOOSE_TICKS, DuelHost, INTERMISSION_TICKS } from './duel';
+import { CHOOSE_TICKS, DuelHost, INTERMISSION_TICKS, SILENT_TICKS } from './duel';
 
 function host(): DuelHost {
   let n = 0;
@@ -115,5 +115,56 @@ describe('Sala de duelo 1v1', () => {
     duel.chooseGlyph(2, other.options[0] ?? '');
     expect(duel.stageFor(1).kind).toBe('playing');
     expect(duel.seriesInfo().roundsPlayed).toBe(1);
+  });
+});
+
+describe('Sala de duelo: celular de fondo y sin señal', () => {
+  function playing(): DuelHost {
+    const duel = host();
+    duel.join({ name: 'A' });
+    duel.join({ name: 'B' });
+    return duel;
+  }
+
+  it('si sales de la app, la IA juega por ti y no te llega el estado', () => {
+    const duel = playing();
+    expect(duel.setAway(1, true)).toBe(true);
+    expect(duel.setAway(1, true)).toBe(false);
+    expect(duel.wantsState(1)).toBe(false);
+    expect(duel.wantsState(2)).toBe(true);
+    expect(duel.players[0]?.away).toBe(true);
+    // Lo que llegue mientras tanto no mueve al mago: lo controla la IA.
+    const start = duel.state?.wizards[0]?.pos.x ?? 0;
+    for (let i = 0; i < 30; i++) {
+      duel.intents(1, [{ kind: 'move', x: 1, z: 0 }]);
+      duel.tick();
+    }
+    expect(duel.state?.wizards[0]?.pos.x ?? 0).toBeLessThan(start + 3);
+    duel.setAway(1, false);
+    expect(duel.players[0]?.away).toBe(false);
+    expect(duel.wantsState(1)).toBe(true);
+  });
+
+  it('si te quedas callado más de 2 s jugando, la IA te cubre hasta que vuelvas a hablar', () => {
+    const duel = playing();
+    duel.intents(1, [{ kind: 'move', x: 1, z: 0 }]);
+    for (let i = 0; i < SILENT_TICKS + 2; i++) {
+      duel.intents(2, []);
+      duel.tick();
+    }
+    expect(duel.players[0]?.away).toBe(true);
+    expect(duel.players[1]?.away).toBe(false);
+    expect(duel.awayKey).toBe('10');
+    duel.intents(1, []);
+    expect(duel.players[0]?.away).toBe(false);
+  });
+
+  it('al volver con el pase, vuelve presente', () => {
+    const duel = playing();
+    duel.setAway(1, true);
+    duel.leave(1);
+    const again = duel.join({ name: 'A', token: 'token-1' });
+    expect(again?.playerId).toBe(1);
+    expect(duel.players[0]).toMatchObject({ connected: true, away: false });
   });
 });

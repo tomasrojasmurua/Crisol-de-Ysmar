@@ -1,7 +1,7 @@
 import type { ElementId, Intent, MatchState } from '@crisol/core';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -25,6 +25,8 @@ export interface PlayerInfo {
   readonly affinity: ElementId | null;
   /** Si ahora mismo está conectado; si no, la IA juega por él. */
   readonly connected: boolean;
+  /** Conectado pero fuera de la app (pestaña oculta o sin señal): la IA juega por él. */
+  readonly away: boolean;
 }
 
 /** En qué parte de la partida va la Sala, visto por un jugador. */
@@ -50,6 +52,8 @@ export type ClientMessage =
   | { readonly type: 'intents'; readonly seq: number; readonly intents: readonly Intent[] }
   | { readonly type: 'glyph'; readonly glyphId: string }
   | { readonly type: 'rematch' }
+  /** Saliste de la app (o volviste): mientras no miras, la IA juega por ti y no te llega estado. */
+  | { readonly type: 'away'; readonly away: boolean }
   | { readonly type: 'ping'; readonly sentAt: number };
 
 /** De la Sala al celular. */
@@ -62,8 +66,16 @@ export type ServerMessage =
     }
   /** Quiénes están en la Sala; cambia cuando alguien entra, sale o vuelve. */
   | { readonly type: 'players'; readonly players: readonly PlayerInfo[] }
-  /** Empieza una partida nueva: el Presagio y quién es quién. */
-  | { readonly type: 'start'; readonly omenId: string; readonly players: readonly PlayerInfo[] }
+  /**
+   * Empieza una partida nueva: el Presagio y quién es quién. Con `resume`, es la misma partida
+   * que ya ibas jugando (volviste tras un corte): se sigue sin rearmar nada.
+   */
+  | {
+      readonly type: 'start';
+      readonly omenId: string;
+      readonly players: readonly PlayerInfo[];
+      readonly resume?: boolean;
+    }
   | { readonly type: 'pong'; readonly sentAt: number }
   | { readonly type: 'error'; readonly reason: string };
 
