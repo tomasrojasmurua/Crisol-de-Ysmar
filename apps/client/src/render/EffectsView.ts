@@ -1,5 +1,6 @@
 import type { GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
+import { createGlowTexture } from './arena/textures';
 import { fourthBlink } from './FourthSpellEffects';
 import { greatBlink, lineStrike } from './GreatSpellEffects';
 import type { Particles } from './Particles';
@@ -44,6 +45,8 @@ const SHAKERS: ReadonlySet<SpellId> = new Set([
   'emberSeed',
 ]);
 
+const WHITE = new THREE.Color('#ffffff');
+
 /**
  * Lo que dura un instante: estallidos, ondas, rayos de la marca y columnas al revivir.
  * Las mallas se reutilizan para no crear objetos en plena pelea.
@@ -52,6 +55,14 @@ export class EffectsView {
   private readonly rings: Timed[] = [];
   private readonly beams: Timed[] = [];
   private readonly columns: Timed[] = [];
+  /** Destellos de impacto: un sprite de luz que se abre y se apaga en un instante. */
+  private readonly flashes: {
+    sprite: THREE.Sprite;
+    age: number;
+    duration: number;
+    size: number;
+  }[] = [];
+  private readonly flashTexture = createGlowTexture();
   private readonly ringGeometry = new THREE.RingGeometry(0.85, 1, 48);
   private readonly beamGeometry: THREE.CylinderGeometry;
   private readonly columnGeometry = new THREE.CylinderGeometry(0.7, 0.7, 6, 24, 1, true);
@@ -163,6 +174,16 @@ export class EffectsView {
             5,
             0.45,
           );
+          // Destello y onda en el suelo: el golpe se siente, más fuerte cuanto más daño.
+          this.flash(
+            target.pos.x,
+            HIT_HEIGHT,
+            target.pos.z,
+            color,
+            1.4 + Math.min(1.6, event.amount / 18),
+            0.18,
+          );
+          this.ring(target.pos.x, target.pos.z, color, 1.3, 0.28);
           if (event.form === 'mark') {
             const source = byId(event.sourceId);
             if (source) this.beam(source.pos, target.pos, color, 0.35);
@@ -628,6 +649,18 @@ export class EffectsView {
 
   update(deltaSeconds: number): void {
     this.shake = Math.max(0, this.shake - deltaSeconds * 3);
+    for (const flash of this.flashes) {
+      if (!flash.sprite.visible) continue;
+      flash.age += deltaSeconds;
+      const t = flash.age / flash.duration;
+      if (t >= 1) {
+        flash.sprite.visible = false;
+        continue;
+      }
+      // Se abre rápido y se apaga suave.
+      flash.sprite.scale.setScalar(flash.size * (0.5 + 0.5 * Math.sqrt(t)));
+      flash.sprite.material.opacity = (1 - t) * (1 - t);
+    }
     for (const ring of this.rings) {
       if (!advance(ring, deltaSeconds)) continue;
       const t = ring.age / ring.duration;
@@ -657,6 +690,30 @@ export class EffectsView {
     if (player && Math.hypot(player.pos.x - pos.x, player.pos.z - pos.z) < reach) {
       this.shake = Math.min(1, this.shake + 0.35);
     }
+  }
+
+  flash(x: number, y: number, z: number, color: THREE.Color, size: number, duration: number): void {
+    let flash = this.flashes.find((f) => !f.sprite.visible);
+    if (!flash) {
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.flashTexture,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+        }),
+      );
+      this.scene.add(sprite);
+      flash = { sprite, age: 0, duration, size };
+      this.flashes.push(flash);
+    }
+    flash.age = 0;
+    flash.duration = duration;
+    flash.size = size;
+    flash.sprite.visible = true;
+    flash.sprite.position.set(x, y, z);
+    // El centro casi blanco y el borde del color del elemento.
+    flash.sprite.material.color.copy(glow(color.clone().lerp(WHITE, 0.35), 2.6));
   }
 
   ring(x: number, z: number, color: THREE.Color, size: number, duration: number): void {
