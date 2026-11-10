@@ -1,0 +1,13 @@
+{
+  "name": "Crisol de Ysmar",
+  "short_name": "Ysmar",
+  "description": "Duelo de hechiceros: teje la magia combinando cinco elementos.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07070c",
+  "theme_color": "#07070c",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

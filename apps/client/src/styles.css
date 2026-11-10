@@ -15,6 +15,42 @@
   --safe-right: max(16px, env(safe-area-inset-right));
   --safe-top: max(12px, env(safe-area-inset-top));
   --safe-bottom: max(12px, env(safe-area-inset-bottom));
+  --minimap: 112px;
+  /* Medidas de los controles táctiles (ver "Controles"). */
+  --stick: 112px;
+  --cast-size: 80px;
+  --element-size: 58px;
+  --cancel-size: 46px;
+  --arc: 126px;
+  /* Distancia del centro de ✦ al borde derecho y al borde inferior seguros. */
+  --pad-right: 84px;
+  --pad-bottom: 76px;
+  /* Lo alto que llegan los botones del tejido, medido desde abajo de la pantalla. */
+  --pad-reach: calc(var(--safe-bottom) + var(--pad-bottom) + var(--arc) + var(--element-size) / 2);
+}
+
+@media (max-height: 420px) {
+  :root {
+    --minimap: 92px;
+  }
+}
+
+@media (max-height: 380px) {
+  :root {
+    --stick: 100px;
+    --cast-size: 72px;
+    --element-size: 52px;
+    --cancel-size: 42px;
+    --arc: 112px;
+    --pad-right: 76px;
+    --pad-bottom: 66px;
+  }
+}
+
+@media (max-height: 340px) {
+  :root {
+    --minimap: 80px;
+  }
 }
 
 * {
@@ -28,6 +64,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -308,13 +345,19 @@ body {
   gap: 8px;
 }
 
+/*
+ * En el entrenamiento no hay reloj ni minimapa: el panel ocupa la esquina de arriba a la derecha
+ * y termina justo sobre los botones del tejido.
+ */
 .training-panel {
   position: absolute;
-  top: calc(var(--safe-top) + 70px);
-  right: calc(var(--safe-right) + 10px);
-  width: min(300px, 40vw);
-  max-height: calc(100% - var(--safe-top) - var(--safe-bottom) - 230px);
+  top: var(--safe-top);
+  right: var(--safe-right);
+  width: min(340px, calc(100vw - var(--safe-left) - var(--safe-right) - min(30vw, 240px) - 24px));
+  max-height: calc(100% - var(--safe-top) - var(--pad-reach) - 10px);
   overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -326,18 +369,60 @@ body {
   pointer-events: auto;
 }
 
+.training-panel * {
+  touch-action: pan-y;
+}
+
+#ui .training-panel button,
+.training-rest input {
+  touch-action: manipulation;
+}
+
 .training-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  column-gap: 10px;
   font-family: var(--display);
   letter-spacing: 0.12em;
   color: var(--gold);
 }
 
-.training-exit {
-  padding: 4px 10px;
+#ui .training-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.training-chevron {
+  transition: transform 0.15s ease;
+}
+
+.training-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.training-panel.folded .training-chevron {
+  transform: rotate(-90deg);
+}
+
+.training-panel.folded .training-body {
+  display: none;
+}
+
+#ui .training-exit {
+  padding: 8px 14px;
   font-size: 12px;
 }
 
@@ -345,8 +430,11 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0;
   color: #efe4cc;
+  white-space: nowrap;
 }
 
 .training-label {
@@ -474,7 +562,7 @@ body {
 
 .watch-badge {
   position: absolute;
-  top: calc(var(--safe-top) + 64px);
+  top: calc(var(--safe-top) + 92px);
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 14px;
@@ -486,12 +574,14 @@ body {
   pointer-events: none;
 }
 
+/* Bajo el minimapa: arriba al centro está el reloj. */
 .net-badge {
   position: absolute;
-  top: calc(var(--safe-top) + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
+  top: calc(var(--safe-top) + var(--minimap) + 6px);
+  right: var(--safe-right);
+  max-width: 40vw;
+  text-align: right;
+  font-size: 10px;
   color: rgba(240, 230, 210, 0.6);
   pointer-events: none;
 }
@@ -596,6 +686,11 @@ body {
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(10, 9, 14, 0.75), rgba(10, 9, 14, 0.35));
   border: 1px solid var(--panel-edge);
+}
+
+/* En el entrenamiento el reloj marcaría ∞: se esconde y deja la esquina al panel. */
+.hud.training .hud-round {
+  display: none;
 }
 
 .hud-round-label,
@@ -773,6 +868,13 @@ body {
   align-items: center;
   gap: 2px;
   will-change: transform;
+  transition: opacity 0.15s ease;
+}
+
+/* Encima de un botón la etiqueta se aclara: el botón siempre se ve. */
+#ui .world-label.under-controls:not(.calm),
+#ui .world-label.guardian.under-controls {
+  opacity: 0.22;
 }
 
 .world-label-name {
@@ -851,6 +953,7 @@ body {
 
 /* ---------- Controles ---------- */
 
+/* Las medidas salen de las variables de :root, que se achican en pantallas bajas. */
 .controls {
   position: absolute;
   inset: 0;
@@ -867,44 +970,47 @@ body {
 
 .joystick-base {
   position: absolute;
-  left: calc(var(--safe-left) + 80px);
-  top: calc(100% - var(--safe-bottom) - 90px);
-  width: 112px;
-  height: 112px;
-  margin: -56px 0 0 -56px;
+  left: calc(var(--safe-left) + var(--stick) * 0.72);
+  top: calc(100% - var(--safe-bottom) - var(--stick) * 0.8);
+  width: var(--stick);
+  height: var(--stick);
+  margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2);
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.04);
-  opacity: 0.5;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: radial-gradient(circle, rgba(216, 191, 138, 0.08), rgba(0, 0, 0, 0.25));
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
 }
 
 .joystick-base.active {
   opacity: 1;
+  transition: none;
 }
 
 .joystick-knob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 48px;
-  height: 48px;
-  margin: -24px 0 0 -24px;
+  width: calc(var(--stick) * 0.43);
+  height: calc(var(--stick) * 0.43);
+  margin: calc(var(--stick) * -0.215) 0 0 calc(var(--stick) * -0.215);
   border-radius: 50%;
-  background: rgba(232, 228, 220, 0.35);
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(243, 223, 176, 0.6),
+    rgba(216, 191, 138, 0.25)
+  );
+  box-shadow: 0 0 14px rgba(216, 191, 138, 0.35);
+  will-change: transform;
 }
 
 /* ---------- Tejido (pulgar derecho) ---------- */
 
 .weave-pad {
-  --cast-size: 80px;
-  --cast-x: calc(100% - var(--safe-right) - 84px);
-  --cast-y: calc(100% - var(--safe-bottom) - 72px);
-  --arc: 124px;
+  --cast-x: calc(100% - var(--safe-right) - var(--pad-right));
+  --cast-y: calc(100% - var(--safe-bottom) - var(--pad-bottom));
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 320px;
-  height: 300px;
+  inset: 0;
 }
 
 .element-button,
@@ -913,39 +1019,58 @@ body {
   position: absolute;
   border-radius: 50%;
   touch-action: none;
+  padding: 0;
+  transition:
+    scale 0.08s ease,
+    filter 0.08s ease;
+}
+
+/* Respuesta inmediata al tocar: en el celular :active no siempre se pinta. */
+.element-button.pressed,
+.cast-button.pressed,
+.cancel-button.pressed {
+  scale: 0.9;
+  filter: brightness(1.5);
+  transition: none;
 }
 
 .element-button {
-  --size: 56px;
+  --size: var(--element-size);
   left: var(--cast-x);
   top: var(--cast-y);
   width: var(--size);
   height: var(--size);
   margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
-  /* Arco desde la izquierda (170°) hasta arriba (290°) alrededor del botón de lanzar. */
-  transform: rotate(calc(170deg + var(--index) * 30deg)) translate(var(--arc))
-    rotate(calc(-170deg - var(--index) * 30deg));
+  /* Arco desde la izquierda (180°) hasta arriba a la derecha (300°) alrededor de ✦. */
+  transform: rotate(calc(180deg + var(--index) * 30deg)) translate(var(--arc))
+    rotate(calc(-180deg - var(--index) * 30deg));
   border: 2px solid var(--color);
   background:
     conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
     color-mix(in srgb, var(--color) 28%, rgba(10, 10, 14, 0.8));
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--color) 45%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--color) 35%, transparent);
   display: grid;
   place-items: center;
-  padding: 0;
 }
 
 .element-button.tired {
   border-color: color-mix(in srgb, var(--color) 40%, transparent);
-}
-
-.element-button:active {
-  filter: brightness(1.4);
+  box-shadow: none;
 }
 
 .element-name {
-  font-size: 10.5px;
+  font-size: calc(var(--element-size) * 0.19);
   font-weight: 600;
   text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+/* Mal de ojo: los botones se mueven a otro lugar del arco. */
+.weave-pad.hexed .element-button {
+  transition: transform 0.25s ease;
+  outline: 1px solid rgba(176, 90, 255, 0.55);
 }
 
 .cast-button {
@@ -954,39 +1079,50 @@ body {
   width: var(--cast-size);
   height: var(--cast-size);
   margin: calc(var(--cast-size) / -2) 0 0 calc(var(--cast-size) / -2);
-  border: 2px solid rgba(232, 228, 220, 0.5);
-  background: var(--panel);
-  font-size: 30px;
+  border: 2px solid rgba(243, 223, 176, 0.55);
+  background:
+    conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
+    radial-gradient(circle, rgba(243, 223, 176, 0.18), rgba(14, 12, 20, 0.8) 70%);
+  box-shadow: 0 0 22px rgba(243, 223, 176, 0.25);
+  color: var(--gold-bright);
+  font-size: calc(var(--cast-size) * 0.38);
 }
 
-.cast-button:active {
-  background: rgba(232, 228, 220, 0.2);
-}
-
+/* ✕ abajo a la izquierda de ✦, lejos de Brasa y del borde. */
 .cancel-button {
-  left: calc(var(--cast-x) - 76px);
-  top: calc(var(--cast-y) + 28px);
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  left: calc(var(--cast-x) - var(--arc) * 0.58);
+  top: calc(var(--cast-y) + var(--arc) * 0.37);
+  width: var(--cancel-size);
+  height: var(--cancel-size);
+  margin: calc(var(--cancel-size) / -2) 0 0 calc(var(--cancel-size) / -2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   background: var(--panel);
-  font-size: 14px;
+  font-size: 16px;
 }
 
+/* El tejido actual, justo encima de ✦: el pulgar no lo tapa al lanzar. */
 .weave-slots {
   position: absolute;
   left: var(--cast-x);
-  top: calc(var(--cast-y) + 52px);
-  transform: translateX(-50%);
+  top: calc(var(--cast-y) - var(--cast-size) / 2 - 22px);
+  transform: translate(-50%, -50%);
   display: flex;
   gap: 6px;
+  pointer-events: none;
 }
 
 .weave-slot {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(10, 9, 14, 0.5);
+  transition: transform 0.12s ease;
+}
+
+.weave-slot[data-element]:not([data-element=""]) {
+  transform: scale(1.12);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
 }
 
 .weave-slot[data-element="brasa"] {
@@ -1006,47 +1142,7 @@ body {
 }
 
 .weave-slot.channeling {
-  box-shadow: 0 0 8px currentColor;
-}
-
-/* Brillo de cada elemento y modo espectro. */
-.element-button {
-  box-shadow:
-    0 0 14px color-mix(in srgb, var(--color) 45%, transparent),
-    inset 0 0 12px color-mix(in srgb, var(--color) 35%, transparent);
-}
-
-.element-button.tired {
-  box-shadow: none;
-}
-
-/* Mal de ojo: los botones se mueven a otro lugar del arco. */
-.weave-pad.hexed .element-button {
-  transition: transform 0.25s ease;
-  outline: 1px solid rgba(176, 90, 255, 0.55);
-}
-
-.cast-button {
-  background:
-    conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
-    radial-gradient(circle, rgba(243, 223, 176, 0.18), rgba(14, 12, 20, 0.8) 70%);
-  border-color: rgba(243, 223, 176, 0.55);
-  box-shadow: 0 0 22px rgba(243, 223, 176, 0.25);
-  color: var(--gold-bright);
-}
-
-.joystick-base {
-  border-color: rgba(216, 191, 138, 0.3);
-  background: radial-gradient(circle, rgba(216, 191, 138, 0.08), rgba(0, 0, 0, 0.25));
-}
-
-.joystick-knob {
-  background: radial-gradient(
-    circle at 35% 35%,
-    rgba(243, 223, 176, 0.6),
-    rgba(216, 191, 138, 0.25)
-  );
-  box-shadow: 0 0 14px rgba(216, 191, 138, 0.35);
+  box-shadow: 0 0 10px currentColor;
 }
 
 #ui .weave-pad.spectre .element-button,
@@ -1068,13 +1164,21 @@ body {
   box-shadow: 0 0 26px rgba(176, 140, 255, 0.55);
 }
 
+/* Su nombre ocupa el lugar del tejido, que no se usa mientras haya uno guardado. */
+#ui .weave-pad.holding .weave-slots {
+  visibility: hidden;
+}
+
 .cast-button.held::after {
   content: attr(data-held);
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 15px);
   transform: translateX(-50%);
   white-space: nowrap;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(20, 14, 34, 0.75);
   font-size: 11px;
   font-weight: 600;
   color: #d9c8ff;
@@ -1114,14 +1218,11 @@ body {
   }
 }
 
+/* Bajo tu barra de vida: así no choca con el reloj ni con el minimapa. */
 .hud-omen {
-  position: absolute;
-  top: calc(var(--safe-top) + 4px);
-  right: calc(var(--safe-right) + 126px);
-  max-width: 28vw;
-  text-align: right;
+  margin-top: 5px;
   font-family: var(--display);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--gold);
@@ -1409,10 +1510,9 @@ body {
 .wardrobe-panel {
   width: min(420px, 54vw);
   max-height: 100%;
-  overflow-y: auto;
-  touch-action: pan-y;
+  overflow: hidden;
   pointer-events: auto;
-  padding: 14px 16px 16px;
+  padding: 14px 16px 12px;
   border-radius: 18px;
   border: 1px solid var(--panel-edge);
   background: linear-gradient(180deg, rgba(20, 17, 28, 0.88), rgba(10, 9, 14, 0.92));
@@ -1422,6 +1522,21 @@ body {
   flex-direction: column;
   gap: 6px;
   animation: fade-in 0.4s ease both;
+}
+
+/* El contenido se desliza; el botón Listo queda siempre debajo, sin taparlo. */
+.wardrobe-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  margin: 0 -6px;
+  padding: 0 6px 6px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
 }
 
 .wardrobe-panel * {
@@ -1569,24 +1684,9 @@ body {
 }
 
 #ui .wardrobe-done {
-  position: sticky;
-  bottom: 0;
-  margin-top: 10px;
-  box-shadow:
-    0 -12px 18px rgba(10, 9, 14, 0.9),
-    0 0 24px rgba(233, 207, 149, 0.35);
-}
-
-@media (orientation: portrait) {
-  .wardrobe {
-    align-items: flex-end;
-    background: linear-gradient(180deg, transparent 30%, rgba(7, 7, 12, 0.7));
-  }
-
-  .wardrobe-panel {
-    width: 100%;
-    max-height: 58%;
-  }
+  flex: none;
+  margin-top: 6px;
+  touch-action: manipulation;
 }
 
 /* ---------- Grimorio ---------- */
@@ -1803,8 +1903,8 @@ body {
   position: absolute;
   top: var(--safe-top);
   right: var(--safe-right);
-  width: 112px;
-  height: 112px;
+  width: var(--minimap);
+  height: var(--minimap);
   border-radius: 50%;
   pointer-events: none;
   box-shadow:
@@ -1818,16 +1918,63 @@ body {
   height: 100%;
 }
 
-@media (max-height: 420px) {
-  #ui .minimap {
-    width: 92px;
-    height: 92px;
+/* ---------- Solo horizontal ---------- */
+
+/*
+ * El juego es solo horizontal. Con el celular en vertical una pantalla pide girarlo y
+ * no deja tocar nada debajo (en Android, al entrar a jugar, además se fija la orientación).
+ */
+.rotate-screen {
+  display: none;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+    background: radial-gradient(ellipse at center, #14111c, var(--bg) 70%);
+    color: var(--gold-bright);
+    text-align: center;
+    pointer-events: auto;
   }
 }
 
-@media (orientation: portrait) {
-  #ui .hud-omen {
-    top: calc(var(--safe-top) + 124px);
-    right: var(--safe-right);
+.rotate-phone {
+  width: 46px;
+  height: 78px;
+  border: 3px solid var(--gold);
+  border-radius: 10px;
+  animation: rotate-phone 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-phone {
+  0%,
+  20% {
+    transform: rotate(0deg);
   }
+  50%,
+  80% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.rotate-screen strong {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.rotate-screen span {
+  font-size: 14px;
+  color: var(--ink-quiet);
 }

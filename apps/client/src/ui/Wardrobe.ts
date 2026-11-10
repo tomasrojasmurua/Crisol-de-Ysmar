@@ -37,6 +37,7 @@ export class Wardrobe {
     this.root.hidden = true;
     this.root.innerHTML = `
       <section class="wardrobe-panel">
+        <div class="wardrobe-body">
         <h2>Tu hechicero</h2>
         <label class="wardrobe-name">
           <span>Nombre</span>
@@ -61,6 +62,7 @@ export class Wardrobe {
             <h3>Foco</h3>
             <div class="wardrobe-row pieces" data-section="focus"></div>
           </div>
+        </div>
         </div>
         <button type="button" class="primary wardrobe-done">Listo</button>
       </section>`;

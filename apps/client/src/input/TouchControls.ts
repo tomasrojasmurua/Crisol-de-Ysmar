@@ -3,8 +3,13 @@ import { type ElementId, type GameRules, isElementId, type Wizard } from '@criso
 import { el } from '../ui/dom';
 import type { PlayerInput } from './PlayerInput';
 
+/** Radio del joystick si todavía no se pudo medir en pantalla. */
 const JOYSTICK_RADIUS = 56;
+/** Bajo esta fracción del radio el dedo no mueve al mago: evita que tiemble al apoyar el pulgar. */
+const DEAD_ZONE = 0.12;
 const DRAG_THRESHOLD = 22;
+/** Lo que dura el destello de un botón cuando no hay un `pointerup` que lo apague. */
+const PRESS_MS = 140;
 const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
 
 /**
@@ -66,6 +71,7 @@ export class TouchControls {
         this.lastHeld = held;
         this.castButton.dataset.held = held;
         this.castButton.classList.toggle('held', held !== '');
+        this.pad?.classList.toggle('holding', held !== '');
       }
     }
     this.applyHex(wizard.statuses.hexed?.power ?? 0);
@@ -101,16 +107,27 @@ export class TouchControls {
     let pointerId: number | null = null;
     let originX = 0;
     let originY = 0;
+    let radius = JOYSTICK_RADIUS;
+    let zoneLeft = 0;
+    let zoneTop = 0;
+    const placeBase = (): void => {
+      base.style.left = `${originX - zoneLeft}px`;
+      base.style.top = `${originY - zoneTop}px`;
+    };
 
     zone.addEventListener('pointerdown', (event) => {
       if (pointerId !== null) return;
+      event.preventDefault();
       pointerId = event.pointerId;
       zone.setPointerCapture(event.pointerId);
       const rect = zone.getBoundingClientRect();
+      zoneLeft = rect.left;
+      zoneTop = rect.top;
+      // El tamaño cambia con la pantalla (ver --stick en el CSS).
+      radius = base.offsetWidth / 2 || JOYSTICK_RADIUS;
       originX = event.clientX;
       originY = event.clientY;
-      base.style.left = `${originX - rect.left}px`;
-      base.style.top = `${originY - rect.top}px`;
+      placeBase();
       base.classList.add('active');
     });
     zone.addEventListener('pointermove', (event) => {
@@ -118,18 +135,27 @@ export class TouchControls {
       let dx = event.clientX - originX;
       let dy = event.clientY - originY;
       const len = Math.hypot(dx, dy);
-      if (len > JOYSTICK_RADIUS) {
-        dx = (dx / len) * JOYSTICK_RADIUS;
-        dy = (dy / len) * JOYSTICK_RADIUS;
+      if (len > radius) {
+        // Si el dedo se pasa del borde, la base lo sigue: cambiar de dirección es inmediato.
+        originX = event.clientX - (dx / len) * radius;
+        originY = event.clientY - (dy / len) * radius;
+        placeBase();
+        dx = (dx / len) * radius;
+        dy = (dy / len) * radius;
       }
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      this.input.move = { right: dx / JOYSTICK_RADIUS, up: -dy / JOYSTICK_RADIUS };
+      const amount = Math.min(1, len / radius);
+      const strength = amount < DEAD_ZONE ? 0 : (amount - DEAD_ZONE) / (1 - DEAD_ZONE);
+      const scale = len > 0 ? strength / Math.min(len, radius) : 0;
+      this.input.move = { right: dx * scale, up: -dy * scale };
     });
     const release = (event: PointerEvent): void => {
       if (event.pointerId !== pointerId) return;
       pointerId = null;
       knob.style.transform = '';
       base.classList.remove('active');
+      base.style.left = '';
+      base.style.top = '';
       this.input.move = { right: 0, up: 0 };
     };
     zone.addEventListener('pointerup', release);
@@ -150,6 +176,7 @@ export class TouchControls {
       button.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         this.input.push({ type: 'weave', element: element.id });
+        flash(button);
         navigator.vibrate?.(8);
       });
       this.elementButtons.set(element.id, button);
@@ -177,6 +204,8 @@ export class TouchControls {
     cancel.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       this.input.push({ type: 'cancel' });
+      flash(cancel);
+      navigator.vibrate?.(6);
     });
 
     pad.append(slotRow, cast, cancel);
@@ -204,6 +233,7 @@ export class TouchControls {
       button.setPointerCapture(event.pointerId);
       startX = event.clientX;
       startY = event.clientY;
+      button.classList.add('pressed');
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId === pointerId) this.input.aimPreview = dragOf(event);
@@ -211,6 +241,7 @@ export class TouchControls {
     const release = (event: PointerEvent): void => {
       if (event.pointerId !== pointerId) return;
       pointerId = null;
+      button.classList.remove('pressed');
       this.input.aimPreview = null;
       this.input.push({ type: 'cast', aim: event.type === 'pointercancel' ? null : dragOf(event) });
       navigator.vibrate?.(15);
@@ -263,4 +294,12 @@ export class TouchControls {
     const len = Math.hypot(right, up) || 1;
     this.input.move = { right: right / len, up: up / len };
   }
+}
+
+/** Destello corto al tocar un botón: la respuesta se ve en el mismo cuadro. */
+function flash(button: HTMLElement): void {
+  button.classList.remove('pressed');
+  void button.offsetWidth;
+  button.classList.add('pressed');
+  window.setTimeout(() => button.classList.remove('pressed'), PRESS_MS);
 }

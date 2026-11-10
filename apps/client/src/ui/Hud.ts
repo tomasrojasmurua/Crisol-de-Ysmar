@@ -65,6 +65,7 @@ export class Hud {
       <div class="hud-player">
         <div class="hud-name"><span class="hud-player-name">Tú</span> <span class="hud-lives"></span></div>
         <div class="hud-bar"><div class="hud-fill"></div></div>
+        <div class="hud-omen" hidden></div>
         <div class="hud-essence"></div>
         <div class="hud-allies"></div>
       </div>
@@ -74,7 +75,6 @@ export class Hud {
         <div class="hud-phase"></div>
         <div class="hud-score"></div>
       </div>
-      <div class="hud-omen" hidden></div>
       <div class="hud-discovery" hidden>
         <span class="hud-discovery-kicker">Nuevo conjuro</span>
         <span class="hud-discovery-orbs"></span>
@@ -146,6 +146,11 @@ export class Hud {
 
   set visible(value: boolean) {
     this.root.hidden = !value;
+  }
+
+  /** En el entrenamiento no hay reloj: su lugar lo usa el panel. */
+  set training(value: boolean) {
+    this.root.classList.toggle('training', value);
   }
 
   /** Prepara la lista de aliados para una ronda nueva. */
