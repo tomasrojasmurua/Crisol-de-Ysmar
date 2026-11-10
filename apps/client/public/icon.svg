@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Crisol de Ysmar">
+  <title>Crisol de Ysmar</title>
+  <rect width="512" height="512" rx="112" fill="#07070c"/>
+  <g stroke="#d8bf8a" stroke-width="10" stroke-opacity="0.55"><line x1="256.0" y1="106.0" x2="398.7" y2="209.6"/><line x1="398.7" y1="209.6" x2="344.2" y2="377.4"/><line x1="344.2" y1="377.4" x2="167.8" y2="377.4"/><line x1="167.8" y1="377.4" x2="113.3" y2="209.6"/><line x1="113.3" y1="209.6" x2="256.0" y2="106.0"/></g>
+  <circle cx="256" cy="256" r="46" fill="#f3dfb0"/>
+  <circle cx="256.0" cy="106.0" r="38" fill="#ff6a2b"/><circle cx="398.7" cy="209.6" r="38" fill="#8fd3ff"/><circle cx="344.2" cy="377.4" r="38" fill="#2f7dff"/><circle cx="167.8" cy="377.4" r="38" fill="#5fd068"/><circle cx="113.3" cy="209.6" r="38" fill="#a35cff"/>
+</svg>

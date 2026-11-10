@@ -21,20 +21,30 @@ export class TrainingPanel {
     this.root.hidden = true;
     this.root.innerHTML = `
       <header class="training-head">
-        <strong>Entrenamiento</strong>
+        <button type="button" class="training-toggle" aria-expanded="true">
+          <strong>Entrenamiento</strong> <span class="training-chevron">▾</span>
+        </button>
+        <label class="training-rest"><input type="checkbox" checked /> Sin cansancio</label>
         <button type="button" class="secondary training-exit">Salir</button>
       </header>
-      <label class="training-rest"><input type="checkbox" checked /> Sin cansancio</label>
-      <p class="training-label">Tejiendo</p>
-      <div class="training-weaving"></div>
-      <p class="training-label">Último lanzado</p>
-      <div class="training-last"><p class="training-empty">Lanza algo con ✦</p></div>`;
+      <div class="training-body">
+        <p class="training-label">Tejiendo</p>
+        <div class="training-weaving"></div>
+        <p class="training-label">Último lanzado</p>
+        <div class="training-last"><p class="training-empty">Lanza algo con ✦</p></div>
+      </div>`;
     parent.append(this.root);
     this.weaving = query(this.root, '.training-weaving');
     this.last = query(this.root, '.training-last');
     this.rest = query(this.root, '.training-rest input') as HTMLInputElement;
     this.rest.addEventListener('change', () => onRestless(this.rest.checked));
     query(this.root, '.training-exit').addEventListener('click', onExit);
+    // En pantallas bajas el panel se puede plegar para ver la arena entera.
+    const toggle = query(this.root, '.training-toggle');
+    toggle.addEventListener('click', () => {
+      const folded = this.root.classList.toggle('folded');
+      toggle.setAttribute('aria-expanded', String(!folded));
+    });
   }
 
   set visible(value: boolean) {

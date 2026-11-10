@@ -46,6 +46,8 @@ import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
 import { NetMatch } from './net/NetMatch';
+import { enterImmersive, ScreenAwake } from './platform/mobile';
+import { AdaptiveResolution } from './render/AdaptiveResolution';
 import { AimGuide } from './render/AimGuide';
 import { ArenaView } from './render/arena/ArenaView';
 import { MapViews } from './render/arena/MapViews';
@@ -66,6 +68,7 @@ import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { TrainingPanel } from './ui/TrainingPanel';
+import { UiObstacles } from './ui/UiObstacles';
 import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
 
@@ -131,7 +134,9 @@ const human = new HumanController(
   (screen) => rig.screenToGround(screen.right, screen.up),
   rules,
 );
-const labels = new WorldLabels(uiRoot);
+const obstacles = new UiObstacles(uiRoot);
+const labels = new WorldLabels(uiRoot, obstacles);
+const screenAwake = new ScreenAwake();
 const controls = new TouchControls(uiRoot, input);
 const minimap = new Minimap(uiRoot, rules);
 const blindVeil = new BlindVeil(uiRoot);
@@ -284,14 +289,8 @@ function previewCamera(time: number, delta: number): void {
   const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
   wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
   view.update(wizard, 0, 0, time, delta, false, rules);
-  const portrait = window.innerWidth < window.innerHeight;
-  if (portrait) {
-    camera.position.set(0, 1.7, -7.2);
-    camera.lookAt(0, -1.3, 0);
-  } else {
-    camera.position.set(-1.1, 1.55, -3.9);
-    camera.lookAt(-1.1, 1.05, 0);
-  }
+  camera.position.set(-1.1, 1.55, -3.9);
+  camera.lookAt(-1.1, 1.05, 0);
 }
 
 /** Color del bando de un equipo, a partir de cualquiera de sus magos. */
@@ -309,6 +308,8 @@ function useRules(next: GameRules): void {
 
 function showMenu(): void {
   trainingPanel.visible = false;
+  hud.training = false;
+  screenAwake.active = false;
   net?.close();
   net = null;
   if (location.search) history.replaceState(null, '', location.pathname);
@@ -338,6 +339,7 @@ function showMenu(): void {
 }
 
 function startMatch(options: MatchOptions): void {
+  enterImmersive();
   const seed = (Math.random() * 2 ** 32) >>> 0;
   useRules(rulesForMode(options.mode));
   const current = new LocalMatch(options, rules, human, seed);
@@ -360,6 +362,7 @@ function startMatch(options: MatchOptions): void {
 
 /** El modo entrenamiento: tú contra un muñeco, con el panel de lo que estás tejiendo. */
 function startTraining(): void {
+  enterImmersive();
   useRules(rulesForMode({ kind: 'duel' }));
   const current = new TrainingMatch(rules, human, profile.affinity);
   useRules(current.rules);
@@ -368,6 +371,7 @@ function startTraining(): void {
     look: { robe: 'ceniza', trim: 'oro', skin: 'arena', headwear: 'capucha', focus: 'baculo' },
   }));
   trainingPanel.visible = true;
+  obstacles.invalidate();
 }
 
 /** Empieza (o reempieza) un duelo en red: los nombres y el aspecto vienen de la sala. */
@@ -429,6 +433,10 @@ function beginMatch(
   pickerShown = false;
   hud.setOmen(current.omen.name, current.omen.description);
   hud.setPlayerName(profile.name);
+  hud.training = current instanceof TrainingMatch;
+  screenAwake.active = true;
+  resolution.restart();
+  obstacles.invalidate();
   rig.snap();
 }
 
@@ -573,6 +581,7 @@ const lobby = new Lobby(
 );
 
 function openLobby(): void {
+  enterImmersive();
   menu.visible = false;
   lobby.showChoice();
 }
@@ -630,7 +639,24 @@ let pendingInvite = '';
 
 // ---------- Fijar objetivo tocando a un rival ----------
 
+/** Un toque, no un arrastre: arrastrar el dedo gira la cámara y no debe cambiar de objetivo. */
+const TAP_SLOP_PX = 14;
+const TAP_MAX_MS = 350;
+const taps = new Map<number, { x: number; y: number; at: number }>();
 canvas.addEventListener('pointerdown', (event) => {
+  taps.set(event.pointerId, { x: event.clientX, y: event.clientY, at: event.timeStamp });
+});
+canvas.addEventListener('pointercancel', (event) => taps.delete(event.pointerId));
+canvas.addEventListener('pointerup', (event) => {
+  const start = taps.get(event.pointerId);
+  taps.delete(event.pointerId);
+  if (!start || !match) return;
+  const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+  if (moved > TAP_SLOP_PX || event.timeStamp - start.at > TAP_MAX_MS) return;
+  lockAt(start.x, start.y);
+});
+
+function lockAt(screenX: number, screenY: number): void {
   if (!match) return;
   const projected = new THREE.Vector3();
   let best: { id: number; distance: number } | null = null;
@@ -639,32 +665,36 @@ canvas.addEventListener('pointerdown', (event) => {
     projected.set(wizard.pos.x, 1.2, wizard.pos.z).project(camera);
     const x = ((projected.x + 1) / 2) * window.innerWidth;
     const y = ((1 - projected.y) / 2) * window.innerHeight;
-    const distance = Math.hypot(x - event.clientX, y - event.clientY);
+    const distance = Math.hypot(x - screenX, y - screenY);
     if (distance < 80 && (!best || distance < best.distance)) best = { id: wizard.id, distance };
   }
   for (const beast of match.state.beasts) {
     projected.set(beast.pos.x, 0.8, beast.pos.z).project(camera);
     const x = ((projected.x + 1) / 2) * window.innerWidth;
     const y = ((1 - projected.y) / 2) * window.innerHeight;
-    const distance = Math.hypot(x - event.clientX, y - event.clientY);
+    const distance = Math.hypot(x - screenX, y - screenY);
     if (distance < 70 && (!best || distance < best.distance)) best = { id: beast.id, distance };
   }
-  if (best) input.push({ type: 'lock', targetId: best.id });
-});
+  if (best) {
+    input.push({ type: 'lock', targetId: best.id });
+    navigator.vibrate?.(10);
+  }
+}
 
 // ---------- Tamaño ----------
+
+/** Baja la resolución si el celular no alcanza los cuadros por segundo, y la sube si sobra. */
+const resolution = new AdaptiveResolution(window.devicePixelRatio);
 
 function resize(): void {
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const pixelRatio = Math.min(window.devicePixelRatio, 2);
+  const pixelRatio = resolution.pixelRatio;
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(width, height, false);
   post.setSize(width, height, pixelRatio);
   particles.setViewportHeight(height * pixelRatio);
   camera.aspect = width / height;
-  // En vertical se abre el ángulo para no perder de vista al rival.
-  camera.fov = width < height ? 75 : 55;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -680,6 +710,7 @@ let elapsed = 0;
 renderer.setAnimationLoop((now) => {
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
+  if (resolution.sample(frameMs) !== null) resize();
   const delta = frameMs / 1000;
   elapsed += delta;
 
@@ -801,7 +832,8 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   });
   // Cegado: la pantalla se oscurece alrededor y el minimapa se apaga.
   blindVeil.update(player, delta);
-  minimap.show(!player.statuses.blind);
+  // En el entrenamiento la esquina es del panel; el muñeco no se esconde.
+  minimap.show(!player.statuses.blind && !(current instanceof TrainingMatch));
   zone.update(state.zoneRadius, time);
   creatures.sync(state, teamColor, time, delta);
 
@@ -822,6 +854,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
 
   controls.render(current.present?.(player) ?? player, rules, isSpectre(state, player));
   hud.update(state, player, current.series, current.roundNumber, badges, rules);
+  obstacles.refresh();
   labels.updateBeasts(state, camera, beastName, elementColorHex);
   const seen = visibleEnemies(state, player.team, rules);
   labels.update(

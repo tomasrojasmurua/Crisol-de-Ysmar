@@ -1,0 +1,77 @@
+/** Resoluciones que se prueban, de la más nítida a la más liviana (en píxeles por punto CSS). */
+const STEPS = [2, 1.75, 1.5, 1.25, 1] as const;
+/** Cuánto se mide antes de decidir. */
+const WINDOW_MS = 1000;
+/** Al empezar una partida se compilan sombreadores y hay tirones: no se cuentan. */
+const WARMUP_MS = 1500;
+/** Sobre esto (menos de ~50 cuadros por segundo) se baja la resolución. */
+const SLOW_FRAME_MS = 20;
+/** Bajo esto (pantallas de 90 o 120 Hz con holgura) se puede volver a subir. */
+const FAST_FRAME_MS = 13;
+/** Ventanas rápidas seguidas antes de subir. */
+const FAST_WINDOWS_TO_RISE = 4;
+/** Tras bajar no se intenta subir por un rato: evita que la imagen parpadee entre dos niveles. */
+const RISE_COOLDOWN_MS = 30_000;
+/** Un cuadro así de largo es una pestaña en pausa o un tirón aislado, no lentitud. */
+const IGNORE_FRAME_MS = 100;
+
+/**
+ * Ajusta la resolución del dibujo para mantener el juego fluido: si el celular no alcanza,
+ * baja los píxeles por punto un escalón; si sobra, sube. Lo primero es la fluidez, luego la nitidez.
+ */
+export class AdaptiveResolution {
+  private readonly steps: readonly number[];
+  private level = 0;
+  private windowMs = 0;
+  private windowFrames = 0;
+  private fastWindows = 0;
+  private warmupMs = WARMUP_MS;
+  private riseBlockedMs = 0;
+
+  constructor(devicePixelRatio: number) {
+    const max = Math.max(1, Math.min(devicePixelRatio, STEPS[0]));
+    this.steps = [max, ...STEPS.filter((step) => step < max)];
+  }
+
+  get pixelRatio(): number {
+    return this.steps[this.level] ?? 1;
+  }
+
+  /** Vuelve a esperar el calentamiento (al empezar una partida). Conserva el nivel alcanzado. */
+  restart(): void {
+    this.warmupMs = WARMUP_MS;
+    this.windowMs = 0;
+    this.windowFrames = 0;
+    this.fastWindows = 0;
+  }
+
+  /** Registra un cuadro. Devuelve la nueva resolución si cambió, o null. */
+  sample(frameMs: number): number | null {
+    if (frameMs <= 0 || frameMs > IGNORE_FRAME_MS) return null;
+    this.riseBlockedMs = Math.max(0, this.riseBlockedMs - frameMs);
+    if (this.warmupMs > 0) {
+      this.warmupMs -= frameMs;
+      return null;
+    }
+    this.windowMs += frameMs;
+    this.windowFrames += 1;
+    if (this.windowMs < WINDOW_MS) return null;
+    const average = this.windowMs / this.windowFrames;
+    this.windowMs = 0;
+    this.windowFrames = 0;
+
+    if (average > SLOW_FRAME_MS && this.level < this.steps.length - 1) {
+      this.level += 1;
+      this.fastWindows = 0;
+      this.riseBlockedMs = RISE_COOLDOWN_MS;
+      return this.pixelRatio;
+    }
+    this.fastWindows = average < FAST_FRAME_MS ? this.fastWindows + 1 : 0;
+    if (this.fastWindows >= FAST_WINDOWS_TO_RISE && this.level > 0 && this.riseBlockedMs <= 0) {
+      this.level -= 1;
+      this.fastWindows = 0;
+      return this.pixelRatio;
+    }
+    return null;
+  }
+}

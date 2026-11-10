@@ -8,7 +8,9 @@ es lo vigente.
 ## Decisiones clave
 
 - **Pilares:** la magia se construye, descubrir es progresar, duelos con estrategia.
-- **Plataforma:** juego web que se abre desde un enlace de WhatsApp, celular en horizontal.
+- **Plataforma:** juego web que se abre desde un enlace de WhatsApp, celular **solo en horizontal**
+  (en vertical una pantalla pide girarlo; en Android se fija la orientación y se pasa a pantalla
+  completa al entrar a jugar). Ninguna pieza del HUD puede quedar encima de un botón.
 - **Cámara:** tercera persona sobre el hombro con fijación de objetivo (elegida en el Hito 1 frente a la vista 3/4).
   Gira hacia el rival solo si está a menos de 18 m; si no, conserva su dirección.
 - **Mapa:** el 1v1 se juega solo en la plaza (17 m de radio, sin jungla ni bestias), para que el

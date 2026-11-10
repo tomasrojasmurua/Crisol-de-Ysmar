@@ -11,14 +11,16 @@ import {
 import * as THREE from 'three';
 import { el } from './dom';
 import type { WizardBadge } from './Hud';
+import type { UiObstacles } from './UiObstacles';
 
 const elementHex = (id: string): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
 const LABEL_HEIGHT = 2.55;
 const BEAST_LABEL_RANGE = 26;
-/** Alto de la franja superior de la interfaz, en píxeles. */
-const HUD_TOP = 96;
 const EDGE_MARGIN = 28;
+/** Medida aproximada de una etiqueta (nombre y barra), para esquivar la interfaz. */
+const LABEL_WIDTH = 96;
+const LABEL_HEIGHT_PX = 30;
 
 interface Label {
   readonly root: HTMLElement;
@@ -40,7 +42,10 @@ export class WorldLabels {
   private readonly beastLabels = new Map<number, Label>();
   private readonly projected = new THREE.Vector3();
 
-  constructor(parent: HTMLElement) {
+  constructor(
+    parent: HTMLElement,
+    private readonly obstacles: UiObstacles,
+  ) {
     this.layer = el('div', 'world-labels');
     parent.append(this.layer);
   }
@@ -108,7 +113,13 @@ export class WorldLabels {
 
       label.root.hidden = !onScreen || hidden;
       if (onScreen) {
-        label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+        // Si el rival queda detrás del reloj, su nombre baja; si queda tras un botón, se aclara.
+        const ly = this.obstacles.clearOfTop(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX);
+        label.root.style.transform = `translate(${x}px, ${ly}px) translate(-50%, -100%)`;
+        label.root.classList.toggle(
+          'under-controls',
+          this.obstacles.coversControl(x, ly, LABEL_WIDTH, LABEL_HEIGHT_PX),
+        );
         label.fill.style.width = `${(wizard.hp / wizard.maxHp) * 100}%`;
         label.root.classList.toggle('fallen', wizard.hp <= 0);
         const showFatigue = insight && wizard.team !== playerTeam && wizard.hp > 0;
@@ -141,8 +152,15 @@ export class WorldLabels {
         const scale = 1 / Math.max(Math.abs(dx), Math.abs(dy), 1e-3);
         dx *= scale;
         dy *= scale;
-        const ax = Math.min(width - EDGE_MARGIN, Math.max(EDGE_MARGIN, ((dx + 1) / 2) * width));
-        const ay = Math.min(height - EDGE_MARGIN, Math.max(EDGE_MARGIN, ((1 - dy) / 2) * height));
+        const edgeX = Math.min(width - EDGE_MARGIN, Math.max(EDGE_MARGIN, ((dx + 1) / 2) * width));
+        const edgeY = Math.min(
+          height - EDGE_MARGIN,
+          Math.max(EDGE_MARGIN, ((1 - dy) / 2) * height),
+        );
+        // La flecha se corre por el borde para no quedar bajo el minimapa ni bajo los botones.
+        const clear = this.obstacles.clearPoint(edgeX, edgeY, EDGE_MARGIN / 2);
+        const ax = clear.x;
+        const ay = Math.min(height - EDGE_MARGIN, Math.max(EDGE_MARGIN, clear.y));
         const angle = Math.atan2(-dy, dx);
         label.arrow.style.transform = `translate(${ax}px, ${ay}px) translate(-50%, -50%) rotate(${angle}rad)`;
       }
@@ -183,11 +201,15 @@ export class WorldLabels {
       const near =
         Math.hypot(camera.position.x - beast.pos.x, camera.position.z - beast.pos.z) <
         BEAST_LABEL_RANGE;
-      // Arriba de todo está el reloj de la ronda: ahí el nombre estorbaría.
-      const underHud = y < HUD_TOP;
+      // Bajo el reloj o la vida, el nombre de una bestia estorbaría: se esconde.
+      const underHud = this.obstacles.clearOfTop(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX) !== y;
       label.root.hidden = !onScreen || !near || underHud;
       label.root.classList.toggle('calm', !interesting);
       if (onScreen) {
+        label.root.classList.toggle(
+          'under-controls',
+          this.obstacles.coversControl(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX),
+        );
         label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
         label.fill.style.width = `${(beast.hp / beast.maxHp) * 100}%`;
       }
