@@ -24,7 +24,7 @@ import {
 } from './GreatSpellViews';
 import { createGrownTree, updateGrownTree } from './JungleSpellViews';
 import type { Particles } from './Particles';
-import { elementColor, formColor, glow } from './palette';
+import { elementColor, elementOfForm, formColor, glow } from './palette';
 import {
   createRootWall,
   createTether,
@@ -49,6 +49,7 @@ import {
 } from './SpellScenery';
 import { createSummon, updateSummon } from './SummonViews';
 import { createAura, createBubble, updateAura, updateBubble } from './SupportViews';
+import { Trails } from './Trails';
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
@@ -84,13 +85,16 @@ export class SpellViews {
   private readonly sparkGeometry = new THREE.SphereGeometry(0.08, 8, 6);
   private readonly glowTexture = createGlowTexture();
   private readonly decoys = new Map<number, WizardView>();
+  private readonly trails: Trails;
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly rules: GameRules,
     private readonly particles: Particles,
     private readonly makeDecoy: DecoyFactory = () => null,
-  ) {}
+  ) {
+    this.trails = new Trails(scene);
+  }
 
   sync(spells: readonly SpellEntity[], world: SpellWorld): void {
     const alive = new Set<number>();
@@ -112,6 +116,7 @@ export class SpellViews {
         this.decoys.delete(id);
       }
     }
+    this.trails.update(world.delta);
   }
 
   private create(spell: SpellEntity): THREE.Object3D {
@@ -385,6 +390,17 @@ export class SpellViews {
   ): void {
     view.position.set(pos.x, 1.3, pos.z);
     const color = view.userData.color as THREE.Color;
+    // Estela de cinta del color del conjuro; la de Tormenta tiembla como un rayo.
+    const element = elementOfForm(spell.payload.form);
+    this.trails.track(
+      spell.id,
+      pos.x,
+      1.3,
+      pos.z,
+      glow(color, 1.6),
+      Math.max(0.12, spell.radius * 0.75),
+      element === 'tormenta',
+    );
     // Estela de chispas detrás del proyectil.
     this.particles.emit({
       x: pos.x + (Math.random() - 0.5) * 0.15,
