@@ -1,7 +1,7 @@
 import { applyHit } from '../../combat/hit';
 import { beastStats, damageBeast } from '../../match/beasts';
 import { lineBlocked } from '../../match/obstacles';
-import { currentTarget, enemiesOf, isHiddenFrom } from '../../match/queries';
+import { autoTarget, enemiesOf, isHiddenFrom } from '../../match/queries';
 import type {
   Beast,
   EntityId,
@@ -149,7 +149,8 @@ export function groundPoint(
   range: number,
   rules: GameRules,
 ): Vec2 {
-  const target = currentTarget(state, caster, rules);
+  // El mismo blanco que el disparo automático: mago o bestia.
+  const target = autoTarget(state, caster, rules);
   if (target) {
     const offset = sub(target.pos, caster.pos);
     if (length(offset) <= range && dot(normalize(offset), aim) > 0.9) {

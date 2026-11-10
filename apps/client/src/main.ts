@@ -16,9 +16,9 @@ import {
   WIZARD_NAMES,
 } from '@crisol/content';
 import {
+  autoTarget,
   type Beast,
   createMatch,
-  currentTarget,
   ELEMENT_IDS,
   type ElementId,
   FixedStepClock,
@@ -142,6 +142,7 @@ scene.add(lantern);
 const input = new PlayerInput();
 const human = new HumanController(
   input,
+  (screen) => rig.moveToGround(screen.right, screen.up),
   (screen) => rig.screenToGround(screen.right, screen.up),
   rules,
 );
@@ -992,15 +993,19 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   zone.update(state.zoneRadius, time);
   creatures.sync(state, teamColor, time, delta);
 
-  // El objetivo es la bestia fijada a mano, o el rival.
-  const lockedBeast = state.beasts.find((b) => b.id === player.lockTarget);
-  const target = currentTarget(state, focus, rules);
-  const targetPos = lockedBeast
-    ? lockedBeast.pos
-    : target
-      ? current.interpolated(target.id, target.pos, alpha)
+  // La marca muestra a quién irá el disparo automático (lo mismo que calcula el núcleo).
+  const aimed = autoTarget(state, focus, rules);
+  const targetPos = aimed
+    ? aimed.kind === 'wizard'
+      ? current.interpolated(aimed.id, aimed.pos, alpha)
+      : aimed.pos
+    : null;
+  // La cámara solo se centra en lo fijado a mano; si caíste, en lo que apunta a quien miras.
+  const cameraFocus =
+    aimed && targetPos && (watched || aimed.id === player.lockTarget)
+      ? { id: aimed.id, pos: targetPos }
       : null;
-  rig.update(playerPos, targetPos, delta, effects.shake);
+  rig.update(playerPos, cameraFocus, delta, effects.shake);
   const forward = rig.forward();
   WizardView.viewYaw = Math.atan2(-forward.x, -forward.z);
   audio.setListener(playerPos, rig.forward(), current.playerId);
