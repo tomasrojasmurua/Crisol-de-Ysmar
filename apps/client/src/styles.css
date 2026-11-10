@@ -345,32 +345,20 @@ body {
   gap: 8px;
 }
 
-/*
- * En el entrenamiento no hay reloj ni minimapa: el panel ocupa la esquina de arriba a la derecha
- * y termina justo sobre los botones del tejido.
- */
+/* Entrenamiento: barra chica arriba a la derecha, donde iría el minimapa. */
 .training-panel {
   position: absolute;
   top: var(--safe-top);
   right: var(--safe-right);
-  width: min(340px, calc(100vw - var(--safe-left) - var(--safe-right) - min(30vw, 240px) - 24px));
-  max-height: calc(100% - var(--safe-top) - var(--pad-reach) - 10px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 999px;
   border: 1px solid var(--panel-edge);
   background: rgba(10, 9, 14, 0.78);
   backdrop-filter: blur(4px);
   pointer-events: auto;
-}
-
-.training-panel * {
-  touch-action: pan-y;
 }
 
 #ui .training-panel button,
@@ -378,47 +366,21 @@ body {
   touch-action: manipulation;
 }
 
-.training-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 10px;
-  font-family: var(--display);
-  letter-spacing: 0.12em;
-  color: var(--gold);
-}
-
-#ui .training-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: auto;
-  padding: 6px 0;
-  border: 0;
-  background: none;
-  color: var(--gold);
+.training-title {
   font-family: var(--display);
   font-size: 13px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: var(--gold);
   white-space: nowrap;
 }
 
-.training-chevron {
-  transition: transform 0.15s ease;
-}
-
-.training-body {
+.training-rest {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
-}
-
-.training-panel.folded .training-chevron {
-  transform: rotate(-90deg);
-}
-
-.training-panel.folded .training-body {
-  display: none;
+  font-size: 12px;
+  color: #efe4cc;
+  white-space: nowrap;
 }
 
 #ui .training-exit {
@@ -426,43 +388,101 @@ body {
   font-size: 12px;
 }
 
-.training-rest {
+/* Bajo tu vida: el último hechizo que lanzaste; al tocarlo, qué hace. */
+.training-spell {
+  margin-top: 8px;
+  width: max-content;
+  max-width: min(320px, 42vw);
+  pointer-events: auto;
+}
+
+#ui .training-spell-summary {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 12px;
-  letter-spacing: 0;
-  color: #efe4cc;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(10, 9, 14, 0.75);
+  touch-action: manipulation;
+  text-align: left;
+}
+
+#ui .training-spell-summary:disabled {
+  cursor: default;
+}
+
+#ui .training-spell.open .training-spell-summary {
+  border-color: rgba(243, 223, 176, 0.55);
+}
+
+#ui .training-spell.pulse .training-spell-summary {
+  animation: training-pulse 0.5s ease;
+}
+
+@keyframes training-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(243, 223, 176, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(243, 223, 176, 0);
+  }
+}
+
+.training-spell-name {
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--gold-bright);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.training-label {
-  margin: 4px 0 0;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(216, 191, 138, 0.75);
+.training-spell-chevron {
+  font-size: 12px;
+  color: var(--gold);
+  transition: transform 0.15s ease;
 }
 
-.training-panel .spell-card {
+.training-spell.open .training-spell-chevron {
+  transform: rotate(180deg);
+}
+
+.training-spell-empty {
+  font-size: 12px;
+  color: rgba(240, 230, 210, 0.6);
+}
+
+/* El detalle se desliza si no cabe, sin bajar hasta el joystick. */
+.training-spell-detail {
+  margin-top: 6px;
+  max-height: calc(100vh - var(--safe-top) - 150px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.training-spell-detail * {
+  touch-action: pan-y;
+}
+
+.training-spell-detail .spell-card {
+  gap: 6px;
   padding: 10px 12px;
-  box-shadow: none;
 }
 
-.training-panel .spell-card-name {
+.training-spell-detail .spell-card-name {
   font-size: 16px;
 }
 
-.training-panel .spell-card-text {
+.training-spell-detail .spell-card-text {
   font-size: 13px;
 }
 
-.training-empty,
-.training-more {
-  margin: 0;
-  font-size: 12px;
-  color: rgba(240, 230, 210, 0.55);
+.training-spell-detail .spell-card-facts span {
+  font-size: 11px;
 }
 
 /* ---------- Jugar con un amigo ---------- */
@@ -1968,13 +1988,19 @@ body {
   }
 }
 
-.rotate-screen strong {
+.rotate-title {
   font-family: var(--display);
   font-size: 20px;
   letter-spacing: 0.12em;
 }
 
-.rotate-screen span {
+.rotate-hint {
   font-size: 14px;
   color: var(--ink-quiet);
+}
+
+/* Los colores del último hechizo del entrenamiento, un poco más grandes. */
+.training-spell-summary .weave-orb {
+  width: 13px;
+  height: 13px;
 }
