@@ -16,6 +16,34 @@ const DEADBAND = 0.35;
 const SETTLED = 0.05;
 const ORIGIN = new THREE.Vector2(0, 0);
 
+/** Cómo gira la cámara hacia lo que sigue: depende del modo elegido en Pausa. */
+export interface TurnStyle {
+  /** Radianes por segundo. */
+  readonly speed: number;
+  /** Mientras lo seguido quede dentro de este ángulo del centro, no se gira. */
+  readonly deadband: number;
+  /** Al girar, se detiene a este ángulo del centro. */
+  readonly settle: number;
+  /** Si algo nuevo para seguir se centra de inmediato aunque esté dentro del margen. */
+  readonly centerOnNew: boolean;
+}
+
+/** Se centra en lo fijado: rápido y hasta el centro. */
+export const CENTER_STYLE: TurnStyle = {
+  speed: TURN_SPEED,
+  deadband: DEADBAND,
+  settle: SETTLED,
+  centerOnNew: true,
+};
+
+/** Sigue al blanco sin molestar: despacio, solo si está por salirse (~55°) y sin centrarlo del todo. */
+export const FOLLOW_STYLE: TurnStyle = {
+  speed: 1.2,
+  deadband: 0.95,
+  settle: 0.45,
+  centerOnNew: false,
+};
+
 /** Lleva un ángulo a (-π, π]. */
 function wrapAngle(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -46,6 +74,7 @@ export class CameraRig {
    * el mago sigue yendo hacia donde iba.
    */
   private moveBasis: THREE.Vector2 | null = null;
+  style: TurnStyle = CENTER_STYLE;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -79,7 +108,7 @@ export class CameraRig {
     const focusId = focus?.id ?? null;
     if (focusId !== this.focusId) {
       this.focusId = focusId;
-      this.turning = focusId !== null;
+      this.turning = focusId !== null && this.style.centerOnNew;
     }
     if (focus && this.manualHold === 0) {
       const dx = focus.pos.x - player.x;
@@ -88,11 +117,12 @@ export class CameraRig {
       if (distance > 1e-2 && distance < FACE_TARGET_RANGE) {
         const current = Math.atan2(this.heading.y, this.heading.x);
         const offset = wrapAngle(Math.atan2(dz, dx) - current);
-        if (Math.abs(offset) > DEADBAND) this.turning = true;
+        const { speed, deadband, settle } = this.style;
+        if (Math.abs(offset) > deadband) this.turning = true;
         if (this.turning) {
-          const step = Math.sign(offset) * Math.min(Math.abs(offset), TURN_SPEED * deltaSeconds);
+          const step = Math.sign(offset) * Math.min(Math.abs(offset), speed * deltaSeconds);
           this.heading.rotateAround(ORIGIN, step);
-          if (Math.abs(offset - step) < SETTLED) this.turning = false;
+          if (Math.abs(offset - step) < settle) this.turning = false;
         }
       }
     } else {

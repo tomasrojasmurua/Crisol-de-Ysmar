@@ -24,15 +24,19 @@ import {
   FixedStepClock,
   type GameEvent,
   type GameRules,
+  isHiddenFrom,
   isSpectre,
+  type MatchState,
   SeededRng,
   TICK_MS,
+  type Vec2,
   type Wizard,
 } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import * as THREE from 'three';
 import { GameAudio } from './audio/GameAudio';
-import { CameraRig } from './camera/CameraRig';
+import { type CameraMode, readCameraMode, saveCameraMode } from './camera/CameraMode';
+import { CameraRig, CENTER_STYLE, FOLLOW_STYLE } from './camera/CameraRig';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
 import { MatchPerfLog } from './game/MatchPerfLog';
@@ -70,6 +74,7 @@ import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
+import { EdgeIndicators } from './ui/EdgeIndicators';
 import { FpsMeter } from './ui/FpsMeter';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
@@ -230,6 +235,36 @@ function applyQuality(): void {
   spells.trailsEnabled = full;
 }
 applyQuality();
+
+// ---------- Modos de cámara (de prueba, se eligen en Pausa) ----------
+
+let cameraMode: CameraMode = readCameraMode();
+const edges = new EdgeIndicators(uiRoot);
+/** Cámara asistida: al disparar sin arrastrar, la cámara se centra un rato en ese blanco. */
+let castFocus: { id: number; until: number } | null = null;
+/** Hasta dónde se avisa con flechas de un rival fuera de pantalla. */
+const EDGE_RANGE = 25;
+const CAST_FOCUS_SECONDS = 1.5;
+function applyCameraMode(): void {
+  rig.style = cameraMode === 'seguimiento' ? FOLLOW_STYLE : CENTER_STYLE;
+  castFocus = null;
+  if (cameraMode !== 'asistida') edges.clear();
+}
+applyCameraMode();
+input.onAction((action) => {
+  if (action.type !== 'cast' || action.aim || cameraMode !== 'asistida' || !match) return;
+  const target = autoTarget(match.state, match.player, rules);
+  castFocus = target ? { id: target.id, until: elapsed + CAST_FOCUS_SECONDS } : null;
+});
+
+/** Dónde está ahora un mago o una bestia (para el aviso de golpes). */
+function entityPos(state: MatchState, id: number): Vec2 | null {
+  return (
+    state.wizards.find((w) => w.id === id)?.pos ??
+    state.beasts.find((b) => b.id === id)?.pos ??
+    null
+  );
+}
 const pauseMenu = new PauseMenu(
   uiRoot,
   audio.engine,
@@ -243,6 +278,11 @@ const pauseMenu = new PauseMenu(
       fpsMeter.enabled = on;
       netBadge.hidden = !(on && net);
     },
+    onCameraMode: (mode) => {
+      cameraMode = mode;
+      saveCameraMode(mode);
+      applyCameraMode();
+    },
     onLightGraphics: (on) => {
       quality = on ? 'liviana' : 'alta';
       saveQuality(quality);
@@ -252,6 +292,7 @@ const pauseMenu = new PauseMenu(
   },
   fpsMeter.enabled,
   quality === 'liviana',
+  cameraMode,
 );
 // Si el celular cambia de app en plena partida contra la IA, queda en pausa.
 document.addEventListener('visibilitychange', () => {
@@ -396,6 +437,7 @@ function showMenu(): void {
   lobby.hide();
   netBadge.hidden = true;
   watchBadge.hidden = true;
+  edges.clear();
   pauseMenu.setAvailable(false, false);
   paused = false;
   match = null;
@@ -857,6 +899,16 @@ renderer.setAnimationLoop((now) => {
       audio.onEvents(events, current.state);
       for (const event of events) {
         if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
+        if (
+          event.type === 'hit' &&
+          cameraMode === 'asistida' &&
+          event.targetId === current.playerId &&
+          event.form !== 'zone' &&
+          event.sourceId !== current.playerId
+        ) {
+          const from = entityPos(current.state, event.sourceId);
+          if (from) edges.hit(from);
+        }
       }
       if (current instanceof TrainingMatch) {
         for (const event of events) {
@@ -1001,12 +1053,37 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
       ? current.interpolated(aimed.id, aimed.pos, alpha)
       : aimed.pos
     : null;
-  // La cámara solo se centra en lo fijado a mano; si caíste, en lo que apunta a quien miras.
-  const cameraFocus =
-    aimed && targetPos && (watched || aimed.id === player.lockTarget)
-      ? { id: aimed.id, pos: targetPos }
-      : null;
+  // Qué sigue la cámara depende del modo: lo fijado a mano (y, en la asistida, el blanco de un
+  // disparo reciente) o, en seguimiento, el blanco del disparo. Si caíste, el de quien miras.
+  if (castFocus && (elapsed > castFocus.until || castFocus.id !== aimed?.id)) castFocus = null;
+  const follows =
+    aimed !== null &&
+    (watched !== null ||
+      aimed.id === player.lockTarget ||
+      cameraMode === 'seguimiento' ||
+      castFocus?.id === aimed.id);
+  const cameraFocus = follows && aimed && targetPos ? { id: aimed.id, pos: targetPos } : null;
   rig.update(playerPos, cameraFocus, delta, effects.shake);
+  if (cameraMode === 'asistida') {
+    const arrows =
+      player.hp > 0 && !resultShown && !glyphPicker.isOpen
+        ? state.wizards
+            .filter(
+              (w) =>
+                w.team !== player.team &&
+                w.hp > 0 &&
+                !isHiddenFrom(w, player, rules) &&
+                !blindedFrom(player, w, rules) &&
+                Math.hypot(w.pos.x - playerPos.x, w.pos.z - playerPos.z) <= EDGE_RANGE,
+            )
+            .map((w) => ({
+              pos: current.interpolated(w.id, w.pos, alpha),
+              color: teamColor(w.team),
+              strong: w.id === aimed?.id,
+            }))
+        : [];
+    edges.update(camera, arrows, delta);
+  }
   const forward = rig.forward();
   WizardView.viewYaw = Math.atan2(-forward.x, -forward.z);
   audio.setListener(playerPos, rig.forward(), current.playerId);
