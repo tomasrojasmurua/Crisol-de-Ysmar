@@ -1,6 +1,7 @@
-import { ELEMENT_IDS, modeSetup, obstacleAt } from '@crisol/core';
+import { ELEMENT_IDS, modeSetup, obstacleAt, SPELL_IDS } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { AFFINITY_RULES } from './affinity';
+import { SPELL_DESCRIPTIONS } from './descriptions';
 import { ELEMENTS } from './elements';
 import { FEATURES } from './features';
 import { ALL_WEAVES, spellName, weaveKey } from './grimoire';
@@ -49,6 +50,12 @@ describe('Grimorio', () => {
     expect(ALL_WEAVES).toHaveLength(155);
     expect(new Set(ALL_WEAVES.map(spellName)).size).toBe(155);
     expect(new Set(ALL_WEAVES.map(weaveKey)).size).toBe(155);
+  });
+
+  it('cada hechizo tiene su descripción para el Grimorio y el entrenamiento', () => {
+    for (const id of SPELL_IDS) {
+      expect(SPELL_DESCRIPTIONS[id]?.length ?? 0, id).toBeGreaterThan(10);
+    }
   });
 
   it('cada uno de los 155 tejidos tiene su propio hechizo con nombre, sin ecos', () => {

@@ -32,7 +32,10 @@ es lo vigente.
 - **Jungla viva:** el Incendio forestal quema árboles y el Brote de árbol los planta; los cambios
   duran hasta el fin de la ronda.
 - **Partida:** mejor de 3 rondas de 3 minutos (Caza, Convergencia y Duelo final, un minuto cada una). Modos 1v1,
-  2v2, 3v3 y todos contra todos hasta 6. Al morir: modo Espectro (3 Vidas está en pausa hasta probar con gente).
+  2v2, 3v3 y todos contra todos hasta 6. Al morir quedas fuera de la ronda y miras a quienes siguen
+  (el Espectro y las 3 Vidas están en pausa). Hay un **modo entrenamiento** contra un muñeco, con un
+  panel que muestra lo que estás tejiendo y qué hace. El Grimorio muestra solo lo descubierto y, al
+  tocar un conjuro, qué hace.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Bestias neutrales** dan Esencia (los familiares quedan para después de probar con gente). **Glifos** entre rondas y
   **Presagios** por partida.

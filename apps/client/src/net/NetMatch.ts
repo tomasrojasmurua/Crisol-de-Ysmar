@@ -25,10 +25,18 @@ type StateMessage = Extract<ServerMessage, { type: 'state' }>;
 
 /** El aviso de que empieza la ronda llega en este paso de la pausa (igual que en el celular). */
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
-/** Pasos que se guardan antes de empezar a mostrar: un colchón contra los saltos de la red. */
-const BUFFER_TARGET = 2;
-/** Si se juntan más pasos que estos, se adelanta para no quedar atrasado. */
-const BUFFER_MAX = 4;
+/**
+ * El colchón: pasos guardados antes de mostrar, contra los saltos de la red. Empieza chico y crece
+ * si la red se corta; vuelve a achicarse de a poco si pasa un rato sin cortes.
+ */
+const BUFFER_MIN = 2;
+const BUFFER_LIMIT = 8;
+/** Pasos sin cortes para achicar el colchón en uno (10 s). */
+const SHRINK_AFTER = 300;
+/** Si el colchón se pasa de su tamaño por más que esto, se muestran dos pasos por cuadro. */
+const CATCH_UP_SLACK = 2;
+/** Si se juntan muchísimos (la pestaña estuvo en segundo plano), se salta directo. */
+const HARD_SKIP = 30;
 /** Cuánto se intenta volver si se corta la conexión. */
 const RECONNECT_MS = 60_000;
 const RECONNECT_EVERY_MS = 1500;
@@ -42,8 +50,18 @@ export interface NetListener {
   start(match: NetMatch): void;
   /** Un problema que el jugador debe ver; `fatal` si ya no se puede seguir. */
   problem(reason: string, fatal: boolean): void;
-  /** Cambió la latencia medida, en milisegundos. */
-  latency(ms: number): void;
+  /** Cómo va la red: latencia, colchón y cortes, para el indicador. */
+  stats(stats: NetStats): void;
+}
+
+export interface NetStats {
+  /** Ida y vuelta al servidor, en milisegundos. */
+  readonly ping: number;
+  /** Pasos guardados ahora y el tamaño buscado. */
+  readonly buffer: number;
+  readonly target: number;
+  /** Veces que el colchón se vació y hubo que esperar. */
+  readonly stalls: number;
 }
 
 /** Tu perfil, para presentarte en la sala. */
@@ -59,7 +77,7 @@ export interface NetProfile {
  * Se ve igual que una partida local para el resto del juego.
  */
 export class NetMatch implements MatchView {
-  readonly options: MatchOptions = { mode: { kind: 'duel' }, deathRule: 'spectre', affinity: null };
+  readonly options: MatchOptions = { mode: { kind: 'duel' }, deathRule: 'out', affinity: null };
   state: MatchState = emptyState();
   series: SeriesState = { wins: [0, 0], roundsPlayed: 0, winnerTeam: null };
   stage: MatchStage = { kind: 'playing' };
@@ -75,6 +93,10 @@ export class NetMatch implements MatchView {
   private socket: WebSocket | null = null;
   private readonly buffer: StateMessage[] = [];
   private primed = false;
+  private target = BUFFER_MIN;
+  private calmSteps = 0;
+  private stalls = 0;
+  private ping = 0;
   private readonly previous = new Map<number, Vec2>();
   private glyphIds: Readonly<Record<number, readonly string[]>> = {};
   private netStage: NetStage = { kind: 'lobby' };
@@ -113,24 +135,41 @@ export class NetMatch implements MatchView {
       }
     }
     if (!this.primed) {
-      if (this.buffer.length < BUFFER_TARGET) return [];
+      if (this.buffer.length < this.target) return [];
       this.primed = true;
     }
     const events: GameEvent[] = [];
-    // Si la red trajo muchos de golpe, se adelanta (sin perder lo que pasó en ellos).
-    while (this.buffer.length > BUFFER_MAX) {
-      const skipped = this.buffer.shift();
-      if (skipped) {
-        events.push(...skipped.state.events);
-        this.apply(skipped);
-      }
+    // La pestaña estuvo en segundo plano: se salta directo, sin perder lo que pasó.
+    if (this.buffer.length > HARD_SKIP) {
+      while (this.buffer.length > this.target) this.consume(events);
     }
-    const next = this.buffer.shift();
-    if (!next) return events;
+    if (this.buffer.length === 0) {
+      // Se vació: se espera a juntar de nuevo y el colchón crece para la próxima.
+      if (this.netStage.kind === 'playing') {
+        this.stalls++;
+        this.target = Math.min(BUFFER_LIMIT, this.target + 1);
+        this.calmSteps = 0;
+      }
+      this.primed = false;
+      return events;
+    }
+    // Atrasado: se muestran dos pasos en este cuadro, un poco más rápido, hasta alcanzar.
+    if (this.buffer.length > this.target + CATCH_UP_SLACK) this.consume(events);
     this.rememberPositions();
+    this.consume(events);
+    if (++this.calmSteps >= SHRINK_AFTER && this.target > BUFFER_MIN) {
+      this.target--;
+      this.calmSteps = 0;
+    }
+    return events;
+  }
+
+  /** Muestra el siguiente estado guardado y junta lo que pasó en él. */
+  private consume(events: GameEvent[]): void {
+    const next = this.buffer.shift();
+    if (!next) return;
     this.apply(next);
     events.push(...next.state.events);
-    return events;
   }
 
   chooseGlyph(glyph: Glyph): void {
@@ -252,7 +291,13 @@ export class NetMatch implements MatchView {
         this.buffer.push(message);
         return;
       case 'pong':
-        this.listener.latency(Math.round(performance.now() - message.sentAt));
+        this.ping = Math.round(performance.now() - message.sentAt);
+        this.listener.stats({
+          ping: this.ping,
+          buffer: this.buffer.length,
+          target: this.target,
+          stalls: this.stalls,
+        });
         return;
       case 'error':
         this.listener.problem(message.reason, false);
@@ -341,7 +386,7 @@ function toStage(stage: NetStage, previous: MatchStage): MatchStage {
 
 function emptyState(): MatchState {
   return {
-    deathRule: 'spectre',
+    deathRule: 'out',
     tick: 0,
     zoneRadius: 0,
     rngState: 0,

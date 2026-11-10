@@ -742,7 +742,11 @@ export type GameEvent =
   | { readonly type: 'phase'; readonly phase: RoundPhase };
 
 /** Qué pasa al caer, según cómo se creó la sala. */
-export type DeathRule = 'spectre' | 'lives';
+/**
+ * Qué pasa al caer: `out` quedas fuera de la ronda y miras a quienes siguen; `spectre` sigues como
+ * espíritu que ralentiza y puede ser revivido (en pausa); `lives` reapareces mientras tengas vidas.
+ */
+export type DeathRule = 'out' | 'spectre' | 'lives';
 
 /** Caza, Convergencia y Duelo final. */
 export type RoundPhase = 'hunt' | 'convergence' | 'final';

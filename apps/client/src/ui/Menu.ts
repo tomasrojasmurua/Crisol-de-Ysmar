@@ -30,11 +30,15 @@ const MODES: readonly ModeChoice[] = [
 ];
 
 const ALL_DEATH_RULES: readonly { id: DeathRule; title: string; detail: string }[] = [
+  { id: 'out', title: 'Fuera', detail: 'Miras a los que quedan' },
   { id: 'spectre', title: 'Espectro', detail: 'Sigues como espíritu' },
   { id: 'lives', title: 'Vidas', detail: '3 vidas por ronda' },
 ];
-/** Con 3 Vidas en pausa, Espectro es la única regla y el menú no pregunta. */
-const DEATH_RULES = ALL_DEATH_RULES.filter((rule) => rule.id !== 'lives' || FEATURES.livesRule);
+/** Con el Espectro y las 3 Vidas en pausa, "fuera" es la única regla y el menú no pregunta. */
+const DEATH_RULES = ALL_DEATH_RULES.filter(
+  (rule) =>
+    (rule.id !== 'lives' || FEATURES.livesRule) && (rule.id !== 'spectre' || FEATURES.spectreRule),
+);
 
 const STORAGE_KEY = 'crisol.menu';
 
@@ -45,7 +49,7 @@ const STORAGE_KEY = 'crisol.menu';
 export class Menu {
   private readonly root: HTMLElement;
   private modeId = 'duel';
-  private deathRule: DeathRule = 'spectre';
+  private deathRule: DeathRule = 'out';
   private affinity: ElementId | null = null;
   private readonly wizardName: HTMLElement;
   private readonly wizardAffinity: HTMLElement;
@@ -58,6 +62,7 @@ export class Menu {
     onWardrobe: () => void,
     onGrimoire: () => void,
     onFriend: () => void,
+    onTraining: () => void,
   ) {
     this.restore();
     this.root = el('div', 'menu');
@@ -88,7 +93,10 @@ export class Menu {
         <h2 class="menu-rules-title">Al caer</h2>
         <div class="menu-rules"></div>
         <button type="button" class="primary menu-play">Entrar al Crisol</button>
-        <button type="button" class="secondary menu-friend">Jugar con un amigo</button>
+        <div class="menu-extra">
+          <button type="button" class="secondary menu-friend">Jugar con un amigo</button>
+          <button type="button" class="secondary menu-training">Entrenamiento</button>
+        </div>
       </section>`;
     parent.append(this.root);
     this.wizardName = query(this.root, '.menu-wizard-name');
@@ -126,6 +134,7 @@ export class Menu {
       rules.append(button);
     }
     query(this.root, '.menu-friend').addEventListener('click', onFriend);
+    query(this.root, '.menu-training').addEventListener('click', onTraining);
     query(this.root, '.menu-play').addEventListener('click', () => {
       this.save();
       onPlay(this.options);

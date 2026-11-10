@@ -21,7 +21,8 @@ export class CameraDrag {
       if (event.pointerId !== this.pointerId) return;
       const dx = event.clientX - this.lastX;
       this.lastX = event.clientX;
-      if (dx !== 0) onRotate(-dx * RADIANS_PER_PIXEL);
+      // La cámara gira hacia el mismo lado que arrastra el dedo.
+      if (dx !== 0) onRotate(dx * RADIANS_PER_PIXEL);
     });
     const release = (event: PointerEvent): void => {
       if (event.pointerId === this.pointerId) this.pointerId = null;
