@@ -631,19 +631,24 @@ function joinRoom(code: string): void {
       players: (players, me) => {
         lobby.setPlayers(players, me);
         if (current !== net) return;
+        // Presente: conectado y con la app a la vista. Si no, la IA juega por él.
+        const present = (p: (typeof players)[number]): boolean => p.connected && !p.away;
         if (!current.started) {
-          for (const p of players) seenConnected.set(p.id, p.connected);
+          for (const p of players) seenConnected.set(p.id, present(p));
           return;
         }
         // Avisos de quien se fue o volvió durante el duelo.
         for (const p of players) {
           if (p.id === me) continue;
           const was = seenConnected.get(p.id);
-          if (was === true && !p.connected)
-            hud.announce(`${p.name} se desconectó`, 'La IA juega por él', 2.6);
-          if (was === false && p.connected) hud.announce(`${p.name} volvió`, '', 2);
+          if (was === true && !present(p)) {
+            // Conectado pero ausente: salió de la app o se quedó sin señal (la Sala no distingue).
+            const why = p.connected ? 'se fue un momento' : 'se desconectó';
+            hud.announce(`${p.name} ${why}`, 'La IA juega por él', 2.6);
+          }
+          if (was === false && present(p)) hud.announce(`${p.name} volvió`, '', 2);
         }
-        for (const p of players) seenConnected.set(p.id, p.connected);
+        for (const p of players) seenConnected.set(p.id, present(p));
       },
       start: (started) => {
         if (started !== net) return;
@@ -655,6 +660,10 @@ function joinRoom(code: string): void {
         if (lobby.visible) lobby.setStatus(reason);
         else hud.announce(reason, fatal ? '' : 'Tu mago sigue en manos de la IA', 3);
         if (fatal && !match) lobby.setStatus(reason);
+      },
+      notice: (text) => {
+        if (current !== net) return;
+        if (!lobby.visible) hud.announce(text, '', 1.6);
       },
       stats: (stats) => {
         const simulated = stats.simulated ? ` · ${stats.simulated}` : '';

@@ -49,8 +49,22 @@ const listener = (): NetListener => ({
   players: () => {},
   start: () => {},
   problem: () => {},
+  notice: () => {},
   stats: () => {},
 });
+
+/** Lo mínimo del navegador que usa la red: visibilidad, eventos de señal y almacenamiento. */
+class FakeDocument extends EventTarget {
+  hidden = false;
+}
+const storage = new Map<string, string>();
+const fakeStorage = {
+  getItem: (key: string) => storage.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    storage.set(key, value);
+  },
+};
+let doc = new FakeDocument();
 const human = { intentsFor: (): readonly Intent[] => [{ kind: 'move', x: 1, z: 0 }] };
 
 function stateMessage(tick: number, ack = 0, hidden: number[] = []): StateFrame {
@@ -71,6 +85,11 @@ function stateMessage(tick: number, ack = 0, hidden: number[] = []): StateFrame 
 describe('duelo en red: el celular', () => {
   beforeEach(() => {
     vi.stubGlobal('WebSocket', FakeSocket);
+    doc = new FakeDocument();
+    storage.clear();
+    vi.stubGlobal('document', doc);
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('localStorage', fakeStorage);
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -195,5 +214,51 @@ describe('duelo en red: el celular', () => {
     const { socket } = joined();
     socket.receiveGarbage();
     expect(socket.closedWith).toBe(4003);
+  });
+
+  it('al salir de la app avisa a la Sala y al volver sigue desde el estado nuevo', () => {
+    const { net, socket } = joined();
+    for (const tick of [1, 2, 3]) socket.receive(stateMessage(tick));
+    net.step();
+    doc.hidden = true;
+    doc.dispatchEvent(new Event('visibilitychange'));
+    expect(JSON.parse(socket.sent.at(-1) ?? '{}')).toEqual({ type: 'away', away: true });
+    doc.hidden = false;
+    doc.dispatchEvent(new Event('visibilitychange'));
+    expect(JSON.parse(socket.sent.at(-1) ?? '{}')).toEqual({ type: 'away', away: false });
+    // Lo viejo se descarta: el próximo estado se muestra en el acto, sin esperar el colchón.
+    socket.receive(stateMessage(40));
+    expect(net.state.tick).toBe(40);
+  });
+
+  it('al volver tras un corte sigue la misma partida sin rearmarla', () => {
+    let starts = 0;
+    const counting = { ...listener(), start: () => starts++ };
+    const net = new NetMatch(
+      'K7QF',
+      { name: 'T', look: DEFAULT_LOOK, affinity: null },
+      human,
+      counting,
+    );
+    const socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
+    socket.receive({ type: 'start', omenId: 'x', players: [] });
+    socket.receive(stateMessage(0));
+    expect(starts).toBe(1);
+    socket.receive({ type: 'start', omenId: 'x', players: [], resume: true });
+    socket.receive(stateMessage(90));
+    expect(starts).toBe(1);
+    expect(net.state.tick).toBe(90);
+  });
+
+  it('guarda el pase para volver aunque se cierre la pestaña', () => {
+    joined();
+    const saved = JSON.parse(storage.get('crisol.sala.K7QF') ?? '{}');
+    expect(saved.token).toBe('t');
+    new NetMatch('K7QF', { name: 'T', look: DEFAULT_LOOK, affinity: null }, human, listener());
+    const again = FakeSocket.last as FakeSocket;
+    again.emit('open');
+    expect(JSON.parse(again.sent[0] ?? '{}').token).toBe('t');
   });
 });

@@ -40,6 +40,8 @@ export const CHOOSE_TICKS = TICK_RATE * 25;
 const GLYPH_OPTIONS = 3;
 /** Intenciones que se guardan por jugador entre dos pasos: lo demás se descarta. */
 const MAX_PENDING = 64;
+/** Jugando, si un jugador conectado no manda nada en este tiempo, la IA lo cubre (2 s). */
+export const SILENT_TICKS = TICK_RATE * 2;
 const NAME_MAX = 14;
 const PLAYERS = 2;
 
@@ -58,6 +60,10 @@ interface Slot {
   look: PlayerLook;
   affinity: ElementId | null;
   connected: boolean;
+  /** Salió de la app (pestaña oculta) o se quedó sin señal: la IA juega por él. */
+  away: boolean;
+  /** Paso en que llegó su último mensaje de toques. */
+  heardAt: number;
   pending: Intent[];
   /** El número del último mensaje de toques recibido y el del último ya jugado. */
   received: number;
@@ -91,6 +97,8 @@ export class DuelHost {
   /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
   private readonly lastSeen = new Map<string, Vec2>();
   private seed: number;
+  /** Pasos desde que se creó la Sala, para saber hace cuánto habló cada jugador. */
+  private clock = 0;
   state: MatchState | null = null;
   /** Se pone en true cuando empieza una partida; quien lo usa avisa y lo vuelve a false. */
   startedNew = false;
@@ -111,6 +119,8 @@ export class DuelHost {
     const name = cleanName(request.name);
     if (back) {
       back.connected = true;
+      back.away = false;
+      back.heardAt = this.clock;
       back.pending = [];
       back.received = 0;
       back.acked = 0;
@@ -126,6 +136,8 @@ export class DuelHost {
       look: cleanLook(request.look),
       affinity: request.affinity && isElementId(request.affinity) ? request.affinity : null,
       connected: true,
+      away: false,
+      heardAt: this.clock,
       pending: [],
       received: 0,
       acked: 0,
@@ -166,6 +178,7 @@ export class DuelHost {
         look: s.look,
         affinity: s.affinity,
         connected: s.connected,
+        away: s.connected && this.isAway(s),
       }));
   }
 
@@ -177,10 +190,37 @@ export class DuelHost {
     return this.stage.kind === 'lobby';
   }
 
+  /** Salió de la app o volvió. Devuelve si cambió (para avisar a los demás). */
+  setAway(playerId: number, away: boolean): boolean {
+    const slot = this.slots.get(playerId);
+    if (!slot?.connected || slot.away === away) return false;
+    slot.away = away;
+    slot.pending = [];
+    slot.heardAt = this.clock;
+    return true;
+  }
+
+  /** Si la IA juega por él aunque siga conectado: fuera de la app o callado hace rato. */
+  isAway(slot: { away: boolean; heardAt: number }): boolean {
+    return slot.away || (this.stage.kind === 'playing' && this.clock - slot.heardAt > SILENT_TICKS);
+  }
+
+  /** Quién está fuera ahora, para avisar cuando cambia. */
+  get awayKey(): string {
+    return [...this.slots.values()].map((s) => (s.connected && this.isAway(s) ? 1 : 0)).join('');
+  }
+
+  /** Si a este jugador hay que mandarle el estado (no, mientras está fuera de la app). */
+  wantsState(playerId: number): boolean {
+    const slot = this.slots.get(playerId);
+    return !slot?.away;
+  }
+
   /** Lo que tocó un jugador desde el último paso; `seq` numera sus mensajes. */
   intents(playerId: number, intents: readonly Intent[], seq = 0): void {
     const slot = this.slots.get(playerId);
     if (!slot?.connected) return;
+    slot.heardAt = this.clock;
     if (Number.isFinite(seq) && seq > slot.received) slot.received = seq;
     if (this.stage.kind !== 'playing') {
       slot.acked = slot.received;
@@ -213,6 +253,7 @@ export class DuelHost {
 
   /** Avanza un paso. */
   tick(): void {
+    this.clock++;
     switch (this.stage.kind) {
       case 'lobby':
       case 'finished':
@@ -354,7 +395,7 @@ export class DuelHost {
     const intents = new Map<number, Intent[]>();
     for (const wizard of state.wizards) {
       const slot = this.slots.get(wizard.id);
-      if (slot?.connected) {
+      if (slot?.connected && !this.isAway(slot)) {
         intents.set(wizard.id, slot.pending);
         slot.pending = [];
         slot.acked = slot.received;

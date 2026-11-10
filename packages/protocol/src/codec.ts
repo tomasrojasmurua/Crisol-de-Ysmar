@@ -9,7 +9,14 @@ export function encode(message: ClientMessage | ServerMessage): string {
 }
 
 export function decodeClientMessage(raw: string): ClientMessage | null {
-  return parseWithType<ClientMessage>(raw, ['hello', 'intents', 'glyph', 'rematch', 'ping']);
+  return parseWithType<ClientMessage>(raw, [
+    'hello',
+    'intents',
+    'glyph',
+    'rematch',
+    'away',
+    'ping',
+  ]);
 }
 
 export function decodeServerMessage(raw: string): ServerMessage | null {
