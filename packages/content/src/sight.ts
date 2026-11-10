@@ -26,9 +26,13 @@ export function veiledFromTeam(
   return eyes.every((eye) => isHiddenFrom(enemy, eye, rules));
 }
 
-/** Si estás cegado, los rivales más allá de tu vista corta no se dibujan. */
+/**
+ * Si estás cegado, los rivales más allá de tu vista corta no se dibujan. El Cazador ve a
+ * todos igual (como ya pasaba al apuntar), salvo a quien borró su rastro.
+ */
 export function blindedFrom(player: Wizard, other: Wizard, rules: GameRules): boolean {
   if (!player.statuses.blind || other.team === player.team) return false;
+  if (player.statuses.hunting && !other.statuses.unseen) return false;
   const d = Math.hypot(other.pos.x - player.pos.x, other.pos.z - player.pos.z);
   return d > rules.statuses.blind.sightRadius;
 }

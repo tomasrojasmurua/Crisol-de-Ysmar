@@ -23,7 +23,8 @@ export class BlindVeil {
   }
 
   update(player: Wizard, deltaSeconds: number): void {
-    const blind = player.statuses.blind;
+    // Con el Cazador la ceguera no oscurece: ve a todos los rivales igual.
+    const blind = player.statuses.hunting ? undefined : player.statuses.blind;
     // Se aclara en el último medio segundo.
     const target = blind ? Math.min(1, blind.ticks / 15) : 0;
     const speed = target > this.strength ? 6 : 3;

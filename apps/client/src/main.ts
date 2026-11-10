@@ -989,7 +989,8 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   // Cegado: la pantalla se oscurece alrededor y el minimapa se apaga.
   blindVeil.update(player, delta);
   // En el entrenamiento la esquina es del panel; el muñeco no se esconde.
-  minimap.show(!player.statuses.blind && !(current instanceof TrainingMatch));
+  const sightless = player.statuses.blind && !player.statuses.hunting;
+  minimap.show(!sightless && !(current instanceof TrainingMatch));
   zone.update(state.zoneRadius, time);
   creatures.sync(state, teamColor, time, delta);
 
