@@ -6,25 +6,40 @@ const WINDOW_MS = 500;
 
 /**
  * Medidor de rendimiento: cuadros por segundo y el cuadro más lento de cada medio segundo
- * (los tirones se notan en el peor cuadro, no en el promedio). Se enciende abriendo el juego
- * con `?fps=1` y queda guardado; `?fps=0` lo apaga.
+ * (los tirones se notan en el peor cuadro, no en el promedio). Apagado por defecto: se
+ * enciende en Pausa → "Mostrar datos de rendimiento" (o con `?fps=1`) y queda guardado.
  */
 export class FpsMeter {
   private readonly root: HTMLElement;
   private frames = 0;
   private spentMs = 0;
   private worstMs = 0;
-  readonly enabled: boolean;
+  private on: boolean;
 
   constructor(parent: HTMLElement) {
-    this.enabled = readSetting();
+    this.on = readSetting();
     this.root = el('div', 'fps-meter');
-    this.root.hidden = !this.enabled;
+    this.root.hidden = !this.on;
     parent.append(this.root);
   }
 
+  get enabled(): boolean {
+    return this.on;
+  }
+
+  set enabled(value: boolean) {
+    this.on = value;
+    this.root.hidden = !value;
+    try {
+      if (value) localStorage.setItem(STORAGE_KEY, '1');
+      else localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Sin almacenamiento: vale solo por esta vez.
+    }
+  }
+
   sample(frameMs: number): void {
-    if (!this.enabled) return;
+    if (!this.on) return;
     this.frames++;
     this.spentMs += frameMs;
     this.worstMs = Math.max(this.worstMs, frameMs);
