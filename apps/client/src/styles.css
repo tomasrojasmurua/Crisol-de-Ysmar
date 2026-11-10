@@ -10,6 +10,7 @@
   --trama: #b49cff;
   --panel: rgba(14, 12, 20, 0.72);
   --panel-edge: rgba(216, 191, 138, 0.22);
+  --bronze: rgba(216, 191, 138, 0.35);
   --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
   --safe-left: max(16px, env(safe-area-inset-left));
   --safe-right: max(16px, env(safe-area-inset-right));
@@ -1040,17 +1041,35 @@ body {
   border-radius: 50%;
   touch-action: none;
   padding: 0;
+  display: grid;
+  place-items: center;
+  /* Metal arcano y vidrio ahumado: el bronce da la estructura, la magia el color. */
+  border: 1.5px solid var(--bronze);
+  background: radial-gradient(circle, rgba(30, 27, 38, 0.82), rgba(10, 9, 14, 0.86) 72%);
   transition:
-    scale 0.08s ease,
-    filter 0.08s ease;
+    scale 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.icon {
+  display: block;
+  width: var(--icon-size, 50%);
+  height: var(--icon-size, 50%);
+  /* Por variable: la regla general `#ui button { color: inherit }` pisaría el color directo. */
+  color: var(--icon-color, currentColor);
+  pointer-events: none;
+  transition:
+    color 0.16s ease,
+    filter 0.16s ease;
 }
 
 /* Respuesta inmediata al tocar: en el celular :active no siempre se pinta. */
 .element-button.pressed,
 .cast-button.pressed,
 .cancel-button.pressed {
-  scale: 0.9;
-  filter: brightness(1.5);
+  scale: 0.94;
+  border-color: var(--gold-bright);
   transition: none;
 }
 
@@ -1061,36 +1080,81 @@ body {
   width: var(--size);
   height: var(--size);
   margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
-  /* Arco desde la izquierda (180°) hasta arriba a la derecha (300°) alrededor de ✦. */
+  /* Arco desde la izquierda (180°) hasta arriba a la derecha (300°) alrededor de Lanzar. */
   transform: rotate(calc(180deg + var(--index) * 30deg)) translate(var(--arc))
     rotate(calc(-180deg - var(--index) * 30deg));
-  border: 2px solid var(--color);
-  background:
-    conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
-    color-mix(in srgb, var(--color) 28%, rgba(10, 10, 14, 0.8));
-  box-shadow:
-    0 0 14px color-mix(in srgb, var(--color) 45%, transparent),
-    inset 0 0 12px color-mix(in srgb, var(--color) 35%, transparent);
-  display: grid;
-  place-items: center;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color) 16%, rgba(20, 18, 26, 0.85)),
+    rgba(10, 9, 14, 0.86) 72%
+  );
+  --icon-color: var(--color);
 }
 
-.element-button.tired {
-  border-color: color-mix(in srgb, var(--color) 40%, transparent);
-  box-shadow: none;
+.element-button .icon {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color) 55%, transparent));
 }
 
-.element-name {
-  font-size: calc(var(--element-size) * 0.19);
-  font-weight: 600;
-  text-shadow: 0 1px 2px #000;
+.element-button.pressed {
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color) 38%, rgba(20, 18, 26, 0.85)),
+    rgba(10, 9, 14, 0.86) 72%
+  );
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color) 55%, transparent);
+}
+
+/*
+ * Cansado: el glifo se apaga pero sigue visible, y un anillo del color del elemento se va
+ * completando mientras se recupera. No es "deshabilitado": se ve cuánto falta.
+ */
+.element-button::before,
+.cast-button::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--ring-color, var(--color)) calc((1 - var(--fatigue, 0)) * 360deg),
+    rgba(255, 255, 255, 0.08) 0
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  opacity: 0;
   pointer-events: none;
 }
 
-/* Mal de ojo: los botones se mueven a otro lugar del arco. */
+.element-button.tired {
+  --icon-color: var(--ink-quiet);
+}
+
+.element-button.tired .icon {
+  opacity: 0.55;
+  filter: none;
+}
+
+.element-button.tired::before {
+  opacity: 1;
+}
+
+/* Mal de ojo: los botones cambian de lugar y un anillo violeta los envuelve mientras dura. */
 .weave-pad.hexed .element-button {
   transition: transform 0.25s ease;
-  outline: 1px solid rgba(176, 90, 255, 0.55);
+}
+
+.weave-pad.hexed .element-button::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(163, 92, 255, 0.75);
+  animation: hex-spin 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes hex-spin {
+  to {
+    rotate: 1turn;
+  }
 }
 
 .cast-button {
@@ -1099,70 +1163,102 @@ body {
   width: var(--cast-size);
   height: var(--cast-size);
   margin: calc(var(--cast-size) / -2) 0 0 calc(var(--cast-size) / -2);
-  border: 2px solid rgba(243, 223, 176, 0.55);
-  background:
-    conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--fatigue, 0) * 360deg), transparent 0),
-    radial-gradient(circle, rgba(243, 223, 176, 0.18), rgba(14, 12, 20, 0.8) 70%);
-  box-shadow: 0 0 22px rgba(243, 223, 176, 0.25);
-  color: var(--gold-bright);
-  font-size: calc(var(--cast-size) * 0.38);
+  /* Doble anillo de bronce: no se confunde con un sexto elemento. */
+  border: 2px solid rgba(216, 191, 138, 0.55);
+  box-shadow:
+    inset 0 0 0 4px rgba(10, 9, 14, 0.9),
+    inset 0 0 0 5px var(--bronze);
+  --icon-color: #6e6878;
+  --icon-size: 42%;
 }
 
-/* ✕ abajo a la izquierda de ✦, lejos de Brasa y del borde. */
+/* Con algo tejido, la estrella se enciende. */
+.cast-button.ready {
+  --icon-color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+.cast-button.ready .icon {
+  filter: drop-shadow(0 0 4px rgba(243, 223, 176, 0.6));
+}
+
+/* Arrastrando para apuntar: el único momento en que Lanzar brilla. */
+.cast-button.pressed {
+  box-shadow:
+    inset 0 0 0 4px rgba(10, 9, 14, 0.9),
+    inset 0 0 0 5px var(--gold),
+    0 0 24px rgba(243, 223, 176, 0.45);
+}
+
+/* Deshacer abajo a la izquierda de Lanzar, lejos de Brasa y del borde. */
 .cancel-button {
   left: calc(var(--cast-x) - var(--arc) * 0.58);
   top: calc(var(--cast-y) + var(--arc) * 0.37);
   width: var(--cancel-size);
   height: var(--cancel-size);
   margin: calc(var(--cancel-size) / -2) 0 0 calc(var(--cancel-size) / -2);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: var(--panel);
-  font-size: 16px;
+  --icon-size: 46%;
 }
 
-/* El tejido actual, justo encima de ✦: el pulgar no lo tapa al lanzar. */
+/* El tejido actual, justo encima de Lanzar: el pulgar no lo tapa al lanzar. */
 .weave-slots {
   position: absolute;
   left: var(--cast-x);
-  top: calc(var(--cast-y) - var(--cast-size) / 2 - 22px);
+  top: calc(var(--cast-y) - var(--cast-size) / 2 - 24px);
   transform: translate(-50%, -50%);
   display: flex;
-  gap: 6px;
+  gap: 5px;
   pointer-events: none;
 }
 
 .weave-slot {
-  width: 16px;
-  height: 16px;
+  --slot-color: var(--bronze);
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(10, 9, 14, 0.5);
-  transition: transform 0.12s ease;
+  border: 1px solid var(--slot-color);
+  background: rgba(10, 9, 14, 0.7);
+  color: var(--slot-color);
+  display: grid;
+  place-items: center;
+  --icon-size: 16px;
+  transition: scale 0.16s ease;
 }
 
 .weave-slot[data-element]:not([data-element=""]) {
-  transform: scale(1.12);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+  scale: 1.08;
 }
 
 .weave-slot[data-element="brasa"] {
-  background: var(--color-brasa);
+  --slot-color: var(--color-brasa);
 }
 .weave-slot[data-element="tormenta"] {
-  background: var(--color-tormenta);
+  --slot-color: var(--color-tormenta);
 }
 .weave-slot[data-element="marea"] {
-  background: var(--color-marea);
+  --slot-color: var(--color-marea);
 }
 .weave-slot[data-element="raiz"] {
-  background: var(--color-raiz);
+  --slot-color: var(--color-raiz);
 }
 .weave-slot[data-element="umbra"] {
-  background: var(--color-umbra);
+  --slot-color: var(--color-umbra);
 }
 
+/* Canalizando: un pulso dorado (el violeta se confundiría con Umbra). */
 .weave-slot.channeling {
-  box-shadow: 0 0 10px currentColor;
+  animation: channel-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes channel-pulse {
+  from {
+    box-shadow: 0 0 0 1px rgba(243, 223, 176, 0.3);
+  }
+  to {
+    box-shadow:
+      0 0 0 2px rgba(243, 223, 176, 0.8),
+      0 0 10px rgba(243, 223, 176, 0.5);
+  }
 }
 
 #ui .weave-pad.spectre .element-button,
@@ -1172,16 +1268,36 @@ body {
   pointer-events: none;
 }
 
+/* Espectro: Lanzar pasa a ser el Lamento, con su recarga en un anillo por segmentos. */
 .weave-pad.spectre .cast-button {
-  border-color: rgba(169, 184, 255, 0.7);
-  color: #c9d3ff;
-  box-shadow: 0 0 22px rgba(169, 184, 255, 0.4);
+  --ring-color: #7fe3f0;
+  --icon-size: 46%;
+  border-color: rgba(127, 227, 240, 0.55);
+  --icon-color: #7fe3f0;
 }
 
-/* Reflejo y Hurto: el hechizo guardado espera el próximo lanzamiento. */
+.weave-pad.spectre .cast-button .icon {
+  filter: drop-shadow(0 0 4px rgba(127, 227, 240, 0.5));
+}
+
+.weave-pad.spectre .cast-button::before {
+  opacity: 1;
+  inset: -4px;
+  mask:
+    radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)),
+    repeating-conic-gradient(#000 0 40deg, transparent 40deg 45deg);
+  mask-composite: intersect;
+}
+
+/* Reflejo y Hurto: el hechizo guardado espera el próximo lanzamiento. Dorado, no violeta. */
 .cast-button.held {
-  border-color: rgba(176, 140, 255, 0.85);
-  box-shadow: 0 0 26px rgba(176, 140, 255, 0.55);
+  --icon-color: var(--gold-bright);
+  border-color: var(--gold-bright);
+  box-shadow:
+    inset 0 0 0 4px rgba(10, 9, 14, 0.9),
+    inset 0 0 0 5px var(--gold),
+    0 0 0 3px rgba(243, 223, 176, 0.3),
+    0 0 22px rgba(243, 223, 176, 0.45);
 }
 
 /* Su nombre ocupa el lugar del tejido, que no se usa mientras haya uno guardado. */
@@ -1198,12 +1314,24 @@ body {
   white-space: nowrap;
   padding: 1px 8px;
   border-radius: 999px;
-  background: rgba(20, 14, 34, 0.75);
+  border: 1px solid var(--bronze);
+  background: rgba(10, 9, 14, 0.8);
   font-size: 11px;
   font-weight: 600;
-  color: #d9c8ff;
+  color: var(--gold-bright);
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weave-pad.hexed .element-button::after,
+  .weave-slot.channeling {
+    animation: none;
+  }
+
+  .weave-slot.channeling {
+    box-shadow: 0 0 0 2px rgba(243, 223, 176, 0.8);
+  }
 }
 
 /* ---------- Esencia y Presagio en el HUD ---------- */
