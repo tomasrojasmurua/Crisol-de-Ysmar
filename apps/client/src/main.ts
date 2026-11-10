@@ -64,6 +64,7 @@ import { MenuPortrait } from './render/MenuPortrait';
 import { Particles } from './render/Particles';
 import { teamColorHex } from './render/palette';
 import { PostProcessing } from './render/postprocessing';
+import { readQuality, saveQuality } from './render/Quality';
 import { SpellViews, type SpellWorld } from './render/SpellViews';
 import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
@@ -219,6 +220,15 @@ uiRoot.append(netBadge);
 /** Con la pausa abierta contra la IA, la partida se detiene; en red sigue corriendo. */
 let paused = false;
 let lastAlpha = 1;
+let quality = readQuality();
+/** Alta: todo el ambiente. Liviana: sin sombras, luces de brasero, resplandor ni estelas. */
+function applyQuality(): void {
+  const full = quality === 'alta';
+  post.enabled = full;
+  arena.setLight(full);
+  spells.trailsEnabled = full;
+}
+applyQuality();
 const pauseMenu = new PauseMenu(
   uiRoot,
   audio.engine,
@@ -232,8 +242,15 @@ const pauseMenu = new PauseMenu(
       fpsMeter.enabled = on;
       netBadge.hidden = !(on && net);
     },
+    onLightGraphics: (on) => {
+      quality = on ? 'liviana' : 'alta';
+      saveQuality(quality);
+      applyQuality();
+      if (match) perfLog.qualityChanged(quality);
+    },
   },
   fpsMeter.enabled,
+  quality === 'liviana',
 );
 // Si el celular cambia de app en plena partida contra la IA, queda en pausa.
 document.addEventListener('visibilitychange', () => {
@@ -508,7 +525,7 @@ function beginMatch(
   pauseMenu.setAvailable(true, current === net);
   screenAwake.active = true;
   resolution.restart();
-  perfLog.start(resolution.pixelRatio);
+  perfLog.start(resolution.pixelRatio, quality);
   audioCutsSeen = audio.engine.interruptions;
   obstacles.invalidate();
   rig.snap();
@@ -805,7 +822,13 @@ const clock = new FixedStepClock();
 let lastFrame = performance.now();
 let elapsed = 0;
 
+// Las llamadas de dibujo se cuentan por cuadro completo (sombras y resplandor incluidos).
+renderer.info.autoReset = false;
+
 renderer.setAnimationLoop((now) => {
+  const workStart = performance.now();
+  renderer.info.reset();
+  let simMs = 0;
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
   fpsMeter.sample(frameMs);
@@ -823,14 +846,8 @@ renderer.setAnimationLoop((now) => {
   if (current && pausedHere) {
     renderMatch(current, lastAlpha, 0);
   } else if (current) {
-    if (!resultShown) {
-      perfLog.frame(frameMs);
-      while (audioCutsSeen < audio.engine.interruptions) {
-        audioCutsSeen += 1;
-        perfLog.audioCut();
-      }
-    }
     const { steps, alpha } = clock.advance(frameMs);
+    const simStart = performance.now();
     lastAlpha = alpha;
     for (let i = 0; i < steps; i++) {
       const events = current.step();
@@ -848,6 +865,7 @@ renderer.setAnimationLoop((now) => {
         }
       }
     }
+    simMs = performance.now() - simStart;
     updateMatchFlow(current);
     renderMatch(current, alpha, delta);
   } else if (preview) {
@@ -864,6 +882,18 @@ renderer.setAnimationLoop((now) => {
   effects.update(simDelta);
   particles.update(simDelta);
   post.render();
+  if (current && !pausedHere && !resultShown) {
+    perfLog.frame(frameMs, {
+      simMs,
+      jsMs: performance.now() - workStart,
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+    });
+    while (audioCutsSeen < audio.engine.interruptions) {
+      audioCutsSeen += 1;
+      perfLog.audioCut();
+    }
+  }
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);

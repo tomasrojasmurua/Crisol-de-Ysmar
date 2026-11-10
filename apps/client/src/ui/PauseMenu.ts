@@ -19,6 +19,7 @@ export class PauseMenu {
   private readonly overlay: HTMLElement;
   private readonly onlineNote: HTMLElement;
   private readonly diagnosticsToggle: HTMLInputElement;
+  private readonly lightToggle: HTMLInputElement;
   private online = false;
 
   constructor(
@@ -28,8 +29,10 @@ export class PauseMenu {
       readonly onPause: (paused: boolean) => void;
       readonly onMenu: () => void;
       readonly onDiagnostics: (on: boolean) => void;
+      readonly onLightGraphics: (on: boolean) => void;
     },
     diagnostics: boolean,
+    lightGraphics: boolean,
   ) {
     this.button = el('button', 'pause-button') as HTMLButtonElement;
     this.button.type = 'button';
@@ -49,6 +52,10 @@ export class PauseMenu {
           <span class="pause-label">Sonido</span>
           <div class="menu-sound-options pause-sound"></div>
           <label class="pause-toggle">
+            <input type="checkbox" class="pause-light" />
+            <span>Gráficos livianos <small>(más fluido: sin sombras, resplandor ni estelas)</small></span>
+          </label>
+          <label class="pause-toggle">
             <input type="checkbox" class="pause-diagnostics" />
             <span>Mostrar datos de rendimiento <small>(FPS y conexión)</small></span>
           </label>
@@ -59,6 +66,11 @@ export class PauseMenu {
     this.onlineNote = query(this.overlay, '.pause-note');
     this.diagnosticsToggle = query(this.overlay, '.pause-diagnostics') as HTMLInputElement;
     this.diagnosticsToggle.checked = diagnostics;
+    this.lightToggle = query(this.overlay, '.pause-light') as HTMLInputElement;
+    this.lightToggle.checked = lightGraphics;
+    this.lightToggle.addEventListener('change', () =>
+      this.handlers.onLightGraphics(this.lightToggle.checked),
+    );
     this.diagnosticsToggle.addEventListener('change', () =>
       this.handlers.onDiagnostics(this.diagnosticsToggle.checked),
     );

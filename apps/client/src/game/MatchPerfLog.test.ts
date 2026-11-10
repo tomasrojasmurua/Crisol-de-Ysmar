@@ -33,4 +33,19 @@ describe('MatchPerfLog', () => {
     expect(lines).toContain('Resolución: partió en 2; 1.75 en 2:30; terminó en 1.75');
     expect(lines).toContain('Sonido: se cortó 1 vez (2:00) y no volvió');
   });
+
+  it('separa la lógica, el dibujo y la espera, y dice qué frena', () => {
+    const log = new MatchPerfLog();
+    log.start(2, 'liviana');
+    for (let t = 0; t < 30_000; t += 25) {
+      log.frame(25, { simMs: 2, jsMs: 8, calls: 180, triangles: 90_000 });
+    }
+    log.qualityChanged('alta');
+    const lines = log.summary(true);
+    expect(lines).toContain(
+      'Por cuadro: lógica 2.0 ms · dibujo 6.0 ms · espera 17.0 ms (frena la tarjeta gráfica)',
+    );
+    expect(lines).toContain('Dibujos por cuadro 180 · 90 mil triángulos');
+    expect(lines).toContain('Calidad: Liviana; Alta en 0:30');
+  });
 });

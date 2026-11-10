@@ -214,6 +214,17 @@ export class ArenaView {
     });
   }
 
+  /**
+   * Gráficos livianos: sin sombras de la luna ni luz propia en los braseros (sus llamas siguen
+   * brillando). Cada luz encarece el sombreado de todo lo que se ve.
+   */
+  setLight(full: boolean): void {
+    this.moon.castShadow = full;
+    for (const brazier of this.braziers) {
+      if (brazier.light) brazier.light.visible = full;
+    }
+  }
+
   private createLights(): void {
     this.scene.add(new THREE.HemisphereLight('#8a95c6', '#3a3024', 1.7));
     // La luna proyecta las sombras de los magos sobre la piedra.
