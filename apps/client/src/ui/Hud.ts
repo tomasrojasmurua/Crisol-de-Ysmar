@@ -62,6 +62,7 @@ export class Hud {
   private readonly result: HTMLElement;
   private readonly resultTitle: HTMLElement;
   private readonly resultScore: HTMLElement;
+  private readonly resultPerf: HTMLElement;
   private bannerTimer: number | undefined;
   private discoveryTimer: number | undefined;
   private readonly discovery: HTMLElement;
@@ -105,6 +106,7 @@ export class Hud {
         <div class="hud-result-card">
           <h2></h2>
           <p class="hud-result-score"></p>
+          <ul class="hud-result-perf" hidden></ul>
           <div class="hud-result-actions">
             <button type="button" class="primary rematch">Revancha</button>
             <button type="button" class="secondary to-menu">Menú</button>
@@ -131,6 +133,7 @@ export class Hud {
     this.result = query(this.root, '.hud-result');
     this.resultTitle = query(this.root, '.hud-result h2');
     this.resultScore = query(this.root, '.hud-result-score');
+    this.resultPerf = query(this.root, '.hud-result-perf');
     query(this.root, '.rematch').addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
   }
@@ -290,6 +293,13 @@ export class Hud {
 
   hideResult(): void {
     this.result.hidden = true;
+    this.resultPerf.hidden = true;
+  }
+
+  /** Informe de rendimiento de la partida bajo el resultado; vacío lo oculta. */
+  showPerf(lines: readonly string[]): void {
+    this.resultPerf.replaceChildren(...lines.map((line) => el('li', '', line)));
+    this.resultPerf.hidden = lines.length === 0;
   }
 
   private renderScore(

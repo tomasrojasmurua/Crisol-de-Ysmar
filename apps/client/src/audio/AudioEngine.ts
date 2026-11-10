@@ -24,6 +24,7 @@ export class AudioEngine {
   private reverbBus: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private readonly listeners = new Set<() => void>();
+  private cuts = 0;
   readonly settings: AudioSettings = { muted: false, music: true };
 
   constructor() {
@@ -37,8 +38,18 @@ export class AudioEngine {
     document.addEventListener('visibilitychange', () => {
       if (!this.context) return;
       if (document.hidden) void this.context.suspend();
-      else void this.context.resume();
+      else this.revive();
     });
+  }
+
+  /** Veces que el sistema cortó el sonido en plena partida (para el informe de rendimiento). */
+  get interruptions(): number {
+    return this.cuts;
+  }
+
+  /** true si el sonido está andando (o si nunca arrancó porque aún no hubo un toque). */
+  get playing(): boolean {
+    return !this.context || this.context.state === 'running';
   }
 
   /** Avisa cuando el contexto queda listo (por ejemplo, para arrancar la música). */
@@ -89,9 +100,25 @@ export class AudioEngine {
     this.save();
   }
 
+  /**
+   * Intenta que el sonido vuelva. iOS deja el contexto "interrupted" (no "suspended") cuando
+   * llega una notificación o el sistema se exige; antes eso no se contemplaba y el sonido
+   * quedaba cortado hasta cerrar el juego.
+   */
+  private revive(): void {
+    const context = this.context;
+    if (!context || document.hidden) return;
+    const state: string = context.state;
+    if (state === 'running' || state === 'closed') return;
+    context.resume().catch(() => {
+      // Si iOS todavía no suelta el audio, se reintenta con el próximo toque.
+    });
+  }
+
   private unlock(): void {
     if (this.context) {
-      if (this.context.state === 'suspended' && !document.hidden) void this.context.resume();
+      // Cada toque sirve de reintento: en partida se toca la pantalla todo el tiempo.
+      this.revive();
       return;
     }
     const Ctor = window.AudioContext;
@@ -103,6 +130,15 @@ export class AudioEngine {
       return;
     }
     this.context = context;
+    context.addEventListener('statechange', () => {
+      const state: string = context.state;
+      if (state === 'running' || state === 'closed') return;
+      // Suspender al cambiar de app es nuestro; cualquier otro corte viene del sistema.
+      if (!document.hidden) {
+        this.cuts += 1;
+        this.revive();
+      }
+    });
     const master = context.createGain();
     // Un compresor suave evita que una pila de explosiones sature el parlante del celular.
     const limiter = context.createDynamicsCompressor();

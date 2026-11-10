@@ -35,6 +35,7 @@ import { GameAudio } from './audio/GameAudio';
 import { CameraRig } from './camera/CameraRig';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
+import { MatchPerfLog } from './game/MatchPerfLog';
 import type { MatchView } from './game/MatchView';
 import {
   type Appearance,
@@ -162,6 +163,9 @@ uiRoot.addEventListener('click', (event) => {
 const minimap = new Minimap(uiRoot, rules);
 const menuPortrait = new MenuPortrait(rules);
 const fpsMeter = new FpsMeter(uiRoot);
+/** Lo que pasó con el rendimiento en toda la partida (se ve al final, con los datos activados). */
+const perfLog = new MatchPerfLog();
+let audioCutsSeen = 0;
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
@@ -504,6 +508,8 @@ function beginMatch(
   pauseMenu.setAvailable(true, current === net);
   screenAwake.active = true;
   resolution.restart();
+  perfLog.start(resolution.pixelRatio);
+  audioCutsSeen = audio.engine.interruptions;
   obstacles.invalidate();
   rig.snap();
 }
@@ -632,6 +638,7 @@ function updateMatchFlow(current: MatchView): void {
     const detail =
       winner >= 0 && winner !== playerTeam ? ` · ganó ${teamName(current, winner)}` : '';
     hud.showResult(title, `${own} a ${Math.max(0, ...others)}${detail}`);
+    if (fpsMeter.enabled) hud.showPerf(perfLog.summary(audio.engine.playing));
     controls.visible = false;
   }
 }
@@ -802,7 +809,11 @@ renderer.setAnimationLoop((now) => {
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
   fpsMeter.sample(frameMs);
-  if (resolution.sample(frameMs) !== null) resize();
+  const newRatio = resolution.sample(frameMs);
+  if (newRatio !== null) {
+    resize();
+    perfLog.resolutionChanged(newRatio);
+  }
   const delta = frameMs / 1000;
   elapsed += delta;
 
@@ -812,6 +823,13 @@ renderer.setAnimationLoop((now) => {
   if (current && pausedHere) {
     renderMatch(current, lastAlpha, 0);
   } else if (current) {
+    if (!resultShown) {
+      perfLog.frame(frameMs);
+      while (audioCutsSeen < audio.engine.interruptions) {
+        audioCutsSeen += 1;
+        perfLog.audioCut();
+      }
+    }
     const { steps, alpha } = clock.advance(frameMs);
     lastAlpha = alpha;
     for (let i = 0; i < steps; i++) {
