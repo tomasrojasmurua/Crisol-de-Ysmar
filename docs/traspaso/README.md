@@ -79,7 +79,7 @@ red con un amigo (menú → Jugar con un amigo).
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
 | **Multijugador**                                                       | **1v1 en red** con predicción local de tu mago. Falta mandar menos datos y más jugadores. |
-| Audio                                                                  | No hay ningún sonido.                                                                     |
+| Audio                                                                  | Sintetizado en código (notas, acordes, efectos, música). Ver [audio.md](../audio.md).     |
 | Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 
 Medidas del diagnóstico: un paso de 6 magos cuesta 0,03 ms (límite 2 ms) y el juego descarga 216 KB.
@@ -88,21 +88,23 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 
 ### Historia de PRs
 
-| PR            | Qué trajo                                                            |
-| ------------- | -------------------------------------------------------------------- |
-| #1, #2        | Hito 0: monorepo, CI y publicación en Cloudflare.                    |
-| #3, #4        | Hito 1: duelo contra un bot; cámara sobre el hombro como la única.   |
-| #5            | Partida completa contra la IA: modos, rondas, zona.                  |
-| #6            | Bestias, santuarios, Glifos y Presagios.                             |
-| #7            | Vestidor, Afinidad visible y Grimorio.                               |
-| #8, #9        | Mapa grande con jungla, minimapa, campamentos y Guardián.            |
-| #10           | Más luz, cámara que se gira con el dedo, aviso de conjuro más chico. |
-| #11, #12      | Rediseño: cada tejido de 1 y 2 elementos es un hechizo propio.       |
-| #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                       |
-| #15           | Rondas de 3 minutos y básicos de 0,17 s.                             |
-| #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.        |
-| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                        |
-| Tanda 4       | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).             |
+| PR            | Qué trajo                                                              |
+| ------------- | ---------------------------------------------------------------------- |
+| #1, #2        | Hito 0: monorepo, CI y publicación en Cloudflare.                      |
+| #3, #4        | Hito 1: duelo contra un bot; cámara sobre el hombro como la única.     |
+| #5            | Partida completa contra la IA: modos, rondas, zona.                    |
+| #6            | Bestias, santuarios, Glifos y Presagios.                               |
+| #7            | Vestidor, Afinidad visible y Grimorio.                                 |
+| #8, #9        | Mapa grande con jungla, minimapa, campamentos y Guardián.              |
+| #10           | Más luz, cámara que se gira con el dedo, aviso de conjuro más chico.   |
+| #11, #12      | Rediseño: cada tejido de 1 y 2 elementos es un hechizo propio.         |
+| #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                         |
+| #15           | Rondas de 3 minutos y básicos de 0,17 s.                               |
+| #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.          |
+| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                          |
+| #20           | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).               |
+| #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.    |
+| Audio         | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`). |
 
 ## Lo que sigue
 

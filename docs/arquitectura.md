@@ -61,6 +61,11 @@ interpolando entre ellos.
   tocar. Los demás se ven un poco en el pasado, interpolados. El colchón se adapta a la red.
 - Pendiente: mandar solo lo que cambia y en binario, y salas de más de dos.
 
+## Sonido
+
+`apps/client/src/audio` sintetiza todo en vivo con Web Audio y escucha los mismos eventos que los
+efectos. Cada sonido tiene una clave que puede reemplazarse por un archivo (ver [audio.md](audio.md)).
+
 ## Presupuestos de rendimiento
 
 | Presupuesto                   | Límite    |

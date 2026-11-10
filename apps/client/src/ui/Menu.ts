@@ -1,5 +1,6 @@
 import { ELEMENTS, FEATURES } from '@crisol/content';
 import type { DeathRule, ElementId, GameMode } from '@crisol/core';
+import type { AudioEngine } from '../audio/AudioEngine';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
 import { el, query } from './dom';
@@ -63,6 +64,7 @@ export class Menu {
     onGrimoire: () => void,
     onFriend: () => void,
     onTraining: () => void,
+    private readonly audio: AudioEngine,
   ) {
     this.restore();
     this.root = el('div', 'menu');
@@ -85,6 +87,10 @@ export class Menu {
             <strong>Grimorio</strong>
             <span class="menu-grimoire-count"></span>
           </button>
+          <button type="button" class="menu-sound">
+            <strong>Sonido</strong>
+            <span class="menu-sound-state"></span>
+          </button>
         </div>
       </header>
       <section class="menu-panel">
@@ -105,6 +111,15 @@ export class Menu {
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
     this.wizardButton.addEventListener('click', onWardrobe);
     query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);
+    // Tres estados en un botón: todo, solo efectos, silencio.
+    query(this.root, '.menu-sound').addEventListener('click', () => {
+      if (this.audio.muted) {
+        this.audio.muted = false;
+        this.audio.musicOn = true;
+      } else if (this.audio.musicOn) this.audio.musicOn = false;
+      else this.audio.muted = true;
+      this.refresh();
+    });
 
     const modes = query(this.root, '.menu-modes');
     for (const choice of MODES) {
@@ -166,6 +181,11 @@ export class Menu {
   }
 
   private refresh(): void {
+    query(this.root, '.menu-sound-state').textContent = this.audio.muted
+      ? 'Silencio'
+      : this.audio.musicOn
+        ? 'Música y efectos'
+        : 'Solo efectos';
     for (const button of this.root.querySelectorAll<HTMLElement>('.menu-modes .menu-choice')) {
       button.classList.toggle('selected', button.dataset.id === this.modeId);
     }

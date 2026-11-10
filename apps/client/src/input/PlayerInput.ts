@@ -23,9 +23,16 @@ export class PlayerInput {
   /** Dirección que se está arrastrando desde el botón de lanzar, para dibujar la guía. */
   aimPreview: ScreenVector | null = null;
   private queue: PlayerAction[] = [];
+  private readonly listeners: ((action: PlayerAction) => void)[] = [];
 
   push(action: PlayerAction): void {
+    for (const listener of this.listeners) listener(action);
     this.queue.push(action);
+  }
+
+  /** Escucha cada acción en el momento en que se toca (el sonido la usa para no esperar). */
+  onAction(listener: (action: PlayerAction) => void): void {
+    this.listeners.push(listener);
   }
 
   drain(): PlayerAction[] {

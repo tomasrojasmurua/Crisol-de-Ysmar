@@ -1452,7 +1452,8 @@ body {
 }
 
 #ui .menu-wizard,
-#ui .menu-grimoire {
+#ui .menu-grimoire,
+#ui .menu-sound {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1489,7 +1490,8 @@ body {
 }
 
 .menu-wizard-affinity,
-.menu-grimoire-count {
+.menu-grimoire-count,
+.menu-sound-state {
   font-size: 11px;
   color: var(--ink-quiet);
 }
@@ -1502,13 +1504,15 @@ body {
   color: var(--gold);
 }
 
-#ui .menu-grimoire {
+#ui .menu-grimoire,
+#ui .menu-sound {
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
 }
 
-.menu-grimoire strong {
+.menu-grimoire strong,
+.menu-sound strong {
   font-family: var(--display);
   font-size: 14px;
   color: var(--gold-bright);

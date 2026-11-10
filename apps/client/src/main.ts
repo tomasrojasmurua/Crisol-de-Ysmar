@@ -26,6 +26,7 @@ import {
 } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import * as THREE from 'three';
+import { GameAudio } from './audio/GameAudio';
 import { CameraRig } from './camera/CameraRig';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
@@ -138,6 +139,18 @@ const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
 const screenAwake = new ScreenAwake();
 const controls = new TouchControls(uiRoot, input);
+const audio = new GameAudio();
+// Tus notas suenan al tocar, con tu tejido tal como lo ves (predicción local incluida).
+input.onAction((action) => {
+  if (match) audio.playerAction(action, match.present?.(match.player) ?? match.player);
+});
+// Un clic suave en los botones de los menús (los del combate ya suenan con su nota).
+uiRoot.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement | null;
+  const button = target?.closest('button');
+  if (!button || button.closest('.element-button, .cast-button, .cancel-button')) return;
+  audio.click();
+});
 const minimap = new Minimap(uiRoot, rules);
 const blindVeil = new BlindVeil(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
@@ -161,6 +174,7 @@ const menu = new Menu(
   () => openGrimoire(),
   () => openLobby(),
   () => startTraining(),
+  audio.engine,
 );
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -324,6 +338,7 @@ function showMenu(): void {
   clearWizards();
   spells.sync([], NO_SPELL_WORLD);
   menu.visible = true;
+  audio.setMood('menu');
   hud.visible = false;
   labels.visible = false;
   controls.visible = false;
@@ -451,6 +466,7 @@ function announceEvents(events: readonly GameEvent[], current: MatchView): void 
   for (const event of events) {
     if (event.type === 'cast' && event.wizardId === me) {
       if (grimoire.discover(event.weave)) {
+        audio.discover();
         hud.celebrateDiscovery(
           spellName(event.weave),
           weaveOrbs(event.weave),
@@ -513,6 +529,8 @@ function updateMatchFlow(current: MatchView): void {
   const stage = current.stage;
   if (stage.kind === 'playing' && current.roundNumber !== shownRound) {
     shownRound = current.roundNumber;
+    audio.reset();
+    audio.setMood('hunt');
     hud.reset(current.state, current.player, badges);
     creatures.clear();
     minimap.reset();
@@ -537,6 +555,7 @@ function updateMatchFlow(current: MatchView): void {
   if (stage.kind === 'playing' && !resultShown) controls.visible = watchedOf(current) === null;
   if (stage.kind === 'choosing' && !pickerShown) {
     pickerShown = true;
+    audio.setMood('menu');
     controls.visible = false;
     const lost = current.series.roundsPlayed > 0 && lastWinner !== playerTeam;
     glyphPicker.show(stage.options, current.glyphsOf(current.playerId), lost);
@@ -551,6 +570,7 @@ function updateMatchFlow(current: MatchView): void {
   if (stage.kind === 'finished' && !resultShown) {
     resultShown = true;
     const winner = current.series.winnerTeam ?? -1;
+    audio.finish(winner === playerTeam);
     const title = winner === playerTeam ? 'Victoria' : winner < 0 ? 'Empate' : 'Derrota';
     const own = current.series.wins[playerTeam] ?? 0;
     const others = current.series.wins.filter((_, team) => team !== playerTeam);
@@ -722,6 +742,7 @@ renderer.setAnimationLoop((now) => {
       const events = current.step();
       effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
       announceEvents(events, current);
+      audio.onEvents(events, current.state);
       if (current instanceof TrainingMatch) {
         for (const event of events) {
           if (event.type === 'release' && event.wizardId === current.playerId) {
@@ -810,6 +831,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
     const shown =
       base.team !== player.team && base.statuses.disguised ? disguise(base, state.tick) : base;
     view.update(shown, pos.x, pos.z, time, delta, spectre, rules, hidden);
+    audio.watchWeave(shown, pos, hidden || spectre);
     if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
   }
   const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
@@ -846,6 +868,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
       ? current.interpolated(target.id, target.pos, alpha)
       : null;
   rig.update(playerPos, targetPos, delta, effects.shake);
+  audio.setListener(playerPos, rig.forward(), current.playerId);
   arena.focus(playerPos.x, playerPos.z);
   lantern.position.set(playerPos.x, 3.2, playerPos.z);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
