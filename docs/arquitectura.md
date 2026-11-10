@@ -55,8 +55,11 @@ interpolando entre ellos.
   `net/NetMatch.ts` cumple la misma interfaz que `LocalMatch` (`game/MatchView.ts`), así que el
   dibujo y el HUD no cambian. Si alguien se corta, la IA juega por él y puede volver en 60 s con su
   token (guardado en la pestaña).
-- Pendiente: predecir tu mago en local (hoy tus movimientos se ven con el retraso de la red más
-  ~66 ms de colchón), mandar solo lo que cambia y en binario, y salas de más de dos.
+- Predicción: tu mago se mueve en el acto. El servidor dice en cada estado hasta qué mensaje
+  tuyo ya jugó (`ack`); el celular parte de tu mago en el estado más nuevo y repite encima lo que
+  falta con `walkTarget`, la misma función con que camina el núcleo. Tu tejido también se ve al
+  tocar. Los demás se ven un poco en el pasado, interpolados. El colchón se adapta a la red.
+- Pendiente: mandar solo lo que cambia y en binario, y salas de más de dos.
 
 ## Presupuestos de rendimiento
 

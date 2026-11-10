@@ -1,13 +1,21 @@
-import { GLYPHS, type Glyph, OMENS, type Omen } from '@crisol/content';
-import type {
-  Controller,
-  ElementId,
-  GameEvent,
-  MatchState,
-  SeriesState,
-  Vec2,
-  Wizard,
+import { GLYPHS, type Glyph, OMENS, type Omen, rulesForMode } from '@crisol/content';
+import {
+  type Controller,
+  canAct,
+  type ElementId,
+  type GameEvent,
+  type Intent,
+  liveRules,
+  type MatchState,
+  type SeriesState,
+  type Vec2,
+  vec2,
+  type Wizard,
+  walkTarget,
 } from '@crisol/core';
+
+const { distance, normalize } = vec2;
+
 import {
   decodeServerMessage,
   encode,
@@ -41,6 +49,18 @@ const HARD_SKIP = 30;
 const RECONNECT_MS = 60_000;
 const RECONNECT_EVERY_MS = 1500;
 const PING_EVERY_MS = 2000;
+/** Si la predicción y el servidor difieren más que esto (un salto, un empujón), no se suaviza. */
+const SNAP_DISTANCE = 3;
+/** Toques guardados a la espera de que el servidor los confirme (unos 4 s). */
+const MAX_PENDING = 120;
+const RULES = rulesForMode({ kind: 'duel' });
+
+/** Lo que tocaste en un paso, guardado hasta que el servidor lo confirme. */
+interface SentInput {
+  readonly seq: number;
+  readonly move: Vec2;
+  readonly intents: readonly Intent[];
+}
 
 /** Lo que el juego escucha de la red. */
 export interface NetListener {
@@ -97,6 +117,14 @@ export class NetMatch implements MatchView {
   private calmSteps = 0;
   private stalls = 0;
   private ping = 0;
+  /** El estado más nuevo que llegó (el que se muestra va un poco atrás, por el colchón). */
+  private latest: StateMessage | null = null;
+  private readonly sent: SentInput[] = [];
+  /** Dónde se predice tu mago ahora y dónde estaba en el paso anterior. */
+  private predicted: Vec2 | null = null;
+  private predictedBefore: Vec2 | null = null;
+  private predictedWeave: Wizard['weave'] = [];
+  private predictedFacing: Vec2 | null = null;
   private readonly previous = new Map<number, Vec2>();
   private glyphIds: Readonly<Record<number, readonly string[]>> = {};
   private netStage: NetStage = { kind: 'lobby' };
@@ -124,14 +152,28 @@ export class NetMatch implements MatchView {
     return this.series.roundsPlayed + (this.stage.kind === 'playing' ? 1 : 0);
   }
 
-  /** Cada paso: manda lo que tocaste y muestra el siguiente estado que llegó. */
+  /** Cada paso: manda lo que tocaste, muestra el siguiente estado y predice tu mago. */
   step(): readonly GameEvent[] {
+    const events = this.advance();
+    this.predict();
+    return events;
+  }
+
+  private advance(): readonly GameEvent[] {
     // La pausa entre rondas se cuenta aquí, como en el celular: el servidor la manda de a ratos.
     if (this.stage.kind === 'intermission' && this.stage.ticksLeft > 0) this.stage.ticksLeft--;
     if (this.started && this.netStage.kind === 'playing' && this.state.wizards.length > 0) {
       const intents = this.human.intentsFor(this.state, this.player);
       if (intents.length > 0) {
-        this.send({ type: 'intents', seq: ++this.seq, intents: [...intents] });
+        const seq = ++this.seq;
+        this.send({ type: 'intents', seq, intents: [...intents] });
+        const move = intents.find((i) => i.kind === 'move');
+        this.sent.push({
+          seq,
+          move: move?.kind === 'move' ? { x: move.x, z: move.z } : { x: 0, z: 0 },
+          intents,
+        });
+        if (this.sent.length > MAX_PENDING) this.sent.shift();
       }
     }
     if (!this.primed) {
@@ -185,14 +227,72 @@ export class NetMatch implements MatchView {
     return (this.glyphIds[id] ?? []).map(glyphById).filter((g): g is Glyph => g !== undefined);
   }
 
-  /** Posición entre el paso anterior y el actual, según `alpha` (0 a 1). */
+  /** Posición entre el paso anterior y el actual, según `alpha` (0 a 1). Tu mago va predicho. */
   interpolated(id: number, current: Vec2, alpha: number): Vec2 {
+    if (id === this.playerId && this.predicted) {
+      const from = this.predictedBefore;
+      if (!from || distance(from, this.predicted) > SNAP_DISTANCE) return this.predicted;
+      return {
+        x: from.x + (this.predicted.x - from.x) * alpha,
+        z: from.z + (this.predicted.z - from.z) * alpha,
+      };
+    }
     const before = this.previous.get(id);
     if (!before || this.stage.kind !== 'playing') return current;
     return {
       x: before.x + (current.x - before.x) * alpha,
       z: before.z + (current.z - before.z) * alpha,
     };
+  }
+
+  /** Tu mago como se ve en este celular: con el tejido que acabas de tocar, sin esperar. */
+  present(wizard: Wizard): Wizard {
+    if (wizard.id !== this.playerId || !this.predicted) return wizard;
+    return {
+      ...wizard,
+      weave: this.predictedWeave,
+      facing: !wizard.channel && this.predictedFacing ? this.predictedFacing : wizard.facing,
+    };
+  }
+
+  /**
+   * Predicción: parte de tu mago en el estado más nuevo del servidor y repite encima lo que
+   * tocaste y él todavía no jugó, caminando igual que el núcleo. Si no puedes moverte (aturdido,
+   * por los aires, saltando) o no se está jugando, se usa lo que dice el servidor.
+   */
+  private predict(): void {
+    this.predictedBefore = this.predicted;
+    const latest = this.latest;
+    const me = latest?.state.wizards.find((w) => w.id === this.playerId);
+    if (
+      !latest ||
+      !me ||
+      latest.stage.kind !== 'playing' ||
+      me.hp <= 0 ||
+      me.fallen ||
+      me.leap ||
+      !canAct(me)
+    ) {
+      this.predicted = null;
+      this.sent.length = 0;
+      return;
+    }
+    while (this.sent.length > 0 && (this.sent[0]?.seq ?? 0) <= latest.ack) this.sent.shift();
+    const rules = liveRules(latest.state, RULES);
+    let pos = me.pos;
+    let weave = [...me.weave];
+    let facing: Vec2 | null = null;
+    for (const input of this.sent) {
+      pos = walkTarget(latest.state, { ...me, pos }, input.move, rules);
+      if (input.move.x !== 0 || input.move.z !== 0) facing = normalize(input.move, me.facing);
+      for (const intent of input.intents) {
+        if (intent.kind === 'weave' && weave.length < 3) weave.push(intent.element);
+        else if (intent.kind === 'cancelWeave' || intent.kind === 'cast') weave = [];
+      }
+    }
+    this.predicted = pos;
+    this.predictedWeave = weave;
+    this.predictedFacing = facing;
   }
 
   /** Te vas de la sala: la IA juega por ti. */
@@ -282,6 +382,7 @@ export class NetMatch implements MatchView {
       case 'state':
         if (!this.started) return;
         // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
+        this.latest = message;
         if (this.awaitingFirst) {
           this.awaitingFirst = false;
           this.apply(message);

@@ -1,4 +1,5 @@
 export { BotController, type BotProfile, DEFAULT_BOT } from './ai/bot';
+export { canAct } from './combat/statuses';
 export type { Controller, Intent } from './controllers/intent';
 export {
   ELEMENT_COUNT,
@@ -81,6 +82,7 @@ export type {
   ZoneEffect,
 } from './match/state';
 export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
+export { walkTarget } from './match/walk';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';
 export { affinityPatch, combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';

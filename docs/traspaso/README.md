@@ -78,7 +78,7 @@ red con un amigo (menú → Jugar con un amigo).
 | Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`.                                                        |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
 | Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
-| **Multijugador**                                                       | **1v1 en red** (primera entrega del Hito 2). Falta la predicción local y más jugadores.   |
+| **Multijugador**                                                       | **1v1 en red** con predicción local de tu mago. Falta mandar menos datos y más jugadores. |
 | Audio                                                                  | No hay ningún sonido.                                                                     |
 | Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
 

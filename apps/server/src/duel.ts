@@ -61,6 +61,9 @@ interface Slot {
   affinity: ElementId | null;
   connected: boolean;
   pending: Intent[];
+  /** El número del último mensaje de toques recibido y el del último ya jugado. */
+  received: number;
+  acked: number;
   glyphs: Glyph[];
   options: Glyph[];
   chosen: boolean;
@@ -109,6 +112,8 @@ export class DuelHost {
     if (back) {
       back.connected = true;
       back.pending = [];
+      back.received = 0;
+      back.acked = 0;
       if (name) back.name = name;
       return { playerId: back.id, token: back.token };
     }
@@ -122,6 +127,8 @@ export class DuelHost {
       affinity: request.affinity && isElementId(request.affinity) ? request.affinity : null,
       connected: true,
       pending: [],
+      received: 0,
+      acked: 0,
       glyphs: [],
       options: [],
       chosen: false,
@@ -170,10 +177,15 @@ export class DuelHost {
     return this.stage.kind === 'lobby';
   }
 
-  /** Lo que tocó un jugador desde el último paso. */
-  intents(playerId: number, intents: readonly Intent[]): void {
+  /** Lo que tocó un jugador desde el último paso; `seq` numera sus mensajes. */
+  intents(playerId: number, intents: readonly Intent[], seq = 0): void {
     const slot = this.slots.get(playerId);
-    if (!slot?.connected || this.stage.kind !== 'playing') return;
+    if (!slot?.connected) return;
+    if (Number.isFinite(seq) && seq > slot.received) slot.received = seq;
+    if (this.stage.kind !== 'playing') {
+      slot.acked = slot.received;
+      return;
+    }
     for (const intent of intents) {
       if (slot.pending.length >= MAX_PENDING) break;
       if (isIntent(intent)) slot.pending.push(intent);
@@ -253,6 +265,11 @@ export class DuelHost {
     }
   }
 
+  /** El último mensaje de toques de este jugador que ya entró a la simulación. */
+  ackOf(playerId: number): number {
+    return this.slots.get(playerId)?.acked ?? 0;
+  }
+
   /** Lo de la serie que va en cada estado. */
   seriesInfo(): {
     wins: readonly number[];
@@ -295,6 +312,7 @@ export class DuelHost {
       if (slot?.connected) {
         intents.set(wizard.id, slot.pending);
         slot.pending = [];
+        slot.acked = slot.received;
       } else {
         intents.set(wizard.id, [...(this.bots.get(wizard.id)?.intentsFor(state, wizard) ?? [])]);
       }

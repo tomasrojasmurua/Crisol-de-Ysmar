@@ -775,10 +775,9 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
     const hidden =
       veiledFromTeam(state, player.team, wizard.id, rules) || blindedFrom(player, wizard, rules);
     // Ilusión de tejido: el rival ve otros elementos en lo que tejes.
+    const base = current.present?.(wizard) ?? wizard;
     const shown =
-      wizard.team !== player.team && wizard.statuses.disguised
-        ? disguise(wizard, state.tick)
-        : wizard;
+      base.team !== player.team && base.statuses.disguised ? disguise(base, state.tick) : base;
     view.update(shown, pos.x, pos.z, time, delta, spectre, rules, hidden);
     if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
   }
@@ -821,7 +820,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   const aim = input.aimPreview;
   aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);
 
-  controls.render(player, rules, isSpectre(state, player));
+  controls.render(current.present?.(player) ?? player, rules, isSpectre(state, player));
   hud.update(state, player, current.series, current.roundNumber, badges, rules);
   labels.updateBeasts(state, camera, beastName, elementColorHex);
   const seen = visibleEnemies(state, player.team, rules);
