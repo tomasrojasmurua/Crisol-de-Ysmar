@@ -1,7 +1,8 @@
 import { ALL_WEAVES, ELEMENTS, spellName } from '@crisol/content';
-import type { ElementId, Weave } from '@crisol/core';
+import { type ElementId, type GameRules, spellOf, type Weave } from '@crisol/core';
 import type { Grimoire } from '../game/Grimoire';
 import { el, query } from './dom';
+import { spellCard } from './spellFacts';
 
 /** Las pestañas agrupan los conjuros por su primer elemento. */
 const TAB_NAMES: Record<ElementId, string> = {
@@ -26,8 +27,8 @@ export function weaveOrbs(weave: Weave): HTMLElement {
 }
 
 /**
- * El Grimorio: los 155 conjuros por su primer elemento. Los que ya lanzaste muestran su nombre;
- * los demás muestran solo la receta, para que dé ganas de probarlos.
+ * El Grimorio: los conjuros que ya descubriste, por su primer elemento. Los que faltan no se
+ * muestran: hay que encontrarlos tejiendo. Tocar uno abre su ficha con qué hace y sus datos.
  */
 export class GrimoireBook {
   private readonly root: HTMLElement;
@@ -36,8 +37,13 @@ export class GrimoireBook {
   private readonly progress: HTMLElement;
   private form: ElementId = 'brasa';
   private grimoire: Grimoire | null = null;
+  private readonly detail: HTMLElement;
 
-  constructor(parent: HTMLElement, onClose: () => void) {
+  constructor(
+    parent: HTMLElement,
+    onClose: () => void,
+    private readonly rules: () => GameRules,
+  ) {
     this.root = el('div', 'grimoire');
     this.root.hidden = true;
     this.root.innerHTML = `
@@ -51,11 +57,16 @@ export class GrimoireBook {
         </header>
         <nav class="grimoire-tabs"></nav>
         <div class="grimoire-list"></div>
+        <div class="grimoire-detail" hidden></div>
       </section>`;
     parent.append(this.root);
     this.tabs = query(this.root, '.grimoire-tabs');
     this.list = query(this.root, '.grimoire-list');
     this.progress = query(this.root, '.grimoire-progress');
+    this.detail = query(this.root, '.grimoire-detail');
+    this.detail.addEventListener('click', () => {
+      this.detail.hidden = true;
+    });
     query(this.root, '.grimoire-close').addEventListener('click', onClose);
 
     for (const element of ELEMENTS) {
@@ -81,6 +92,19 @@ export class GrimoireBook {
 
   hide(): void {
     this.root.hidden = true;
+    this.detail.hidden = true;
+  }
+
+  /** La ficha de un conjuro ya descubierto. */
+  private openDetail(weave: Weave): void {
+    const spell = spellOf(weave);
+    if (!spell) return;
+    this.detail.replaceChildren();
+    const card = spellCard(spell, this.rules());
+    card.prepend(weaveOrbs(weave));
+    card.append(el('span', 'spell-card-close', 'Toca para cerrar'));
+    this.detail.append(card);
+    this.detail.hidden = false;
   }
 
   private render(): void {
@@ -98,14 +122,22 @@ export class GrimoireBook {
 
     this.list.replaceChildren();
     this.list.style.setProperty('--element', colorOf(this.form));
-    for (const weave of ALL_WEAVES.filter((w) => w[0] === this.form)) {
-      const known = grimoire.has(weave);
-      const card = el('div', `grimoire-spell${known ? ' known' : ''}`);
-      card.append(
-        weaveOrbs(weave),
-        el('span', 'grimoire-spell-name', known ? spellName(weave) : 'Por descubrir'),
-      );
+    const weaves = ALL_WEAVES.filter((w) => w[0] === this.form);
+    const known = weaves.filter((w) => grimoire.has(w));
+    for (const weave of known) {
+      const card = el('button', 'grimoire-spell known');
+      card.type = 'button';
+      card.append(weaveOrbs(weave), el('span', 'grimoire-spell-name', spellName(weave)));
+      card.addEventListener('click', () => this.openDetail(weave));
       this.list.append(card);
+    }
+    const left = weaves.length - known.length;
+    if (left > 0) {
+      const hint =
+        known.length === 0
+          ? `Todavía no descubres conjuros que empiecen con ${TAB_NAMES[this.form]}: ¡a tejer!`
+          : `Te faltan ${left} por descubrir`;
+      this.list.append(el('p', 'grimoire-missing', hint));
     }
     this.list.scrollTop = 0;
   }

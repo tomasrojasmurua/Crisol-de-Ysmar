@@ -87,7 +87,7 @@ export function createMatch(setup: MatchSetup, rules: GameRules): MatchState {
 export function duelSetup(
   seed: number,
   rules: GameRules,
-  deathRule: DeathRule = 'spectre',
+  deathRule: DeathRule = 'out',
 ): MatchSetup {
   const offset = rules.arenaRadius * 0.5;
   return {

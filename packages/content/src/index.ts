@@ -8,6 +8,7 @@ export {
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';
+export { SPELL_DESCRIPTIONS } from './descriptions';
 export { ELEMENTS } from './elements';
 export { FEATURES, type Features } from './features';
 export { BEAST_NAMES, GLYPHS, type Glyph, GUARDIAN_NAME, OMENS, type Omen } from './glyphs';

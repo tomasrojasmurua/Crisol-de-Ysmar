@@ -210,7 +210,8 @@ export class Hud {
 
     this.roundLabel.textContent = `Ronda ${roundNumber}`;
     const secondsLeft = (rules.round.durationTicks - state.tick) / TICK_RATE;
-    this.clock.textContent = formatClock(secondsLeft);
+    // En el entrenamiento la ronda no se acaba.
+    this.clock.textContent = secondsLeft > 60 * 60 * 24 ? '∞' : formatClock(secondsLeft);
     this.clock.classList.toggle('urgent', secondsLeft < 30);
     this.phase.textContent = PHASE_NAMES[roundPhase(state.tick, rules)];
 

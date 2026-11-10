@@ -5,8 +5,10 @@
 export interface Features {
   /** El Guardián del Crisol despierta en la plaza durante la Caza. */
   readonly guardian: boolean;
-  /** La regla de 3 Vidas se puede elegir en el menú. Si no, al caer solo existe el modo Espectro. */
+  /** La regla de 3 Vidas se puede elegir en el menú. */
   readonly livesRule: boolean;
+  /** El modo Espectro se puede elegir en el menú. Si ninguna regla extra está, al caer quedas fuera. */
+  readonly spectreRule: boolean;
   /** El 1v1 también se juega en la jungla. Si no, el duelo es en la plaza, sin campamentos. */
   readonly duelInJungle: boolean;
 }
@@ -14,5 +16,6 @@ export interface Features {
 export const FEATURES: Features = {
   guardian: false,
   livesRule: false,
+  spectreRule: false,
   duelInJungle: false,
 };

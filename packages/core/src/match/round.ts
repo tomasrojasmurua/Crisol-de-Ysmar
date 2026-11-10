@@ -109,6 +109,8 @@ export function haunt(state: MatchState, spectre: Wizard, rules: GameRules): voi
 /** Un aliado de pie junto a un caído lo va levantando; si se aleja, se pierde el avance. */
 export function updateRevives(state: MatchState, rules: GameRules): void {
   const { radius, ticks, hpFraction } = rules.death.revive;
+  // Con la regla "fuera", quien cae no vuelve en la ronda.
+  if (state.deathRule === 'out') return;
   for (const wizard of state.wizards) {
     const fallen = wizard.fallen;
     if (!fallen) continue;

@@ -217,6 +217,166 @@ body {
   margin-top: 10px;
 }
 
+/* ---------- Fichas de hechizo (Grimorio y entrenamiento) ---------- */
+
+.grimoire-spell.known {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.grimoire-missing {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(240, 230, 210, 0.6);
+  text-align: center;
+}
+
+.grimoire-detail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(7, 7, 12, 0.82);
+  border-radius: inherit;
+  z-index: 2;
+  animation: fade-in 0.2s ease both;
+}
+
+.spell-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--panel-edge);
+  background: linear-gradient(180deg, rgba(24, 20, 34, 0.96), rgba(12, 10, 18, 0.96));
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
+  text-align: left;
+}
+
+.spell-card-name {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: #f3dfb0;
+}
+
+.spell-card-weave {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(240, 230, 210, 0.65);
+}
+
+.spell-card-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #efe4cc;
+}
+
+.spell-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.spell-card-facts span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 191, 138, 0.35);
+  font-size: 12px;
+  color: #e8d7a8;
+}
+
+.spell-card-close {
+  font-size: 11px;
+  color: rgba(240, 230, 210, 0.45);
+  text-align: center;
+}
+
+/* ---------- Entrenamiento ---------- */
+
+.menu-extra {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.training-panel {
+  position: absolute;
+  top: calc(var(--safe-top) + 70px);
+  right: calc(var(--safe-right) + 10px);
+  width: min(300px, 40vw);
+  max-height: calc(100% - var(--safe-top) - var(--safe-bottom) - 230px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(10, 9, 14, 0.78);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.training-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--display);
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+
+.training-exit {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.training-rest {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #efe4cc;
+}
+
+.training-label {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(216, 191, 138, 0.75);
+}
+
+.training-panel .spell-card {
+  padding: 10px 12px;
+  box-shadow: none;
+}
+
+.training-panel .spell-card-name {
+  font-size: 16px;
+}
+
+.training-panel .spell-card-text {
+  font-size: 13px;
+}
+
+.training-empty,
+.training-more {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(240, 230, 210, 0.55);
+}
+
 /* ---------- Jugar con un amigo ---------- */
 
 .menu-friend {
@@ -310,6 +470,20 @@ body {
 .lobby-share {
   text-decoration: none;
   display: block;
+}
+
+.watch-badge {
+  position: absolute;
+  top: calc(var(--safe-top) + 64px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(10, 9, 14, 0.7);
+  border: 1px solid var(--panel-edge);
+  font-size: 13px;
+  color: #f3e6c8;
+  pointer-events: none;
 }
 
 .net-badge {
@@ -1429,6 +1603,7 @@ body {
 }
 
 .grimoire-book {
+  position: relative;
   width: min(860px, 100%);
   height: 100%;
   display: flex;

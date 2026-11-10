@@ -39,6 +39,7 @@ import {
   saveProfile,
 } from './game/Profile';
 import { blindedFrom, veiledFromTeam, visibleEnemies } from './game/Sight';
+import { TrainingMatch } from './game/TrainingMatch';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
@@ -64,6 +65,7 @@ import { Hud, type WizardBadge } from './ui/Hud';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
+import { TrainingPanel } from './ui/TrainingPanel';
 import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
 
@@ -153,6 +155,7 @@ const menu = new Menu(
   () => openWardrobe(),
   () => openGrimoire(),
   () => openLobby(),
+  () => startTraining(),
 );
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -164,7 +167,11 @@ const wardrobe = new Wardrobe(
   },
   profile,
 );
-const grimoireBook = new GrimoireBook(uiRoot, () => closeOverlays());
+const grimoireBook = new GrimoireBook(
+  uiRoot,
+  () => closeOverlays(),
+  () => rules,
+);
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
@@ -301,11 +308,13 @@ function useRules(next: GameRules): void {
 }
 
 function showMenu(): void {
+  trainingPanel.visible = false;
   net?.close();
   net = null;
   if (location.search) history.replaceState(null, '', location.pathname);
   lobby.hide();
   netBadge.hidden = true;
+  watchBadge.hidden = true;
   match = null;
   useRules(GAME_RULES);
   targetMarker.update(null, 0);
@@ -347,6 +356,18 @@ function startMatch(options: MatchOptions): void {
       ]),
   );
   beginMatch(current, (id) => others.get(id) ?? { name: 'Hechicero', look: profile.look });
+}
+
+/** El modo entrenamiento: tú contra un muñeco, con el panel de lo que estás tejiendo. */
+function startTraining(): void {
+  useRules(rulesForMode({ kind: 'duel' }));
+  const current = new TrainingMatch(rules, human, profile.affinity);
+  useRules(current.rules);
+  beginMatch(current, () => ({
+    name: 'Muñeco',
+    look: { robe: 'ceniza', trim: 'oro', skin: 'arena', headwear: 'capucha', focus: 'baculo' },
+  }));
+  trainingPanel.visible = true;
 }
 
 /** Empieza (o reempieza) un duelo en red: los nombres y el aspecto vienen de la sala. */
@@ -432,12 +453,15 @@ function announceEvents(events: readonly GameEvent[], current: MatchView): void 
     } else if (event.type === 'phase') {
       hud.announcePhase(event.phase);
     } else if (event.type === 'defeated' && event.wizardId === me) {
+      const rule = current.state.deathRule;
       const subtitle =
-        current.state.deathRule === 'spectre'
+        rule === 'spectre'
           ? 'Sigues como espectro'
-          : current.player.lives > 1
-            ? 'Reapareces en unos segundos'
-            : 'Te quedaste sin vidas';
+          : rule === 'out'
+            ? 'Miras a quienes siguen en pie'
+            : current.player.lives > 1
+              ? 'Reapareces en unos segundos'
+              : 'Te quedaste sin vidas';
       hud.announce('Caíste', subtitle);
     } else if (event.type === 'revived' && event.wizardId === me) {
       hud.announce('De pie', `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`);
@@ -485,11 +509,15 @@ function updateMatchFlow(current: MatchView): void {
     creatures.clear();
     minimap.reset();
     rig.snap();
-    hud.announce(
-      `Ronda ${shownRound}`,
-      shownRound === 1 ? `Presagio: ${current.omen.name}` : 'Caza: la arena está abierta',
-      shownRound === 1 ? 3 : 2.4,
-    );
+    if (current instanceof TrainingMatch) {
+      hud.announce('Entrenamiento', 'Teje y mira qué sale', 3);
+    } else {
+      hud.announce(
+        `Ronda ${shownRound}`,
+        shownRound === 1 ? `Presagio: ${current.omen.name}` : 'Caza: la arena está abierta',
+        shownRound === 1 ? 3 : 2.4,
+      );
+    }
   }
   if ((stage.kind === 'playing' || stage.kind === 'waiting') && pickerShown) {
     pickerShown = false;
@@ -497,7 +525,8 @@ function updateMatchFlow(current: MatchView): void {
     controls.visible = stage.kind === 'playing';
     if (stage.kind === 'waiting') hud.announce('Glifo elegido', 'Esperando a tu rival', 3);
   }
-  if (stage.kind === 'playing' && !controls.visible && !resultShown) controls.visible = true;
+  // Jugando, los controles se ven salvo que hayas caído y estés mirando a otro.
+  if (stage.kind === 'playing' && !resultShown) controls.visible = watchedOf(current) === null;
   if (stage.kind === 'choosing' && !pickerShown) {
     pickerShown = true;
     controls.visible = false;
@@ -523,6 +552,16 @@ function updateMatchFlow(current: MatchView): void {
     controls.visible = false;
   }
 }
+
+// ---------- Entrenamiento ----------
+
+const trainingPanel = new TrainingPanel(
+  uiRoot,
+  (on) => {
+    if (match instanceof TrainingMatch) match.restless = on;
+  },
+  () => showMenu(),
+);
 
 // ---------- Jugar con un amigo ----------
 
@@ -577,8 +616,8 @@ function joinRoom(code: string): void {
         else hud.announce(reason, fatal ? '' : 'Tu mago sigue en manos de la IA', 3);
         if (fatal && !match) lobby.setStatus(reason);
       },
-      latency: (ms) => {
-        netBadge.textContent = `${ms} ms`;
+      stats: (stats) => {
+        netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls}`;
       },
     },
   );
@@ -651,9 +690,17 @@ renderer.setAnimationLoop((now) => {
       const events = current.step();
       effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
       announceEvents(events, current);
+      if (current instanceof TrainingMatch) {
+        for (const event of events) {
+          if (event.type === 'release' && event.wizardId === current.playerId) {
+            trainingPanel.cast(event.spell, rules);
+          }
+        }
+      }
     }
     updateMatchFlow(current);
     renderMatch(current, alpha, delta);
+    if (current instanceof TrainingMatch) trainingPanel.update(current.player, rules);
   } else if (preview) {
     previewCamera(elapsed, delta);
     zone.update(rules.arenaRadius, elapsed);
@@ -684,11 +731,41 @@ function disguise(wizard: Wizard, tick: number): Wizard {
   };
 }
 
+/**
+ * Si caíste y quedaste fuera, el mago al que miras: primero un aliado en pie y si no, el rival
+ * que siga vivo. Null mientras sigas jugando.
+ */
+function watchedOf(current: MatchView): Wizard | null {
+  const state = current.state;
+  const player = current.player;
+  if (state.deathRule !== 'out' || !player.fallen) return null;
+  const standing = state.wizards.filter((w) => w.hp > 0 && !w.fallen);
+  return (
+    standing.find((w) => w.team === player.team) ??
+    standing.find((w) => w.id === watchedId) ??
+    standing[0] ??
+    null
+  );
+}
+/** A quién mirabas, para no saltar de un rival a otro en cada cuadro. */
+let watchedId = -1;
+const watchBadge = document.createElement('div');
+watchBadge.className = 'watch-badge';
+watchBadge.hidden = true;
+uiRoot.append(watchBadge);
+
 function renderMatch(current: MatchView, alpha: number, delta: number): void {
   const state = current.state;
   const time = ((state.tick + alpha) * TICK_MS) / 1000;
   const player = current.player;
-  const playerPos = current.interpolated(player.id, player.pos, alpha);
+  // Si caíste, la cámara sigue a quien miras.
+  const watched = watchedOf(current);
+  watchedId = watched?.id ?? -1;
+  watchBadge.hidden = watched === null;
+  if (watched)
+    watchBadge.textContent = `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`;
+  const focus = watched ?? player;
+  const playerPos = current.interpolated(focus.id, focus.pos, alpha);
 
   for (const wizard of state.wizards) {
     const view = wizardViews.get(wizard.id);
@@ -731,7 +808,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
 
   // El objetivo es la bestia fijada a mano, o el rival.
   const lockedBeast = state.beasts.find((b) => b.id === player.lockTarget);
-  const target = currentTarget(state, player, rules);
+  const target = currentTarget(state, focus, rules);
   const targetPos = lockedBeast
     ? lockedBeast.pos
     : target
