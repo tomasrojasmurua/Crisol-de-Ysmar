@@ -58,6 +58,23 @@ const GLYPH_OPTIONS = 3;
 const MAX_PENDING = 64;
 /** Jugando, si un jugador conectado no manda nada en este tiempo, la IA lo cubre (2 s). */
 export const SILENT_TICKS = TICK_RATE * 2;
+/**
+ * En la sala de espera, quien se corta (por ejemplo, al irse a WhatsApp a mandar el enlace)
+ * conserva su lugar este rato. Antes se lo borraba en el acto y volvía como otro jugador.
+ */
+export const LOBBY_GRACE_TICKS = TICK_RATE * 60;
+/** A qué modo crece la sala si llega alguien y no hay puesto. */
+const GROWS_TO: readonly (readonly [GameMode, GameMode])[] = [
+  [{ kind: 'duel' }, { kind: 'teams', size: 2 }],
+  [
+    { kind: 'teams', size: 2 },
+    { kind: 'teams', size: 3 },
+  ],
+  [
+    { kind: 'ffa', players: 4 },
+    { kind: 'ffa', players: 6 },
+  ],
+];
 const NAME_MAX = 14;
 
 /** Lo que manda un celular al entrar. */
@@ -91,6 +108,8 @@ interface Slot {
   options: Glyph[];
   chosen: boolean;
   rematch: boolean;
+  /** Paso en que se cortó (para soltar su lugar en la sala de espera). */
+  leftAt: number;
 }
 
 type Stage =
@@ -111,6 +130,7 @@ export class DuelHost {
   settings: RoomSettings = DEFAULT_ROOM_SETTINGS;
   rules: GameRules = rulesForRoom(DEFAULT_ROOM_SETTINGS);
   private arrivals = 0;
+  private readonly moved = new Map<number, number>();
   /** El puesto de quien manda en la sala de espera (el primero que entró y sigue). */
   hostId = 0;
   /** Por qué no pudo entrar el último que lo intentó. */
@@ -140,10 +160,24 @@ export class DuelHost {
 
   /** Entra un jugador, o vuelve uno que se había ido (con su token). Null si la Sala está llena. */
   join(request: JoinRequest): { playerId: number; token: string } | null {
-    const back = request.token
-      ? [...this.slots.values()].find((s) => s.token === request.token)
-      : undefined;
     const name = cleanName(request.name);
+    // Vuelve con su pase. Sin pase (otro navegador, por ejemplo el de WhatsApp en vez de
+    // Chrome), se le devuelve el lugar de un jugador desconectado con su mismo nombre.
+    const back =
+      (request.token
+        ? [...this.slots.values()].find((s) => s.token === request.token)
+        : undefined) ??
+      // El nombre por defecto ("Hechicero") lo pueden tener varios: no sirve para reconocer a nadie.
+      (name && !name.startsWith('Hechicero')
+        ? [...this.slots.values()].find(
+            // Desconectado, o callado (su socket viejo puede seguir colgado sin cerrarse).
+            // En la sala de espera nadie manda toques: ahí solo cuenta estar desconectado.
+            (s) =>
+              !s.bot &&
+              s.name === name &&
+              (!s.connected || (this.stage.kind !== 'lobby' && this.isAway(s))),
+          )
+        : undefined);
     if (back && !back.bot) {
       back.connected = true;
       back.away = false;
@@ -158,7 +192,8 @@ export class DuelHost {
       this.joinError = 'La partida ya empezó';
       return null;
     }
-    const id = this.seatOrder().find((n) => !this.slots.has(n));
+    let id = this.seatOrder().find((n) => !this.slots.has(n));
+    if (id === undefined) id = this.makeRoom();
     if (id === undefined) {
       this.joinError = 'La sala está llena';
       return null;
@@ -181,10 +216,40 @@ export class DuelHost {
       options: [],
       chosen: false,
       rematch: false,
+      leftAt: 0,
     };
     this.slots.set(id, slot);
-    if (this.hostId === 0) this.hostId = id;
+    // Si quien mandaba se cortó y no queda nadie más, manda el que llega.
+    if (this.hostId === 0 || !this.slots.get(this.hostId)?.connected) this.hostId = id;
     return { playerId: id, token: slot.token };
+  }
+
+  /**
+   * Llegó alguien y el modo elegido ya no tiene puestos: la sala crece al modo siguiente
+   * (1 vs 1 → 2 vs 2 → 3 vs 3; Libre de 4 → Libre de 6). Antes el tercer amigo que abría el
+   * enlace veía "La sala está llena" si quien creó la sala no había cambiado el modo antes.
+   * Ya en el máximo, se libera el lugar de quien lleva más rato cortado. Devuelve el puesto libre.
+   */
+  private makeRoom(): number | undefined {
+    const bigger = GROWS_TO.find(([from]) => sameMode(from, this.settings.mode))?.[1];
+    if (bigger) {
+      this.settings = { ...this.settings, mode: bigger };
+      this.rules = rulesForRoom(this.settings);
+      for (const [from, to] of this.reseat()) this.moved.set(from, to);
+    } else {
+      const ghost = [...this.slots.values()]
+        .filter((s) => !s.connected)
+        .sort((a, b) => a.leftAt - b.leftAt)[0];
+      if (ghost) this.slots.delete(ghost.id);
+    }
+    return this.seatOrder().find((n) => !this.slots.has(n));
+  }
+
+  /** Los puestos que cambiaron de número al crecer la sala (para avisarles); se vacía al leerlo. */
+  takeMoved(): Map<number, number> {
+    const moved = new Map(this.moved);
+    this.moved.clear();
+    return moved;
   }
 
   /** El pase de un puesto (para avisarle si cambió de número). */
@@ -251,6 +316,7 @@ export class DuelHost {
         options: [],
         chosen: false,
         rematch: false,
+        leftAt: 0,
       });
     }
     this.startSeries();
@@ -280,15 +346,16 @@ export class DuelHost {
   leave(playerId: number): void {
     const slot = this.slots.get(playerId);
     if (!slot) return;
-    if (this.stage.kind === 'lobby') {
-      this.slots.delete(playerId);
-      // Si se fue quien mandaba, manda el siguiente que sigue en la sala.
-      if (this.hostId === playerId)
-        this.hostId = [...this.slots.keys()].sort((a, b) => a - b)[0] ?? 0;
-      return;
-    }
     slot.connected = false;
     slot.pending = [];
+    slot.leftAt = this.clock;
+    if (this.stage.kind === 'lobby' && this.hostId === playerId) {
+      // Manda el siguiente que sigue conectado; si no hay nadie, el lugar espera a quien vuelva.
+      const next = [...this.slots.values()]
+        .filter((s) => s.connected)
+        .sort((a, b) => a.id - b.id)[0];
+      if (next) this.hostId = next.id;
+    }
   }
 
   /** Cuántos jugadores siguen conectados. */
@@ -385,6 +452,8 @@ export class DuelHost {
     this.clock++;
     switch (this.stage.kind) {
       case 'lobby':
+        this.releaseLobbySeats();
+        return;
       case 'finished':
         return;
       case 'intermission':
@@ -404,6 +473,17 @@ export class DuelHost {
       case 'playing':
         this.stepRound();
         return;
+    }
+  }
+
+  /** En la sala de espera, el lugar de quien lleva más de un minuto cortado queda libre. */
+  private releaseLobbySeats(): void {
+    for (const slot of [...this.slots.values()]) {
+      if (slot.connected || this.clock - slot.leftAt < LOBBY_GRACE_TICKS) continue;
+      this.slots.delete(slot.id);
+      if (this.hostId === slot.id) {
+        this.hostId = [...this.slots.keys()].sort((a, b) => a - b)[0] ?? 0;
+      }
     }
   }
 

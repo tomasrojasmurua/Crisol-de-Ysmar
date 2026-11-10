@@ -26,6 +26,8 @@ const FAILED_RISE_MS = 10_000;
  * porque pixelar no compraría fluidez.
  */
 const MIN_GAIN = 0.08;
+/** Ventanas que se miden tras bajar antes de juzgar si sirvió (una sola es puro ruido). */
+const CHECK_WINDOWS = 2;
 /** Un cuadro así de largo es una pestaña en pausa o un tirón aislado, no lentitud. */
 const IGNORE_FRAME_MS = 100;
 
@@ -48,6 +50,8 @@ export class AdaptiveResolution {
   private sinceRiseMs = Number.POSITIVE_INFINITY;
   /** Promedio antes de la última bajada, para comprobar si sirvió. */
   private beforeDrop: number | null = null;
+  private checkSum = 0;
+  private checkCount = 0;
 
   constructor(devicePixelRatio: number) {
     const max = Math.max(1, Math.min(devicePixelRatio, STEPS[0]));
@@ -66,6 +70,8 @@ export class AdaptiveResolution {
     this.windowFrames = 0;
     this.fastWindows = 0;
     this.beforeDrop = null;
+    this.checkSum = 0;
+    this.checkCount = 0;
     this.floor = this.steps.length - 1;
   }
 
@@ -87,9 +93,15 @@ export class AdaptiveResolution {
 
     // ¿Sirvió la última bajada? Si no, se vuelve atrás y no se baja más en esta partida.
     if (this.beforeDrop !== null) {
+      this.checkSum += average;
+      this.checkCount += 1;
+      if (this.checkCount < CHECK_WINDOWS) return null;
       const before = this.beforeDrop;
+      const after = this.checkSum / this.checkCount;
       this.beforeDrop = null;
-      if (average > before * (1 - MIN_GAIN)) {
+      this.checkSum = 0;
+      this.checkCount = 0;
+      if (after > before * (1 - MIN_GAIN)) {
         this.level -= 1;
         this.floor = this.level;
         this.fastWindows = 0;

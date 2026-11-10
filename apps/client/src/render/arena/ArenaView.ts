@@ -17,7 +17,6 @@ const SHADOW_EXTENT = 24;
 
 interface Brazier {
   readonly flame: THREE.Sprite;
-  readonly light: THREE.PointLight | null;
   readonly color: THREE.Color;
   readonly position: THREE.Vector3;
   readonly phase: number;
@@ -31,6 +30,12 @@ interface Brazier {
 export class ArenaView {
   readonly scene = new THREE.Scene();
   private readonly braziers: Brazier[] = [];
+  /**
+   * Las luces de los braseros: solo dos, puestas en los dos más cercanos a quien juega. Cada
+   * luz encarece el sombreado de todo lo que se ve, y antes había cinco siempre encendidas.
+   */
+  private readonly brazierLights: THREE.PointLight[] = [];
+  private readonly lightOwners: (Brazier | null)[] = [];
   private readonly runeMaterial: THREE.MeshBasicMaterial;
   private readonly rune: THREE.Mesh;
   private ambience: Ambience | null = null;
@@ -134,8 +139,10 @@ export class ArenaView {
     for (const brazier of this.braziers) {
       const flicker =
         0.85 + 0.1 * Math.sin(timeSeconds * 11 + brazier.phase) + 0.05 * Math.sin(timeSeconds * 23);
-      if (brazier.light) brazier.light.intensity = 7 * flicker;
       brazier.flame.scale.set(1.3 * flicker, 1.9 * flicker, 1);
+      const slot = this.lightOwners.indexOf(brazier);
+      const light = slot >= 0 ? this.brazierLights[slot] : undefined;
+      if (light) light.intensity = 7 * flicker;
     }
     this.stars.rotation.y = timeSeconds * 0.003;
 
@@ -202,15 +209,34 @@ export class ArenaView {
       flame.position.copy(position).add(new THREE.Vector3(0, 0.7, 0));
       this.scene.add(flame);
 
-      // Solo la mitad lleva luz propia (uno de cada elemento): cada luz cuesta en el celular.
-      if (i % 2 === 0) {
-        const light = new THREE.PointLight(color, 7, 14, 1.6);
-        light.position.copy(position).add(new THREE.Vector3(0, 1, 0));
-        this.scene.add(light);
-        this.braziers.push({ flame, light, color, position, phase: i * 1.7 });
-      } else {
-        this.braziers.push({ flame, light: null, color, position, phase: i * 1.7 });
-      }
+      this.braziers.push({ flame, color, position, phase: i * 1.7 });
+    });
+    for (let i = 0; i < 2; i++) {
+      const light = new THREE.PointLight('#ffffff', 0, 14, 1.6);
+      this.scene.add(light);
+      this.brazierLights.push(light);
+      this.lightOwners.push(null);
+    }
+    this.lightBraziersNear(0, 0);
+  }
+
+  /** Enciende los dos braseros más cercanos a ese punto (se llama con la posición del jugador). */
+  lightBraziersNear(x: number, z: number): void {
+    const nearest = [...this.braziers]
+      .sort(
+        (a, b) =>
+          (a.position.x - x) ** 2 +
+          (a.position.z - z) ** 2 -
+          ((b.position.x - x) ** 2 + (b.position.z - z) ** 2),
+      )
+      .slice(0, this.brazierLights.length);
+    this.brazierLights.forEach((light, i) => {
+      const brazier = nearest[i] ?? null;
+      if (this.lightOwners[i] === brazier) return;
+      this.lightOwners[i] = brazier;
+      if (!brazier) return;
+      light.color.copy(brazier.color);
+      light.position.copy(brazier.position).add(new THREE.Vector3(0, 1, 0));
     });
   }
 
@@ -220,9 +246,7 @@ export class ArenaView {
    */
   setLight(full: boolean): void {
     this.moon.castShadow = full;
-    for (const brazier of this.braziers) {
-      if (brazier.light) brazier.light.visible = full;
-    }
+    for (const light of this.brazierLights) light.visible = full;
   }
 
   private createLights(): void {

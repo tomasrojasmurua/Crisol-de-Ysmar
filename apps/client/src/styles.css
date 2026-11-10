@@ -3085,3 +3085,8 @@ body {
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 0%, rgba(255, 60, 50, 0.85), transparent 70%);
 }
+
+/* En la sala de espera, quien se cortó conserva su lugar un minuto: se ve tenue. */
+.lobby-player.away {
+  opacity: 0.5;
+}

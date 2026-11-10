@@ -61,6 +61,13 @@ const RECONNECT_EVERY_MS = 1500;
 const PING_EVERY_MS = 2000;
 /** Si no llega nada en este tiempo con la app a la vista, la conexión está muerta aunque no avise. */
 const SILENCE_MS = 6000;
+/**
+ * Al volver a la app tras este rato afuera, el socket se da por sospechoso: iOS suele matarlo en
+ * segundo plano sin avisar. Si no llega nada en `RETURN_CHECK_MS`, se reconecta de inmediato en
+ * vez de esperar los 6 s de silencio normales.
+ */
+const AWAY_SUSPECT_MS = 3000;
+const RETURN_CHECK_MS = 1500;
 /** Cuánto se recuerda el pase para volver a una sala (por si se cierra la pestaña). */
 const TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
 /** Si la predicción y el servidor difieren más que esto (un salto, un empujón), no se suaviza. */
@@ -172,6 +179,8 @@ export class NetMatch implements MatchView {
   /** Volviste a la misma partida (tras un corte o al volver a la app): sigue sin rearmar nada. */
   private resuming = false;
   private lastHeard = 0;
+  private hiddenAt = 0;
+  private returnCheck: ReturnType<typeof setTimeout> | null = null;
   private readonly onVisibility = (): void => this.visibilityChanged();
   private readonly onOnline = (): void => this.retryNow();
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -365,6 +374,7 @@ export class NetMatch implements MatchView {
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('online', this.onOnline);
     if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.returnCheck) clearTimeout(this.returnCheck);
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.socket?.close(1000, 'Salió');
     this.socket = null;
@@ -469,9 +479,25 @@ export class NetMatch implements MatchView {
   private visibilityChanged(): void {
     if (this.closed) return;
     const away = document.hidden;
+    if (away) this.hiddenAt = performance.now();
     if (!away) {
-      this.lastHeard = performance.now();
+      const wasAway = this.hiddenAt > 0 ? performance.now() - this.hiddenAt : 0;
+      this.hiddenAt = 0;
+      const returnedAt = performance.now();
+      this.lastHeard = returnedAt;
       this.resync();
+      if (wasAway > AWAY_SUSPECT_MS && this.lostAt === 0) {
+        // Se pide una respuesta ya: un ping vuelve aunque la Sala no mande estados.
+        this.send({ type: 'ping', sentAt: returnedAt });
+        if (this.returnCheck) clearTimeout(this.returnCheck);
+        this.returnCheck = setTimeout(() => {
+          this.returnCheck = null;
+          const socket = this.socket;
+          if (this.closed || !socket || this.lastHeard > returnedAt) return;
+          socket.close(4004, 'Sin respuesta al volver');
+          this.onClose(socket, 4004);
+        }, RETURN_CHECK_MS);
+      }
       if (this.lostAt !== 0) {
         // Afuera los intentos se frenan: al volver se da otra ventana completa y se intenta ya.
         this.lostAt = Date.now();

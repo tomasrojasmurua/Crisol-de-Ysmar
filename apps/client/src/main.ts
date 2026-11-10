@@ -55,6 +55,7 @@ import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
 import { TouchControls } from './input/TouchControls';
+import { leftRoom, recentRoomCode, rememberRoom, roomToRejoin } from './net/lastRoom';
 import { NetMatch } from './net/NetMatch';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { AdaptiveResolution } from './render/AdaptiveResolution';
@@ -350,6 +351,9 @@ const previewKey = new THREE.PointLight('#ffe2bd', 0, 14, 1.4);
 const previewRim = new THREE.PointLight('#9fb6ff', 0, 12, 1.4);
 previewKey.position.set(-1.6, 2.8, -2.6);
 previewRim.position.set(1.4, 2.4, 1.8);
+// Apagadas del todo fuera del Vestidor: una luz en 0 igual se calcula en cada píxel.
+previewKey.visible = false;
+previewRim.visible = false;
 scene.add(previewKey, previewRim);
 
 function showPreview(draft: Profile): void {
@@ -369,6 +373,8 @@ function showPreview(draft: Profile): void {
   preview = { view, wizard };
   previewKey.intensity = 22;
   previewRim.intensity = 14;
+  previewKey.visible = true;
+  previewRim.visible = true;
 }
 
 function hidePreview(): void {
@@ -376,6 +382,8 @@ function hidePreview(): void {
   preview = null;
   previewKey.intensity = 0;
   previewRim.intensity = 0;
+  previewKey.visible = false;
+  previewRim.visible = false;
 }
 
 function openWardrobe(): void {
@@ -431,6 +439,8 @@ function showMenu(): void {
   trainingPanel.visible = false;
   hud.training = false;
   screenAwake.active = false;
+  // Salir a propósito de una sala: al recargar ya no se vuelve sola.
+  if (net) leftRoom();
   net?.close();
   net = null;
   if (location.search) history.replaceState(null, '', location.pathname);
@@ -457,6 +467,7 @@ function showMenu(): void {
   comboCallouts.clear();
   cameraDrag.enabled = false;
   lantern.intensity = 0;
+  lantern.visible = false;
   hud.hideResult();
   wardrobe.hide();
   grimoireBook.hide();
@@ -464,6 +475,27 @@ function showMenu(): void {
   menu.setIdentity(profile, grimoire.count, grimoire.total);
   menuPortrait.setLook(lookOf(profile.look, profile.affinity, '#e8d7a8', true));
 }
+
+// ---------- El botón o gesto "atrás" del celular ----------
+
+/**
+ * En Android (y deslizando desde el borde en iPhone) "atrás" sacaba de la página en plena
+ * partida. Mientras juegas o esperas en una sala hay una entrada de más en el historial: "atrás"
+ * la gasta y abre la Pausa (en la sala de espera no hace nada). Para salir está el menú.
+ */
+let backGuard = false;
+function guardBack(): void {
+  if (backGuard) return;
+  history.pushState({ crisol: 'juego' }, '');
+  backGuard = true;
+}
+window.addEventListener('popstate', () => {
+  if (!backGuard) return;
+  backGuard = false;
+  if (!match && !net) return;
+  if (match && !pauseMenu.isOpen) pauseMenu.open();
+  guardBack();
+});
 
 function startMatch(options: MatchOptions): void {
   enterImmersive();
@@ -519,6 +551,7 @@ function beginMatch(
   current: MatchView,
   other: (id: number) => { readonly name: string; readonly look: Appearance },
 ): void {
+  guardBack();
   match = current;
   effects.playerId = current.playerId;
   const ffa = current.options.mode.kind === 'ffa';
@@ -555,6 +588,7 @@ function beginMatch(
   minimap.show(true);
   cameraDrag.enabled = true;
   lantern.intensity = 5;
+  lantern.visible = true;
   minimap.reset();
   shownRound = 0;
   resultShown = false;
@@ -728,7 +762,7 @@ const lobby = new Lobby(
 function openLobby(): void {
   enterImmersive();
   menu.visible = false;
-  lobby.showChoice();
+  lobby.showChoice(recentRoomCode());
 }
 
 /**
@@ -740,6 +774,8 @@ function joinRoom(code: string): void {
   menu.visible = false;
   lobby.showRoom(code);
   history.replaceState(null, '', `?sala=${code}`);
+  rememberRoom(code);
+  guardBack();
   const current = new NetMatch(
     code,
     { name: profile.name || 'Hechicero', look: profile.look, affinity: profile.affinity },
@@ -774,6 +810,7 @@ function joinRoom(code: string): void {
       },
       problem: (reason, fatal) => {
         if (current !== net) return;
+        if (fatal) leftRoom();
         if (lobby.visible) lobby.setStatus(reason);
         else hud.announce(reason, fatal ? '' : 'Tu mago sigue en manos de la IA', 3);
         if (fatal && !match) lobby.setStatus(reason);
@@ -783,6 +820,8 @@ function joinRoom(code: string): void {
         if (!lobby.visible) hud.announce(text, '', 1.6);
       },
       stats: (stats) => {
+        // Sigues en la sala: si la página se cierra sin querer, se vuelve sola.
+        if (current === net) rememberRoom(code);
         const simulated = stats.simulated ? ` · ${stats.simulated}` : '';
         netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`;
       },
@@ -1089,6 +1128,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   audio.setListener(playerPos, rig.forward(), current.playerId);
   arena.focus(playerPos.x, playerPos.z);
   lantern.position.set(playerPos.x, 3.2, playerPos.z);
+  arena.lightBraziersNear(playerPos.x, playerPos.z);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
   const aim = input.aimPreview;
   aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);
@@ -1122,11 +1162,14 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   minimap.update(state, player, rig.forward(), seen, badges, time);
 }
 
+// Un enlace de invitación (…?sala=K7QF) entra directo a la sala del amigo. Se lee antes de
+// mostrar el menú, que limpia la dirección: antes se leía después y el enlace no servía.
+// Sin invitación, si la página se recargó o cerró en plena partida, se vuelve a esa sala.
+const invited =
+  new URLSearchParams(location.search).get('sala')?.toUpperCase() || roomToRejoin() || '';
 showMenu();
 // La primera vez eliges nombre y personaje.
 if (!profile.name) openWardrobe();
-// Un enlace de invitación (…?sala=K7QF) entra directo a la sala del amigo.
-const invited = new URLSearchParams(location.search).get('sala')?.toUpperCase() ?? '';
 if (isValidRoomCode(invited)) {
   if (profile.name) joinRoom(invited);
   else pendingInvite = invited;
