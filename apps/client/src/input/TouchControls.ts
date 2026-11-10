@@ -1,6 +1,7 @@
 import { ELEMENTS, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
 import { el } from '../ui/dom';
+import { CAST_ICON, elementIcon, LAMENT_ICON, UNDO_ICON } from '../ui/icons';
 import type { PlayerInput } from './PlayerInput';
 
 /** Radio del joystick si todavía no se pudo medir en pantalla. */
@@ -29,6 +30,7 @@ export class TouchControls {
   /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
   private shift = 0;
   private lastHeld = '';
+  private lastSpectre: boolean | null = null;
   /** Mientras está apagado (menú, pantalla final) no acepta teclas. */
   enabled = false;
 
@@ -64,7 +66,14 @@ export class TouchControls {
           ? wizard.fallen.hauntCooldown / rules.death.spectre.hauntCooldownTicks
           : 0;
       this.castButton.style.setProperty('--fatigue', cooldown.toFixed(2));
-      this.castButton.textContent = spectre ? '☾' : '✦';
+      if (spectre !== this.lastSpectre) {
+        this.lastSpectre = spectre;
+        this.castButton.innerHTML = spectre ? LAMENT_ICON : CAST_ICON;
+        this.castButton.setAttribute(
+          'aria-label',
+          spectre ? 'Lanzar el Lamento' : 'Lanzar el conjuro',
+        );
+      }
       // Un hechizo copiado o robado sale en el próximo lanzamiento: se anuncia en el botón.
       const held = !spectre && wizard.held ? SPELL_NAMES[wizard.held.spell] : '';
       if (held !== this.lastHeld) {
@@ -88,9 +97,14 @@ export class TouchControls {
     const key = weave.join('>') + (wizard.channel ? '*' : '');
     if (key !== this.lastWeaveKey) {
       this.lastWeaveKey = key;
+      // Con algo tejido, la estrella de Lanzar se enciende: se sabe de un vistazo si hay conjuro.
+      this.castButton?.classList.toggle('ready', weave.length > 0);
       this.slots.forEach((slot, i) => {
         const element = weave[i];
-        slot.dataset.element = element ?? '';
+        if ((slot.dataset.element ?? '') !== (element ?? '')) {
+          slot.dataset.element = element ?? '';
+          slot.innerHTML = element ? elementIcon(element) : '';
+        }
         slot.classList.toggle('channeling', Boolean(wizard.channel));
       });
     }
@@ -172,7 +186,7 @@ export class TouchControls {
       button.style.setProperty('--color', element.color);
       button.style.setProperty('--index', String(index));
       button.setAttribute('aria-label', `Tejer ${element.name}`);
-      button.innerHTML = `<span class="element-name">${element.name}</span>`;
+      button.innerHTML = elementIcon(element.id);
       button.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         this.input.push({ type: 'weave', element: element.id });
@@ -193,14 +207,14 @@ export class TouchControls {
     const cast = el('button', 'cast-button');
     cast.type = 'button';
     cast.setAttribute('aria-label', 'Lanzar el conjuro');
-    cast.textContent = '✦';
+    cast.innerHTML = CAST_ICON;
     this.castButton = cast;
     this.bindCast(cast);
 
     const cancel = el('button', 'cancel-button');
     cancel.type = 'button';
     cancel.setAttribute('aria-label', 'Deshacer el tejido');
-    cancel.textContent = '✕';
+    cancel.innerHTML = UNDO_ICON;
     cancel.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       this.input.push({ type: 'cancel' });

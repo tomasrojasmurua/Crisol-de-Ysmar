@@ -85,7 +85,7 @@ export class Hud {
         <div class="hud-banner-title"></div>
         <div class="hud-banner-subtitle"></div>
       </div>
-      <p class="hud-spectre" hidden>Eres un espectro · ✦ lanza tu Lamento · un aliado a tu lado te revive</p>
+      <p class="hud-spectre" hidden>Eres un espectro · el botón central lanza tu Lamento · un aliado a tu lado te revive</p>
       <div class="hud-result" hidden>
         <div class="hud-result-card">
           <h2></h2>
