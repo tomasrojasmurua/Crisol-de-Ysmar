@@ -179,6 +179,7 @@ export class TouchControls {
   private buildWeavePad(): void {
     const pad = el('div', 'weave-pad');
     this.pad = pad;
+    pad.append(el('div', 'weave-arc'));
     ELEMENTS.forEach((element, index) => {
       const button = el('button', 'element-button');
       button.type = 'button';

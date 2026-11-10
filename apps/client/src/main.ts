@@ -67,6 +67,7 @@ import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
+import { FpsMeter } from './ui/FpsMeter';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
@@ -157,6 +158,7 @@ uiRoot.addEventListener('click', (event) => {
   audio.click();
 });
 const minimap = new Minimap(uiRoot, rules);
+const fpsMeter = new FpsMeter(uiRoot);
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
@@ -761,6 +763,7 @@ let elapsed = 0;
 renderer.setAnimationLoop((now) => {
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
+  fpsMeter.sample(frameMs);
   if (resolution.sample(frameMs) !== null) resize();
   const delta = frameMs / 1000;
   elapsed += delta;
