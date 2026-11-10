@@ -1,5 +1,6 @@
 import {
   BEAST_NAMES,
+  blindedFrom,
   DEFAULT_LOOK,
   ELEMENTS,
   GAME_RULES,
@@ -9,6 +10,8 @@ import {
   SKIN_TONES,
   spellName,
   TRIM_COLORS,
+  veiledFromTeam,
+  visibleEnemies,
   WIZARD_NAMES,
 } from '@crisol/content';
 import {
@@ -40,7 +43,6 @@ import {
   randomAppearance,
   saveProfile,
 } from './game/Profile';
-import { blindedFrom, veiledFromTeam, visibleEnemies } from './game/Sight';
 import { TrainingMatch } from './game/TrainingMatch';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
@@ -655,7 +657,8 @@ function joinRoom(code: string): void {
         if (fatal && !match) lobby.setStatus(reason);
       },
       stats: (stats) => {
-        netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls}`;
+        const simulated = stats.simulated ? ` · ${stats.simulated}` : '';
+        netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`;
       },
     },
   );
@@ -836,7 +839,9 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
     const pos = current.interpolated(wizard.id, wizard.pos, alpha);
     const spectre = isSpectre(state, wizard);
     const hidden =
-      veiledFromTeam(state, player.team, wizard.id, rules) || blindedFrom(player, wizard, rules);
+      current.isHidden?.(wizard.id) === true ||
+      veiledFromTeam(state, player.team, wizard.id, rules) ||
+      blindedFrom(player, wizard, rules);
     // Ilusión de tejido: el rival ve otros elementos en lo que tejes.
     const base = current.present?.(wizard) ?? wizard;
     const shown =
@@ -893,6 +898,8 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   obstacles.refresh();
   labels.updateBeasts(state, camera, beastName, elementColorHex);
   const seen = visibleEnemies(state, player.team, rules);
+  // En red, a quien la Sala no te muestra no se lo ve ni en el mapa (llega quieto y sin tejido).
+  for (const id of seen) if (current.isHidden?.(id)) seen.delete(id);
   labels.update(
     state,
     (id, pos) => current.interpolated(id, pos, alpha),

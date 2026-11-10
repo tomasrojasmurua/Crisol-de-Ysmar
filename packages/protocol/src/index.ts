@@ -10,4 +10,6 @@ export {
   ROOM_CODE_LENGTH,
   randomRoomCode,
   type ServerMessage,
+  type StateFrame,
 } from './messages';
+export { FRAME_DELTA, FRAME_FULL, StateDecoder, StateEncoder } from './stateCodec';

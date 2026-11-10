@@ -1,8 +1,8 @@
 import type { ClientMessage, ServerMessage } from './messages';
 
 /**
- * Codificación de mensajes. Por ahora es JSON (el WebSocket lo comprime); pasar a binario y a
- * mandar solo lo que cambia queda para cuando haga falta, sin tocar a quien la usa.
+ * Mensajes de texto (JSON): todo lo poco frecuente. El estado de cada paso va aparte, en binario
+ * y solo con lo que cambió (`stateCodec.ts`).
  */
 export function encode(message: ClientMessage | ServerMessage): string {
   return JSON.stringify(message);
@@ -13,14 +13,7 @@ export function decodeClientMessage(raw: string): ClientMessage | null {
 }
 
 export function decodeServerMessage(raw: string): ServerMessage | null {
-  return parseWithType<ServerMessage>(raw, [
-    'welcome',
-    'players',
-    'start',
-    'state',
-    'pong',
-    'error',
-  ]);
+  return parseWithType<ServerMessage>(raw, ['welcome', 'players', 'start', 'pong', 'error']);
 }
 
 function parseWithType<T extends { type: string }>(

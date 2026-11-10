@@ -1,11 +1,13 @@
 import {
   AFFINITY_RULES,
+  blindedFrom,
   cleanLook,
   GLYPHS,
   type Glyph,
   OMENS,
   type Omen,
   rulesForMode,
+  veiledFromTeam,
 } from '@crisol/content';
 import {
   affinityPatch,
@@ -14,6 +16,7 @@ import {
   createMatch,
   createSeries,
   type ElementId,
+  type GameEvent,
   type GameRules,
   type Intent,
   isElementId,
@@ -24,8 +27,10 @@ import {
   type SeriesState,
   stepMatch,
   TICK_RATE,
+  type Vec2,
+  type Wizard,
 } from '@crisol/core';
-import type { NetStage, PlayerInfo, PlayerLook } from '@crisol/protocol';
+import type { NetStage, PlayerInfo, PlayerLook, StateFrame } from '@crisol/protocol';
 
 /** Pausa entre rondas, en pasos: tiempo para leer quién ganó (igual que en el celular). */
 export const INTERMISSION_TICKS = TICK_RATE * 4;
@@ -83,6 +88,8 @@ export class DuelHost {
   private series: SeriesState = createSeries(PLAYERS);
   private omen: Omen = OMENS[0] as Omen;
   private bots = new Map<number, BotController>();
+  /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
+  private readonly lastSeen = new Map<string, Vec2>();
   private seed: number;
   state: MatchState | null = null;
   /** Se pone en true cuando empieza una partida; quien lo usa avisa y lo vuelve a false. */
@@ -263,6 +270,51 @@ export class DuelHost {
     return this.slots.get(playerId)?.acked ?? 0;
   }
 
+  /**
+   * El paso tal como lo ve un jugador, a partir de una copia del estado que nadie más modifica.
+   * Los rivales que no ve (escondidos o por su Ceguera) llegan quietos donde los vio por última
+   * vez, sin tejido ni canalización, y sin los avisos que delatarían lo que hacen.
+   */
+  frameFor(playerId: number, snapshot: MatchState): StateFrame {
+    const viewer = snapshot.wizards.find((w) => w.id === playerId);
+    const hidden: number[] = [];
+    let wizards: readonly Wizard[] = snapshot.wizards;
+    if (viewer) {
+      wizards = snapshot.wizards.map((enemy) => {
+        if (enemy.team === viewer.team) return enemy;
+        const key = `${playerId}:${enemy.id}`;
+        const unseen =
+          veiledFromTeam(snapshot, viewer.team, enemy.id, this.rules) ||
+          blindedFrom(viewer, enemy, this.rules);
+        if (!unseen) {
+          this.lastSeen.set(key, enemy.pos);
+          return enemy;
+        }
+        hidden.push(enemy.id);
+        return { ...enemy, pos: this.lastSeen.get(key) ?? enemy.pos, weave: [], channel: null };
+      });
+    }
+    const state: MatchState =
+      hidden.length === 0
+        ? snapshot
+        : {
+            ...snapshot,
+            wizards: wizards as Wizard[],
+            events: snapshot.events.filter((e) => !revealsHidden(e, hidden)),
+          };
+    const series = this.seriesInfo();
+    return {
+      ack: this.ackOf(playerId),
+      state,
+      stage: structuredClone(this.stageFor(playerId)),
+      wins: [...series.wins],
+      roundsPlayed: series.roundsPlayed,
+      seriesWinner: series.seriesWinner,
+      glyphs: series.glyphs,
+      hidden,
+    };
+  }
+
   /** Lo de la serie que va en cada estado. */
   seriesInfo(): {
     wins: readonly number[];
@@ -357,6 +409,7 @@ export class DuelHost {
   }
 
   private startRound(): MatchState {
+    this.lastSeen.clear();
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
     const setup = modeSetup({ kind: 'duel' }, roundSeed, 'out', this.rules);
     const wizards = setup.wizards.map((w, index) => {
@@ -406,6 +459,20 @@ function isIntent(value: unknown): value is Intent {
       return finite(v.dirX) && finite(v.dirZ);
     case 'lockTarget':
       return v.targetId === null || finite(v.targetId);
+    default:
+      return false;
+  }
+}
+
+/** Avisos que dicen dónde está o qué hace un rival escondido. */
+function revealsHidden(event: GameEvent, hidden: readonly number[]): boolean {
+  switch (event.type) {
+    case 'cast':
+    case 'release':
+    case 'blink':
+    case 'fizzle':
+    case 'vine':
+      return hidden.includes(event.wizardId);
     default:
       return false;
   }

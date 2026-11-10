@@ -36,3 +36,4 @@ export {
   elementDataSchema,
   elementIdSchema,
 } from './schema';
+export { blindedFrom, veiledFromTeam, visibleEnemies } from './sight';

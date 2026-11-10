@@ -24,12 +24,15 @@ import {
   type PlayerLook,
   PROTOCOL_VERSION,
   type ServerMessage,
+  StateDecoder,
+  type StateFrame,
 } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from '../game/LocalMatch';
 import type { MatchView } from '../game/MatchView';
+import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl } from './serverUrl';
 
-type StateMessage = Extract<ServerMessage, { type: 'state' }>;
+type StateMessage = StateFrame;
 
 /** El aviso de que empieza la ronda llega en este paso de la pausa (igual que en el celular). */
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
@@ -54,6 +57,8 @@ const SNAP_DISTANCE = 3;
 /** Toques guardados a la espera de que el servidor los confirme (unos 4 s). */
 const MAX_PENDING = 120;
 const RULES = rulesForMode({ kind: 'duel' });
+/** Se lee al cargar la página, antes de que el menú limpie la dirección. */
+const SIMULATED_LAG = LagSimulator.fromUrl(globalThis.location?.search ?? '');
 
 /** Lo que tocaste en un paso, guardado hasta que el servidor lo confirme. */
 interface SentInput {
@@ -82,6 +87,12 @@ export interface NetStats {
   readonly target: number;
   /** Veces que el colchón se vació y hubo que esperar. */
   readonly stalls: number;
+  /** Lo que llega del servidor, en kilobytes por segundo. */
+  readonly kbps: number;
+  /** El estado más grande que llegó en el último rato, en bytes. */
+  readonly biggest: number;
+  /** Si se está simulando una mala conexión (`?lag=`), cuánta. */
+  readonly simulated: string | null;
 }
 
 /** Tu perfil, para presentarte en la sala. */
@@ -133,6 +144,15 @@ export class NetMatch implements MatchView {
   private closed = false;
   private lostAt = 0;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  /** Arma cada estado con lo que cambió; uno nuevo por conexión (el primero llega completo). */
+  private decoder = new StateDecoder();
+  /** Rivales que la Sala dice que no ves: no se dibujan aunque lleguen en el estado. */
+  private hidden: ReadonlySet<number> = new Set();
+  private readonly lag = SIMULATED_LAG;
+  private bytesIn = 0;
+  private biggest = 0;
+  private measuredAt = 0;
+  private kbps = 0;
 
   constructor(
     readonly code: string,
@@ -303,9 +323,16 @@ export class NetMatch implements MatchView {
     this.socket = null;
   }
 
+  /** Si la Sala dice que no ves a ese rival (escondido o por tu Ceguera). */
+  isHidden(id: number): boolean {
+    return this.hidden.has(id);
+  }
+
   private connect(): void {
     const socket = new WebSocket(roomSocketUrl(this.code));
+    socket.binaryType = 'arraybuffer';
     this.socket = socket;
+    this.decoder = new StateDecoder();
     socket.addEventListener('open', () => {
       this.lostAt = 0;
       this.send({
@@ -324,9 +351,20 @@ export class NetMatch implements MatchView {
       }
     });
     socket.addEventListener('message', (event) => {
-      if (typeof event.data !== 'string') return;
-      const message = decodeServerMessage(event.data);
-      if (message) this.receive(message);
+      const data: unknown = event.data;
+      const handle = (): void => {
+        if (socket !== this.socket) return;
+        if (data instanceof ArrayBuffer) {
+          this.countBytes(data.byteLength);
+          this.receiveFrame(socket, new Uint8Array(data));
+          return;
+        }
+        if (typeof data !== 'string') return;
+        const message = decodeServerMessage(data);
+        if (message) this.receive(message);
+      };
+      if (this.lag) this.lag.incoming(handle);
+      else handle();
     });
     socket.addEventListener('close', (event) => this.onClose(socket, event.code));
   }
@@ -379,18 +417,6 @@ export class NetMatch implements MatchView {
         this.state = emptyState();
         this.awaitingFirst = true;
         return;
-      case 'state':
-        if (!this.started) return;
-        // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
-        this.latest = message;
-        if (this.awaitingFirst) {
-          this.awaitingFirst = false;
-          this.apply(message);
-          this.listener.start(this);
-          return;
-        }
-        this.buffer.push(message);
-        return;
       case 'pong':
         this.ping = Math.round(performance.now() - message.sentAt);
         this.listener.stats({
@@ -398,7 +424,11 @@ export class NetMatch implements MatchView {
           buffer: this.buffer.length,
           target: this.target,
           stalls: this.stalls,
+          kbps: this.kbps,
+          biggest: this.biggest,
+          simulated: this.lag?.label ?? null,
         });
+        this.biggest = 0;
         return;
       case 'error':
         this.listener.problem(message.reason, false);
@@ -406,8 +436,42 @@ export class NetMatch implements MatchView {
     }
   }
 
+  /** Un estado en binario: se arma sobre el anterior. Si algo no calza, se reconecta. */
+  private receiveFrame(socket: WebSocket, data: Uint8Array): void {
+    let frame: StateFrame;
+    try {
+      frame = this.decoder.decode(data) as StateFrame;
+    } catch {
+      // Se perdió el hilo: al reconectar, la Sala manda un estado completo.
+      socket.close(4003, 'Estado ilegible');
+      return;
+    }
+    if (!this.started) return;
+    // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
+    this.latest = frame;
+    if (this.awaitingFirst) {
+      this.awaitingFirst = false;
+      this.apply(frame);
+      this.listener.start(this);
+      return;
+    }
+    this.buffer.push(frame);
+  }
+
+  private countBytes(bytes: number): void {
+    this.bytesIn += bytes;
+    this.biggest = Math.max(this.biggest, bytes);
+    const now = performance.now();
+    if (now - this.measuredAt >= 1000) {
+      this.kbps = Math.round((this.bytesIn / (now - this.measuredAt)) * 10) / 10;
+      this.bytesIn = 0;
+      this.measuredAt = now;
+    }
+  }
+
   private apply(message: StateMessage): void {
     const previous = this.stage;
+    this.hidden = new Set(message.hidden);
     this.state = message.state;
     this.netStage = message.stage;
     this.glyphIds = message.glyphs;
@@ -435,7 +499,14 @@ export class NetMatch implements MatchView {
   }
 
   private send(message: Parameters<typeof encode>[0]): void {
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(encode(message));
+    const socket = this.socket;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    const text = encode(message);
+    if (this.lag) {
+      this.lag.outgoing(() => {
+        if (socket.readyState === WebSocket.OPEN) socket.send(text);
+      });
+    } else socket.send(text);
   }
 
   /** Para volver a tu mago si se corta; vive mientras la pestaña siga abierta. */

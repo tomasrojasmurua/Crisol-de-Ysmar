@@ -1,7 +1,7 @@
 import type { ElementId, Intent, MatchState } from '@crisol/core';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -64,21 +64,29 @@ export type ServerMessage =
   | { readonly type: 'players'; readonly players: readonly PlayerInfo[] }
   /** Empieza una partida nueva: el Presagio y quién es quién. */
   | { readonly type: 'start'; readonly omenId: string; readonly players: readonly PlayerInfo[] }
-  /** Un paso de la simulación: el estado completo y lo de la serie. */
-  | {
-      readonly type: 'state';
-      /** El último mensaje de toques tuyo que ya entró a la simulación (para la predicción). */
-      readonly ack: number;
-      readonly state: MatchState;
-      readonly stage: NetStage;
-      readonly wins: readonly number[];
-      readonly roundsPlayed: number;
-      readonly seriesWinner: number | null;
-      /** Los Glifos de cada mago, por id. */
-      readonly glyphs: Readonly<Record<number, readonly string[]>>;
-    }
   | { readonly type: 'pong'; readonly sentAt: number }
   | { readonly type: 'error'; readonly reason: string };
+
+/**
+ * Un paso de la simulación, visto por un jugador. Viaja en binario y solo con lo que cambió
+ * (ver `stateCodec.ts`), no como texto.
+ */
+export interface StateFrame {
+  /** El último mensaje de toques tuyo que ya entró a la simulación (para la predicción). */
+  readonly ack: number;
+  readonly state: MatchState;
+  readonly stage: NetStage;
+  readonly wins: readonly number[];
+  readonly roundsPlayed: number;
+  readonly seriesWinner: number | null;
+  /** Los Glifos de cada mago, por id. */
+  readonly glyphs: Readonly<Record<number, readonly string[]>>;
+  /**
+   * Rivales que no ves (Velo, Bosque maldito, Sombra prestada o tu Ceguera). La Sala no manda
+   * dónde están ni qué tejen: llegan quietos donde los viste por última vez y no se dibujan.
+   */
+  readonly hidden: readonly number[];
+}
 
 /** Códigos de sala cortos y fáciles de dictar: sin 0/O ni 1/I. */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

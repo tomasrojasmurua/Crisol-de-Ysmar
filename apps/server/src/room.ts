@@ -6,6 +6,7 @@ import {
   encode,
   PROTOCOL_VERSION,
   type ServerMessage,
+  StateEncoder,
 } from '@crisol/protocol';
 import { DuelHost } from './duel';
 import type { Env } from './env';
@@ -22,7 +23,7 @@ const MAX_CATCH_UP = 4;
 
 /**
  * Una Sala es un pequeño servidor propio por partida: corre el núcleo a 30 pasos por segundo y
- * manda el estado completo a los dos celulares en cada paso. Los celulares solo mandan lo que
+ * manda a cada celular lo que cambió en cada paso, en binario (el primero va completo). Los celulares solo mandan lo que
  * tocan. Si alguien se desconecta, la IA juega por él hasta que vuelva con su token.
  */
 export class Room extends DurableObject<Env> {
@@ -31,6 +32,8 @@ export class Room extends DurableObject<Env> {
   private clock = 0;
   private sentTicks = 0;
   private lastStage = '';
+  /** Lo último que se le mandó a cada conexión, para mandarle solo lo que cambió. */
+  private readonly encoders = new Map<WebSocket, StateEncoder>();
 
   override async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -94,6 +97,8 @@ export class Room extends DurableObject<Env> {
           if (other !== socket && owner === joined.playerId) other.close(4002, 'Reemplazado');
         }
         socket.serializeAttachment({ playerId: joined.playerId } satisfies Attachment);
+        // Conexión nueva (o de vuelta): su primer estado va completo.
+        this.encoders.set(socket, new StateEncoder());
         send(socket, {
           type: 'welcome',
           roomCode: this.ctx.id.name ?? '',
@@ -122,6 +127,7 @@ export class Room extends DurableObject<Env> {
   }
 
   private drop(socket: WebSocket): void {
+    this.encoders.delete(socket);
     const playerId = (socket.deserializeAttachment() as Attachment | null)?.playerId;
     if (playerId === undefined || !this.host) return;
     // Si ese jugador ya volvió por otro socket, no se lo marca como ido.
@@ -180,7 +186,7 @@ export class Room extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) trySend(socket, message);
   }
 
-  /** El estado del paso, una sola vez a texto; solo cambia la etapa de cada jugador. */
+  /** El estado del paso: una copia por paso y, para cada jugador, solo lo que cambió. */
   private broadcastState(): void {
     const duel = this.host;
     if (!duel?.state) return;
@@ -191,18 +197,18 @@ export class Room extends DurableObject<Env> {
     this.lastStage = stage;
     const playing = duel.stageFor(1).kind === 'playing';
     if (!playing && !changed && this.sentTicks % IDLE_SEND_EVERY !== 0) return;
-    const state = JSON.stringify(duel.state);
-    const series = JSON.stringify(duel.seriesInfo());
+    // El núcleo modifica el estado en el lugar: los codificadores guardan esta copia.
+    const snapshot = structuredClone(duel.state);
     for (const socket of this.ctx.getWebSockets()) {
       const playerId = (socket.deserializeAttachment() as Attachment | null)?.playerId;
       if (playerId === undefined) continue;
-      const stage = JSON.stringify(duel.stageFor(playerId));
-      const ack = duel.ackOf(playerId);
-      // Se arma a mano para no convertir el estado a texto una vez por jugador.
-      trySend(
-        socket,
-        `{"type":"state","ack":${ack},"stage":${stage},"state":${state},${series.slice(1)}`,
-      );
+      let encoder = this.encoders.get(socket);
+      if (!encoder) {
+        // La Sala despertó sin recordar lo mandado: se parte de nuevo con un cuadro completo.
+        encoder = new StateEncoder();
+        this.encoders.set(socket, encoder);
+      }
+      trySend(socket, encoder.encode(duel.frameFor(playerId, snapshot)));
     }
   }
 }
@@ -211,9 +217,9 @@ function send(socket: WebSocket, message: ServerMessage): void {
   trySend(socket, encode(message));
 }
 
-function trySend(socket: WebSocket, text: string): void {
+function trySend(socket: WebSocket, data: string | Uint8Array): void {
   try {
-    socket.send(text);
+    socket.send(data);
   } catch {
     // El socket se está cerrando: lo resuelve webSocketClose.
   }
