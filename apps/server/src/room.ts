@@ -92,6 +92,10 @@ export class Room extends DurableObject<Env> {
           socket.close(4001, 'Sala llena');
           return;
         }
+        // Si la sala creció para hacerle lugar, a quien cambió de puesto se le avisa su número.
+        // Va antes de lo que sigue: si no, el socket de otro con el número viejo de este parece
+        // un duplicado y se cierra (así se perdía un amigo al crecer la sala).
+        this.notifyMoved(this.duel.takeMoved());
         // Si el mismo jugador tenía otro socket abierto, se cierra el viejo.
         for (const other of this.ctx.getWebSockets()) {
           const owner = (other.deserializeAttachment() as Attachment | null)?.playerId;
@@ -128,22 +132,7 @@ export class Room extends DurableObject<Env> {
         if (playerId === undefined) return;
         const moved = this.duel.configure(playerId, message.settings);
         if (!moved) return;
-        // Si cambió el modo, a quien cambió de puesto se le avisa su número nuevo.
-        for (const other of this.ctx.getWebSockets()) {
-          const owner = (other.deserializeAttachment() as Attachment | null)?.playerId;
-          const next = owner === undefined ? undefined : moved.get(owner);
-          if (next === undefined) continue;
-          other.serializeAttachment({ playerId: next } satisfies Attachment);
-          const token = this.duel.tokenOf(next);
-          if (token) {
-            send(other, {
-              type: 'welcome',
-              roomCode: this.ctx.id.name ?? '',
-              playerId: next,
-              token,
-            });
-          }
-        }
+        this.notifyMoved(moved);
         this.broadcastPlayers();
         return;
       }
@@ -158,6 +147,25 @@ export class Room extends DurableObject<Env> {
         }
         if (this.duel.setAway(playerId, message.away === true)) this.broadcastPlayers();
         return;
+    }
+  }
+
+  /** Si cambió el modo, a quien cambió de puesto se le avisa su número nuevo. */
+  private notifyMoved(moved: ReadonlyMap<number, number>): void {
+    if (moved.size === 0) return;
+    // Se leen todos antes de cambiar ninguno: un puesto nuevo puede ser el viejo de otro.
+    const sockets = this.ctx.getWebSockets().map((socket) => ({
+      socket,
+      owner: (socket.deserializeAttachment() as Attachment | null)?.playerId,
+    }));
+    for (const { socket, owner } of sockets) {
+      const next = owner === undefined ? undefined : moved.get(owner);
+      if (next === undefined) continue;
+      socket.serializeAttachment({ playerId: next } satisfies Attachment);
+      const token = this.duel.tokenOf(next);
+      if (token) {
+        send(socket, { type: 'welcome', roomCode: this.ctx.id.name ?? '', playerId: next, token });
+      }
     }
   }
 

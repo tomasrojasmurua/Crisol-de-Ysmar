@@ -223,13 +223,13 @@ export class Lobby {
     query(this.root, '.lobby-leave').addEventListener('click', () => this.onCancel());
   }
 
-  /** La pantalla para crear o unirse. `mode` es el que está elegido en el menú. */
-  showChoice(): void {
+  /** La pantalla para crear o unirse. `recentCode`, la última sala, queda escrita para volver. */
+  showChoice(recentCode = ''): void {
     this.root.hidden = false;
     this.choose.hidden = false;
     this.waiting.hidden = true;
     this.joinError.hidden = true;
-    this.codeInput.value = '';
+    this.codeInput.value = recentCode;
   }
 
   /** Ya estás en una sala: muestra el código y cómo invitar. */
@@ -287,9 +287,12 @@ export class Lobby {
             el(
               'span',
               'lobby-player-tag',
-              [tag, p.id === hostId ? 'Anfitrión' : ''].filter(Boolean).join(' · '),
+              [tag, p.id === hostId ? 'Anfitrión' : '', p.connected ? '' : 'reconectando…']
+                .filter(Boolean)
+                .join(' · '),
             ),
           );
+          item.classList.toggle('away', !p.connected);
           if (teams) item.dataset.team = String(p.team);
           return item;
         }),

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CHOOSE_TICKS, DuelHost, INTERMISSION_TICKS, SILENT_TICKS } from './duel';
+import {
+  CHOOSE_TICKS,
+  DuelHost,
+  INTERMISSION_TICKS,
+  LOBBY_GRACE_TICKS,
+  SILENT_TICKS,
+} from './duel';
 
 function host(): DuelHost {
   let n = 0;
@@ -26,11 +32,14 @@ describe('Sala de duelo 1v1', () => {
     expect(duel.players.map((p) => p.team)).toEqual([0, 1]);
   });
 
-  it('no deja entrar a un tercero', () => {
+  it('si llega un tercero, la sala crece de 1 vs 1 a 2 vs 2, y así hasta 6', () => {
     const duel = host();
-    duel.join({ name: 'A' });
-    duel.join({ name: 'B' });
-    expect(duel.join({ name: 'C' })).toBeNull();
+    for (const name of ['A', 'B', 'C']) expect(duel.join({ name })).not.toBeNull();
+    expect(duel.gameMode).toEqual({ kind: 'teams', size: 2 });
+    expect(duel.takeMoved().size).toBeGreaterThan(0);
+    for (const name of ['D', 'E', 'F']) expect(duel.join({ name })).not.toBeNull();
+    expect(duel.gameMode).toEqual({ kind: 'teams', size: 3 });
+    expect(duel.join({ name: 'G' })).toBeNull();
     expect(duel.joinError).toBe('La sala está llena');
   });
 
@@ -77,11 +86,30 @@ describe('Sala de duelo 1v1', () => {
     expect(duel.connectedCount).toBe(2);
   });
 
-  it('en la sala de espera, quien se va libera su lugar', () => {
+  it('en la sala de espera, quien se corta guarda su lugar un minuto y luego lo libera', () => {
     const duel = host();
-    duel.join({ name: 'A' });
+    const first = duel.join({ name: 'A' });
+    duel.join({ name: 'B' });
     duel.leave(1);
-    expect(duel.players).toHaveLength(0);
+    expect(duel.players).toHaveLength(2);
+    expect(duel.hostId).toBe(2);
+    // Vuelve con su pase al mismo lugar (sin mandar: ahora manda B).
+    expect(duel.join({ name: 'A', token: first?.token })?.playerId).toBe(1);
+    duel.leave(1);
+    until(duel, () => false, LOBBY_GRACE_TICKS + 1);
+    expect(duel.players.map((p) => p.name)).toEqual(['B']);
+  });
+
+  it('sin su pase (otro navegador), vuelve a su mago por el nombre', () => {
+    const duel = host();
+    duel.join({ name: 'Tomás' });
+    duel.join({ name: 'Amigo' });
+    duel.begin(1);
+    duel.leave(2);
+    expect(duel.join({ name: 'Otro' })).toBeNull();
+    const back = duel.join({ name: 'Amigo' });
+    expect(back?.playerId).toBe(2);
+    expect(duel.players.find((p) => p.id === 2)?.connected).toBe(true);
   });
 
   it('juega una partida entera con Glifos entre rondas y revancha', () => {
@@ -201,7 +229,6 @@ describe('Salas de más de dos y ajustes', () => {
   it('al cambiar el modo reparte los puestos de nuevo y avisa quién cambió', () => {
     const duel = room();
     duel.join({ name: 'Beto' });
-    duel.join({ name: 'Caro' });
     expect(duel.players.map((p) => p.id)).toEqual([1, 2]);
     // No se puede pasar a duelo con tres personas... pero sí a 2 contra 2.
     duel.configure(1, { mode: { kind: 'ffa', players: 4 } });
@@ -228,7 +255,9 @@ describe('Salas de más de dos y ajustes', () => {
     duel.join({ name: 'Caro' });
     duel.join({ name: 'Dani' });
     expect(duel.players.map((p) => p.team)).toEqual([0, 0, 1, 1]);
-    expect(duel.join({ name: 'Eli' })).toBeNull();
+    // Un quinto: la sala crece a 3 contra 3.
+    expect(duel.join({ name: 'Eli' })).not.toBeNull();
+    expect(duel.gameMode).toEqual({ kind: 'teams', size: 3 });
   });
 
   it('al empezar, la IA ocupa los puestos libres', () => {
