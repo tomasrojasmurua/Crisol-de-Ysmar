@@ -1,5 +1,14 @@
 import { type GameMode, playerCount } from '@crisol/core';
-import { isValidRoomCode, type PlayerInfo, ROOM_CODE_LENGTH } from '@crisol/protocol';
+import {
+  BEST_OF,
+  isValidRoomCode,
+  type PlayerInfo,
+  ROOM_CODE_LENGTH,
+  ROOM_MODES,
+  ROUND_MINUTES,
+  type RoomSettings,
+  sameMode,
+} from '@crisol/protocol';
 import { el, query } from './dom';
 
 /** Cómo se llama un modo en la sala de espera. */
@@ -14,10 +23,79 @@ export function modeLabel(mode: GameMode): string {
   }
 }
 
+/** Nombre corto de un modo, para los botones de la sala. */
+function modeChip(mode: GameMode): string {
+  switch (mode.kind) {
+    case 'duel':
+      return '1 vs 1';
+    case 'teams':
+      return `${mode.size} vs ${mode.size}`;
+    case 'ffa':
+      return `Libre de ${mode.players}`;
+  }
+}
+
+/** Una fila de ajustes: su título y sus opciones. */
+interface SettingRow {
+  readonly title: string;
+  readonly options: readonly {
+    readonly label: string;
+    readonly pick: (s: RoomSettings) => RoomSettings;
+    readonly chosen: (s: RoomSettings) => boolean;
+    /** Si no se puede elegir con la gente que ya está (un modo con menos puestos). */
+    readonly fits?: (people: number) => boolean;
+  }[];
+}
+
+const SETTING_ROWS: readonly SettingRow[] = [
+  {
+    title: 'Modo',
+    options: ROOM_MODES.map((mode) => ({
+      label: modeChip(mode),
+      pick: (s) => ({ ...s, mode }),
+      chosen: (s) => sameMode(s.mode, mode),
+      fits: (people) => playerCount(mode) >= people,
+    })),
+  },
+  {
+    title: 'Tiempo por ronda',
+    options: ROUND_MINUTES.map((minutes) => ({
+      label: `${minutes} min`,
+      pick: (s) => ({ ...s, minutes }),
+      chosen: (s) => s.minutes === minutes,
+    })),
+  },
+  {
+    title: 'Rondas',
+    options: BEST_OF.map((bestOf) => ({
+      label: bestOf === 1 ? 'A 1' : `Mejor de ${bestOf}`,
+      pick: (s) => ({ ...s, bestOf }),
+      chosen: (s) => s.bestOf === bestOf,
+    })),
+  },
+  {
+    title: 'Glifos entre rondas',
+    options: [true, false].map((glyphs) => ({
+      label: glyphs ? 'Sí' : 'No',
+      pick: (s) => ({ ...s, glyphs }),
+      chosen: (s) => s.glyphs === glyphs,
+    })),
+  },
+  {
+    title: 'Presagio',
+    options: [true, false].map((omen) => ({
+      label: omen ? 'Sí' : 'No',
+      pick: (s) => ({ ...s, omen }),
+      chosen: (s) => s.omen === omen,
+    })),
+  },
+];
+
 /**
- * Jugar con amigos: creas una sala del modo elegido en el menú y los invitas por WhatsApp, o
- * entras con su código. Mientras esperas, muestra el código grande para dictarlo y quiénes
- * están; quien creó la sala puede empezar sin esperar a que se llene (la IA ocupa el resto).
+ * Jugar con amigos: creas una sala y los invitas por WhatsApp, o entras con su código. En la sala
+ * de espera todos ven el código, quiénes están y los ajustes (modo, tiempo por ronda, rondas,
+ * Glifos y Presagio). Solo quien la creó los cambia y decide cuándo empezar: la IA ocupa los
+ * puestos libres.
  */
 export class Lobby {
   private readonly root: HTMLElement;
@@ -29,7 +107,11 @@ export class Lobby {
   private readonly joinError: HTMLElement;
   private readonly share: HTMLAnchorElement;
   private readonly copy: HTMLButtonElement;
-  private readonly hint: HTMLElement;
+  private readonly settingButtons: {
+    readonly button: HTMLButtonElement;
+    readonly option: SettingRow['options'][number];
+  }[] = [];
+  private settings: RoomSettings | null = null;
   private readonly roster: HTMLElement;
   private readonly modeTitle: HTMLElement;
   private readonly beginButton: HTMLButtonElement;
@@ -42,14 +124,15 @@ export class Lobby {
     private readonly onJoin: (code: string) => void,
     private readonly onCancel: () => void,
     private readonly onBegin: () => void,
+    private readonly onSettings: (settings: RoomSettings) => void,
   ) {
     this.root = el('div', 'lobby');
     this.root.hidden = true;
     this.root.innerHTML = `
       <div class="lobby-panel">
-        <h2>Jugar con amigos</h2>
+        <h2 class="lobby-title">Jugar con amigos</h2>
         <div class="lobby-choose">
-          <p class="lobby-hint lobby-choose-hint"></p>
+          <p class="lobby-hint">Crea una sala e invita a tus amigos: el modo, el tiempo y las rondas se eligen adentro, a la vista de todos.</p>
           <button type="button" class="primary lobby-create">Crear sala</button>
           <div class="lobby-join">
             <input class="lobby-code-input" maxlength="${ROOM_CODE_LENGTH}" autocapitalize="characters"
@@ -60,16 +143,19 @@ export class Lobby {
         </div>
         <div class="lobby-waiting" hidden>
           <div class="lobby-invite">
-            <p class="lobby-hint">Código de la sala</p>
             <p class="lobby-code"></p>
-            <a class="primary lobby-share" target="_blank" rel="noopener">Invitar por WhatsApp</a>
-            <button type="button" class="secondary lobby-copy">Copiar enlace</button>
-          </div>
-          <div class="lobby-people">
+            <div class="lobby-invite-buttons">
+              <a class="primary lobby-share" target="_blank" rel="noopener">WhatsApp</a>
+              <button type="button" class="secondary lobby-copy">Copiar enlace</button>
+            </div>
             <p class="lobby-mode"></p>
             <ul class="lobby-roster"></ul>
+            <button type="button" class="secondary lobby-leave">Salir de la sala</button>
+          </div>
+          <div class="lobby-people">
+            <div class="lobby-settings"></div>
             <p class="lobby-status">Conectando…</p>
-            <button type="button" class="primary lobby-begin" hidden>Empezar ya</button>
+            <button type="button" class="primary lobby-begin" hidden>Empezar</button>
           </div>
         </div>
         <button type="button" class="secondary lobby-cancel">Volver</button>
@@ -83,7 +169,6 @@ export class Lobby {
     this.joinError = query(this.root, '.lobby-error');
     this.share = query(this.root, '.lobby-share') as HTMLAnchorElement;
     this.copy = query(this.root, '.lobby-copy') as HTMLButtonElement;
-    this.hint = query(this.root, '.lobby-choose-hint');
     this.roster = query(this.root, '.lobby-roster');
     this.modeTitle = query(this.root, '.lobby-mode');
     this.beginButton = query(this.root, '.lobby-begin') as HTMLButtonElement;
@@ -91,6 +176,23 @@ export class Lobby {
       this.beginButton.disabled = true;
       this.onBegin();
     });
+    const settingsBox = query(this.root, '.lobby-settings');
+    for (const row of SETTING_ROWS) {
+      const line = el('div', 'lobby-setting');
+      line.append(el('span', 'lobby-setting-title', row.title));
+      const chips = el('div', 'lobby-setting-options');
+      for (const option of row.options) {
+        const button = el('button', 'lobby-chip', option.label) as HTMLButtonElement;
+        button.type = 'button';
+        button.addEventListener('click', () => {
+          if (this.settings) this.onSettings(option.pick(this.settings));
+        });
+        chips.append(button);
+        this.settingButtons.push({ button, option });
+      }
+      line.append(chips);
+      settingsBox.append(line);
+    }
 
     query(this.root, '.lobby-create').addEventListener('click', () => this.onCreate());
     query(this.root, '.lobby-join-button').addEventListener('click', () => this.tryJoin());
@@ -114,11 +216,11 @@ export class Lobby {
       );
     });
     query(this.root, '.lobby-cancel').addEventListener('click', () => this.onCancel());
+    query(this.root, '.lobby-leave').addEventListener('click', () => this.onCancel());
   }
 
   /** La pantalla para crear o unirse. `mode` es el que está elegido en el menú. */
-  showChoice(mode: GameMode): void {
-    this.hint.textContent = `Creas una sala de ${modeLabel(mode)} (cámbialo en el menú). Si entras con un código, juegas el modo de esa sala.`;
+  showChoice(): void {
     this.root.hidden = false;
     this.choose.hidden = false;
     this.waiting.hidden = true;
@@ -148,8 +250,24 @@ export class Lobby {
   }
 
   /** Quiénes están en la sala, de qué equipo y quién puede empezar. */
-  setPlayers(players: readonly PlayerInfo[], me: number, mode: GameMode, hostId: number): void {
+  setPlayers(
+    players: readonly PlayerInfo[],
+    me: number,
+    settings: RoomSettings,
+    hostId: number,
+  ): void {
+    const mode = settings.mode;
+    this.settings = settings;
     this.modeName = modeLabel(mode);
+    const host = players.find((p) => p.id === hostId);
+    const isHost = me === hostId;
+    for (const { button, option } of this.settingButtons) {
+      button.classList.toggle('selected', option.chosen(settings));
+      const fits = option.fits?.(players.length) ?? true;
+      // Solo quien creó la sala cambia los ajustes; los demás los ven igual.
+      button.disabled = !isHost || !fits;
+      button.classList.toggle('locked', !isHost);
+    }
     this.updateShare();
     const total = playerCount(mode);
     this.modeTitle.textContent = `${this.modeName} · ${players.length} de ${total}`;
@@ -173,17 +291,23 @@ export class Lobby {
         }),
     );
     const free = total - players.length;
-    const host = players.find((p) => p.id === hostId);
-    const isHost = me === hostId;
-    this.beginButton.hidden = !isHost || free <= 0;
+    this.beginButton.hidden = !isHost;
+    this.beginButton.disabled = false;
     this.beginButton.textContent =
-      free === 1 ? 'Empezar ya (la IA ocupa 1 puesto)' : `Empezar ya (la IA ocupa ${free} puestos)`;
-    if (free <= 0) this.status.textContent = '¡Sala llena: empieza la partida!';
-    else if (mode.kind === 'duel' && players.length === 1)
-      this.status.textContent = 'Esperando a tu amigo…';
-    else if (isHost) this.status.textContent = `Faltan ${free}. Empieza cuando quieras.`;
-    else
-      this.status.textContent = `Faltan ${free}. Esperando a que ${host?.name ?? 'quien creó la sala'} empiece.`;
+      free <= 0
+        ? 'Empezar'
+        : free === 1
+          ? 'Empezar (la IA ocupa 1 puesto)'
+          : `Empezar (la IA ocupa ${free} puestos)`;
+    const who = host?.name ?? 'quien creó la sala';
+    if (isHost) {
+      this.status.textContent =
+        free <= 0
+          ? 'Sala llena. Empieza cuando quieras.'
+          : `Faltan ${free}. Empieza cuando quieras.`;
+    } else {
+      this.status.textContent = `${who} elige los ajustes y empieza la partida.`;
+    }
   }
 
   setStatus(text: string): void {

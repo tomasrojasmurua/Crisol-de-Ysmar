@@ -86,7 +86,6 @@ export class Room extends DurableObject<Env> {
           look: message.look,
           affinity: message.affinity,
           token: message.token,
-          mode: message.mode,
         });
         if (!joined) {
           send(socket, { type: 'error', reason: this.duel.joinError || 'La sala está llena' });
@@ -125,6 +124,29 @@ export class Room extends DurableObject<Env> {
       case 'rematch':
         if (playerId !== undefined) this.duel.rematch(playerId);
         return;
+      case 'settings': {
+        if (playerId === undefined) return;
+        const moved = this.duel.configure(playerId, message.settings);
+        if (!moved) return;
+        // Si cambió el modo, a quien cambió de puesto se le avisa su número nuevo.
+        for (const other of this.ctx.getWebSockets()) {
+          const owner = (other.deserializeAttachment() as Attachment | null)?.playerId;
+          const next = owner === undefined ? undefined : moved.get(owner);
+          if (next === undefined) continue;
+          other.serializeAttachment({ playerId: next } satisfies Attachment);
+          const token = this.duel.tokenOf(next);
+          if (token) {
+            send(other, {
+              type: 'welcome',
+              roomCode: this.ctx.id.name ?? '',
+              playerId: next,
+              token,
+            });
+          }
+        }
+        this.broadcastPlayers();
+        return;
+      }
       case 'begin':
         if (playerId !== undefined && this.duel.begin(playerId)) this.broadcastPlayers();
         return;
@@ -200,6 +222,7 @@ export class Room extends DurableObject<Env> {
       type: 'start',
       omenId: this.host.omenId,
       players: this.host.players,
+      settings: this.host.settings,
       ...(resume ? { resume: true } : {}),
     });
   }
@@ -209,7 +232,7 @@ export class Room extends DurableObject<Env> {
     const message = encode({
       type: 'players',
       players: this.host.players,
-      mode: this.host.gameMode,
+      settings: this.host.settings,
       hostId: this.host.hostId,
     });
     for (const socket of this.ctx.getWebSockets()) trySend(socket, message);

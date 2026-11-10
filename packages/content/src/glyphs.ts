@@ -96,6 +96,21 @@ export interface Omen {
   readonly mods: ModsPatch;
 }
 
+/** Cuando la sala juega sin Presagio. */
+export const NO_OMEN: Omen = {
+  id: 'ninguno',
+  name: 'Sin Presagio',
+  description: 'Esta partida no tiene Presagio.',
+  element: null,
+  mods: {},
+};
+
+/** El Presagio de un id (el de ninguno incluido); el primero si no se conoce. */
+export function omenById(id: string): Omen {
+  if (id === NO_OMEN.id) return NO_OMEN;
+  return OMENS.find((o) => o.id === id) ?? (OMENS[0] as Omen);
+}
+
 export const OMENS: readonly Omen[] = [
   {
     id: 'luna-de-umbra',

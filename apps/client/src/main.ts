@@ -5,6 +5,7 @@ import {
   ELEMENTS,
   GAME_RULES,
   GUARDIAN_NAME,
+  NO_OMEN,
   ROBE_COLORS,
   rulesForMode,
   SKIN_TONES,
@@ -22,7 +23,6 @@ import {
   type ElementId,
   FixedStepClock,
   type GameEvent,
-  type GameMode,
   type GameRules,
   isSpectre,
   SeededRng,
@@ -402,7 +402,7 @@ function startTraining(): void {
 
 /** Empieza (o reempieza) un duelo en red: los nombres y el aspecto vienen de la sala. */
 function startNetMatch(current: NetMatch): void {
-  useRules(rulesForMode(current.options.mode));
+  useRules(current.rules);
   const info = (id: number): PlayerInfo | undefined => current.roster.find((p) => p.id === id);
   lobby.hide();
   netBadge.hidden = false;
@@ -457,7 +457,9 @@ function beginMatch(
   shownRound = 0;
   resultShown = false;
   pickerShown = false;
-  hud.setOmen(current.omen.name, current.omen.description);
+  // Una sala sin Presagio no muestra ninguno.
+  if (current.omen.id === NO_OMEN.id) hud.setOmen(null);
+  else hud.setOmen(current.omen.name, current.omen.description);
   hud.setPlayerName(profile.name);
   hud.training = current instanceof TrainingMatch;
   screenAwake.active = true;
@@ -551,7 +553,9 @@ function updateMatchFlow(current: MatchView): void {
     } else {
       hud.announce(
         `Ronda ${shownRound}`,
-        shownRound === 1 ? `Presagio: ${current.omen.name}` : 'Caza: la arena está abierta',
+        shownRound === 1 && current.omen.id !== NO_OMEN.id
+          ? `Presagio: ${current.omen.name}`
+          : 'Caza: la arena está abierta',
         shownRound === 1 ? 3 : 2.4,
       );
     }
@@ -607,23 +611,24 @@ const trainingPanel = new TrainingPanel(
 
 const lobby = new Lobby(
   uiRoot,
-  () => joinRoom(randomRoomCode(Math.random), menu.options.mode),
+  () => joinRoom(randomRoomCode(Math.random)),
   (code) => joinRoom(code),
   () => showMenu(),
   () => net?.begin(),
+  (settings) => net?.configure(settings),
 );
 
 function openLobby(): void {
   enterImmersive();
   menu.visible = false;
-  lobby.showChoice(menu.options.mode);
+  lobby.showChoice();
 }
 
 /**
- * Entra a una sala (nueva o de un amigo) y espera a que empiece. `mode` solo cuenta si la creas
- * tú; si la sala ya existe, se juega el modo de quien la creó.
+ * Entra a una sala (nueva o de un amigo) y espera a que empiece. Los ajustes (modo, tiempo,
+ * rondas…) los elige en la sala quien la creó, a la vista de todos.
  */
-function joinRoom(code: string, mode?: GameMode): void {
+function joinRoom(code: string): void {
   net?.close();
   menu.visible = false;
   lobby.showRoom(code);
@@ -634,7 +639,7 @@ function joinRoom(code: string, mode?: GameMode): void {
     human,
     {
       players: (players, me) => {
-        lobby.setPlayers(players, me, current.options.mode, current.hostId);
+        lobby.setPlayers(players, me, current.settings, current.hostId);
         if (current !== net) return;
         // Presente: conectado y con la app a la vista. Si no, la IA juega por él.
         const present = (p: (typeof players)[number]): boolean => p.connected && !p.away;
@@ -675,7 +680,6 @@ function joinRoom(code: string, mode?: GameMode): void {
         netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`;
       },
     },
-    mode,
   );
   net = current;
   seenConnected.clear();

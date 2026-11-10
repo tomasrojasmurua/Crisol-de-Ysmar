@@ -4,10 +4,11 @@ import {
   cleanLook,
   GLYPHS,
   type Glyph,
+  NO_OMEN,
   OMENS,
   type Omen,
   randomLook,
-  rulesForMode,
+  rulesForRoom,
   veiledFromTeam,
   WIZARD_NAMES,
 } from '@crisol/content';
@@ -36,7 +37,16 @@ import {
   type Vec2,
   type Wizard,
 } from '@crisol/core';
-import type { NetStage, PlayerInfo, PlayerLook, StateFrame } from '@crisol/protocol';
+import {
+  cleanRoomSettings,
+  DEFAULT_ROOM_SETTINGS,
+  type NetStage,
+  type PlayerInfo,
+  type PlayerLook,
+  type RoomSettings,
+  type StateFrame,
+  sameMode,
+} from '@crisol/protocol';
 
 /** Pausa entre rondas, en pasos: tiempo para leer quién ganó (igual que en el celular). */
 export const INTERMISSION_TICKS = TICK_RATE * 4;
@@ -56,8 +66,6 @@ export interface JoinRequest {
   readonly look?: PlayerLook | undefined;
   readonly affinity?: ElementId | null | undefined;
   readonly token?: string | undefined;
-  /** El modo que pide quien crea la sala (el primero en entrar); los demás lo ignoran. */
-  readonly mode?: GameMode | undefined;
 }
 
 interface Slot {
@@ -65,6 +73,8 @@ interface Slot {
   readonly token: string;
   /** Puesto que ocupa la IA porque nadie lo tomó al empezar. */
   readonly bot: boolean;
+  /** Orden de llegada, para repartir los puestos de nuevo si cambia el modo. */
+  readonly arrival: number;
   name: string;
   look: PlayerLook;
   affinity: ElementId | null;
@@ -93,13 +103,14 @@ type Stage =
 /**
  * La partida de una Sala, de 2 a 6 magos: duelo, equipos o todos contra todos. La Sala la corre
  * y es la única verdad. Es pura: no sabe de sockets ni de relojes; quien la usa le pasa las
- * intenciones y la hace avanzar paso a paso. Quien crea la sala elige el modo y puede empezar sin
- * esperar a que se llene: la IA ocupa los puestos libres. Si alguien se desconecta, la IA juega
- * por él hasta que vuelva.
+ * intenciones y la hace avanzar paso a paso. En la sala de espera, quien la creó elige el modo, el
+ * tiempo por ronda, cuántas rondas y si hay Glifos y Presagio, a la vista de todos; empieza cuando
+ * quiere y la IA ocupa los puestos libres. Si alguien se desconecta, la IA juega por él.
  */
 export class DuelHost {
-  private mode: GameMode = { kind: 'duel' };
-  rules: GameRules = rulesForMode({ kind: 'duel' });
+  settings: RoomSettings = DEFAULT_ROOM_SETTINGS;
+  rules: GameRules = rulesForRoom(DEFAULT_ROOM_SETTINGS);
+  private arrivals = 0;
   /** El puesto de quien manda en la sala de espera (el primero que entró y sigue). */
   hostId = 0;
   /** Por qué no pudo entrar el último que lo intentó. */
@@ -147,7 +158,6 @@ export class DuelHost {
       this.joinError = 'La partida ya empezó';
       return null;
     }
-    if (this.slots.size === 0) this.setMode(request.mode);
     const id = this.seatOrder().find((n) => !this.slots.has(n));
     if (id === undefined) {
       this.joinError = 'La sala está llena';
@@ -156,6 +166,7 @@ export class DuelHost {
     const slot: Slot = {
       id,
       bot: false,
+      arrival: ++this.arrivals,
       token: this.makeToken(),
       name: name || `Hechicero ${id}`,
       look: cleanLook(request.look),
@@ -173,12 +184,46 @@ export class DuelHost {
     };
     this.slots.set(id, slot);
     if (this.hostId === 0) this.hostId = id;
-    if (this.slots.size === playerCount(this.mode)) this.startSeries();
     return { playerId: id, token: slot.token };
   }
 
+  /** El pase de un puesto (para avisarle si cambió de número). */
+  tokenOf(id: number): string | undefined {
+    return this.slots.get(id)?.token;
+  }
+
   get gameMode(): GameMode {
-    return this.mode;
+    return this.settings.mode;
+  }
+
+  /**
+   * Quien manda cambia los ajustes en la sala de espera. Un modo con menos puestos que la gente
+   * que ya está no se acepta. Si cambia el modo, los puestos se reparten de nuevo por orden de
+   * llegada: devuelve los que cambiaron de número (puesto viejo → nuevo) para avisarles.
+   */
+  configure(playerId: number, raw: unknown): Map<number, number> | null {
+    if (this.stage.kind !== 'lobby' || playerId !== this.hostId) return null;
+    const next = cleanRoomSettings(raw);
+    if (playerCount(next.mode) < this.slots.size) return null;
+    const modeChanged = !sameMode(next.mode, this.settings.mode);
+    this.settings = next;
+    this.rules = rulesForRoom(next);
+    return modeChanged ? this.reseat() : new Map();
+  }
+
+  /** Reparte los puestos del modo actual por orden de llegada. */
+  private reseat(): Map<number, number> {
+    const people = [...this.slots.values()].sort((a, b) => a.arrival - b.arrival);
+    const order = this.seatOrder();
+    const moved = new Map<number, number>();
+    this.slots.clear();
+    people.forEach((slot, index) => {
+      const id = order[index] ?? slot.id;
+      if (id !== slot.id) moved.set(slot.id, id);
+      this.slots.set(id, { ...slot, id });
+    });
+    this.hostId = moved.get(this.hostId) ?? this.hostId;
+    return moved;
   }
 
   /** Quien manda empieza sin esperar: la IA ocupa los puestos libres. */
@@ -191,6 +236,7 @@ export class DuelHost {
       this.slots.set(id, {
         id,
         bot: true,
+        arrival: ++this.arrivals,
         token: this.makeToken(),
         name: name ?? `Hechicero ${id}`,
         look: randomLook(this.rng),
@@ -211,32 +257,22 @@ export class DuelHost {
     return true;
   }
 
-  /** El modo lo pone quien crea la sala; si viene mal, es un duelo. */
-  private setMode(mode: GameMode | undefined): void {
-    const valid =
-      mode?.kind === 'teams'
-        ? mode.size === 2 || mode.size === 3
-        : mode?.kind === 'ffa'
-          ? Number.isInteger(mode.players) && mode.players >= 3 && mode.players <= 6
-          : true;
-    this.mode = mode && valid ? mode : { kind: 'duel' };
-    this.rules = rulesForMode(this.mode);
-  }
-
   /**
    * En qué orden se ocupan los puestos: en equipos se alterna (1, 4, 2, 5…) para repartir a los
    * amigos entre los dos bandos; en duelo y todos contra todos, en orden.
    */
   private seatOrder(): number[] {
-    const total = playerCount(this.mode);
-    if (this.mode.kind !== 'teams') return Array.from({ length: total }, (_, i) => i + 1);
-    const size = this.mode.size;
+    const mode = this.settings.mode;
+    const total = playerCount(mode);
+    if (mode.kind !== 'teams') return Array.from({ length: total }, (_, i) => i + 1);
+    const size = mode.size;
     return Array.from({ length: size }, (_, i) => [i + 1, i + 1 + size]).flat();
   }
 
   /** El equipo de un puesto, como lo arma el núcleo. */
   private teamOf(id: number): number {
-    if (this.mode.kind === 'teams') return id <= this.mode.size ? 0 : 1;
+    const mode = this.settings.mode;
+    if (mode.kind === 'teams') return id <= mode.size ? 0 : 1;
     return id - 1;
   }
 
@@ -468,8 +504,10 @@ export class DuelHost {
 
   private startSeries(): void {
     this.seed = (this.seed + 0x9e3779b9) >>> 0;
-    this.series = createSeries(teamCount(this.mode));
-    this.omen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
+    this.series = createSeries(teamCount(this.settings.mode));
+    this.omen = this.settings.omen
+      ? (OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen))
+      : NO_OMEN;
     for (const slot of this.slots.values()) {
       slot.glyphs = [];
       slot.options = [];
@@ -508,6 +546,12 @@ export class DuelHost {
   }
 
   private offerGlyphs(roundWinner: number): void {
+    if (!this.settings.glyphs) {
+      // Sala sin Glifos: de la pausa se pasa directo a la ronda siguiente.
+      this.state = this.startRound();
+      this.stage = { kind: 'playing' };
+      return;
+    }
     for (const slot of this.slots.values()) {
       const lost = roundWinner !== this.teamOf(slot.id);
       slot.options = this.glyphOptions(slot, GLYPH_OPTIONS + (lost ? 1 : 0));
@@ -545,7 +589,7 @@ export class DuelHost {
   private startRound(): MatchState {
     this.lastSeen.clear();
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
-    const setup = modeSetup(this.mode, roundSeed, 'out', this.rules);
+    const setup = modeSetup(this.settings.mode, roundSeed, 'out', this.rules);
     const wizards = setup.wizards.map((w, index) => {
       const slot = this.slots.get(index + 1);
       const affinity = slot?.affinity ?? null;

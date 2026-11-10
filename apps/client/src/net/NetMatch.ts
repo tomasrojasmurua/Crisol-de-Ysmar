@@ -1,10 +1,9 @@
-import { GLYPHS, type Glyph, OMENS, type Omen, rulesForMode } from '@crisol/content';
+import { GLYPHS, type Glyph, OMENS, type Omen, omenById, rulesForRoom } from '@crisol/content';
 import {
   type Controller,
   canAct,
   type ElementId,
   type GameEvent,
-  type GameMode,
   type GameRules,
   type Intent,
   liveRules,
@@ -20,12 +19,14 @@ import {
 const { distance, normalize } = vec2;
 
 import {
+  DEFAULT_ROOM_SETTINGS,
   decodeServerMessage,
   encode,
   type NetStage,
   type PlayerInfo,
   type PlayerLook,
   PROTOCOL_VERSION,
+  type RoomSettings,
   type ServerMessage,
   StateDecoder,
   type StateFrame,
@@ -119,11 +120,14 @@ export interface NetProfile {
  * Se ve igual que una partida local para el resto del juego.
  */
 export class NetMatch implements MatchView {
-  /** El modo lo decide quien crea la sala; llega con la lista de jugadores. */
-  options: MatchOptions;
-  /** Quién manda en la sala de espera (puede empezar sin esperar a que se llene). */
+  /** El modo lo elige quien creó la sala; llega con la lista de jugadores. */
+  options: MatchOptions = { mode: DEFAULT_ROOM_SETTINGS.mode, deathRule: 'out', affinity: null };
+  /** Los ajustes de la sala (modo, tiempo por ronda, rondas, Glifos, Presagio). */
+  settings: RoomSettings = DEFAULT_ROOM_SETTINGS;
+  /** Quién manda en la sala de espera (cambia los ajustes y empieza). */
   hostId = 0;
-  private rules: GameRules;
+  /** Las reglas de la partida: las del modo con el tiempo y las rondas de la sala. */
+  rules: GameRules = rulesForRoom(DEFAULT_ROOM_SETTINGS);
   state: MatchState = emptyState();
   series: SeriesState = { wins: [0, 0], roundsPlayed: 0, winnerTeam: null };
   stage: MatchStage = { kind: 'playing' };
@@ -181,11 +185,7 @@ export class NetMatch implements MatchView {
     private readonly profile: NetProfile,
     private readonly human: Controller,
     private readonly listener: NetListener,
-    /** El modo que pides si creas la sala; si ya existe, manda el de quien la creó. */
-    private readonly wantedMode: GameMode = { kind: 'duel' },
   ) {
-    this.options = { mode: wantedMode, deathRule: 'out', affinity: null };
-    this.rules = rulesForMode(wantedMode);
     this.connect();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('online', this.onOnline);
@@ -262,7 +262,18 @@ export class NetMatch implements MatchView {
     events.push(...next.state.events);
   }
 
-  /** Quien manda empieza sin esperar: la IA ocupa los puestos libres. */
+  /** Quien manda cambia los ajustes de la sala (los demás los ven al instante). */
+  configure(settings: RoomSettings): void {
+    this.send({ type: 'settings', settings });
+  }
+
+  private useSettings(settings: RoomSettings): void {
+    this.settings = settings;
+    this.options = { ...this.options, mode: settings.mode };
+    this.rules = rulesForRoom(settings);
+  }
+
+  /** Quien manda empieza: la IA ocupa los puestos libres. */
   begin(): void {
     this.send({ type: 'begin' });
   }
@@ -379,7 +390,6 @@ export class NetMatch implements MatchView {
         playerName: this.profile.name,
         look: this.profile.look,
         affinity: this.profile.affinity,
-        mode: this.wantedMode,
         ...(this.token ? { token: this.token } : {}),
       });
       if (document.hidden) this.send({ type: 'away', away: true });
@@ -491,10 +501,7 @@ export class NetMatch implements MatchView {
       case 'players':
         this.roster = message.players;
         this.hostId = message.hostId;
-        if (!this.started && !sameMode(message.mode, this.options.mode)) {
-          this.options = { ...this.options, mode: message.mode };
-          this.rules = rulesForMode(message.mode);
-        }
+        if (!this.started) this.useSettings(message.settings);
         this.listener.players(message.players, this.playerId);
         return;
       case 'start':
@@ -504,7 +511,8 @@ export class NetMatch implements MatchView {
           this.resync();
           return;
         }
-        this.omen = OMENS.find((o) => o.id === message.omenId) ?? (OMENS[0] as Omen);
+        this.useSettings(message.settings);
+        this.omen = omenById(message.omenId);
         this.affinities = new Map(message.players.map((p) => [p.id, p.affinity]));
         this.buffer.length = 0;
         this.primed = false;
@@ -644,10 +652,6 @@ export class NetMatch implements MatchView {
       // Sin almacenamiento: si se corta, entras como jugador nuevo.
     }
   }
-}
-
-function sameMode(a: GameMode, b: GameMode): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function glyphById(id: string): Glyph | undefined {

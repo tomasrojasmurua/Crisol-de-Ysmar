@@ -507,7 +507,7 @@ body {
   width: min(640px, 94vw);
   max-height: 100%;
   overflow: auto;
-  padding: 18px 18px 16px;
+  padding: 12px 16px;
   border-radius: 18px;
   border: 1px solid var(--panel-edge);
   background: linear-gradient(180deg, rgba(20, 17, 28, 0.9), rgba(10, 9, 14, 0.94));
@@ -2145,4 +2145,86 @@ body {
   font-size: 11px;
   color: var(--ink-quiet);
   white-space: nowrap;
+}
+
+/* Ajustes de la sala: a la vista de todos; solo quien la creó los toca. */
+.lobby-waiting:not([hidden]) {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.lobby-invite .lobby-code {
+  font-size: clamp(32px, 9vh, 46px);
+}
+
+.lobby-invite-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+/* En la sala de espera todo tiene que caber en un celular horizontal: botones bajos. */
+/* Dentro de la sala, "Salir" va en la columna izquierda: el botón de abajo sobra. */
+#ui .lobby-waiting:not([hidden]) ~ .lobby-cancel {
+  display: none;
+}
+
+#ui .lobby-waiting .primary,
+#ui .lobby-waiting .secondary {
+  padding: 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.lobby-invite-buttons > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.lobby-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.lobby-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lobby-setting-title {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.lobby-setting-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#ui .lobby-chip {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  touch-action: manipulation;
+}
+
+#ui .lobby-chip.selected {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.28), rgba(216, 191, 138, 0.08));
+  color: var(--gold-bright);
+}
+
+#ui .lobby-chip:disabled:not(.selected) {
+  opacity: 0.35;
+}
+
+#ui .lobby-chip.locked.selected {
+  opacity: 1;
 }
