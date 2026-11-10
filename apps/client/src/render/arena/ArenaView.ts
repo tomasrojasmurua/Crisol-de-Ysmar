@@ -2,6 +2,7 @@ import { MAP_DECOR } from '@crisol/content';
 import * as THREE from 'three';
 import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
+import { Ambience } from './Ambience';
 import {
   createFloorTexture,
   createGlowTexture,
@@ -9,7 +10,7 @@ import {
   createRuneCircleTexture,
 } from './textures';
 
-const BACKGROUND = '#0e1019';
+const BACKGROUND = '#0d0d18';
 const PILLAR_COUNT = 10;
 /** Lado de la zona con sombras alrededor del jugador: en el celular no alcanza para todo el mapa. */
 const SHADOW_EXTENT = 24;
@@ -31,6 +32,8 @@ export class ArenaView {
   readonly scene = new THREE.Scene();
   private readonly braziers: Brazier[] = [];
   private readonly runeMaterial: THREE.MeshBasicMaterial;
+  private readonly rune: THREE.Mesh;
+  private ambience: Ambience | null = null;
   private readonly stars: THREE.Points;
   private readonly moon = new THREE.DirectionalLight('#b8c2ff', 2.4);
   /** Lo que depende del tamaño de la arena: senderos, murete, columnas y ruinas lejanas. */
@@ -88,6 +91,7 @@ export class ArenaView {
       opacity: 0.8,
     });
     const rune = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 8.5), this.runeMaterial);
+    this.rune = rune;
     rune.rotation.x = -Math.PI / 2;
     rune.position.y = 0.02;
     scene.add(rune);
@@ -114,10 +118,19 @@ export class ArenaView {
       createPillars(arenaRadius),
       createDistantRuins(arenaRadius),
     );
+    if (this.ambience) {
+      this.scene.remove(this.ambience.group);
+      this.ambience.dispose();
+    }
+    this.ambience = new Ambience(arenaRadius);
+    this.scene.add(this.ambience.group);
   }
 
   update(timeSeconds: number, deltaSeconds: number): void {
-    this.runeMaterial.opacity = 0.55 + 0.15 * Math.sin(timeSeconds * 0.8);
+    this.runeMaterial.opacity = 0.6 + 0.18 * Math.sin(timeSeconds * 0.8);
+    // El círculo rúnico gira muy lento: la arena se siente viva sin distraer.
+    this.rune.rotation.z = timeSeconds * 0.02;
+    this.ambience?.update(timeSeconds);
     for (const brazier of this.braziers) {
       const flicker =
         0.85 + 0.1 * Math.sin(timeSeconds * 11 + brazier.phase) + 0.05 * Math.sin(timeSeconds * 23);
@@ -202,7 +215,7 @@ export class ArenaView {
   }
 
   private createLights(): void {
-    this.scene.add(new THREE.HemisphereLight('#8a95c6', '#3a3024', 2.4));
+    this.scene.add(new THREE.HemisphereLight('#8a95c6', '#3a3024', 1.7));
     // La luna proyecta las sombras de los magos sobre la piedra.
     const moon = this.moon;
     moon.position.set(-12, 22, 10);
