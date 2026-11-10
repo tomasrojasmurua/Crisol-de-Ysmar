@@ -59,6 +59,7 @@ import { MapViews } from './render/arena/MapViews';
 import { ZoneView } from './render/arena/ZoneView';
 import { CreatureViews } from './render/CreatureViews';
 import { EffectsView } from './render/EffectsView';
+import { MenuPortrait } from './render/MenuPortrait';
 import { Particles } from './render/Particles';
 import { teamColorHex } from './render/palette';
 import { PostProcessing } from './render/postprocessing';
@@ -158,6 +159,7 @@ uiRoot.addEventListener('click', (event) => {
   audio.click();
 });
 const minimap = new Minimap(uiRoot, rules);
+const menuPortrait = new MenuPortrait(rules);
 const fpsMeter = new FpsMeter(uiRoot);
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
@@ -300,6 +302,7 @@ function closeOverlays(): void {
   grimoireBook.hide();
   hidePreview();
   menu.setIdentity(profile, grimoire.count, grimoire.total);
+  menuPortrait.setLook(lookOf(profile.look, profile.affinity, '#e8d7a8', true));
   menu.visible = true;
   if (pendingInvite && profile.name) {
     const code = pendingInvite;
@@ -364,6 +367,7 @@ function showMenu(): void {
   grimoireBook.hide();
   hidePreview();
   menu.setIdentity(profile, grimoire.count, grimoire.total);
+  menuPortrait.setLook(lookOf(profile.look, profile.affinity, '#e8d7a8', true));
 }
 
 function startMatch(options: MatchOptions): void {
@@ -803,6 +807,9 @@ renderer.setAnimationLoop((now) => {
   effects.update(delta);
   particles.update(delta);
   post.render();
+  // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
+  const portraitRect = menu.portraitRect;
+  if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);
 });
 
 /** Un tejido falso, que cambia cada segundo y medio, igual en todas las pantallas. */

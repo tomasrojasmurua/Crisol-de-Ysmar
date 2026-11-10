@@ -103,44 +103,89 @@ body {
 
 #ui .primary,
 #ui .secondary {
-  border-radius: 999px;
-  padding: 12px 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 10px 22px;
   font-family: var(--display);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-size: 15px;
+  font-size: 14px;
+  touch-action: manipulation;
+  --icon-size: 20px;
+  transition:
+    scale 90ms ease-out,
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
+/* Primario: bronce oscuro con doble filete dorado (el mismo lenguaje que Lanzar). */
 #ui .primary {
-  border: 1px solid var(--gold-bright);
-  background: linear-gradient(180deg, #e9cf95, #a9864b);
-  color: #1b1408;
+  border: 2px solid var(--gold);
+  background: linear-gradient(180deg, #44301d, #201913);
+  color: var(--gold-bright);
   box-shadow:
-    0 0 24px rgba(233, 207, 149, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    inset 0 0 0 2px #17120e,
+    0 0 12px rgba(216, 191, 138, 0.2);
 }
 
 #ui .secondary {
-  border: 1px solid var(--panel-edge);
-  background: var(--panel);
+  border: 1px solid rgba(216, 191, 138, 0.42);
+  background: rgba(16, 15, 22, 0.9);
+  color: var(--ink);
+  --icon-color: var(--gold);
 }
 
-.primary:active,
-.secondary:active {
-  transform: scale(0.97);
+#ui .primary:active:not(:disabled),
+#ui .secondary:active:not(:disabled) {
+  scale: 0.97;
+  border-color: var(--gold-bright);
+  background: #30251b;
+}
+
+#ui .primary:disabled,
+#ui .secondary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: default;
+}
+
+#ui .primary:focus-visible,
+#ui .secondary:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .primary,
+  #ui .secondary {
+    transition: none;
+  }
 }
 
 /* ---------- Menú ---------- */
 
+/*
+ * Tres columnas sobre el Crisol que gira de fondo: tu mago a la izquierda, título y modo al
+ * centro, Grimorio y Sonido a la derecha. El oro intenso queda solo para el botón principal
+ * y el modo elegido.
+ */
 .menu {
   position: absolute;
   inset: 0;
   pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: clamp(116px, 19vw, 168px) minmax(0, 1fr) clamp(124px, 20vw, 176px);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "wizard title side"
+    "wizard center side";
+  column-gap: clamp(12px, 3vw, 28px);
+  row-gap: 6px;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
@@ -148,111 +193,415 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 25% 50%, rgba(7, 7, 12, 0.1), rgba(7, 7, 12, 0.75) 70%),
-    linear-gradient(90deg, rgba(7, 7, 12, 0.55), transparent 45%, rgba(7, 7, 12, 0.7));
+    radial-gradient(ellipse at 50% 55%, rgba(7, 7, 12, 0.15), rgba(7, 7, 12, 0.7) 75%),
+    linear-gradient(
+      90deg,
+      rgba(7, 7, 12, 0.6),
+      transparent 30%,
+      transparent 70%,
+      rgba(7, 7, 12, 0.6)
+    );
   pointer-events: none;
 }
 
-.menu-title {
+/* Tarjetas de vidrio ahumado con filete de bronce. */
+.menu-card {
   position: relative;
-  max-width: 46%;
-  padding-left: 2vw;
+  border: 1px solid rgba(216, 191, 138, 0.42);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.6),
+    0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-.menu-kicker {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.35em;
+/* Tu mago: el retrato es un hueco transparente donde se dibuja el mago en 3D. */
+.menu-wizard-card {
+  grid-area: wizard;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: min(100%, 300px);
+  overflow: hidden;
+}
+
+#ui .menu-portrait {
+  flex: 1;
+  min-height: 90px;
+  border: none;
+  border-bottom: 1px solid var(--bronze);
+  background: transparent;
+  padding: 0;
+}
+
+.menu-wizard-name,
+.menu-wizard-affinity,
+#ui .menu-wizard {
+  background: rgba(7, 7, 12, 0.88);
+}
+
+.menu-wizard-name {
+  padding: 8px 10px 0;
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-align: center;
   text-transform: uppercase;
-  color: var(--ink-quiet);
+  color: var(--gold-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-wizard-affinity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 2px 8px 6px;
+  font-size: 12px;
+  color: var(--ink);
+  --icon-size: 16px;
+}
+
+#ui .menu-wizard {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid var(--bronze);
+  padding: 8px;
+  font-size: 13px;
+}
+
+/* Título al centro: "Crisol de" chico sobre "Ysmar" grande. */
+.menu-title {
+  grid-area: title;
+  position: relative;
+  text-align: center;
 }
 
 .menu-title h1 {
   margin: 0;
   font-family: var(--display);
   font-weight: 700;
-  font-size: clamp(34px, 7vw, 72px);
-  line-height: 1;
-  letter-spacing: 0.04em;
+  font-size: clamp(34px, 11vh, 52px);
+  line-height: 0.95;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--gold-bright);
   text-shadow:
-    0 0 18px rgba(243, 223, 176, 0.45),
-    0 0 60px rgba(180, 156, 255, 0.35);
+    0 2px 0 #5b4626,
+    0 0 18px rgba(243, 223, 176, 0.4),
+    0 0 50px rgba(180, 156, 255, 0.35);
+}
+
+.menu-title-small {
+  display: block;
+  font-size: 0.42em;
+  letter-spacing: 0.2em;
 }
 
 .menu-tagline {
-  margin: 14px 0 0;
-  font-size: 14px;
-  color: var(--ink);
-  opacity: 0.8;
-}
-
-.menu-panel {
-  position: relative;
-  width: min(440px, 52vw);
-  max-height: 100%;
-  overflow: auto;
-  padding: 14px 16px 16px;
-  border-radius: 18px;
-  border: 1px solid var(--panel-edge);
-  background: linear-gradient(180deg, rgba(20, 17, 28, 0.86), rgba(10, 9, 14, 0.9));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.menu-panel h2 {
   margin: 4px 0 0;
-  font-family: var(--display);
-  font-size: 12px;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--gold);
+  font-size: 12.5px;
+  color: var(--ink);
+  opacity: 0.85;
+  text-shadow: 0 1px 3px #000;
 }
 
-.menu-modes,
-.menu-rules {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.menu-rules {
-  grid-template-columns: 1fr 1fr;
-}
-
-.menu-choice {
+.menu-center {
+  grid-area: center;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 0;
+}
+
+/* Pestañas de modo con forma de hexágono alargado: el borde es el fondo de afuera. */
+.menu-tabs {
+  display: flex;
+  gap: 4px;
+  width: min(100%, 420px);
+}
+
+#ui .menu-tab {
+  --cut: 12px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 4px 14px;
+  border: none;
+  background: rgba(216, 191, 138, 0.42);
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% 50%,
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 50%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
-  padding: 7px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  text-align: left;
-}
-
-.menu-choice strong {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.menu-choice span {
   font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--ink);
+  --icon-size: 18px;
+  --icon-color: var(--gold);
+}
+
+#ui .menu-tab::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: rgba(14, 12, 20, 0.94);
+  clip-path: inherit;
+}
+
+.menu-tab > svg,
+.menu-tab > span {
+  position: relative;
+}
+
+#ui .menu-tab.selected {
+  background: var(--gold-bright);
+  color: var(--gold-bright);
+  --icon-color: var(--gold-bright);
+}
+
+#ui .menu-tab.selected::before {
+  inset: 2px;
+  background: linear-gradient(180deg, #4a341f, #1f1812);
+}
+
+/* Tamaño (2v2, 3v3; 4 o 6 magos) y regla al caer: fichas chicas. */
+.menu-sizes,
+.menu-rules {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+.menu-sizes.empty {
+  visibility: hidden;
+}
+
+#ui .menu-chip {
+  min-width: 84px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: rgba(14, 12, 20, 0.88);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-quiet);
+  touch-action: manipulation;
+}
+
+#ui .menu-chip.selected {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.22), rgba(216, 191, 138, 0.06));
+}
+
+/* El botón principal: hexágono de bronce con doble filete dorado y estrellas. */
+#ui .menu-play {
+  --cut: 18px;
+  position: relative;
+  width: min(100%, 340px);
+  min-height: 56px;
+  border: none;
+  border-radius: 0;
+  background: var(--gold);
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% 50%,
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 50%
+  );
+  box-shadow: none;
+  font-size: clamp(15px, 2.3vw, 19px);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--gold-bright);
+  filter: drop-shadow(0 0 14px rgba(216, 191, 138, 0.35));
+  --icon-size: 14px;
+}
+
+#ui .menu-play::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(243, 223, 176, 0.22), transparent 70%),
+    linear-gradient(180deg, #4a341f, #1d1610);
+  clip-path: inherit;
+}
+
+.menu-play > svg,
+.menu-play > span {
+  position: relative;
+}
+
+.menu-extra {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+
+#ui .menu-extra > button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Columna derecha: Grimorio y Sonido. */
+.menu-side {
+  grid-area: side;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#ui .menu-grimoire {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(7, 7, 12, 0.88);
+  text-align: left;
+  --icon-size: 26px;
+  --icon-color: var(--gold);
+}
+
+#ui .menu-grimoire > .icon:last-child {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+
+.menu-grimoire-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-grimoire-text strong,
+.menu-sound-head strong {
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.menu-grimoire-count {
+  font-size: 12px;
   color: var(--ink-quiet);
 }
 
-.menu-choice.selected {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(216, 191, 138, 0.2), rgba(216, 191, 138, 0.06));
-  box-shadow: 0 0 16px rgba(216, 191, 138, 0.18);
+.menu-sound {
+  padding: 8px 10px 10px;
+  background: rgba(7, 7, 12, 0.88);
 }
 
-.menu-play {
-  margin-top: 10px;
+.menu-sound-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  --icon-size: 20px;
+  --icon-color: var(--gold);
+}
+
+.menu-sound-options {
+  display: flex;
+  gap: 6px;
+}
+
+#ui .menu-sound-option {
+  flex: 1;
+  min-height: 38px;
+  border-radius: 6px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: rgba(14, 12, 20, 0.9);
+  display: grid;
+  place-items: center;
+  --icon-size: 20px;
+  --icon-color: var(--ink-quiet);
+}
+
+#ui .menu-sound-option.selected {
+  border-color: var(--gold-bright);
+  background: linear-gradient(180deg, #4a341f, #1f1812);
+  --icon-color: var(--gold-bright);
+}
+
+/* Celulares angostos: el centro tiene menos ancho; los íconos de abajo se van y la letra baja. */
+@media (max-width: 760px) {
+  #ui .menu-tab {
+    --cut: 9px;
+    padding: 4px 10px;
+    font-size: 10px;
+  }
+
+  #ui .menu-extra > button {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 8px 6px;
+  }
+
+  #ui .menu-extra .icon {
+    display: none;
+  }
+
+  .menu-grimoire-text strong,
+  .menu-sound-head strong {
+    font-size: 12px;
+  }
+
+  #ui .menu-grimoire {
+    --icon-size: 22px;
+    padding: 8px 10px;
+  }
+}
+
+/* Celulares bajos: se achica el título para que nada se encime. */
+@media (max-height: 360px) {
+  .menu-title h1 {
+    font-size: 30px;
+  }
+
+  .menu-tagline {
+    font-size: 11px;
+  }
+
+  .menu-center {
+    gap: 5px;
+  }
+
+  #ui .menu-tab {
+    min-height: 40px;
+  }
+
+  #ui .menu-play {
+    min-height: 48px;
+    font-size: 17px;
+  }
 }
 
 /* ---------- Fichas de hechizo (Grimorio y entrenamiento) ---------- */
@@ -509,8 +858,8 @@ body {
   max-height: 100%;
   overflow: auto;
   padding: 12px 16px;
-  border-radius: 18px;
-  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  border: 1px solid rgba(216, 191, 138, 0.42);
   background: linear-gradient(180deg, rgba(20, 17, 28, 0.9), rgba(10, 9, 14, 0.94));
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   display: flex;
@@ -567,8 +916,22 @@ body {
   text-transform: uppercase;
 }
 
+.lobby-code-label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+
+/* El código en un recuadro de bronce, fácil de dictar. */
 .lobby-code {
   margin: 0;
+  padding: 2px 0 4px;
+  border: 1px solid rgba(216, 191, 138, 0.42);
+  border-radius: 6px;
+  background: rgba(7, 7, 12, 0.7);
+  box-shadow: inset 0 0 0 3px rgba(7, 7, 12, 0.6);
   font-family: var(--display);
   font-size: clamp(40px, 12vw, 60px);
   letter-spacing: 0.3em;
@@ -578,7 +941,6 @@ body {
 
 .lobby-share {
   text-decoration: none;
-  display: block;
 }
 
 .watch-badge {
@@ -1238,6 +1600,7 @@ body {
 
 .icon {
   display: block;
+  flex: none;
   width: var(--icon-size, 50%);
   height: var(--icon-size, 50%);
   /* Por variable: la regla general `#ui button { color: inherit }` pisaría el color directo. */
@@ -1790,82 +2153,6 @@ body {
     height: 36px;
     font-size: 19px;
   }
-}
-
-/* ---------- Identidad en el menú ---------- */
-
-.menu-identity {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-#ui .menu-wizard,
-#ui .menu-grimoire,
-#ui .menu-sound {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--panel-edge);
-  background: var(--panel);
-  backdrop-filter: blur(6px);
-  text-align: left;
-}
-
-#ui .menu-wizard {
-  border-color: color-mix(in srgb, var(--element, var(--gold)) 45%, transparent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--element, var(--gold)) 18%, transparent);
-}
-
-.menu-wizard-sigil {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--element, var(--gold));
-  box-shadow: 0 0 12px var(--element, var(--gold));
-}
-
-.menu-wizard-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.menu-wizard-name {
-  font-family: var(--display);
-  font-size: 15px;
-  color: var(--gold-bright);
-}
-
-.menu-wizard-affinity,
-.menu-grimoire-count,
-.menu-sound-state {
-  font-size: 11px;
-  color: var(--ink-quiet);
-}
-
-.menu-wizard-edit {
-  margin-left: 6px;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-
-#ui .menu-grimoire,
-#ui .menu-sound {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-}
-
-.menu-grimoire strong,
-.menu-sound strong {
-  font-family: var(--display);
-  font-size: 14px;
-  color: var(--gold-bright);
 }
 
 /* ---------- Vestidor ---------- */
@@ -2476,7 +2763,7 @@ body {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 13px;
@@ -2560,10 +2847,10 @@ body {
 
 #ui .lobby-chip {
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: rgba(14, 12, 20, 0.88);
   color: var(--ink);
   touch-action: manipulation;
 }

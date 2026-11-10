@@ -10,6 +10,7 @@ import {
   sameMode,
 } from '@crisol/protocol';
 import { el, query } from './dom';
+import { MENU_ICONS } from './menuIcons';
 
 /** Cómo se llama un modo en la sala de espera. */
 export function modeLabel(mode: GameMode): string {
@@ -107,6 +108,7 @@ export class Lobby {
   private readonly joinError: HTMLElement;
   private readonly share: HTMLAnchorElement;
   private readonly copy: HTMLButtonElement;
+  private readonly copyText: HTMLElement;
   private readonly settingButtons: {
     readonly button: HTMLButtonElement;
     readonly option: SettingRow['options'][number];
@@ -143,14 +145,15 @@ export class Lobby {
         </div>
         <div class="lobby-waiting" hidden>
           <div class="lobby-invite">
+            <p class="lobby-code-label">Código de sala</p>
             <p class="lobby-code"></p>
             <div class="lobby-invite-buttons">
               <a class="primary lobby-share" target="_blank" rel="noopener">WhatsApp</a>
-              <button type="button" class="secondary lobby-copy">Copiar enlace</button>
+              <button type="button" class="secondary lobby-copy">${MENU_ICONS.copy}<span class="lobby-copy-text">Copiar enlace</span></button>
             </div>
             <p class="lobby-mode"></p>
             <ul class="lobby-roster"></ul>
-            <button type="button" class="secondary lobby-leave">Salir de la sala</button>
+            <button type="button" class="secondary lobby-leave">${MENU_ICONS.leave}<span>Salir de la sala</span></button>
           </div>
           <div class="lobby-people">
             <div class="lobby-settings"></div>
@@ -158,7 +161,7 @@ export class Lobby {
             <button type="button" class="primary lobby-begin" hidden>Empezar</button>
           </div>
         </div>
-        <button type="button" class="secondary lobby-cancel">Volver</button>
+        <button type="button" class="secondary lobby-cancel">${MENU_ICONS.back}<span>Volver</span></button>
       </div>`;
     parent.append(this.root);
     this.choose = query(this.root, '.lobby-choose');
@@ -169,6 +172,7 @@ export class Lobby {
     this.joinError = query(this.root, '.lobby-error');
     this.share = query(this.root, '.lobby-share') as HTMLAnchorElement;
     this.copy = query(this.root, '.lobby-copy') as HTMLButtonElement;
+    this.copyText = query(this.root, '.lobby-copy-text');
     this.roster = query(this.root, '.lobby-roster');
     this.modeTitle = query(this.root, '.lobby-mode');
     this.beginButton = query(this.root, '.lobby-begin') as HTMLButtonElement;
@@ -208,10 +212,10 @@ export class Lobby {
     this.copy.addEventListener('click', () => {
       void navigator.clipboard?.writeText(this.link).then(
         () => {
-          this.copy.textContent = 'Enlace copiado';
+          this.copyText.textContent = 'Enlace copiado';
         },
         () => {
-          this.copy.textContent = this.link;
+          this.copyText.textContent = this.link;
         },
       );
     });
@@ -236,7 +240,7 @@ export class Lobby {
     this.codeLabel.textContent = code;
     this.link = `${location.origin}${location.pathname}?sala=${code}`;
     this.updateShare();
-    this.copy.textContent = 'Copiar enlace';
+    this.copyText.textContent = 'Copiar enlace';
     this.status.textContent = 'Conectando…';
     this.roster.replaceChildren();
     this.modeTitle.textContent = '';
@@ -283,7 +287,7 @@ export class Lobby {
             el(
               'span',
               'lobby-player-tag',
-              [tag, p.id === hostId ? 'crea la sala' : ''].filter(Boolean).join(' · '),
+              [tag, p.id === hostId ? 'Anfitrión' : ''].filter(Boolean).join(' · '),
             ),
           );
           if (teams) item.dataset.team = String(p.team);
@@ -306,7 +310,7 @@ export class Lobby {
           ? 'Sala llena. Empieza cuando quieras.'
           : `Faltan ${free}. Empieza cuando quieras.`;
     } else {
-      this.status.textContent = `${who} elige los ajustes y empieza la partida.`;
+      this.status.textContent = `Esperando al anfitrión: ${who} elige los ajustes y empieza la partida.`;
     }
   }
 
