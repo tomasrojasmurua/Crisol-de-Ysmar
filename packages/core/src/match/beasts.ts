@@ -128,10 +128,6 @@ function repopulate(state: MatchState, rules: GameRules): void {
   }
 }
 
-export function beastById(state: MatchState, id: EntityId | null): Beast | undefined {
-  return id === null ? undefined : state.beasts.find((b) => b.id === id);
-}
-
 /**
  * Daña a una bestia. Se enoja con quien la atacó; si muere, su Esencia
  * pasa al mago que le dio el último golpe.

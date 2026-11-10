@@ -1,5 +1,5 @@
 /** Un celular o tablet: se juega con los dedos. */
-export function isTouchDevice(): boolean {
+function isTouchDevice(): boolean {
   return window.matchMedia('(pointer: coarse)').matches;
 }
 

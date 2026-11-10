@@ -6,7 +6,7 @@ import type { Placement } from './Synth';
  * `public/audio/manifest.json` aparece un archivo para la clave, se usa el archivo.
  * Así los de ElevenLabs entran sin tocar código: se copia el .mp3 y se anota en el manifiesto.
  */
-export const SOUND_KEYS = [
+const SOUND_KEYS = [
   'note.brasa',
   'note.tormenta',
   'note.marea',

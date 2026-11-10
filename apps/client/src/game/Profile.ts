@@ -20,7 +20,7 @@ export interface Profile {
 const STORAGE_KEY = 'crisol.perfil';
 export const NAME_MAX_LENGTH = 14;
 
-export const DEFAULT_PROFILE: Profile = {
+const DEFAULT_PROFILE: Profile = {
   name: '',
   look: DEFAULT_LOOK,
   affinity: null,

@@ -20,7 +20,7 @@ function pointAhead(ctx: CastContext, range: number): Vec2 {
 }
 
 /** Deja algo de la cuarta tanda en el campo. */
-export function field(
+function field(
   ctx: CastContext,
   mode: FieldMode,
   pos: Vec2,

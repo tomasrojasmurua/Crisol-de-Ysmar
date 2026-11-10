@@ -9,7 +9,6 @@ export {
   neighborsOf,
   opposingOf,
 } from './elements';
-export { beastById } from './match/beasts';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
 export { stateHash } from './match/hash';
 export { isBurned, liveRules } from './match/liveMap';
@@ -89,7 +88,7 @@ export type {
   Zone,
   ZoneEffect,
 } from './match/state';
-export { type IntentsByWizard, NO_INTENTS, stepMatch } from './match/step';
+export { type IntentsByWizard, stepMatch } from './match/step';
 export { walkTarget } from './match/walk';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';

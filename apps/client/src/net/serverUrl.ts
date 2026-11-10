@@ -4,7 +4,7 @@
  */
 const env: Partial<ImportMetaEnv> = import.meta.env ?? {};
 
-export const SERVER_URL: string =
+const SERVER_URL: string =
   (env.VITE_SERVER_URL as string | undefined) ??
   (env.DEV ? 'http://localhost:8787' : 'https://crisol-server.tomasrojasmurua.workers.dev');
 

@@ -17,7 +17,7 @@ const meters = (m: number): string =>
  * Los datos de un hechizo leídos de las reglas: así nunca quedan desactualizados si se ajusta el
  * balance. Solo lo que el hechizo tiene: daño, alcance, radio, duración y cuánto tarda en salir.
  */
-export function spellFacts(spell: SpellId, rules: GameRules): string[] {
+function spellFacts(spell: SpellId, rules: GameRules): string[] {
   const values = (rules.spells as unknown as Record<string, Record<string, unknown>>)[spell] ?? {};
   const num = (key: string): number | null =>
     typeof values[key] === 'number' ? (values[key] as number) : null;
@@ -37,7 +37,7 @@ export function spellFacts(spell: SpellId, rules: GameRules): string[] {
 }
 
 /** El nombre de un elemento, para leer un tejido en voz alta: "Brasa → Marea". */
-export function weaveText(weave: Weave): string {
+function weaveText(weave: Weave): string {
   return weave.map((e) => ELEMENTS.find((x) => x.id === e)?.name ?? e).join(' → ');
 }
 
