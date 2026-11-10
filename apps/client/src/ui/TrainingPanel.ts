@@ -1,87 +1,97 @@
-import type { GameRules } from '@crisol/core';
-import { type SpellId, spellOf, type Wizard } from '@crisol/core';
+import { SPELL_NAMES } from '@crisol/content';
+import { type GameRules, SPELL_WEAVES, type SpellId } from '@crisol/core';
 import { el, query } from './dom';
 import { weaveOrbs } from './GrimoireBook';
 import { spellCard } from './spellFacts';
 
 /**
- * El panel del entrenamiento: lo que estás tejiendo ahora y qué hechizo sale, con su
- * descripción; y el último que lanzaste. También deja quitar el cansancio y salir.
+ * El entrenamiento en pantalla. Arriba a la izquierda, bajo tu vida, el último hechizo que
+ * lanzaste: sus colores y su nombre; al tocarlo se despliega qué hace. Arriba a la derecha,
+ * una barra chica para quitar el cansancio y salir.
  */
 export class TrainingPanel {
-  private readonly root: HTMLElement;
-  private readonly weaving: HTMLElement;
-  private readonly last: HTMLElement;
+  private readonly bar: HTMLElement;
+  private readonly spell: HTMLElement;
+  private readonly summary: HTMLButtonElement;
+  private readonly detail: HTMLElement;
   private readonly rest: HTMLInputElement;
-  private shownWeave = '-';
-  private shownLast: SpellId | null = null;
+  private shown: SpellId | null = null;
 
-  constructor(parent: HTMLElement, onRestless: (on: boolean) => void, onExit: () => void) {
-    this.root = el('aside', 'training-panel');
-    this.root.hidden = true;
-    this.root.innerHTML = `
-      <header class="training-head">
-        <button type="button" class="training-toggle" aria-expanded="true">
-          <strong>Entrenamiento</strong> <span class="training-chevron">▾</span>
-        </button>
-        <label class="training-rest"><input type="checkbox" checked /> Sin cansancio</label>
-        <button type="button" class="secondary training-exit">Salir</button>
-      </header>
-      <div class="training-body">
-        <p class="training-label">Tejiendo</p>
-        <div class="training-weaving"></div>
-        <p class="training-label">Último lanzado</p>
-        <div class="training-last"><p class="training-empty">Lanza algo con ✦</p></div>
-      </div>`;
-    parent.append(this.root);
-    this.weaving = query(this.root, '.training-weaving');
-    this.last = query(this.root, '.training-last');
-    this.rest = query(this.root, '.training-rest input') as HTMLInputElement;
+  constructor(
+    parent: HTMLElement,
+    /** La columna de arriba a la izquierda del HUD (nombre, vida, Presagio). */
+    playerColumn: HTMLElement,
+    onRestless: (on: boolean) => void,
+    onExit: () => void,
+  ) {
+    this.bar = el('aside', 'training-panel');
+    this.bar.hidden = true;
+    this.bar.innerHTML = `
+      <strong class="training-title">Entrenamiento</strong>
+      <label class="training-rest"><input type="checkbox" checked /> Sin cansancio</label>
+      <button type="button" class="secondary training-exit">Salir</button>`;
+    parent.append(this.bar);
+    this.rest = query<HTMLInputElement>(this.bar, '.training-rest input');
     this.rest.addEventListener('change', () => onRestless(this.rest.checked));
-    query(this.root, '.training-exit').addEventListener('click', onExit);
-    // En pantallas bajas el panel se puede plegar para ver la arena entera.
-    const toggle = query(this.root, '.training-toggle');
-    toggle.addEventListener('click', () => {
-      const folded = this.root.classList.toggle('folded');
-      toggle.setAttribute('aria-expanded', String(!folded));
-    });
+    query(this.bar, '.training-exit').addEventListener('click', onExit);
+
+    this.spell = el('div', 'training-spell');
+    this.spell.hidden = true;
+    this.summary = el('button', 'training-spell-summary');
+    this.summary.type = 'button';
+    this.summary.setAttribute('aria-expanded', 'false');
+    this.detail = el('div', 'training-spell-detail');
+    this.detail.hidden = true;
+    this.spell.append(this.summary, this.detail);
+    // Tocar el nombre despliega el detalle; tocar el detalle lo vuelve a plegar.
+    this.summary.addEventListener('click', () =>
+      this.setOpen(!this.spell.classList.contains('open')),
+    );
+    this.detail.addEventListener('click', () => this.setOpen(false));
+    playerColumn.append(this.spell);
+    this.showEmpty();
   }
 
   set visible(value: boolean) {
-    this.root.hidden = !value;
+    this.bar.hidden = !value;
+    this.spell.hidden = !value;
     if (value) {
-      this.shownWeave = '-';
-      this.shownLast = null;
       this.rest.checked = true;
-      this.last.replaceChildren(el('p', 'training-empty', 'Lanza algo con ✦'));
+      this.showEmpty();
     }
   }
 
-  /** Cada cuadro: muestra el tejido del mago y el hechizo que sale, si cambió. */
-  update(player: Wizard, rules: GameRules): void {
-    if (this.root.hidden) return;
-    const weave = player.channel?.weave ?? player.weave;
-    const key = weave.join(',');
-    if (key === this.shownWeave) return;
-    this.shownWeave = key;
-    this.weaving.replaceChildren();
-    const spell = weave.length > 0 ? spellOf(weave) : null;
-    if (!spell) {
-      this.weaving.append(el('p', 'training-empty', 'Toca hasta 3 elementos'));
-      return;
-    }
-    const card = spellCard(spell, rules);
-    card.prepend(weaveOrbs(weave));
-    if (weave.length < 3) {
-      card.append(el('span', 'training-more', 'Puedes sumar otro elemento'));
-    }
-    this.weaving.append(card);
-  }
-
-  /** Salió un hechizo: queda como el último lanzado. */
+  /** Salió un hechizo tuyo: sus colores y su nombre quedan a la vista. */
   cast(spell: SpellId, rules: GameRules): void {
-    if (this.root.hidden || spell === this.shownLast) return;
-    this.shownLast = spell;
-    this.last.replaceChildren(spellCard(spell, rules));
+    if (this.spell.hidden) return;
+    if (spell !== this.shown) {
+      this.shown = spell;
+      const name = el('strong', 'training-spell-name', SPELL_NAMES[spell]);
+      this.summary.replaceChildren(
+        weaveOrbs(SPELL_WEAVES[spell]),
+        name,
+        el('span', 'training-spell-chevron', '▾'),
+      );
+      this.detail.replaceChildren(spellCard(spell, rules));
+      this.summary.disabled = false;
+    }
+    // Un pulso en cada lanzamiento, aunque se repita el mismo hechizo.
+    this.spell.classList.remove('pulse');
+    void this.spell.offsetWidth;
+    this.spell.classList.add('pulse');
+  }
+
+  private showEmpty(): void {
+    this.shown = null;
+    this.summary.replaceChildren(el('span', 'training-spell-empty', 'Teje y lanza con ✦'));
+    this.detail.replaceChildren();
+    this.summary.disabled = true;
+    this.setOpen(false);
+  }
+
+  private setOpen(open: boolean): void {
+    this.detail.hidden = !open;
+    this.spell.classList.toggle('open', open);
+    this.summary.setAttribute('aria-expanded', String(open));
   }
 }

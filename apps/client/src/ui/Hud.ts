@@ -148,6 +148,11 @@ export class Hud {
     this.root.hidden = !value;
   }
 
+  /** La columna de arriba a la izquierda (nombre, vida, Presagio), para sumar cosas debajo. */
+  get playerColumn(): HTMLElement {
+    return query(this.root, '.hud-player');
+  }
+
   /** En el entrenamiento no hay reloj: su lugar lo usa el panel. */
   set training(value: boolean) {
     this.root.classList.toggle('training', value);

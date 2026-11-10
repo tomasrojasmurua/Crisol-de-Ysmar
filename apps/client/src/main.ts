@@ -565,6 +565,7 @@ function updateMatchFlow(current: MatchView): void {
 
 const trainingPanel = new TrainingPanel(
   uiRoot,
+  hud.playerColumn,
   (on) => {
     if (match instanceof TrainingMatch) match.restless = on;
   },
@@ -731,7 +732,6 @@ renderer.setAnimationLoop((now) => {
     }
     updateMatchFlow(current);
     renderMatch(current, alpha, delta);
-    if (current instanceof TrainingMatch) trainingPanel.update(current.player, rules);
   } else if (preview) {
     previewCamera(elapsed, delta);
     zone.update(rules.arenaRadius, elapsed);
