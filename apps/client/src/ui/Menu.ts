@@ -4,6 +4,8 @@ import type { AudioEngine } from '../audio/AudioEngine';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
 import { el, query } from './dom';
+import { elementIcon } from './icons';
+import { MENU_ICONS } from './menuIcons';
 
 interface ModeChoice {
   readonly id: string;
@@ -43,9 +45,45 @@ const DEATH_RULES = ALL_DEATH_RULES.filter(
 
 const STORAGE_KEY = 'crisol.menu';
 
+/** Las tres pestañas del mockup; equipos y todos contra todos eligen además el tamaño. */
+const TABS: readonly {
+  readonly id: 'duel' | 'teams' | 'ffa';
+  readonly title: string;
+  readonly icon: string;
+  readonly sizes: readonly { readonly modeId: string; readonly label: string }[];
+}[] = [
+  { id: 'duel', title: 'Duelo', icon: MENU_ICONS.duel, sizes: [{ modeId: 'duel', label: '' }] },
+  {
+    id: 'teams',
+    title: 'Equipos',
+    icon: MENU_ICONS.teams,
+    sizes: [
+      { modeId: 'teams2', label: '2 contra 2' },
+      { modeId: 'teams3', label: '3 contra 3' },
+    ],
+  },
+  {
+    id: 'ffa',
+    title: 'Todos contra todos',
+    icon: MENU_ICONS.ffa,
+    sizes: [
+      { modeId: 'ffa4', label: '4 magos' },
+      { modeId: 'ffa6', label: '6 magos' },
+    ],
+  },
+];
+
+type SoundChoice = 'all' | 'effects' | 'off';
+const SOUND_CHOICES: readonly { id: SoundChoice; label: string; icon: string }[] = [
+  { id: 'all', label: 'Música y efectos', icon: MENU_ICONS.soundAll },
+  { id: 'effects', label: 'Solo efectos', icon: MENU_ICONS.soundEffects },
+  { id: 'off', label: 'Silencio', icon: MENU_ICONS.soundOff },
+];
+
 /**
- * La portada: el título sobre el Crisol que gira de fondo, y la elección de modo
- * y de regla de muerte. Recuerda la última elección en este celular.
+ * La portada: tu mago a la izquierda, el título y la elección de modo al centro, y Grimorio
+ * y Sonido a la derecha, sobre el Crisol que gira de fondo. Recuerda la última elección en
+ * este celular.
  */
 export class Menu {
   private readonly root: HTMLElement;
@@ -54,8 +92,12 @@ export class Menu {
   private affinity: ElementId | null = null;
   private readonly wizardName: HTMLElement;
   private readonly wizardAffinity: HTMLElement;
-  private readonly wizardButton: HTMLElement;
+  private readonly affinityIcon: HTMLElement;
+  private readonly portrait: HTMLElement;
   private readonly grimoireCount: HTMLElement;
+  private readonly sizes: HTMLElement;
+  /** El último tamaño elegido en cada pestaña, para volver a él. */
+  private readonly lastSize = new Map<string, string>();
 
   constructor(
     parent: HTMLElement,
@@ -70,78 +112,87 @@ export class Menu {
     this.root = el('div', 'menu');
     this.root.innerHTML = `
       <div class="menu-veil"></div>
+      <aside class="menu-card menu-wizard-card">
+        <button type="button" class="menu-portrait" aria-label="Abrir el Vestidor"></button>
+        <strong class="menu-wizard-name"></strong>
+        <span class="menu-wizard-affinity"><span class="menu-affinity-icon"></span><span class="menu-affinity-text"></span></span>
+        <button type="button" class="secondary menu-wizard">${MENU_ICONS.wardrobe}<span>Vestidor</span></button>
+      </aside>
       <header class="menu-title">
-        <p class="menu-kicker">Un duelo de hechiceros</p>
-        <h1>Crisol de Ysmar</h1>
+        <h1><span class="menu-title-small">Crisol de</span> Ysmar</h1>
         <p class="menu-tagline">Teje la magia. Lee al rival. Sobrevive al Crisol.</p>
-        <div class="menu-identity">
-          <button type="button" class="menu-wizard">
-            <span class="menu-wizard-sigil"></span>
-            <span class="menu-wizard-text">
-              <strong class="menu-wizard-name"></strong>
-              <span class="menu-wizard-affinity"></span>
-            </span>
-            <span class="menu-wizard-edit">Vestidor</span>
-          </button>
-          <button type="button" class="menu-grimoire">
-            <strong>Grimorio</strong>
-            <span class="menu-grimoire-count"></span>
-          </button>
-          <button type="button" class="menu-sound">
-            <strong>Sonido</strong>
-            <span class="menu-sound-state"></span>
-          </button>
-        </div>
       </header>
-      <section class="menu-panel">
-        <h2>Modo</h2>
-        <div class="menu-modes"></div>
-        <h2 class="menu-rules-title">Al caer</h2>
+      <section class="menu-center">
+        <div class="menu-tabs" role="tablist" aria-label="Modo"></div>
+        <div class="menu-sizes"></div>
         <div class="menu-rules"></div>
-        <button type="button" class="primary menu-play">Entrar al Crisol</button>
+        <button type="button" class="primary menu-play">${MENU_ICONS.star}<span>Entrar al Crisol</span>${MENU_ICONS.star}</button>
         <div class="menu-extra">
-          <button type="button" class="secondary menu-friend">Jugar con un amigo</button>
-          <button type="button" class="secondary menu-training">Entrenamiento</button>
+          <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con un amigo</span></button>
+          <button type="button" class="secondary menu-training">${MENU_ICONS.training}<span>Entrenamiento</span></button>
         </div>
-      </section>`;
+      </section>
+      <aside class="menu-side">
+        <button type="button" class="menu-card menu-grimoire">
+          ${MENU_ICONS.grimoire}
+          <span class="menu-grimoire-text"><strong>Grimorio</strong><span class="menu-grimoire-count"></span></span>
+          ${MENU_ICONS.chevron}
+        </button>
+        <div class="menu-card menu-sound">
+          <div class="menu-sound-head">${MENU_ICONS.soundAll}<strong>Sonido</strong></div>
+          <div class="menu-sound-options"></div>
+        </div>
+      </aside>`;
     parent.append(this.root);
     this.wizardName = query(this.root, '.menu-wizard-name');
-    this.wizardAffinity = query(this.root, '.menu-wizard-affinity');
-    this.wizardButton = query(this.root, '.menu-wizard');
+    this.wizardAffinity = query(this.root, '.menu-affinity-text');
+    this.affinityIcon = query(this.root, '.menu-affinity-icon');
+    this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
-    this.wizardButton.addEventListener('click', onWardrobe);
+    this.sizes = query(this.root, '.menu-sizes');
+    query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
+    this.portrait.addEventListener('click', onWardrobe);
     query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);
-    // Tres estados en un botón: todo, solo efectos, silencio.
-    query(this.root, '.menu-sound').addEventListener('click', () => {
-      if (this.audio.muted) {
-        this.audio.muted = false;
-        this.audio.musicOn = true;
-      } else if (this.audio.musicOn) this.audio.musicOn = false;
-      else this.audio.muted = true;
-      this.refresh();
-    });
 
-    const modes = query(this.root, '.menu-modes');
-    for (const choice of MODES) {
-      const button = el('button', 'menu-choice');
+    const soundOptions = query(this.root, '.menu-sound-options');
+    for (const choice of SOUND_CHOICES) {
+      const button = el('button', 'menu-sound-option');
       button.type = 'button';
       button.dataset.id = choice.id;
-      button.append(el('strong', '', choice.title), el('span', '', choice.detail));
+      button.setAttribute('aria-label', choice.label);
+      button.title = choice.label;
+      button.innerHTML = choice.icon;
       button.addEventListener('click', () => {
-        this.modeId = choice.id;
+        this.audio.muted = choice.id === 'off';
+        if (choice.id !== 'off') this.audio.musicOn = choice.id === 'all';
         this.refresh();
       });
-      modes.append(button);
+      soundOptions.append(button);
     }
+
+    const tabs = query(this.root, '.menu-tabs');
+    for (const tab of TABS) {
+      const button = el('button', 'menu-tab');
+      button.type = 'button';
+      button.dataset.id = tab.id;
+      button.setAttribute('role', 'tab');
+      button.innerHTML = `${tab.icon}<span>${tab.title}</span>`;
+      button.addEventListener('click', () => {
+        this.modeId = this.lastSize.get(tab.id) ?? tab.sizes[0]?.modeId ?? 'duel';
+        this.refresh();
+      });
+      tabs.append(button);
+    }
+
     const rules = query(this.root, '.menu-rules');
     const askDeathRule = DEATH_RULES.length > 1;
     rules.hidden = !askDeathRule;
-    query(this.root, '.menu-rules-title').hidden = !askDeathRule;
     for (const rule of DEATH_RULES) {
-      const button = el('button', 'menu-choice');
+      const button = el('button', 'menu-chip');
       button.type = 'button';
       button.dataset.id = rule.id;
-      button.append(el('strong', '', rule.title), el('span', '', rule.detail));
+      button.title = rule.detail;
+      button.textContent = rule.title;
       button.addEventListener('click', () => {
         this.deathRule = rule.id;
         this.refresh();
@@ -166,13 +217,20 @@ export class Menu {
     };
   }
 
+  /** Dónde va el mago en 3D, o null si el menú no está a la vista. */
+  get portraitRect(): DOMRect | null {
+    if (this.root.hidden) return null;
+    return this.portrait.getBoundingClientRect();
+  }
+
   /** Muestra quién eres, tu Afinidad y cuánto llevas del Grimorio. */
   setIdentity(profile: Profile, known: number, total: number): void {
     this.affinity = profile.affinity;
     const element = ELEMENTS.find((e) => e.id === profile.affinity);
     this.wizardName.textContent = profile.name || 'Hechicero sin nombre';
     this.wizardAffinity.textContent = element ? `Afinidad: ${element.name}` : 'Sin Afinidad';
-    this.wizardButton.style.setProperty('--element', element?.color ?? '#d8bf8a');
+    this.affinityIcon.innerHTML = profile.affinity ? elementIcon(profile.affinity) : '';
+    this.affinityIcon.style.setProperty('--icon-color', element?.color ?? 'var(--gold)');
     this.grimoireCount.textContent = `${known} de ${total}`;
   }
 
@@ -181,15 +239,33 @@ export class Menu {
   }
 
   private refresh(): void {
-    query(this.root, '.menu-sound-state').textContent = this.audio.muted
-      ? 'Silencio'
-      : this.audio.musicOn
-        ? 'Música y efectos'
-        : 'Solo efectos';
-    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-modes .menu-choice')) {
-      button.classList.toggle('selected', button.dataset.id === this.modeId);
+    const sound: SoundChoice = this.audio.muted ? 'off' : this.audio.musicOn ? 'all' : 'effects';
+    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-sound-option')) {
+      button.classList.toggle('selected', button.dataset.id === sound);
     }
-    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-rules .menu-choice')) {
+    const tab = TABS.find((t) => t.sizes.some((size) => size.modeId === this.modeId)) ?? TABS[0];
+    if (tab) this.lastSize.set(tab.id, this.modeId);
+    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-tab')) {
+      const selected = button.dataset.id === tab?.id;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-selected', String(selected));
+    }
+    // El tamaño solo se pregunta en equipos y todos contra todos; el hueco queda reservado.
+    const sizes = tab && tab.sizes.length > 1 ? tab.sizes : [];
+    this.sizes.classList.toggle('empty', sizes.length === 0);
+    this.sizes.replaceChildren(
+      ...sizes.map((size) => {
+        const button = el('button', 'menu-chip', size.label);
+        button.type = 'button';
+        button.classList.toggle('selected', size.modeId === this.modeId);
+        button.addEventListener('click', () => {
+          this.modeId = size.modeId;
+          this.refresh();
+        });
+        return button;
+      }),
+    );
+    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-rules .menu-chip')) {
       button.classList.toggle('selected', button.dataset.id === this.deathRule);
     }
   }
