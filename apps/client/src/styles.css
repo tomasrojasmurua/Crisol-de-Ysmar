@@ -612,13 +612,15 @@ body {
 .hud {
   position: absolute;
   inset: 0;
+  /* Ancho de la columna de vida: la cinta de ronda se limita para no tocarla nunca. */
+  --player-w: min(28vw, 230px);
 }
 
 .hud-player {
   position: absolute;
   top: var(--safe-top);
   left: var(--safe-left);
-  width: min(32vw, 250px);
+  width: var(--player-w);
 }
 
 .hud-player-head {
@@ -763,7 +765,12 @@ body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
+  row-gap: 2px;
+  /* Centrada, así que el margen se cuenta por ambos lados contra la columna de vida. */
+  max-width: calc(100% - 2 * (max(var(--safe-left), var(--safe-right)) + var(--player-w) + 10px));
   padding: 4px 18px;
   border-radius: 4px;
   background: linear-gradient(180deg, rgba(14, 12, 20, 0.88), rgba(10, 9, 14, 0.7));
@@ -861,6 +868,23 @@ body {
 
 /* Pantallas angostas: la fase baja bajo la cinta para no chocar con la vida ni el minimapa. */
 @media (max-width: 760px) {
+  .hud-round {
+    padding: 3px 12px;
+  }
+
+  .hud-round > * + * {
+    margin-left: 7px;
+    padding-left: 7px;
+  }
+
+  .hud-round-label {
+    font-size: 12px;
+  }
+
+  .hud-clock {
+    font-size: 16px;
+  }
+
   .hud-phase {
     position: absolute;
     top: calc(100% + 3px);
