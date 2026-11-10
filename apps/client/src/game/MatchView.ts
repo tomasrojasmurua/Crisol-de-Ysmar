@@ -22,4 +22,6 @@ export interface MatchView {
   chooseGlyph(glyph: Glyph): void;
   glyphsOf(id: number): readonly Glyph[];
   interpolated(id: number, current: Vec2, alpha: number): Vec2;
+  /** Cómo se ve un mago en este celular, si difiere del estado (en red, tu tejido predicho). */
+  present?(wizard: Wizard): Wizard;
 }

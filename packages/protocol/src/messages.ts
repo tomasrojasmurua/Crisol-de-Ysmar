@@ -1,7 +1,7 @@
 import type { ElementId, Intent, MatchState } from '@crisol/core';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -63,6 +63,8 @@ export type ServerMessage =
   /** Un paso de la simulación: el estado completo y lo de la serie. */
   | {
       readonly type: 'state';
+      /** El último mensaje de toques tuyo que ya entró a la simulación (para la predicción). */
+      readonly ack: number;
       readonly state: MatchState;
       readonly stage: NetStage;
       readonly wins: readonly number[];

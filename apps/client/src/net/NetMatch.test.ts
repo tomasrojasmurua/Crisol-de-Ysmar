@@ -38,11 +38,12 @@ const listener = (): NetListener => ({
 });
 const human = { intentsFor: (): readonly Intent[] => [{ kind: 'move', x: 1, z: 0 }] };
 
-function stateMessage(tick: number): ServerMessage {
+function stateMessage(tick: number, ack = 0): ServerMessage {
   const state = createMatch(modeSetup({ kind: 'duel' }, 1, 'out', RULES), RULES);
   state.tick = tick;
   return {
     type: 'state',
+    ack,
     state,
     stage: { kind: 'playing' },
     wins: [0, 0],
@@ -120,5 +121,52 @@ describe('duelo en red: el celular', () => {
     expect(net.state.tick).toBe(2);
     net.step();
     expect(net.state.tick).toBe(4);
+  });
+
+  it('predice tu mago: camina en el acto, antes de que conteste el servidor', () => {
+    const { net } = joined();
+    const server = net.state.wizards.find((w) => w.id === 2)?.pos ?? { x: 0, z: 0 };
+    for (let i = 0; i < 5; i++) net.step();
+    const shown = net.interpolated(2, server, 1);
+    expect(shown.x).toBeGreaterThan(server.x + 0.5);
+    // El rival sigue donde dice el servidor.
+    const rival = net.state.wizards.find((w) => w.id === 1)?.pos ?? { x: 0, z: 0 };
+    expect(net.interpolated(1, rival, 1)).toEqual(rival);
+  });
+
+  it('cuando el servidor confirma, deja de repetir lo ya jugado', () => {
+    const { net, socket } = joined();
+    for (let i = 0; i < 5; i++) net.step();
+    const server = net.state.wizards.find((w) => w.id === 2)?.pos ?? { x: 0, z: 0 };
+    const ahead = net.interpolated(2, server, 1).x - server.x;
+    // Llega un estado que ya jugó los 5 toques, con el mago en el mismo lugar.
+    socket.receive(stateMessage(1, 5));
+    net.step();
+    const now = net.interpolated(2, server, 1).x - server.x;
+    expect(now).toBeLessThan(ahead);
+    expect(now).toBeGreaterThan(0);
+  });
+
+  it('muestra tu tejido en el acto', () => {
+    const tapping = { intentsFor: (): readonly Intent[] => [{ kind: 'weave', element: 'brasa' }] };
+    const look = {
+      robe: 'ceniza',
+      trim: 'oro',
+      skin: 'arena',
+      headwear: 'capucha',
+      focus: 'baculo',
+    };
+    const net = new NetMatch('K7QF', { name: 'T', look, affinity: null }, tapping, listener());
+    const socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
+    socket.receive({ type: 'start', omenId: 'x', players: [] });
+    socket.receive(stateMessage(0));
+    net.step();
+    net.step();
+    const me = net.state.wizards.find((w) => w.id === 2);
+    if (!me) throw new Error('sin mago');
+    expect(me.weave).toEqual([]);
+    expect(net.present(me).weave).toEqual(['brasa', 'brasa']);
   });
 });

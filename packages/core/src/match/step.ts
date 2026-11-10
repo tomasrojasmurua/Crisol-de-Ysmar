@@ -1,10 +1,9 @@
 import { dealDamage } from '../combat/hit';
-import { canAct, canWeave, moveMultiplier, tickStatuses } from '../combat/statuses';
+import { canAct, canWeave, tickStatuses } from '../combat/statuses';
 import type { Intent } from '../controllers/intent';
 import { ELEMENT_IDS } from '../elements';
-import { add, clampLength, clampToCircle, length, normalize, scale } from '../math/vec2';
+import { clampLength, length, normalize } from '../math/vec2';
 import type { GameRules } from '../rules';
-import { TICK_RATE } from '../sim/fixedStep';
 import { castSpell } from '../spells/cast';
 import { spellOf } from '../spells/catalog';
 import { stealSpell } from '../spells/kit/greatMind';
@@ -16,7 +15,6 @@ import {
   recordPast,
   resolveReactions,
 } from '../spells/kit/greatReactions';
-import { blockByRings, blockByWalls } from '../spells/solidWalls';
 import { updateLeap, updateSpells } from '../spells/update';
 import { MAX_WEAVE_LENGTH, type Weave } from '../weaving/weave';
 import { updateBeasts } from './beasts';
@@ -34,6 +32,7 @@ import {
 } from './round';
 import { updateShrines } from './shrines';
 import type { EntityId, MatchState, Wizard } from './state';
+import { walkTarget } from './walk';
 
 export type IntentsByWizard = ReadonlyMap<EntityId, readonly Intent[]>;
 
@@ -218,17 +217,8 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
     return;
   }
 
-  const speed = rules.wizard.moveSpeed * wizard.mods.moveSpeed * moveMultiplier(wizard, rules);
-  const move = scale(wizard.moveInput, speed / TICK_RATE);
-  if (length(move) > 0) {
-    const radius = rules.wizard.radius;
-    if (wizard.statuses.phased) {
-      // Fantasma: atraviesa árboles, rocas, muros y zarzas; solo lo frena el borde de la arena.
-      wizard.pos = clampToCircle(add(wizard.pos, move), rules.arenaRadius - radius);
-    } else {
-      const next = placeInArena(add(wizard.pos, move), radius, rules);
-      wizard.pos = blockByRings(state, wizard, blockByWalls(state, wizard, next, radius), radius);
-    }
+  if (length(wizard.moveInput) > 0) {
+    wizard.pos = walkTarget(state, wizard, wizard.moveInput, rules);
     if (!wizard.channel) {
       wizard.facing = normalize(wizard.moveInput, wizard.facing);
     }

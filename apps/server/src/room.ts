@@ -110,7 +110,7 @@ export class Room extends DurableObject<Env> {
         send(socket, { type: 'pong', sentAt: message.sentAt });
         return;
       case 'intents':
-        if (playerId !== undefined) this.duel.intents(playerId, message.intents);
+        if (playerId !== undefined) this.duel.intents(playerId, message.intents, message.seq);
         return;
       case 'glyph':
         if (playerId !== undefined) this.duel.chooseGlyph(playerId, message.glyphId);
@@ -197,8 +197,12 @@ export class Room extends DurableObject<Env> {
       const playerId = (socket.deserializeAttachment() as Attachment | null)?.playerId;
       if (playerId === undefined) continue;
       const stage = JSON.stringify(duel.stageFor(playerId));
+      const ack = duel.ackOf(playerId);
       // Se arma a mano para no convertir el estado a texto una vez por jugador.
-      trySend(socket, `{"type":"state","stage":${stage},"state":${state},${series.slice(1)}`);
+      trySend(
+        socket,
+        `{"type":"state","ack":${ack},"stage":${stage},"state":${state},${series.slice(1)}`,
+      );
     }
   }
 }
