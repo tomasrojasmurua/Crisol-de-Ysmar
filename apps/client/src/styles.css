@@ -1404,6 +1404,20 @@ body {
   letter-spacing: 0.08em;
 }
 
+.hud-result-perf {
+  margin: -10px auto 18px;
+  padding: 8px 12px;
+  max-width: min(560px, 80vw);
+  list-style: none;
+  text-align: left;
+  font:
+    11px / 1.45 ui-monospace,
+    monospace;
+  color: var(--ink-quiet);
+  background: rgba(7, 7, 12, 0.6);
+  border-radius: 6px;
+}
+
 .hud-result-actions {
   display: flex;
   gap: 12px;
