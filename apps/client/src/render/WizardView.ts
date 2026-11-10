@@ -8,6 +8,7 @@ import { WeaveHalo } from './WeaveHalo';
 import { buildWizardModel } from './wizard/build';
 import { FLOATING_FOCI } from './wizard/foci';
 import { ModelKit } from './wizard/kit';
+import { addCapeWave } from './wizard/rim';
 
 const REVIVE_SEGMENTS = 48;
 
@@ -76,6 +77,11 @@ export class WizardView {
   private lastX = 0;
   private lastZ = 0;
   private stride = 0;
+  /** Movimiento de la capa, leído por su sombreado. */
+  private readonly capeMotion = { time: { value: 0 }, move: { value: 0 } };
+  /** Retroceso al soltar un conjuro: 1 justo al lanzar y se apaga solo. */
+  private recoil = 0;
+  private wasChanneling = false;
   private ghostly = false;
 
   constructor(
@@ -107,6 +113,7 @@ export class WizardView {
       radius,
     );
     kit.applyRim(this.teamColor, RIM_STRENGTH);
+    addCapeWave(kit.cape, this.capeMotion);
     this.robeMaterial = kit.robe;
     const model = buildWizardModel(kit, look);
     this.solidMeshes = kit.merge();
@@ -264,6 +271,10 @@ export class WizardView {
 
     // Paso: balanceo al caminar y una leve inclinación hacia adelante.
     const moving = Math.min(1, speed / rules.wizard.moveSpeed);
+    this.capeMotion.time.value = timeSeconds;
+    // La capa sigue al paso con algo de inercia: no salta de quieta a flameando.
+    this.capeMotion.move.value +=
+      (moving - this.capeMotion.move.value) * Math.min(1, deltaSeconds * 6);
     this.stride += deltaSeconds * (4 + moving * 8);
     let float = spectre ? 0.35 + Math.sin(timeSeconds * 2) * 0.1 : 0;
     // Por los aires: un arco de subida y caída mientras dura el Géiser.
@@ -288,7 +299,13 @@ export class WizardView {
     const channel = wizard.channel;
     const total = rules.weave.castTicksByLength[(channel?.weave.length ?? 1) - 1] ?? 1;
     const progress = channel ? 1 - channel.ticksLeft / total : 0;
-    this.staff.rotation.x = channel ? -0.6 * Math.min(1, progress * 3) : 0;
+    // Al soltar el conjuro: el báculo empuja hacia adelante y el cuerpo retrocede apenas.
+    if (this.wasChanneling && !channel && alive) this.recoil = 1;
+    this.wasChanneling = channel !== null;
+    this.recoil = Math.max(0, this.recoil - deltaSeconds * 4);
+    const kick = this.recoil * this.recoil;
+    this.staff.rotation.x = channel ? -0.6 * Math.min(1, progress * 3) : 0.7 * kick;
+    this.body.rotation.x -= 0.18 * kick;
 
     const weave: readonly ElementId[] = channel ? channel.weave : wizard.weave;
     const first = weave[0];
