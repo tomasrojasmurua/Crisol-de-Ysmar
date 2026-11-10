@@ -1,10 +1,9 @@
 import {
   cleanLook,
   DEFAULT_LOOK,
-  fitsFace,
-  LOOK_OPTIONS,
   type LookIds,
   type LookOption,
+  randomLook,
 } from '@crisol/content';
 import { type ElementId, isElementId, type SeededRng } from '@crisol/core';
 
@@ -61,20 +60,7 @@ export function saveProfile(profile: Profile): void {
 
 /** Un aspecto al azar que respeta las combinaciones (para la IA y el botón "Al azar"). */
 export function randomAppearance(rng: SeededRng): Appearance {
-  const any = (options: readonly LookOption[]): string =>
-    options[rng.int(0, options.length - 1)]?.id ?? '';
-  const face = any(LOOK_OPTIONS.face);
-  return {
-    robe: any(LOOK_OPTIONS.robe),
-    trim: any(LOOK_OPTIONS.trim),
-    skin: any(LOOK_OPTIONS.skin),
-    face,
-    outfit: any(LOOK_OPTIONS.outfit),
-    headwear: any(LOOK_OPTIONS.headwear),
-    mask: any(LOOK_OPTIONS.mask.filter((m) => fitsFace(m, face))),
-    cape: any(LOOK_OPTIONS.cape),
-    focus: any(LOOK_OPTIONS.focus),
-  };
+  return randomLook(rng);
 }
 
 /** El color de una opción del Vestidor. */

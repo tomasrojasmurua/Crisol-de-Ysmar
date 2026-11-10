@@ -6,8 +6,10 @@ import {
   type Glyph,
   OMENS,
   type Omen,
+  randomLook,
   rulesForMode,
   veiledFromTeam,
+  WIZARD_NAMES,
 } from '@crisol/content';
 import {
   affinityPatch,
@@ -15,18 +17,22 @@ import {
   combineMods,
   createMatch,
   createSeries,
+  ELEMENT_IDS,
   type ElementId,
   type GameEvent,
+  type GameMode,
   type GameRules,
   type Intent,
   isElementId,
   type MatchState,
   modeSetup,
+  playerCount,
   recordRound,
   SeededRng,
   type SeriesState,
   stepMatch,
   TICK_RATE,
+  teamCount,
   type Vec2,
   type Wizard,
 } from '@crisol/core';
@@ -43,7 +49,6 @@ const MAX_PENDING = 64;
 /** Jugando, si un jugador conectado no manda nada en este tiempo, la IA lo cubre (2 s). */
 export const SILENT_TICKS = TICK_RATE * 2;
 const NAME_MAX = 14;
-const PLAYERS = 2;
 
 /** Lo que manda un celular al entrar. */
 export interface JoinRequest {
@@ -51,11 +56,15 @@ export interface JoinRequest {
   readonly look?: PlayerLook | undefined;
   readonly affinity?: ElementId | null | undefined;
   readonly token?: string | undefined;
+  /** El modo que pide quien crea la sala (el primero en entrar); los demás lo ignoran. */
+  readonly mode?: GameMode | undefined;
 }
 
 interface Slot {
   readonly id: number;
   readonly token: string;
+  /** Puesto que ocupa la IA porque nadie lo tomó al empezar. */
+  readonly bot: boolean;
   name: string;
   look: PlayerLook;
   affinity: ElementId | null;
@@ -82,16 +91,23 @@ type Stage =
   | { kind: 'finished' };
 
 /**
- * Un duelo 1v1 entre dos celulares: la Sala lo corre y es la única verdad. Es puro: no sabe de
- * sockets ni de relojes; quien lo usa le pasa las intenciones y lo hace avanzar paso a paso.
- * Si un jugador se desconecta, la IA juega por él hasta que vuelva.
+ * La partida de una Sala, de 2 a 6 magos: duelo, equipos o todos contra todos. La Sala la corre
+ * y es la única verdad. Es pura: no sabe de sockets ni de relojes; quien la usa le pasa las
+ * intenciones y la hace avanzar paso a paso. Quien crea la sala elige el modo y puede empezar sin
+ * esperar a que se llene: la IA ocupa los puestos libres. Si alguien se desconecta, la IA juega
+ * por él hasta que vuelva.
  */
 export class DuelHost {
-  readonly rules: GameRules = rulesForMode({ kind: 'duel' });
+  private mode: GameMode = { kind: 'duel' };
+  rules: GameRules = rulesForMode({ kind: 'duel' });
+  /** El puesto de quien manda en la sala de espera (el primero que entró y sigue). */
+  hostId = 0;
+  /** Por qué no pudo entrar el último que lo intentó. */
+  joinError = '';
   private readonly slots = new Map<number, Slot>();
   private readonly rng: SeededRng;
   private stage: Stage = { kind: 'lobby' };
-  private series: SeriesState = createSeries(PLAYERS);
+  private series: SeriesState = createSeries(2);
   private omen: Omen = OMENS[0] as Omen;
   private bots = new Map<number, BotController>();
   /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
@@ -117,7 +133,7 @@ export class DuelHost {
       ? [...this.slots.values()].find((s) => s.token === request.token)
       : undefined;
     const name = cleanName(request.name);
-    if (back) {
+    if (back && !back.bot) {
       back.connected = true;
       back.away = false;
       back.heardAt = this.clock;
@@ -127,10 +143,19 @@ export class DuelHost {
       if (name) back.name = name;
       return { playerId: back.id, token: back.token };
     }
-    if (this.slots.size >= PLAYERS) return null;
-    const id = [1, 2].find((n) => !this.slots.has(n)) ?? 1;
+    if (this.stage.kind !== 'lobby') {
+      this.joinError = 'La partida ya empezó';
+      return null;
+    }
+    if (this.slots.size === 0) this.setMode(request.mode);
+    const id = this.seatOrder().find((n) => !this.slots.has(n));
+    if (id === undefined) {
+      this.joinError = 'La sala está llena';
+      return null;
+    }
     const slot: Slot = {
       id,
+      bot: false,
       token: this.makeToken(),
       name: name || `Hechicero ${id}`,
       look: cleanLook(request.look),
@@ -147,8 +172,72 @@ export class DuelHost {
       rematch: false,
     };
     this.slots.set(id, slot);
-    if (this.slots.size === PLAYERS && this.stage.kind === 'lobby') this.startSeries();
+    if (this.hostId === 0) this.hostId = id;
+    if (this.slots.size === playerCount(this.mode)) this.startSeries();
     return { playerId: id, token: slot.token };
+  }
+
+  get gameMode(): GameMode {
+    return this.mode;
+  }
+
+  /** Quien manda empieza sin esperar: la IA ocupa los puestos libres. */
+  begin(playerId: number): boolean {
+    if (this.stage.kind !== 'lobby' || playerId !== this.hostId) return false;
+    const names = WIZARD_NAMES.filter((n) => ![...this.slots.values()].some((s) => s.name === n));
+    for (const id of this.seatOrder()) {
+      if (this.slots.has(id)) continue;
+      const [name] = names.splice(this.rng.int(0, Math.max(0, names.length - 1)), 1);
+      this.slots.set(id, {
+        id,
+        bot: true,
+        token: this.makeToken(),
+        name: name ?? `Hechicero ${id}`,
+        look: randomLook(this.rng),
+        affinity: ELEMENT_IDS[this.rng.int(0, ELEMENT_IDS.length - 1)] ?? null,
+        connected: false,
+        away: false,
+        heardAt: this.clock,
+        pending: [],
+        received: 0,
+        acked: 0,
+        glyphs: [],
+        options: [],
+        chosen: false,
+        rematch: false,
+      });
+    }
+    this.startSeries();
+    return true;
+  }
+
+  /** El modo lo pone quien crea la sala; si viene mal, es un duelo. */
+  private setMode(mode: GameMode | undefined): void {
+    const valid =
+      mode?.kind === 'teams'
+        ? mode.size === 2 || mode.size === 3
+        : mode?.kind === 'ffa'
+          ? Number.isInteger(mode.players) && mode.players >= 3 && mode.players <= 6
+          : true;
+    this.mode = mode && valid ? mode : { kind: 'duel' };
+    this.rules = rulesForMode(this.mode);
+  }
+
+  /**
+   * En qué orden se ocupan los puestos: en equipos se alterna (1, 4, 2, 5…) para repartir a los
+   * amigos entre los dos bandos; en duelo y todos contra todos, en orden.
+   */
+  private seatOrder(): number[] {
+    const total = playerCount(this.mode);
+    if (this.mode.kind !== 'teams') return Array.from({ length: total }, (_, i) => i + 1);
+    const size = this.mode.size;
+    return Array.from({ length: size }, (_, i) => [i + 1, i + 1 + size]).flat();
+  }
+
+  /** El equipo de un puesto, como lo arma el núcleo. */
+  private teamOf(id: number): number {
+    if (this.mode.kind === 'teams') return id <= this.mode.size ? 0 : 1;
+    return id - 1;
   }
 
   /** Se cortó la conexión de un jugador: en la sala de espera deja su lugar; jugando, lo toma la IA. */
@@ -157,6 +246,9 @@ export class DuelHost {
     if (!slot) return;
     if (this.stage.kind === 'lobby') {
       this.slots.delete(playerId);
+      // Si se fue quien mandaba, manda el siguiente que sigue en la sala.
+      if (this.hostId === playerId)
+        this.hostId = [...this.slots.keys()].sort((a, b) => a - b)[0] ?? 0;
       return;
     }
     slot.connected = false;
@@ -173,8 +265,9 @@ export class DuelHost {
       .sort((a, b) => a.id - b.id)
       .map((s) => ({
         id: s.id,
-        team: s.id - 1,
+        team: this.teamOf(s.id),
         name: s.name,
+        bot: s.bot,
         look: s.look,
         affinity: s.affinity,
         connected: s.connected,
@@ -375,7 +468,7 @@ export class DuelHost {
 
   private startSeries(): void {
     this.seed = (this.seed + 0x9e3779b9) >>> 0;
-    this.series = createSeries(PLAYERS);
+    this.series = createSeries(teamCount(this.mode));
     this.omen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
     for (const slot of this.slots.values()) {
       slot.glyphs = [];
@@ -416,7 +509,7 @@ export class DuelHost {
 
   private offerGlyphs(roundWinner: number): void {
     for (const slot of this.slots.values()) {
-      const lost = roundWinner !== slot.id - 1;
+      const lost = roundWinner !== this.teamOf(slot.id);
       slot.options = this.glyphOptions(slot, GLYPH_OPTIONS + (lost ? 1 : 0));
       slot.chosen = slot.options.length === 0;
     }
@@ -452,7 +545,7 @@ export class DuelHost {
   private startRound(): MatchState {
     this.lastSeen.clear();
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
-    const setup = modeSetup({ kind: 'duel' }, roundSeed, 'out', this.rules);
+    const setup = modeSetup(this.mode, roundSeed, 'out', this.rules);
     const wizards = setup.wizards.map((w, index) => {
       const slot = this.slots.get(index + 1);
       const affinity = slot?.affinity ?? null;

@@ -22,6 +22,7 @@ import {
   type ElementId,
   FixedStepClock,
   type GameEvent,
+  type GameMode,
   type GameRules,
   isSpectre,
   SeededRng,
@@ -606,19 +607,23 @@ const trainingPanel = new TrainingPanel(
 
 const lobby = new Lobby(
   uiRoot,
-  () => joinRoom(randomRoomCode(Math.random)),
+  () => joinRoom(randomRoomCode(Math.random), menu.options.mode),
   (code) => joinRoom(code),
   () => showMenu(),
+  () => net?.begin(),
 );
 
 function openLobby(): void {
   enterImmersive();
   menu.visible = false;
-  lobby.showChoice();
+  lobby.showChoice(menu.options.mode);
 }
 
-/** Entra a una sala (nueva o de un amigo) y espera a que empiece el duelo. */
-function joinRoom(code: string): void {
+/**
+ * Entra a una sala (nueva o de un amigo) y espera a que empiece. `mode` solo cuenta si la creas
+ * tú; si la sala ya existe, se juega el modo de quien la creó.
+ */
+function joinRoom(code: string, mode?: GameMode): void {
   net?.close();
   menu.visible = false;
   lobby.showRoom(code);
@@ -629,7 +634,7 @@ function joinRoom(code: string): void {
     human,
     {
       players: (players, me) => {
-        lobby.setPlayers(players, me);
+        lobby.setPlayers(players, me, current.options.mode, current.hostId);
         if (current !== net) return;
         // Presente: conectado y con la app a la vista. Si no, la IA juega por él.
         const present = (p: (typeof players)[number]): boolean => p.connected && !p.away;
@@ -670,6 +675,7 @@ function joinRoom(code: string): void {
         netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`;
       },
     },
+    mode,
   );
   net = current;
   seenConnected.clear();

@@ -168,3 +168,76 @@ describe('Sala de duelo: celular de fondo y sin señal', () => {
     expect(duel.players[0]).toMatchObject({ connected: true, away: false });
   });
 });
+
+describe('Salas de más de dos', () => {
+  function room(mode: Parameters<DuelHost['join']>[0]['mode']): DuelHost {
+    const duel = host();
+    duel.join({ name: 'Ana', mode });
+    return duel;
+  }
+
+  it('el modo lo pone quien crea la sala; los demás lo ignoran', () => {
+    const duel = room({ kind: 'teams', size: 2 });
+    duel.join({ name: 'Beto', mode: { kind: 'duel' } });
+    expect(duel.gameMode).toEqual({ kind: 'teams', size: 2 });
+  });
+
+  it('un modo inventado se vuelve duelo', () => {
+    const duel = room({ kind: 'ffa', players: 40 });
+    expect(duel.gameMode).toEqual({ kind: 'duel' });
+  });
+
+  it('en equipos reparte a los amigos entre los dos bandos', () => {
+    const duel = room({ kind: 'teams', size: 2 });
+    duel.join({ name: 'Beto' });
+    duel.join({ name: 'Caro' });
+    expect(duel.players.map((p) => [p.name, p.team])).toEqual([
+      ['Ana', 0],
+      ['Caro', 0],
+      ['Beto', 1],
+    ]);
+    expect(duel.inLobby).toBe(true);
+    duel.join({ name: 'Dani' });
+    expect(duel.inLobby).toBe(false);
+    expect(duel.state?.wizards).toHaveLength(4);
+  });
+
+  it('quien crea la sala puede empezar ya: la IA ocupa los puestos libres', () => {
+    const duel = room({ kind: 'ffa', players: 4 });
+    duel.join({ name: 'Beto' });
+    expect(duel.begin(2)).toBe(false);
+    expect(duel.begin(1)).toBe(true);
+    expect(duel.inLobby).toBe(false);
+    expect(duel.players).toHaveLength(4);
+    expect(duel.players.filter((p) => p.bot)).toHaveLength(2);
+    expect(new Set(duel.players.map((p) => p.team)).size).toBe(4);
+    expect(duel.seriesInfo().wins).toHaveLength(4);
+    // La IA juega por los puestos libres y la partida avanza.
+    for (let i = 0; i < 30; i++) duel.tick();
+    expect(duel.state?.tick).toBeGreaterThan(20);
+  });
+
+  it('con la partida empezada no entra nadie nuevo', () => {
+    const duel = room({ kind: 'teams', size: 2 });
+    duel.begin(1);
+    expect(duel.join({ name: 'Tarde' })).toBeNull();
+    expect(duel.joinError).toBe('La partida ya empezó');
+  });
+
+  it('si se va quien creó la sala antes de empezar, manda el siguiente', () => {
+    const duel = room({ kind: 'teams', size: 3 });
+    duel.join({ name: 'Beto' });
+    duel.leave(1);
+    expect(duel.hostId).toBe(4);
+    expect(duel.begin(4)).toBe(true);
+  });
+
+  it('una partida de equipos se juega hasta el final con revancha', () => {
+    const duel = room({ kind: 'teams', size: 2 });
+    duel.begin(1);
+    duel.leave(1);
+    for (let i = 0; i < 30 * 60 * 30 && duel.stageFor(1).kind !== 'finished'; i++) duel.tick();
+    expect(duel.stageFor(1).kind).toBe('finished');
+    expect(duel.seriesInfo().seriesWinner).not.toBeNull();
+  });
+});

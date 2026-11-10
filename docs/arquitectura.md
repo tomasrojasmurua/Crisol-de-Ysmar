@@ -50,8 +50,8 @@ envían intenciones numeradas cada 33 ms y reciben el estado en cada paso (30 po
 binario y solo con lo que cambió. El celular guarda dos pasos de colchón y dibuja interpolando entre
 ellos.
 
-- Primera versión (1v1): `apps/server/src/duel.ts` (`DuelHost`, puro y con pruebas) lleva la partida
-  al mejor de 3 con Glifos; `room.ts` conecta los sockets y el reloj. En el cliente,
+- `apps/server/src/duel.ts` (`DuelHost`, puro y con pruebas) lleva la partida de cualquier modo
+  con Glifos; `room.ts` conecta los sockets y el reloj. En el cliente,
   `net/NetMatch.ts` cumple la misma interfaz que `LocalMatch` (`game/MatchView.ts`), así que el
   dibujo y el HUD no cambian. Si alguien se corta, la IA juega por él y puede volver en 60 s con su
   token (guardado en la pestaña).
@@ -84,7 +84,11 @@ ellos.
   - **Volver:** el pase para recuperar tu mago dura 3 horas en `localStorage`, así sirve aunque
     el sistema cierre la pestaña o entres de nuevo por el enlace. Al volver a la misma partida
     (`start` con `resume`), se sigue sin rearmar la escena. Se reintenta por 5 minutos.
-- Pendiente: salas de más de dos.
+- Salas de 2 a 6: quien crea la sala manda el modo en su `hello` (el elegido en el menú: duelo,
+  2v2, 3v3, libre de 4 o de 6). En equipos los puestos se alternan (1, 4, 2, 5…) para repartir a
+  los amigos entre bandos. La sala empieza sola al llenarse, o antes si quien la creó toca
+  "Empezar ya" (`begin`): la IA ocupa los puestos libres con nombre, aspecto y Afinidad al azar.
+  Con la partida empezada no entra nadie nuevo (sí vuelve quien se cortó, con su pase).
 
 ## Sonido
 

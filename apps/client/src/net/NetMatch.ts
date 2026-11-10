@@ -4,10 +4,13 @@ import {
   canAct,
   type ElementId,
   type GameEvent,
+  type GameMode,
+  type GameRules,
   type Intent,
   liveRules,
   type MatchState,
   type SeriesState,
+  teamCount,
   type Vec2,
   vec2,
   type Wizard,
@@ -63,7 +66,6 @@ const TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
 const SNAP_DISTANCE = 3;
 /** Toques guardados a la espera de que el servidor los confirme (unos 4 s). */
 const MAX_PENDING = 120;
-const RULES = rulesForMode({ kind: 'duel' });
 /** Se lee al cargar la página, antes de que el menú limpie la dirección. */
 const SIMULATED_LAG = LagSimulator.fromUrl(globalThis.location?.search ?? '');
 
@@ -117,7 +119,11 @@ export interface NetProfile {
  * Se ve igual que una partida local para el resto del juego.
  */
 export class NetMatch implements MatchView {
-  readonly options: MatchOptions = { mode: { kind: 'duel' }, deathRule: 'out', affinity: null };
+  /** El modo lo decide quien crea la sala; llega con la lista de jugadores. */
+  options: MatchOptions;
+  /** Quién manda en la sala de espera (puede empezar sin esperar a que se llene). */
+  hostId = 0;
+  private rules: GameRules;
   state: MatchState = emptyState();
   series: SeriesState = { wins: [0, 0], roundsPlayed: 0, winnerTeam: null };
   stage: MatchStage = { kind: 'playing' };
@@ -158,6 +164,7 @@ export class NetMatch implements MatchView {
   /** Rivales que la Sala dice que no ves: no se dibujan aunque lleguen en el estado. */
   private hidden: ReadonlySet<number> = new Set();
   private readonly lag = SIMULATED_LAG;
+  private lastError = '';
   /** Volviste a la misma partida (tras un corte o al volver a la app): sigue sin rearmar nada. */
   private resuming = false;
   private lastHeard = 0;
@@ -174,7 +181,11 @@ export class NetMatch implements MatchView {
     private readonly profile: NetProfile,
     private readonly human: Controller,
     private readonly listener: NetListener,
+    /** El modo que pides si creas la sala; si ya existe, manda el de quien la creó. */
+    private readonly wantedMode: GameMode = { kind: 'duel' },
   ) {
+    this.options = { mode: wantedMode, deathRule: 'out', affinity: null };
+    this.rules = rulesForMode(wantedMode);
     this.connect();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('online', this.onOnline);
@@ -251,6 +262,11 @@ export class NetMatch implements MatchView {
     events.push(...next.state.events);
   }
 
+  /** Quien manda empieza sin esperar: la IA ocupa los puestos libres. */
+  begin(): void {
+    this.send({ type: 'begin' });
+  }
+
   chooseGlyph(glyph: Glyph): void {
     this.send({ type: 'glyph', glyphId: glyph.id });
   }
@@ -315,7 +331,7 @@ export class NetMatch implements MatchView {
       return;
     }
     while (this.sent.length > 0 && (this.sent[0]?.seq ?? 0) <= latest.ack) this.sent.shift();
-    const rules = liveRules(latest.state, RULES);
+    const rules = liveRules(latest.state, this.rules);
     let pos = me.pos;
     let weave = [...me.weave];
     let facing: Vec2 | null = null;
@@ -363,6 +379,7 @@ export class NetMatch implements MatchView {
         playerName: this.profile.name,
         look: this.profile.look,
         affinity: this.profile.affinity,
+        mode: this.wantedMode,
         ...(this.token ? { token: this.token } : {}),
       });
       if (document.hidden) this.send({ type: 'away', away: true });
@@ -391,7 +408,7 @@ export class NetMatch implements MatchView {
   private onClose(socket: WebSocket, code: number): void {
     if (this.closed || socket !== this.socket) return;
     if (code === 4001) {
-      this.listener.problem('La sala ya tiene dos jugadores', true);
+      this.listener.problem(this.lastError || 'La sala está llena', true);
       this.close();
       return;
     }
@@ -473,6 +490,11 @@ export class NetMatch implements MatchView {
         return;
       case 'players':
         this.roster = message.players;
+        this.hostId = message.hostId;
+        if (!this.started && !sameMode(message.mode, this.options.mode)) {
+          this.options = { ...this.options, mode: message.mode };
+          this.rules = rulesForMode(message.mode);
+        }
         this.listener.players(message.players, this.playerId);
         return;
       case 'start':
@@ -491,7 +513,11 @@ export class NetMatch implements MatchView {
         this.started = true;
         this.netStage = { kind: 'lobby' };
         this.stage = { kind: 'playing' };
-        this.series = { wins: [0, 0], roundsPlayed: 0, winnerTeam: null };
+        this.series = {
+          wins: Array.from({ length: teamCount(this.options.mode) }, () => 0),
+          roundsPlayed: 0,
+          winnerTeam: null,
+        };
         this.state = emptyState();
         this.awaitingFirst = true;
         return;
@@ -509,6 +535,7 @@ export class NetMatch implements MatchView {
         this.biggest = 0;
         return;
       case 'error':
+        this.lastError = message.reason;
         this.listener.problem(message.reason, false);
         return;
     }
@@ -617,6 +644,10 @@ export class NetMatch implements MatchView {
       // Sin almacenamiento: si se corta, entras como jugador nuevo.
     }
   }
+}
+
+function sameMode(a: GameMode, b: GameMode): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function glyphById(id: string): Glyph | undefined {

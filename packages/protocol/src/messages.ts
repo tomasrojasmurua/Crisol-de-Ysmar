@@ -1,7 +1,7 @@
-import type { ElementId, Intent, MatchState } from '@crisol/core';
+import type { ElementId, GameMode, Intent, MatchState } from '@crisol/core';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -27,6 +27,8 @@ export interface PlayerInfo {
   readonly connected: boolean;
   /** Conectado pero fuera de la app (pestaña oculta o sin señal): la IA juega por él. */
   readonly away: boolean;
+  /** Un puesto que ocupa la IA porque nadie lo tomó al empezar. */
+  readonly bot: boolean;
 }
 
 /** En qué parte de la partida va la Sala, visto por un jugador. */
@@ -48,7 +50,11 @@ export type ClientMessage =
       readonly affinity?: ElementId | null;
       /** Para volver a tu mago si se cortó la conexión. */
       readonly token?: string;
+      /** El modo de la sala; solo cuenta el de quien la crea (el primero en entrar). */
+      readonly mode?: GameMode;
     }
+  /** Quien manda en la sala empieza sin esperar: la IA ocupa los puestos libres. */
+  | { readonly type: 'begin' }
   | { readonly type: 'intents'; readonly seq: number; readonly intents: readonly Intent[] }
   | { readonly type: 'glyph'; readonly glyphId: string }
   | { readonly type: 'rematch' }
@@ -65,7 +71,13 @@ export type ServerMessage =
       readonly token: string;
     }
   /** Quiénes están en la Sala; cambia cuando alguien entra, sale o vuelve. */
-  | { readonly type: 'players'; readonly players: readonly PlayerInfo[] }
+  | {
+      readonly type: 'players';
+      readonly players: readonly PlayerInfo[];
+      /** El modo de la sala y el puesto de quien manda en la sala de espera. */
+      readonly mode: GameMode;
+      readonly hostId: number;
+    }
   /**
    * Empieza una partida nueva: el Presagio y quién es quién. Con `resume`, es la misma partida
    * que ya ibas jugando (volviste tras un corte): se sigue sin rearmar nada.
