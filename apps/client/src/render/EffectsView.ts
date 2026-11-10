@@ -26,6 +26,7 @@ const SPECTRE_COLOR = new THREE.Color('#a9b8ff');
 const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
 const SHRINE_COLOR = new THREE.Color('#f0d9a0');
+const COMBO_COLOR = new THREE.Color('#fff4d6');
 /** Explosiones que sacuden la cámara si te pillan cerca. */
 const SHAKERS: ReadonlySet<SpellId> = new Set([
   'fireball',
@@ -172,6 +173,22 @@ export class EffectsView {
           if (event.targetId === this.playerId) {
             this.shake = Math.min(1, this.shake + Math.min(0.6, event.amount / 30));
           }
+          break;
+        }
+        case 'combo': {
+          // Reacción entre estados: un destello blanco y un anillo que se abre.
+          const target = byId(event.targetId);
+          if (!target) break;
+          this.particles.burst(
+            target.pos.x,
+            HIT_HEIGHT,
+            target.pos.z,
+            glow(COMBO_COLOR, 2.2),
+            26,
+            6,
+            0.5,
+          );
+          this.ring(target.pos.x, target.pos.z, COMBO_COLOR, 2.2, 0.4);
           break;
         }
         case 'blocked':

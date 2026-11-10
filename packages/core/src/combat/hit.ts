@@ -1,6 +1,6 @@
 import { wizardById } from '../match/queries';
 import type { GameEvent, MatchState, SpellPayload, Wizard } from '../match/state';
-import type { GameRules, StatusId } from '../rules';
+import type { ElementCombo, GameRules, StatusId } from '../rules';
 import { HARMFUL_STATUSES, immuneTo } from './statuses';
 
 type HitForm = Extract<GameEvent, { type: 'hit' }>['form'];
@@ -17,8 +17,17 @@ export function applyHit(
   if (target.hp <= 0 || target.statuses.stasis || target.statuses.halted) {
     return;
   }
+  const combo = comboFor(target, payload, rules);
+  const multiplier = combo ? combo.damageMultiplier : 1;
   const before = target.hp;
-  dealDamage(state, target, sourceId, payload.damage * damageScale, payload.form, payload.pierce);
+  dealDamage(
+    state,
+    target,
+    sourceId,
+    payload.damage * damageScale * multiplier,
+    payload.form,
+    payload.pierce,
+  );
   const dealt = before - target.hp;
   const caster = wizardById(state, sourceId);
   if (caster && caster.hp > 0 && caster.mods.lifesteal > 0) {
@@ -27,6 +36,38 @@ export function applyHit(
   for (const status of payload.statuses) {
     applyStatus(state, target, status, sourceId, rules);
   }
+  if (combo && target.hp > 0) react(state, target, sourceId, combo, rules);
+}
+
+/**
+ * La reacción que provoca este golpe, si hay: el primer elemento del tejido contra un estado que
+ * ya tiene el blanco (empapado + Tormenta, enraizado + Brasa…). Solo una por golpe.
+ */
+export function comboFor(
+  target: Wizard,
+  payload: SpellPayload,
+  rules: GameRules,
+): ElementCombo | null {
+  const element = payload.weave[0];
+  if (!element) return null;
+  for (const combo of rules.interactions.combos) {
+    if (combo.element === element && target.statuses[combo.status]) return combo;
+  }
+  return null;
+}
+
+function react(
+  state: MatchState,
+  target: Wizard,
+  sourceId: number,
+  combo: ElementCombo,
+  rules: GameRules,
+): void {
+  if (combo.consume) delete target.statuses[combo.status];
+  for (const effect of combo.applies) {
+    applyStatus(state, target, effect.status, sourceId, rules, effect.ticks);
+  }
+  state.events.push({ type: 'combo', combo: combo.id, targetId: target.id, sourceId });
 }
 
 export function dealDamage(

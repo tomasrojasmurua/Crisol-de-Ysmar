@@ -1,4 +1,10 @@
-import { ELEMENTS, SPELL_DESCRIPTIONS, SPELL_NAMES } from '@crisol/content';
+import {
+  ELEMENTS,
+  FAMILY_NAMES,
+  SPELL_DESCRIPTIONS,
+  SPELL_FAMILIES,
+  SPELL_NAMES,
+} from '@crisol/content';
 import { type GameRules, SPELL_WEAVES, type SpellId, TICK_RATE, type Weave } from '@crisol/core';
 import { el } from './dom';
 
@@ -40,7 +46,11 @@ export function spellCard(spell: SpellId, rules: GameRules): HTMLElement {
   const card = el('div', 'spell-card');
   card.append(
     el('strong', 'spell-card-name', SPELL_NAMES[spell]),
-    el('span', 'spell-card-weave', weaveText(SPELL_WEAVES[spell])),
+    el(
+      'span',
+      'spell-card-weave',
+      `${weaveText(SPELL_WEAVES[spell])} · ${FAMILY_NAMES[SPELL_FAMILIES[spell]]}`,
+    ),
     el('p', 'spell-card-text', SPELL_DESCRIPTIONS[spell]),
   );
   const facts = el('div', 'spell-card-facts');

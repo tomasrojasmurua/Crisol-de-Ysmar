@@ -88,23 +88,24 @@ celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
 
 ### Historia de PRs
 
-| PR            | Qué trajo                                                              |
-| ------------- | ---------------------------------------------------------------------- |
-| #1, #2        | Hito 0: monorepo, CI y publicación en Cloudflare.                      |
-| #3, #4        | Hito 1: duelo contra un bot; cámara sobre el hombro como la única.     |
-| #5            | Partida completa contra la IA: modos, rondas, zona.                    |
-| #6            | Bestias, santuarios, Glifos y Presagios.                               |
-| #7            | Vestidor, Afinidad visible y Grimorio.                                 |
-| #8, #9        | Mapa grande con jungla, minimapa, campamentos y Guardián.              |
-| #10           | Más luz, cámara que se gira con el dedo, aviso de conjuro más chico.   |
-| #11, #12      | Rediseño: cada tejido de 1 y 2 elementos es un hechizo propio.         |
-| #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                         |
-| #15           | Rondas de 3 minutos y básicos de 0,17 s.                               |
-| #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.          |
-| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                          |
-| #20           | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).               |
-| #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.    |
-| Audio         | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`). |
+| PR            | Qué trajo                                                               |
+| ------------- | ----------------------------------------------------------------------- |
+| #1, #2        | Hito 0: monorepo, CI y publicación en Cloudflare.                       |
+| #3, #4        | Hito 1: duelo contra un bot; cámara sobre el hombro como la única.      |
+| #5            | Partida completa contra la IA: modos, rondas, zona.                     |
+| #6            | Bestias, santuarios, Glifos y Presagios.                                |
+| #7            | Vestidor, Afinidad visible y Grimorio.                                  |
+| #8, #9        | Mapa grande con jungla, minimapa, campamentos y Guardián.               |
+| #10           | Más luz, cámara que se gira con el dedo, aviso de conjuro más chico.    |
+| #11, #12      | Rediseño: cada tejido de 1 y 2 elementos es un hechizo propio.          |
+| #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                          |
+| #15           | Rondas de 3 minutos y básicos de 0,17 s.                                |
+| #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.           |
+| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                           |
+| #20           | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).                |
+| #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.     |
+| #26           | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`).  |
+| Lectura       | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
 
 ## Lo que sigue
 
@@ -116,7 +117,8 @@ Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendaci�
      en `packages/content/src/features.ts`; Espectro es la única regla de muerte. Los familiares no
      existían, así que no hubo nada que apagar.
    - Hecho antes: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
-   - Propuesto, sin decidir: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
+   - Hecho: tejido sobre la cabeza, siluetas por familia y reacciones entre estados (ver
+     `docs/diseno.md`, Lectura del combate). Queda el choque de tejidos. Antes se propuso: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
      familia de hechizo (proyectil, zona, movimiento, invocación); interacciones entre estados al
      estilo sistémico (mojado + Tormenta aturde, Raíz + Brasa arde); **choque de tejidos** (un
      tejido opuesto en el pentágono anula al del rival), a diseñar en papel e implementar con la red.

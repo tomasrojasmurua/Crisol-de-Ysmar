@@ -30,6 +30,7 @@ export const SOUND_KEYS = [
   'hurtHeavy',
   'confirm',
   'clang',
+  'combo',
   'fizzle',
   'summonGone',
   'beastSlain',
