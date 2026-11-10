@@ -1,7 +1,7 @@
 import type { ElementId } from '../elements';
 import type { Vec2 } from '../math/vec2';
 import type { WizardMods } from '../mods';
-import type { StatusId } from '../rules';
+import type { ComboId, StatusId } from '../rules';
 import type { SpellId } from '../spells/catalog';
 import type { SpellForm, Weave } from '../weaving/weave';
 
@@ -734,6 +734,13 @@ export type GameEvent =
   | { readonly type: 'shrinesAppear' }
   | { readonly type: 'shrineClaimed'; readonly shrineId: EntityId; readonly team: number }
   | { readonly type: 'blocked'; readonly pos: Vec2 }
+  /** Una reacción entre estados: empapado + Tormenta aturde, enraizado + Brasa arde… */
+  | {
+      readonly type: 'combo';
+      readonly combo: ComboId;
+      readonly targetId: EntityId;
+      readonly sourceId: EntityId;
+    }
   | { readonly type: 'fizzle'; readonly wizardId: EntityId }
   | { readonly type: 'defeated'; readonly wizardId: EntityId }
   | { readonly type: 'respawned'; readonly wizardId: EntityId }

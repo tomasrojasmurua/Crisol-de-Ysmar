@@ -381,11 +381,29 @@ export interface GameRules {
   readonly interactions: {
     /** Marea apaga Brasa: ralentizar a alguien le quita la quemadura. */
     readonly tideExtinguishesBurn: boolean;
+    /** Reacciones entre estados: un golpe de un elemento sobre un estado de otro. */
+    readonly combos: readonly ElementCombo[];
   };
   readonly round: RoundRules;
   readonly death: DeathRules;
   readonly beasts: BeastRules;
   readonly shrines: ShrineRules;
+}
+
+export type ComboId = 'conduction' | 'shatter' | 'kindling' | 'steam' | 'ashenCurse' | 'mire';
+
+/**
+ * Una reacción: si un hechizo cuyo tejido empieza con `element` golpea a quien tiene `status`,
+ * ese golpe pega `damageMultiplier` veces y aplica `applies`. Con `consume`, el estado se gasta.
+ * Se revisan en orden y solo sale la primera que calce.
+ */
+export interface ElementCombo {
+  readonly id: ComboId;
+  readonly element: ElementId;
+  readonly status: StatusId;
+  readonly damageMultiplier: number;
+  readonly consume: boolean;
+  readonly applies: readonly { readonly status: StatusId; readonly ticks: number }[];
 }
 
 /** Bestias neutrales: se cazan en la arena y dejan Esencia de su elemento. */

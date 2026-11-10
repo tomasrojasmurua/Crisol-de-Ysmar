@@ -62,6 +62,7 @@ import { SpellViews, type SpellWorld } from './render/SpellViews';
 import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
+import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
@@ -153,6 +154,7 @@ uiRoot.addEventListener('click', (event) => {
 });
 const minimap = new Minimap(uiRoot, rules);
 const blindVeil = new BlindVeil(uiRoot);
+const comboCallouts = new ComboCallouts(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
 const hud = new Hud(
   uiRoot,
@@ -344,6 +346,7 @@ function showMenu(): void {
   controls.visible = false;
   minimap.show(false);
   blindVeil.reset();
+  comboCallouts.clear();
   cameraDrag.enabled = false;
   lantern.intensity = 0;
   hud.hideResult();
@@ -743,6 +746,9 @@ renderer.setAnimationLoop((now) => {
       effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
       announceEvents(events, current);
       audio.onEvents(events, current.state);
+      for (const event of events) {
+        if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
+      }
       if (current instanceof TrainingMatch) {
         for (const event of events) {
           if (event.type === 'release' && event.wizardId === current.playerId) {
@@ -868,6 +874,8 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
       ? current.interpolated(target.id, target.pos, alpha)
       : null;
   rig.update(playerPos, targetPos, delta, effects.shake);
+  const forward = rig.forward();
+  WizardView.viewYaw = Math.atan2(-forward.x, -forward.z);
   audio.setListener(playerPos, rig.forward(), current.playerId);
   arena.focus(playerPos.x, playerPos.z);
   lantern.position.set(playerPos.x, 3.2, playerPos.z);
@@ -891,6 +899,14 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
     player.statuses.insight !== undefined,
   );
   maps.jungle.setBurned(state.burnedTrees);
+  comboCallouts.update(
+    camera,
+    (id) => {
+      const wizard = wizardOf(id);
+      return wizard ? current.interpolated(id, wizard.pos, alpha) : undefined;
+    },
+    delta,
+  );
   minimap.update(state, player, rig.forward(), seen, badges, time);
 }
 

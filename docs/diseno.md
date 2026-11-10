@@ -47,3 +47,24 @@ es lo vigente.
 - **Arte:** fantasía oscura estilizada; la magia es lo único con color intenso.
 - **Audio:** cada elemento es una nota y un tejido suena como un acorde.
 - **Mundo:** Ysmar, sostenido por la Trama de cinco hilos; los vencedores del Crisol la retejen.
+
+## Lectura del combate
+
+- **El tejido flota sobre la cabeza** en tres huecos, de izquierda a derecha en el orden tejido y
+  siempre de frente a la cámara. Los huecos vacíos dicen cuánto falta. Al canalizar, los orbes se
+  juntan y crecen hasta que el hechizo sale.
+- **Silueta de familia en el suelo** mientras se canaliza (y medio segundo después), con el color
+  del primer elemento: cuña (ataque), anillos (zona), flechas (movimiento), pentágono (invocación)
+  y columna (aura). Las familias viven en `packages/content/src/families.ts`.
+- **Reacciones entre estados** (`packages/content/src/rules.ts`, `interactions.combos`): un golpe
+  cuyo tejido empieza con un elemento, sobre un estado de otro, provoca algo extra. Sale una por
+  golpe y su nombre flota sobre el blanco. También están en el Grimorio, pestaña Reacciones.
+
+| Reacción      | Golpe de | Sobre      | Efecto                                   |
+| ------------- | -------- | ---------- | ---------------------------------------- |
+| Conducción    | Tormenta | Empapado   | +20% y aturde 0,6 s; seca el agua        |
+| Quiebre       | Tormenta | Congelado  | +50% y rompe el hielo                    |
+| Leña          | Brasa    | Enraizado  | +25% y quema 3 s                         |
+| Vapor         | Marea    | Quemándose | +20%, apaga el fuego y quita escudos 3 s |
+| Brasa maldita | Umbra    | Quemándose | +20% y el fuego se vuelve maldición      |
+| Lodazal       | Raíz     | Empapado   | Enraíza 1 s; seca el agua                |

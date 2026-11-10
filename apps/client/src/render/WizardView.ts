@@ -1,10 +1,11 @@
 import type { ElementId, GameRules, StatusId, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { AffinityLook } from './AffinityLook';
+import { CastSigil } from './CastSigil';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
+import { WeaveHalo } from './WeaveHalo';
 
-const ORB_COUNT = 3;
 const REVIVE_SEGMENTS = 48;
 
 export interface WizardLook {
@@ -30,6 +31,11 @@ const HEAD_Y = 1.74;
  * hasta que lleguen los modelos del Hito 5.
  */
 export class WizardView {
+  /**
+   * Hacia dónde mira la cámara (ángulo en el suelo), para que el tejido sobre la cabeza quede
+   * de frente. Lo fija el bucle de dibujo una vez por cuadro.
+   */
+  static viewYaw = 0;
   readonly group = new THREE.Group();
   /** Todo lo que se mueve con el cuerpo; el anillo del suelo queda fuera. */
   private readonly body = new THREE.Group();
@@ -44,7 +50,8 @@ export class WizardView {
   private readonly floatingFocus: boolean;
   private readonly ghostMaterial: THREE.MeshStandardMaterial;
   private readonly solidMeshes: THREE.Mesh[] = [];
-  private readonly orbs: THREE.Mesh[] = [];
+  private readonly halo = new WeaveHalo();
+  private readonly sigil = new CastSigil();
   private readonly rootRing: THREE.Mesh;
   private readonly curseRing: THREE.Mesh;
   private readonly frost: THREE.Mesh;
@@ -208,13 +215,7 @@ export class WizardView {
       this.group.add(mesh);
     }
 
-    const orbGeometry = new THREE.SphereGeometry(0.12, 14, 10);
-    for (let i = 0; i < ORB_COUNT; i++) {
-      const orb = new THREE.Mesh(orbGeometry, new THREE.MeshBasicMaterial());
-      orb.visible = false;
-      this.orbs.push(orb);
-      this.body.add(orb);
-    }
+    this.group.add(this.halo.group, this.sigil.group);
   }
 
   /** Coloca al mago y muestra su tejido, que todos pueden leer. */
@@ -292,21 +293,16 @@ export class WizardView {
     this.crystalMaterial.color.copy(
       first ? glow(elementColor(first), 2.6) : glow(this.teamColor, 2),
     );
-    const spin = channel ? 10 : 2.6;
-    this.orbs.forEach((orb, i) => {
-      const element = weave[i];
-      orb.visible = element !== undefined && alive;
-      if (element === undefined) return;
-      (orb.material as THREE.MeshBasicMaterial).color.copy(glow(elementColor(element), 2.4));
-      const angle = timeSeconds * spin + (i / Math.max(1, weave.length)) * Math.PI * 2;
-      const r = 0.5 - progress * 0.28;
-      orb.position.set(
-        Math.cos(angle) * r,
-        1.35 + Math.sin(angle * 0.5) * 0.06,
-        0.5 + Math.sin(angle) * r * 0.6,
-      );
-      orb.scale.setScalar(1 + progress * 0.9);
-    });
+    this.halo.update(weave, progress, channel !== null, alive, timeSeconds, WizardView.viewYaw);
+    const aim =
+      channel && (channel.aim.x !== 0 || channel.aim.z !== 0) ? channel.aim : wizard.facing;
+    this.sigil.update(
+      channel && alive ? channel.weave : null,
+      progress,
+      aim,
+      timeSeconds,
+      deltaSeconds,
+    );
 
     // Golpe recibido: un destello breve en la túnica.
     if (this.lastHp >= 0 && wizard.hp < this.lastHp - 0.9) this.flash = 1;

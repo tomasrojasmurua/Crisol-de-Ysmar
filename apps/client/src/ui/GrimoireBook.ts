@@ -1,4 +1,4 @@
-import { ALL_WEAVES, ELEMENTS, spellName } from '@crisol/content';
+import { ALL_WEAVES, COMBO_TEXT, ELEMENTS, spellName } from '@crisol/content';
 import { type ElementId, type GameRules, spellOf, type Weave } from '@crisol/core';
 import type { Grimoire } from '../game/Grimoire';
 import { el, query } from './dom';
@@ -35,7 +35,8 @@ export class GrimoireBook {
   private readonly tabs: HTMLElement;
   private readonly list: HTMLElement;
   private readonly progress: HTMLElement;
-  private form: ElementId = 'brasa';
+  /** La pestaña abierta: un elemento o las reacciones entre estados. */
+  private form: ElementId | 'combos' = 'brasa';
   private grimoire: Grimoire | null = null;
   private readonly detail: HTMLElement;
 
@@ -82,6 +83,16 @@ export class GrimoireBook {
       });
       this.tabs.append(tab);
     }
+    const combos = el('button', 'grimoire-tab');
+    combos.type = 'button';
+    combos.dataset.id = 'combos';
+    combos.style.setProperty('--element', '#f3dfb0');
+    combos.append(el('strong', '', 'Reacciones'), el('span', 'grimoire-tab-count'));
+    combos.addEventListener('click', () => {
+      this.form = 'combos';
+      this.render();
+    });
+    this.tabs.append(combos);
   }
 
   show(grimoire: Grimoire): void {
@@ -113,16 +124,25 @@ export class GrimoireBook {
     this.progress.textContent = `${grimoire.count} de ${grimoire.total} conjuros descubiertos`;
 
     for (const tab of this.tabs.querySelectorAll<HTMLElement>('.grimoire-tab')) {
+      tab.classList.toggle('selected', tab.dataset.id === this.form);
+      if (tab.dataset.id === 'combos') {
+        query(tab, '.grimoire-tab-count').textContent = String(Object.keys(COMBO_TEXT).length);
+        continue;
+      }
       const id = tab.dataset.id as ElementId;
       const weaves = ALL_WEAVES.filter((w) => w[0] === id);
       const known = weaves.filter((w) => grimoire.has(w)).length;
-      tab.classList.toggle('selected', id === this.form);
       query(tab, '.grimoire-tab-count').textContent = `${known}/${weaves.length}`;
     }
 
     this.list.replaceChildren();
-    this.list.style.setProperty('--element', colorOf(this.form));
-    const weaves = ALL_WEAVES.filter((w) => w[0] === this.form);
+    const form = this.form;
+    if (form === 'combos') {
+      this.renderCombos();
+      return;
+    }
+    this.list.style.setProperty('--element', colorOf(form));
+    const weaves = ALL_WEAVES.filter((w) => w[0] === form);
     const known = weaves.filter((w) => grimoire.has(w));
     for (const weave of known) {
       const card = el('button', 'grimoire-spell known');
@@ -135,10 +155,31 @@ export class GrimoireBook {
     if (left > 0) {
       const hint =
         known.length === 0
-          ? `Todavía no descubres conjuros que empiecen con ${TAB_NAMES[this.form]}: ¡a tejer!`
+          ? `Todavía no descubres conjuros que empiecen con ${TAB_NAMES[form]}: ¡a tejer!`
           : `Te faltan ${left} por descubrir`;
       this.list.append(el('p', 'grimoire-missing', hint));
     }
+    this.list.scrollTop = 0;
+  }
+
+  /** Las reacciones entre estados: qué elemento sobre qué estado y qué provoca. */
+  private renderCombos(): void {
+    this.list.style.setProperty('--element', '#f3dfb0');
+    for (const combo of Object.values(COMBO_TEXT)) {
+      const card = el('div', 'grimoire-spell known grimoire-combo');
+      card.append(
+        el('span', 'grimoire-spell-name', combo.name),
+        el('span', 'grimoire-combo-detail', combo.detail),
+      );
+      this.list.append(card);
+    }
+    this.list.append(
+      el(
+        'p',
+        'grimoire-missing',
+        'Un golpe de un elemento sobre un estado de otro provoca una reacción.',
+      ),
+    );
     this.list.scrollTop = 0;
   }
 }

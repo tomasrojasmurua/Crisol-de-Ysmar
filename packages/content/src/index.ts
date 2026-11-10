@@ -8,8 +8,10 @@ export {
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';
+export { COMBO_TEXT } from './combos';
 export { SPELL_DESCRIPTIONS } from './descriptions';
 export { ELEMENTS } from './elements';
+export { FAMILY_NAMES, SPELL_FAMILIES, type SpellFamily } from './families';
 export { FEATURES, type Features } from './features';
 export { BEAST_NAMES, GLYPHS, type Glyph, GUARDIAN_NAME, OMENS, type Omen } from './glyphs';
 export { ALL_WEAVES, SPELL_NAMES, spellName, weaveKey } from './grimoire';

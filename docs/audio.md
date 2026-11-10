@@ -64,6 +64,7 @@ siga funcionando.
 | `hurtHeavy`                 | 0,3 s    | Heavy magical hit, deep punchy impact                                                            |
 | `confirm`                   | 0,1 s    | Tiny bright crystalline tick confirming a hit                                                    |
 | `clang`                     | 0,6 s    | Spell blocked by a magic shield, metallic ring                                                   |
+| `combo`                     | 0,6 s    | Two magic threads colliding, bright rising sparkle with an electric snap                         |
 | `fizzle`                    | 0,4 s    | Failed spell fizzling out, sputtering hiss                                                       |
 | `summonGone`                | 0,4 s    | Summoned creature dissolving into smoke                                                          |
 | `beastSlain`                | 1,5 s    | Beast defeated, mystical chime reward                                                            |

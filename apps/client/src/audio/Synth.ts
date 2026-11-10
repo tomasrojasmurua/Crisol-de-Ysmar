@@ -240,6 +240,28 @@ export class Synth {
     }
   }
 
+  /** Una reacción entre estados: un destello brillante que sube, como dos hilos que se cruzan. */
+  combo(place: Placement): void {
+    const ctx = this.engine.ctx;
+    const out = this.output(place, 0.6);
+    if (!ctx || !out) return;
+    const t = ctx.currentTime;
+    for (const [freq, delay] of [
+      [523.25, 0],
+      [783.99, 0.05],
+      [1046.5, 0.1],
+    ] as const) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq * 0.98, t + delay);
+      osc.frequency.exponentialRampToValueAtTime(freq, t + delay + 0.05);
+      osc.connect(envelope(ctx, t + delay, 0.16, 0.003, 0.5)).connect(out);
+      osc.start(t + delay);
+      osc.stop(t + delay + 0.55);
+    }
+    this.zap(place, 0.6);
+  }
+
   /** Un hechizo que se deshace sin salir. */
   fizzle(place: Placement): void {
     const ctx = this.engine.ctx;

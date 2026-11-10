@@ -145,6 +145,63 @@ export const GAME_RULES: GameRules = {
   },
   interactions: {
     tideExtinguishesBurn: true,
+    // Reacciones entre estados. Se revisan en orden; sale solo la primera que calce.
+    combos: [
+      // Conducción: Tormenta sobre alguien empapado lo aturde 0,6 s y seca el agua.
+      {
+        id: 'conduction',
+        element: 'tormenta',
+        status: 'soaked',
+        damageMultiplier: 1.2,
+        consume: true,
+        applies: [{ status: 'stunned', ticks: 18 }],
+      },
+      // Quiebre: Tormenta sobre alguien congelado rompe el hielo con 50% más de daño.
+      {
+        id: 'shatter',
+        element: 'tormenta',
+        status: 'frozen',
+        damageMultiplier: 1.5,
+        consume: true,
+        applies: [],
+      },
+      // Leña: Brasa sobre alguien enraizado prende la madera: 25% más y quema 3 s.
+      {
+        id: 'kindling',
+        element: 'brasa',
+        status: 'root',
+        damageMultiplier: 1.25,
+        consume: false,
+        applies: [{ status: 'burn', ticks: 90 }],
+      },
+      // Vapor: Marea sobre alguien que arde apaga el fuego y lo escalda: 3 s sin escudos.
+      {
+        id: 'steam',
+        element: 'marea',
+        status: 'burn',
+        damageMultiplier: 1.2,
+        consume: true,
+        applies: [{ status: 'scalded', ticks: 90 }],
+      },
+      // Brasa maldita: Umbra sobre alguien que arde vuelve el fuego maldición (te roba vida).
+      {
+        id: 'ashenCurse',
+        element: 'umbra',
+        status: 'burn',
+        damageMultiplier: 1.2,
+        consume: true,
+        applies: [{ status: 'curse', ticks: 90 }],
+      },
+      // Lodazal: Raíz sobre alguien empapado lo hunde en el barro: enraizado 1 s.
+      {
+        id: 'mire',
+        element: 'raiz',
+        status: 'soaked',
+        damageMultiplier: 1,
+        consume: true,
+        applies: [{ status: 'root', ticks: 30 }],
+      },
+    ],
   },
   round: {
     // Mejor de 3, con tope de 5 por si hay empates.
