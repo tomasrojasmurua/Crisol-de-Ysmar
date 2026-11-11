@@ -1,28 +1,21 @@
 import {
   DEFAULT_LOOK,
-  ELEMENTS,
   GAME_RULES,
   NO_OMEN,
   ROBE_COLORS,
   rulesForMode,
   SKIN_TONES,
-  spellName,
   TRIM_COLORS,
   WIZARD_NAMES,
 } from '@crisol/content';
-import {
-  type ElementId,
-  FixedStepClock,
-  type GameEvent,
-  type GameRules,
-  SeededRng,
-} from '@crisol/core';
+import { type ElementId, FixedStepClock, type GameRules, SeededRng } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
 import { type CameraMode, readCameraMode, saveCameraMode } from './camera/CameraMode';
 import { Diagnostics } from './game/Diagnostics';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
+import { MatchFlow } from './game/MatchFlow';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import {
@@ -51,7 +44,7 @@ import type { WizardLook } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
-import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
+import { GrimoireBook } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
@@ -146,7 +139,6 @@ const grimoireBook = new GrimoireBook(
 );
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 
-const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
 let match: MatchView | null = null;
 /** El duelo en red, si estás jugando con un amigo. */
 let net: NetMatch | null = null;
@@ -167,6 +159,17 @@ const matchRenderer = new MatchRenderer(
   input,
 );
 matchRenderer.cameraMode = cameraMode;
+const flow = new MatchFlow({
+  view,
+  hud,
+  audio,
+  minimap,
+  controls,
+  glyphPicker,
+  grimoire,
+  renderer: matchRenderer,
+  diagnostics,
+});
 // Cámara asistida: disparar sin arrastrar centra la cámara un rato en el blanco.
 input.onAction((action) => {
   if (action.type === 'cast' && !action.aim && match) matchRenderer.autoCast(match, rules);
@@ -209,12 +212,7 @@ window.addEventListener('keydown', (event) => {
   else pauseMenu.open();
 });
 let badges = new Map<number, WizardBadge>();
-let shownRound = 0;
-let resultShown = false;
-let pickerShown = false;
 
-const elementName = (element: string): string =>
-  ELEMENTS.find((e) => e.id === element)?.name ?? element;
 /** El aspecto de un mago en pantalla: sus piezas, su Afinidad y el color de su bando. */
 function lookOf(
   look: Appearance,
@@ -422,9 +420,7 @@ function beginMatch(
   cameraDrag.enabled = true;
   view.setLantern(true);
   minimap.reset();
-  shownRound = 0;
-  resultShown = false;
-  pickerShown = false;
+  flow.begin();
   // Una sala sin Presagio no muestra ninguno.
   if (current.omen.id === NO_OMEN.id) hud.setOmen(null);
   else hud.setOmen(current.omen.name, current.omen.description);
@@ -437,131 +433,6 @@ function beginMatch(
   diagnostics.matchStarted(resolution.pixelRatio, quality);
   obstacles.invalidate();
   rig.snap();
-}
-
-/** Avisos de la partida según lo que pasó en el paso. */
-function announceEvents(events: readonly GameEvent[], current: MatchView): void {
-  const me = current.playerId;
-  for (const event of events) {
-    if (event.type === 'cast' && event.wizardId === me) {
-      if (grimoire.discover(event.weave)) {
-        audio.discover();
-        hud.celebrateDiscovery(
-          spellName(event.weave),
-          weaveOrbs(event.weave),
-          grimoire.count,
-          grimoire.total,
-        );
-      }
-    } else if (event.type === 'phase') {
-      hud.announcePhase(event.phase);
-    } else if (event.type === 'defeated' && event.wizardId === me) {
-      const rule = current.state.deathRule;
-      const subtitle =
-        rule === 'spectre'
-          ? 'Sigues como espectro'
-          : rule === 'out'
-            ? 'Miras a quienes siguen en pie'
-            : current.player.lives > 1
-              ? 'Reapareces en unos segundos'
-              : 'Te quedaste sin vidas';
-      hud.announce('Caíste', subtitle);
-    } else if (event.type === 'revived' && event.wizardId === me) {
-      hud.announce('De pie', `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`);
-    } else if (event.type === 'guardianAwake') {
-      hud.announce('El Guardián despertó', 'Está en la plaza: vencerlo da Esencia de todo', 2.6);
-    } else if (event.type === 'beastSlain' && event.guardian) {
-      const killer = event.killerId === me ? 'Tú' : badges.get(event.killerId ?? -1)?.name;
-      hud.announce(
-        'Cayó el Guardián',
-        event.killerId === me
-          ? 'Esencia de los cinco elementos'
-          : `${killer ?? 'Alguien'} se llevó su Esencia`,
-        2.4,
-      );
-    } else if (event.type === 'beastSlain' && event.killerId === me) {
-      const bonus = Math.round(rules.beasts.essenceDamagePerStack * 100);
-      hud.announce(
-        `Esencia de ${elementName(event.element)}`,
-        `+${bonus}% de daño con ${elementName(event.element)} esta ronda`,
-        1.8,
-      );
-    } else if (event.type === 'shrineClaimed' && event.team === current.player.team) {
-      hud.announce('Santuario tomado', 'Recuperas vida y tu magia pega más fuerte', 2);
-    }
-  }
-}
-
-function teamName(current: MatchView, team: number): string {
-  const ffa = current.options.mode.kind === 'ffa';
-  if (team === current.player.team) return ffa ? 'ti' : 'tu equipo';
-  if (!ffa) return 'el equipo rival';
-  const member = current.state.wizards.find((w) => w.team === team);
-  return (member && badges.get(member.id)?.name) ?? 'un rival';
-}
-
-/** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
-let lastWinner = -1;
-
-function updateMatchFlow(current: MatchView): void {
-  const playerTeam = current.player.team;
-  const stage = current.stage;
-  if (stage.kind === 'playing' && current.roundNumber !== shownRound) {
-    shownRound = current.roundNumber;
-    audio.reset();
-    audio.setMood('hunt');
-    hud.reset(current.state, current.player, badges);
-    creatures.clear();
-    minimap.reset();
-    rig.snap();
-    if (current instanceof TrainingMatch) {
-      hud.announce('Entrenamiento', 'Teje y mira qué sale', 3);
-    } else {
-      hud.announce(
-        `Ronda ${shownRound}`,
-        shownRound === 1 && current.omen.id !== NO_OMEN.id
-          ? `Presagio: ${current.omen.name}`
-          : 'Caza: la arena está abierta',
-        shownRound === 1 ? 3 : 2.4,
-      );
-    }
-  }
-  if ((stage.kind === 'playing' || stage.kind === 'waiting') && pickerShown) {
-    pickerShown = false;
-    glyphPicker.hide();
-    controls.visible = stage.kind === 'playing';
-    if (stage.kind === 'waiting') hud.announce('Glifo elegido', 'Esperando a tu rival', 3);
-  }
-  // Jugando, los controles se ven salvo que hayas caído y estés mirando a otro.
-  if (stage.kind === 'playing' && !resultShown)
-    controls.visible = matchRenderer.watchedOf(current) === null;
-  if (stage.kind === 'choosing' && !pickerShown) {
-    pickerShown = true;
-    audio.setMood('menu');
-    controls.visible = false;
-    const lost = current.series.roundsPlayed > 0 && lastWinner !== playerTeam;
-    glyphPicker.show(stage.options, current.glyphsOf(current.playerId), lost);
-  }
-  if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
-    const winner = stage.roundWinner;
-    lastWinner = winner;
-    if (winner < 0) hud.announce('Ronda empatada', 'Nadie suma', 3.5);
-    else if (winner === playerTeam) hud.announce('Ganaste la ronda', '', 3.5);
-    else hud.announce('Ronda perdida', `Para ${teamName(current, winner)}`, 3.5);
-  }
-  if (stage.kind === 'finished' && !resultShown) {
-    resultShown = true;
-    const winner = current.series.winnerTeam ?? -1;
-    audio.finish(winner === playerTeam);
-    const title = winner === playerTeam ? 'Victoria' : winner < 0 ? 'Empate' : 'Derrota';
-    const own = current.series.wins[playerTeam] ?? 0;
-    const others = current.series.wins.filter((_, team) => team !== playerTeam);
-    const detail =
-      winner >= 0 && winner !== playerTeam ? ` · ganó ${teamName(current, winner)}` : '';
-    hud.showResult(title, `${own} a ${Math.max(0, ...others)}${detail}`);
-    hud.showPerf(diagnostics.report());
-    controls.visible = false;
-  }
 }
 
 // ---------- Entrenamiento ----------
@@ -632,7 +503,6 @@ function joinRoom(code: string): void {
       },
       start: (started) => {
         if (started !== net) return;
-        resultShown = false;
         startNetMatch(started);
       },
       problem: (reason, fatal) => {
@@ -683,7 +553,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   matchRenderer.render(current, alpha, delta, {
     rules,
     badges,
-    covered: resultShown || glyphPicker.isOpen,
+    covered: flow.finished || glyphPicker.isOpen,
   });
 }
 
@@ -712,7 +582,7 @@ renderer.setAnimationLoop((now) => {
     for (let i = 0; i < steps; i++) {
       const events = current.step();
       effects.onEvents(events, current.state, (id) => creatures.positionOf(id));
-      announceEvents(events, current);
+      flow.announce(events, current, badges, rules);
       audio.onEvents(events, current.state);
       for (const event of events) {
         if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
@@ -727,7 +597,7 @@ renderer.setAnimationLoop((now) => {
       }
     }
     simMs = performance.now() - simStart;
-    updateMatchFlow(current);
+    flow.update(current, badges);
     renderMatch(current, alpha, delta);
   } else if (view.previewing) {
     view.updatePreview(elapsed, delta, rules);
@@ -738,7 +608,7 @@ renderer.setAnimationLoop((now) => {
   }
 
   view.render(elapsed, delta, simDelta, current ? current.player.pos : null);
-  if (current && !pausedHere && !resultShown) diagnostics.matchFrame(frameMs, simMs);
+  if (current && !pausedHere && !flow.finished) diagnostics.matchFrame(frameMs, simMs);
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);
