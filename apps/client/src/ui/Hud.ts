@@ -126,7 +126,14 @@ export class Hud {
   }
 
   /** Celebra un conjuro que el jugador lanzó por primera vez. */
-  celebrateDiscovery(name: string, orbs: HTMLElement, known: number, total: number): void {
+  celebrateDiscovery(
+    name: string,
+    orbs: HTMLElement,
+    known: number,
+    total: number,
+    kicker = 'Nuevo conjuro',
+  ): void {
+    query(this.discovery, '.hud-discovery-kicker').textContent = kicker;
     query(this.discovery, '.hud-discovery-orbs').replaceChildren(orbs);
     query(this.discovery, '.hud-discovery-name').textContent = name;
     query(this.discovery, '.hud-discovery-count').textContent = `${known}/${total}`;

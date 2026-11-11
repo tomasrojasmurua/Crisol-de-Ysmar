@@ -1,9 +1,12 @@
-import { ALL_WEAVES, COMBO_TEXT, ELEMENTS, spellName } from '@crisol/content';
-import { type ComboId, type ElementId, type GameRules, spellOf, type Weave } from '@crisol/core';
+import { ALL_WEAVES, COMBOS, type Combo, ELEMENTS, spellName } from '@crisol/content';
+import { type ElementId, type GameRules, spellOf, type Weave } from '@crisol/core';
+import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
+import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
 import { elementIcon } from './icons';
 import { MENU_ICONS } from './menuIcons';
+import { OwnComboEditor } from './OwnComboEditor';
 import { spellCard } from './spellFacts';
 
 const ELEMENT_NAMES: Record<ElementId, string> = {
@@ -20,16 +23,6 @@ const GROUPS: readonly { readonly length: number; readonly name: string }[] = [
   { length: 2, name: 'Dos elementos' },
   { length: 3, name: 'Grandes hechizos' },
 ];
-
-/** El elemento que provoca cada reacción (el que golpea), para su signo. */
-const REACTION_ELEMENT: Record<ComboId, ElementId> = {
-  conduction: 'tormenta',
-  shatter: 'tormenta',
-  kindling: 'brasa',
-  steam: 'marea',
-  ashenCurse: 'umbra',
-  mire: 'raiz',
-};
 
 /** Dos rombos enlazados: la pestaña de combos no es de ningún elemento. */
 const COMBO_TAB_ICON =
@@ -79,6 +72,8 @@ export class GrimoireBook {
   /** La pestaña abierta: un elemento o los combos. */
   private tab: Tab = 'brasa';
   private grimoire: Grimoire | null = null;
+  private comboLog: ComboLog | null = null;
+  private readonly editor: OwnComboEditor;
 
   constructor(
     parent: HTMLElement,
@@ -119,10 +114,12 @@ export class GrimoireBook {
       this.tabs.append(this.tabButton(id, ELEMENT_NAMES[id], element.color, elementIcon(id)));
     }
     this.tabs.append(this.tabButton('combos', 'Combos', '#f3dfb0', COMBO_TAB_ICON));
+    this.editor = new OwnComboEditor(this.root, () => this.render());
   }
 
-  show(grimoire: Grimoire): void {
+  show(grimoire: Grimoire, comboLog: ComboLog): void {
     this.grimoire = grimoire;
+    this.comboLog = comboLog;
     this.render();
     this.root.hidden = false;
   }
@@ -130,6 +127,7 @@ export class GrimoireBook {
   hide(): void {
     this.root.hidden = true;
     this.detail.hidden = true;
+    this.editor.hide();
   }
 
   private tabButton(id: Tab, name: string, color: string, icon: string): HTMLButtonElement {
@@ -176,7 +174,9 @@ export class GrimoireBook {
       tab.setAttribute('aria-pressed', String(id === this.tab));
       const count = query(tab, '.grimoire-tab-count');
       if (id === 'combos') {
-        count.textContent = String(Object.keys(COMBO_TEXT).length);
+        count.textContent = this.comboLog
+          ? `${this.comboLog.unlockedCount}/${this.comboLog.total}`
+          : '';
         continue;
       }
       const weaves = ALL_WEAVES.filter((w) => w[0] === id);
@@ -184,7 +184,7 @@ export class GrimoireBook {
     }
 
     this.list.replaceChildren();
-    if (this.tab === 'combos') this.renderCombos();
+    if (this.tab === 'combos') this.renderCombos(grimoire);
     else this.renderElement(this.tab, grimoire);
     this.list.scrollTop = 0;
   }
@@ -232,50 +232,106 @@ export class GrimoireBook {
     }
   }
 
-  /** Las reacciones entre estados: qué elemento sobre qué estado y qué provoca. */
-  private renderCombos(): void {
+  /**
+   * Los combos del catálogo que ya aparecieron (reacciones y seguidillas), cuántos faltan sin
+   * decir cuáles, y la hoja de Mis combos.
+   */
+  private renderCombos(grimoire: Grimoire): void {
+    const log = this.comboLog;
+    if (!log) return;
     this.list.style.setProperty('--element', '#f3dfb0');
+    const left = log.total - log.unlockedCount;
     this.list.append(
       this.heading(
         COMBO_TAB_ICON,
         'Combos',
-        '',
-        'Un golpe de un elemento sobre un estado de otro provoca una reacción',
+        `${log.unlockedCount} de ${log.total}`,
+        left > 0 ? `Te faltan ${left} por descubrir` : 'Los descubriste todos',
+        true,
       ),
     );
-    const section = el('section', 'grimoire-group');
-    section.append(el('h3', 'grimoire-group-title', 'Reacciones'));
+    const unlocked = COMBOS.filter((c) => log.isUnlocked(c));
+    this.comboGroup(
+      'Reacciones',
+      unlocked.filter((c) => c.reaction),
+    );
+    this.comboGroup(
+      'Seguidillas',
+      unlocked.filter((c) => !c.reaction).sort((a, b) => a.level - b.level),
+      left,
+    );
+
+    const own = el('section', 'grimoire-group');
+    const title = el('h3', 'grimoire-group-title', 'Mis combos');
+    title.append(el('span', 'grimoire-group-count', String(log.ownCombos.length)));
     const grid = el('div', 'grimoire-grid wide');
-    for (const [id, combo] of Object.entries(COMBO_TEXT) as [
-      ComboId,
-      (typeof COMBO_TEXT)[ComboId],
-    ][]) {
-      const element = REACTION_ELEMENT[id];
-      const card = el('div', 'grimoire-spell grimoire-reaction');
-      card.style.setProperty('--element', colorOf(element));
-      const glyph = el('span', 'weave-glyph');
-      glyph.innerHTML = elementIcon(element);
-      const text = el('span', 'grimoire-reaction-text');
-      text.append(
-        el('span', 'grimoire-spell-name', combo.name),
-        el('span', 'grimoire-reaction-detail', combo.detail),
+    for (const combo of log.ownCombos) grid.append(this.ownCard(combo, log, grimoire));
+    const add = el('button', 'grimoire-spell missing grimoire-add', '+ Anotar un combo');
+    add.type = 'button';
+    add.addEventListener('click', () => this.editor.open(log, grimoire, null));
+    grid.append(add);
+    own.append(title, grid);
+    this.list.append(own);
+  }
+
+  private comboGroup(name: string, combos: readonly Combo[], left = 0): void {
+    if (combos.length === 0 && left === 0) return;
+    const section = el('section', 'grimoire-group');
+    const title = el('h3', 'grimoire-group-title', name);
+    title.append(el('span', 'grimoire-group-count', String(combos.length)));
+    const grid = el('div', 'grimoire-grid wide');
+    for (const combo of combos) grid.append(comboCard(combo));
+    if (left > 0) {
+      grid.append(
+        el(
+          'span',
+          'grimoire-spell missing',
+          left === 1 ? '1 por descubrir' : `${left} por descubrir`,
+        ),
       );
-      card.append(glyph, text);
-      grid.append(card);
     }
-    section.append(grid);
+    section.append(title, grid);
     this.list.append(section);
   }
 
-  private heading(icon: string, name: string, count: string, hint: string): HTMLElement {
+  private ownCard(combo: OwnCombo, log: ComboLog, grimoire: Grimoire): HTMLElement {
+    const card = el('button', 'grimoire-spell grimoire-combo own');
+    card.type = 'button';
+    const head = el('span', 'grimoire-combo-head');
+    head.append(el('span', 'grimoire-spell-name', combo.name), spellStepsView(combo.steps));
+    card.append(head);
+    if (combo.note) card.append(el('span', 'grimoire-combo-detail', combo.note));
+    card.addEventListener('click', () => this.editor.open(log, grimoire, combo));
+    return card;
+  }
+
+  private heading(
+    icon: string,
+    name: string,
+    count: string,
+    hint: string,
+    keepHint = false,
+  ): HTMLElement {
     const head = el('header', 'grimoire-section-head');
     const sigil = el('span', 'grimoire-section-sigil');
     sigil.innerHTML = icon;
     const text = el('div', 'grimoire-section-text');
     const title = el('h3', '', name);
     if (count) title.append(el('span', 'grimoire-section-count', count));
-    text.append(title, el('p', '', hint));
+    text.append(title, el('p', keepHint ? 'keep' : '', hint));
     head.append(sigil, text);
     return head;
   }
+}
+
+/** Una ficha de combo: nombre y nivel, los signos de sus pasos y qué pasa. */
+function comboCard(combo: Combo): HTMLElement {
+  const card = el('div', 'grimoire-spell grimoire-combo');
+  const head = el('span', 'grimoire-combo-head');
+  const name = el('span', 'grimoire-spell-name', combo.name);
+  name.append(el('span', 'grimoire-combo-level', '★'.repeat(combo.level)));
+  head.append(name, comboStepsView(combo));
+  card.append(head, el('span', 'grimoire-combo-detail', combo.detail));
+  if (combo.team) card.append(el('span', 'grimoire-combo-tag', 'En equipo'));
+  return card;
 }
