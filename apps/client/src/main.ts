@@ -1,44 +1,29 @@
 import {
-  BEAST_NAMES,
-  blindedFrom,
   DEFAULT_LOOK,
   ELEMENTS,
   GAME_RULES,
-  GUARDIAN_NAME,
   NO_OMEN,
   ROBE_COLORS,
   rulesForMode,
   SKIN_TONES,
   spellName,
   TRIM_COLORS,
-  veiledFromTeam,
-  visibleEnemies,
   WIZARD_NAMES,
 } from '@crisol/content';
 import {
-  autoTarget,
-  type Beast,
-  ELEMENT_IDS,
   type ElementId,
   FixedStepClock,
   type GameEvent,
   type GameRules,
-  isHiddenFrom,
-  isSpectre,
-  type MatchState,
   SeededRng,
-  TICK_MS,
-  type Vec2,
-  type Wizard,
 } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
-import * as THREE from 'three';
 import { GameAudio } from './audio/GameAudio';
 import { type CameraMode, readCameraMode, saveCameraMode } from './camera/CameraMode';
-import { CENTER_STYLE, FOLLOW_STYLE } from './camera/CameraRig';
 import { Diagnostics } from './game/Diagnostics';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
+import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import {
   type Appearance,
@@ -53,6 +38,7 @@ import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
 import { PlayerInput } from './input/PlayerInput';
+import { TapToLock } from './input/TapToLock';
 import { TouchControls } from './input/TouchControls';
 import { leftRoom, recentRoomCode, rememberRoom, roomToRejoin } from './net/lastRoom';
 import { NetMatch } from './net/NetMatch';
@@ -61,10 +47,9 @@ import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
 import { teamColorHex } from './render/palette';
 import { readQuality, saveQuality } from './render/Quality';
-import { type WizardLook, WizardView } from './render/WizardView';
+import type { WizardLook } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
-import { EdgeIndicators } from './ui/EdgeIndicators';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
@@ -89,22 +74,7 @@ if (!canvas || !uiRoot) {
 // ---------- Escena ----------
 
 const view = new GameScene(canvas, rules, PLAYER_ID);
-const {
-  renderer,
-  scene,
-  particles,
-  zone,
-  maps,
-  camera,
-  rig,
-  spells,
-  creatures,
-  effects,
-  aimGuide,
-  targetMarker,
-  resolution,
-  wizardLooks,
-} = view;
+const { renderer, zone, camera, rig, creatures, effects, resolution, wizardLooks } = view;
 
 // ---------- Interfaz ----------
 
@@ -189,32 +159,18 @@ view.applyQuality(quality);
 // ---------- Modos de cámara (de prueba, se eligen en Pausa) ----------
 
 let cameraMode: CameraMode = readCameraMode();
-const edges = new EdgeIndicators(uiRoot);
-/** Cámara asistida: al disparar sin arrastrar, la cámara se centra un rato en ese blanco. */
-let castFocus: { id: number; until: number } | null = null;
-/** Hasta dónde se avisa con flechas de un rival fuera de pantalla. */
-const EDGE_RANGE = 25;
-const CAST_FOCUS_SECONDS = 1.5;
-function applyCameraMode(): void {
-  rig.style = cameraMode === 'seguimiento' ? FOLLOW_STYLE : CENTER_STYLE;
-  castFocus = null;
-  if (cameraMode !== 'asistida') edges.clear();
-}
-applyCameraMode();
+const matchRenderer = new MatchRenderer(
+  uiRoot,
+  view,
+  { hud, labels, minimap, controls, blindVeil, comboCallouts, obstacles },
+  audio,
+  input,
+);
+matchRenderer.cameraMode = cameraMode;
+// Cámara asistida: disparar sin arrastrar centra la cámara un rato en el blanco.
 input.onAction((action) => {
-  if (action.type !== 'cast' || action.aim || cameraMode !== 'asistida' || !match) return;
-  const target = autoTarget(match.state, match.player, rules);
-  castFocus = target ? { id: target.id, until: elapsed + CAST_FOCUS_SECONDS } : null;
+  if (action.type === 'cast' && !action.aim && match) matchRenderer.autoCast(match, rules);
 });
-
-/** Dónde está ahora un mago o una bestia (para el aviso de golpes). */
-function entityPos(state: MatchState, id: number): Vec2 | null {
-  return (
-    state.wizards.find((w) => w.id === id)?.pos ??
-    state.beasts.find((b) => b.id === id)?.pos ??
-    null
-  );
-}
 const pauseMenu = new PauseMenu(
   uiRoot,
   audio.engine,
@@ -230,7 +186,7 @@ const pauseMenu = new PauseMenu(
     onCameraMode: (mode) => {
       cameraMode = mode;
       saveCameraMode(mode);
-      applyCameraMode();
+      matchRenderer.cameraMode = mode;
     },
     onLightGraphics: (on) => {
       quality = on ? 'liviana' : 'alta';
@@ -252,21 +208,13 @@ window.addEventListener('keydown', (event) => {
   if (pauseMenu.isOpen) pauseMenu.close();
   else pauseMenu.open();
 });
-const wizardViews = new Map<number, WizardView>();
 let badges = new Map<number, WizardBadge>();
 let shownRound = 0;
 let resultShown = false;
 let pickerShown = false;
 
-const elementColorHex = (element: string): string =>
-  ELEMENTS.find((e) => e.id === element)?.color ?? '#ffffff';
 const elementName = (element: string): string =>
   ELEMENTS.find((e) => e.id === element)?.name ?? element;
-const beastName = (beast: Beast): string =>
-  beast.guardian
-    ? GUARDIAN_NAME
-    : (BEAST_NAMES[beast.element as keyof typeof BEAST_NAMES] ?? 'Bestia');
-
 /** El aspecto de un mago en pantalla: sus piezas, su Afinidad y el color de su bando. */
 function lookOf(
   look: Appearance,
@@ -321,12 +269,6 @@ function closeOverlays(): void {
   }
 }
 
-/** Color del bando de un equipo, a partir de cualquiera de sus magos. */
-function teamColor(team: number): string {
-  const member = match?.state.wizards.find((w) => w.team === team);
-  return (member && badges.get(member.id)?.color) ?? '#ffffff';
-}
-
 /** Cambia el mapa que se dibuja y el que usan el minimapa y la vista. */
 function useRules(next: GameRules): void {
   rules = next;
@@ -345,15 +287,13 @@ function showMenu(): void {
   if (location.search) history.replaceState(null, '', location.pathname);
   lobby.hide();
   diagnostics.net = false;
-  watchBadge.hidden = true;
-  edges.clear();
   pauseMenu.setAvailable(false, false);
   paused = false;
   match = null;
   useRules(GAME_RULES);
   view.clearMatch();
   glyphPicker.hide();
-  clearWizards();
+  matchRenderer.clear();
   menu.visible = true;
   audio.setMood('menu');
   hud.visible = false;
@@ -459,7 +399,6 @@ function beginMatch(
     badges.set(wizard.id, { name, color: teamColorHex(wizard.team, player.team, isPlayer, ffa) });
   }
 
-  clearWizards();
   wizardLooks.clear();
   for (const wizard of current.state.wizards) {
     const isPlayer = wizard.id === current.playerId;
@@ -470,10 +409,8 @@ function beginMatch(
       isPlayer,
     );
     wizardLooks.set(wizard.id, look);
-    const view = new WizardView(look, rules, particles);
-    scene.add(view.group);
-    wizardViews.set(wizard.id, view);
   }
+  matchRenderer.setWizards(wizardLooks, rules);
   view.clearSpells();
   labels.reset(badges, current.playerId);
   menu.visible = false;
@@ -500,11 +437,6 @@ function beginMatch(
   diagnostics.matchStarted(resolution.pixelRatio, quality);
   obstacles.invalidate();
   rig.snap();
-}
-
-function clearWizards(): void {
-  for (const view of wizardViews.values()) view.dispose();
-  wizardViews.clear();
 }
 
 /** Avisos de la partida según lo que pasó en el paso. */
@@ -601,7 +533,8 @@ function updateMatchFlow(current: MatchView): void {
     if (stage.kind === 'waiting') hud.announce('Glifo elegido', 'Esperando a tu rival', 3);
   }
   // Jugando, los controles se ven salvo que hayas caído y estés mirando a otro.
-  if (stage.kind === 'playing' && !resultShown) controls.visible = watchedOf(current) === null;
+  if (stage.kind === 'playing' && !resultShown)
+    controls.visible = matchRenderer.watchedOf(current) === null;
   if (stage.kind === 'choosing' && !pickerShown) {
     pickerShown = true;
     audio.setMood('menu');
@@ -732,47 +665,7 @@ let pendingInvite = '';
 
 // ---------- Fijar objetivo tocando a un rival ----------
 
-/** Un toque, no un arrastre: arrastrar el dedo gira la cámara y no debe cambiar de objetivo. */
-const TAP_SLOP_PX = 14;
-const TAP_MAX_MS = 350;
-const taps = new Map<number, { x: number; y: number; at: number }>();
-canvas.addEventListener('pointerdown', (event) => {
-  taps.set(event.pointerId, { x: event.clientX, y: event.clientY, at: event.timeStamp });
-});
-canvas.addEventListener('pointercancel', (event) => taps.delete(event.pointerId));
-canvas.addEventListener('pointerup', (event) => {
-  const start = taps.get(event.pointerId);
-  taps.delete(event.pointerId);
-  if (!start || !match) return;
-  const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-  if (moved > TAP_SLOP_PX || event.timeStamp - start.at > TAP_MAX_MS) return;
-  lockAt(start.x, start.y);
-});
-
-function lockAt(screenX: number, screenY: number): void {
-  if (!match) return;
-  const projected = new THREE.Vector3();
-  let best: { id: number; distance: number } | null = null;
-  for (const wizard of match.state.wizards) {
-    if (wizard.team === match.player.team || wizard.hp <= 0) continue;
-    projected.set(wizard.pos.x, 1.2, wizard.pos.z).project(camera);
-    const x = ((projected.x + 1) / 2) * window.innerWidth;
-    const y = ((1 - projected.y) / 2) * window.innerHeight;
-    const distance = Math.hypot(x - screenX, y - screenY);
-    if (distance < 80 && (!best || distance < best.distance)) best = { id: wizard.id, distance };
-  }
-  for (const beast of match.state.beasts) {
-    projected.set(beast.pos.x, 0.8, beast.pos.z).project(camera);
-    const x = ((projected.x + 1) / 2) * window.innerWidth;
-    const y = ((1 - projected.y) / 2) * window.innerHeight;
-    const distance = Math.hypot(x - screenX, y - screenY);
-    if (distance < 70 && (!best || distance < best.distance)) best = { id: beast.id, distance };
-  }
-  if (best) {
-    input.push({ type: 'lock', targetId: best.id });
-    navigator.vibrate?.(10);
-  }
-}
+new TapToLock(canvas, camera, input, () => match);
 
 // ---------- Tamaño ----------
 
@@ -784,6 +677,15 @@ window.addEventListener('resize', () => view.resize());
 const clock = new FixedStepClock();
 let lastFrame = performance.now();
 let elapsed = 0;
+
+/** Dibuja la partida en curso con lo que cambia de partida en partida. */
+function renderMatch(current: MatchView, alpha: number, delta: number): void {
+  matchRenderer.render(current, alpha, delta, {
+    rules,
+    badges,
+    covered: resultShown || glyphPicker.isOpen,
+  });
+}
 
 renderer.setAnimationLoop((now) => {
   let simMs = 0;
@@ -814,17 +716,8 @@ renderer.setAnimationLoop((now) => {
       audio.onEvents(events, current.state);
       for (const event of events) {
         if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
-        if (
-          event.type === 'hit' &&
-          cameraMode === 'asistida' &&
-          event.targetId === current.playerId &&
-          event.form !== 'zone' &&
-          event.sourceId !== current.playerId
-        ) {
-          const from = entityPos(current.state, event.sourceId);
-          if (from) edges.hit(from);
-        }
       }
+      matchRenderer.onEvents(events, current);
       if (current instanceof TrainingMatch) {
         for (const event of events) {
           if (event.type === 'release' && event.wizardId === current.playerId) {
@@ -850,175 +743,6 @@ renderer.setAnimationLoop((now) => {
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);
 });
-
-/** Un tejido falso, que cambia cada segundo y medio, igual en todas las pantallas. */
-function disguise(wizard: Wizard, tick: number): Wizard {
-  const shift = (Math.floor(tick / 45) + wizard.id) % ELEMENT_IDS.length;
-  const fake = (weave: readonly ElementId[]): ElementId[] =>
-    weave.map(
-      (e, i) => ELEMENT_IDS[(ELEMENT_IDS.indexOf(e) + shift + i) % ELEMENT_IDS.length] ?? e,
-    );
-  return {
-    ...wizard,
-    weave: fake(wizard.weave),
-    channel: wizard.channel ? { ...wizard.channel, weave: fake(wizard.channel.weave) } : null,
-  };
-}
-
-/**
- * Si caíste y quedaste fuera, el mago al que miras: primero un aliado en pie y si no, el rival
- * que siga vivo. Null mientras sigas jugando.
- */
-function watchedOf(current: MatchView): Wizard | null {
-  const state = current.state;
-  const player = current.player;
-  if (state.deathRule !== 'out' || !player.fallen) return null;
-  const standing = state.wizards.filter((w) => w.hp > 0 && !w.fallen);
-  return (
-    standing.find((w) => w.team === player.team) ??
-    standing.find((w) => w.id === watchedId) ??
-    standing[0] ??
-    null
-  );
-}
-/** A quién mirabas, para no saltar de un rival a otro en cada cuadro. */
-let watchedId = -1;
-const watchBadge = document.createElement('div');
-watchBadge.className = 'watch-badge';
-watchBadge.hidden = true;
-uiRoot.append(watchBadge);
-
-function renderMatch(current: MatchView, alpha: number, delta: number): void {
-  const state = current.state;
-  const time = ((state.tick + alpha) * TICK_MS) / 1000;
-  const player = current.player;
-  // Si caíste, la cámara sigue a quien miras.
-  const watched = watchedOf(current);
-  watchedId = watched?.id ?? -1;
-  // Entre rondas y al final, la pantalla de Glifos o el resultado ocupan el centro.
-  watchBadge.hidden = watched === null || resultShown || glyphPicker.isOpen;
-  if (watched)
-    watchBadge.textContent = `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`;
-  const focus = watched ?? player;
-  const playerPos = current.interpolated(focus.id, focus.pos, alpha);
-
-  for (const wizard of state.wizards) {
-    const view = wizardViews.get(wizard.id);
-    if (!view) continue;
-    const pos = current.interpolated(wizard.id, wizard.pos, alpha);
-    const spectre = isSpectre(state, wizard);
-    const hidden =
-      current.isHidden?.(wizard.id) === true ||
-      veiledFromTeam(state, player.team, wizard.id, rules) ||
-      blindedFrom(player, wizard, rules);
-    // Ilusión de tejido: el rival ve otros elementos en lo que tejes.
-    const base = current.present?.(wizard) ?? wizard;
-    const shown =
-      base.team !== player.team && base.statuses.disguised ? disguise(base, state.tick) : base;
-    view.update(shown, pos.x, pos.z, time, delta, spectre, rules, hidden);
-    audio.watchWeave(shown, pos, hidden || spectre);
-    if (!hidden) effects.aura(wizard, pos.x, pos.z, spectre, delta);
-  }
-  const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
-  spells.sync(state.spells, {
-    positionOf: (spell) =>
-      spell.kind === 'projectile' ||
-      spell.kind === 'summon' ||
-      spell.kind === 'sweeper' ||
-      spell.kind === 'guidedBolt'
-        ? current.interpolated(spell.id, spell.pos, alpha)
-        : { x: 0, z: 0 },
-    viewerTeam: player.team,
-    time,
-    delta,
-    wizard: wizardOf,
-    wizardPos: (id) => {
-      const wizard = wizardOf(id);
-      return wizard ? current.interpolated(id, wizard.pos, alpha) : undefined;
-    },
-  });
-  // Cegado: la pantalla se oscurece alrededor y el minimapa se apaga.
-  blindVeil.update(player, delta);
-  // En el entrenamiento la esquina es del panel; el muñeco no se esconde.
-  const sightless = player.statuses.blind && !player.statuses.hunting;
-  minimap.show(!sightless && !(current instanceof TrainingMatch));
-  zone.update(state.zoneRadius, time);
-  creatures.sync(state, teamColor, time, delta);
-
-  // La marca muestra a quién irá el disparo automático (lo mismo que calcula el núcleo).
-  const aimed = autoTarget(state, focus, rules);
-  const targetPos = aimed
-    ? aimed.kind === 'wizard'
-      ? current.interpolated(aimed.id, aimed.pos, alpha)
-      : aimed.pos
-    : null;
-  // Qué sigue la cámara depende del modo: lo fijado a mano (y, en la asistida, el blanco de un
-  // disparo reciente) o, en seguimiento, el blanco del disparo. Si caíste, el de quien miras.
-  if (castFocus && (elapsed > castFocus.until || castFocus.id !== aimed?.id)) castFocus = null;
-  const follows =
-    aimed !== null &&
-    (watched !== null ||
-      aimed.id === player.lockTarget ||
-      cameraMode === 'seguimiento' ||
-      castFocus?.id === aimed.id);
-  const cameraFocus = follows && aimed && targetPos ? { id: aimed.id, pos: targetPos } : null;
-  rig.update(playerPos, cameraFocus, delta, effects.shake);
-  if (cameraMode === 'asistida') {
-    const arrows =
-      player.hp > 0 && !resultShown && !glyphPicker.isOpen
-        ? state.wizards
-            .filter(
-              (w) =>
-                w.team !== player.team &&
-                w.hp > 0 &&
-                !isHiddenFrom(w, player, rules) &&
-                !blindedFrom(player, w, rules) &&
-                Math.hypot(w.pos.x - playerPos.x, w.pos.z - playerPos.z) <= EDGE_RANGE,
-            )
-            .map((w) => ({
-              pos: current.interpolated(w.id, w.pos, alpha),
-              color: teamColor(w.team),
-              strong: w.id === aimed?.id,
-            }))
-        : [];
-    edges.update(camera, arrows, delta);
-  }
-  const forward = rig.forward();
-  WizardView.viewYaw = Math.atan2(-forward.x, -forward.z);
-  audio.setListener(playerPos, rig.forward(), current.playerId);
-  view.follow(playerPos);
-  targetMarker.update(player.hp > 0 ? targetPos : null, time);
-  const aim = input.aimPreview;
-  aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);
-
-  controls.render(current.present?.(player) ?? player, rules, isSpectre(state, player));
-  hud.update(state, player, current.series, current.roundNumber, badges, rules);
-  obstacles.refresh();
-  labels.updateBeasts(state, camera, beastName, elementColorHex);
-  const seen = visibleEnemies(state, player.team, rules);
-  // En red, a quien la Sala no te muestra no se lo ve ni en el mapa (llega quieto y sin tejido).
-  for (const id of seen) if (current.isHidden?.(id)) seen.delete(id);
-  labels.update(
-    state,
-    (id, pos) => current.interpolated(id, pos, alpha),
-    camera,
-    player.team,
-    badges,
-    rules,
-    seen,
-    player.statuses.insight !== undefined,
-  );
-  maps.jungle.setBurned(state.burnedTrees);
-  comboCallouts.update(
-    camera,
-    (id) => {
-      const wizard = wizardOf(id);
-      return wizard ? current.interpolated(id, wizard.pos, alpha) : undefined;
-    },
-    delta,
-  );
-  minimap.update(state, player, rig.forward(), seen, badges, time);
-}
 
 // Un enlace de invitación (…?sala=K7QF) entra directo a la sala del amigo. Se lee antes de
 // mostrar el menú, que limpia la dirección: antes se leía después y el enlace no servía.
