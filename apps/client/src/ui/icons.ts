@@ -43,10 +43,7 @@ const UNDO_PATH =
   '<path d="M10 11H4L9 5M4 11L9 16"/>' +
   '<path d="M10 11C16 5 25 8 28 15C31 22 25 28 18 28C14 28 11 26 9 23"/>';
 
-/**
- * Duelo: cuatro esquinas que encuadran un rombo, las mismas esquinas que aparecen sobre el
- * blanco cuando la cámara queda en duelo con él.
- */
+/** Duelo: cuatro esquinas que encuadran un rombo, como una mira puesta sobre el rival. */
 const DUEL_PATH =
   '<path d="M5 11V5H11M21 5H27V11M27 21V27H21M11 27H5V21"/>' +
   '<path d="M16 10.5L21.5 16L16 21.5L10.5 16Z"/>';
