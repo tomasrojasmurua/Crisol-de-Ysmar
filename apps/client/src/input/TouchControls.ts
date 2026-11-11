@@ -1,7 +1,7 @@
 import { ELEMENTS, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
 import { el } from '../ui/dom';
-import { CAST_ICON, elementIcon, LAMENT_ICON, UNDO_ICON } from '../ui/icons';
+import { CAST_ICON, DUEL_ICON, elementIcon, LAMENT_ICON, UNDO_ICON } from '../ui/icons';
 import type { PlayerInput } from './PlayerInput';
 
 /** Radio del joystick si todavía no se pudo medir en pantalla. */
@@ -16,8 +16,8 @@ const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
 /**
  * Controles en pantalla. Pulgar izquierdo: joystick que aparece donde tocas.
  * Pulgar derecho: arco de elementos para tejer y botón central para lanzar
- * (tocar apunta solo al rival, arrastrar elige la dirección).
- * También acepta teclado para probar en computador.
+ * (tocar apunta solo al rival, arrastrar elige la dirección), Deshacer y el botón de duelo.
+ * También acepta teclado para probar en computador (Q es el botón de duelo).
  */
 export class TouchControls {
   private readonly elementButtons = new Map<ElementId, HTMLButtonElement>();
@@ -26,6 +26,10 @@ export class TouchControls {
   private readonly root: HTMLElement;
   private pad: HTMLElement | null = null;
   private castButton: HTMLButtonElement | null = null;
+  private duelButton: HTMLButtonElement | null = null;
+  private duelOn = false;
+  /** El botón de duelo: fija al mejor puesto o pasa al siguiente rival (lo conecta main). */
+  onDuelButton: () => void = () => {};
   private lastWeaveKey = '';
   /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
   private shift = 0;
@@ -52,6 +56,14 @@ export class TouchControls {
       this.input.move = { right: 0, up: 0 };
       this.input.aimPreview = null;
     }
+  }
+
+  /** Enciende el botón de duelo mientras la cámara está en duelo. */
+  set dueling(value: boolean) {
+    if (value === this.duelOn || !this.duelButton) return;
+    this.duelOn = value;
+    this.duelButton.classList.toggle('active', value);
+    this.duelButton.setAttribute('aria-label', value ? 'Cambiar de rival' : 'Fijar un rival');
   }
 
   /**
@@ -223,7 +235,18 @@ export class TouchControls {
       navigator.vibrate?.(6);
     });
 
-    pad.append(slotRow, cast, cancel);
+    const duel = el('button', 'duel-button');
+    duel.type = 'button';
+    duel.setAttribute('aria-label', 'Fijar un rival');
+    duel.innerHTML = DUEL_ICON;
+    duel.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      flash(duel);
+      this.onDuelButton();
+    });
+    this.duelButton = duel;
+
+    pad.append(slotRow, cast, cancel, duel);
     this.root.append(pad);
 
     // Los colores de los espacios del tejido se leen de las variables de cada elemento.
@@ -293,6 +316,8 @@ export class TouchControls {
         this.input.push({ type: 'cast', aim: null });
       } else if (key === 'x' || key === 'backspace') {
         this.input.push({ type: 'cancel' });
+      } else if (key === 'q') {
+        this.onDuelButton();
       }
       this.updateKeyboardMove();
     });

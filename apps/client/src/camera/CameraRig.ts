@@ -5,44 +5,41 @@ import * as THREE from 'three';
 const BACK = 7.2;
 const HEIGHT = 7.2;
 const AHEAD = 4;
-/** Más lejos que esto, el objetivo fijado no gira la cámara: está detrás de la jungla. */
+/** Al mirar a otro mago (si caíste), más lejos que esto su blanco no gira la cámara. */
 const FACE_TARGET_RANGE = 18;
 const MANUAL_HOLD_SECONDS = 4;
-/** Lo más rápido que la cámara gira sola hacia lo fijado (radianes por segundo, ~115°). */
+/** Al mirar a otro mago: lo más rápido que gira sola (radianes por segundo, ~115°). */
 const TURN_SPEED = 2;
-/** Mientras lo fijado quede dentro de este ángulo (~20°) respecto del centro, la cámara no se mueve. */
+/** Al mirar a otro mago: mientras su blanco quede dentro de este ángulo (~20°), no se mueve. */
 const DEADBAND = 0.35;
-/** Al girar, se detiene cuando lo fijado queda casi al centro. */
+/** Al mirar a otro mago: al girar, se detiene cuando el blanco queda casi al centro. */
 const SETTLED = 0.05;
+/**
+ * En duelo, qué tan firme sigue la cámara al rival: cada segundo recorre casi todo lo que le
+ * falta (ritmo de una curva exponencial). Alto para que no se escape; no infinito para que no
+ * dé tirones cuando el rival salta o se teletransporta.
+ */
+const DUEL_RATE = 10;
+/** En duelo, lo más rápido que gira (radianes por segundo, ~400°): un rival a la espalda tarda medio segundo. */
+const DUEL_MAX_SPEED = 7;
+/** En duelo, pegado al rival el ángulo salta de lado a lado: más cerca que esto no se gira. */
+const DUEL_MIN_DISTANCE = 1.2;
+/** Qué tan rápido la cámara alcanza su lugar: en duelo más firme, para que el rival no se corra. */
+const FOLLOW_RATE = 6;
+const DUEL_FOLLOW_RATE = 10;
 const ORIGIN = new THREE.Vector2(0, 0);
 
-/** Cómo gira la cámara hacia lo que sigue: depende del modo elegido en Pausa. */
-export interface TurnStyle {
-  /** Radianes por segundo. */
-  readonly speed: number;
-  /** Mientras lo seguido quede dentro de este ángulo del centro, no se gira. */
-  readonly deadband: number;
-  /** Al girar, se detiene a este ángulo del centro. */
-  readonly settle: number;
-  /** Si algo nuevo para seguir se centra de inmediato aunque esté dentro del margen. */
-  readonly centerOnNew: boolean;
+/** Lo que sigue la cámara este cuadro. */
+export interface CameraFocus {
+  readonly id: number;
+  readonly pos: Vec2;
+  /**
+   * `duel`: lo fijaste tú y la cámara lo mantiene siempre al frente, sin margen.
+   * `watch`: caíste y miras a otro mago; la cámara solo se acomoda cuando su blanco se aleja
+   * del centro.
+   */
+  readonly kind: 'duel' | 'watch';
 }
-
-/** Se centra en lo fijado: rápido y hasta el centro. */
-export const CENTER_STYLE: TurnStyle = {
-  speed: TURN_SPEED,
-  deadband: DEADBAND,
-  settle: SETTLED,
-  centerOnNew: true,
-};
-
-/** Sigue al blanco sin molestar: despacio, solo si está por salirse (~55°) y sin centrarlo del todo. */
-export const FOLLOW_STYLE: TurnStyle = {
-  speed: 1.2,
-  deadband: 0.95,
-  settle: 0.45,
-  centerOnNew: false,
-};
 
 /** Lleva un ángulo a (-π, π]. */
 function wrapAngle(angle: number): number {
@@ -53,10 +50,9 @@ function wrapAngle(angle: number): number {
  * Cámara sobre el hombro, detrás del mago y con movimiento suave. En el Hito 1 se comparó con
  * una vista 3/4 y se eligió esta.
  *
- * No gira sola por el rival más cercano: antes giraba hacia él cada cuadro y, en plena pelea
- * con otro, la vista y el joystick cambiaban de sentido. Ahora solo se centra, con suavidad,
- * en lo que el jugador fijó tocándolo; el resto del tiempo se queda donde está (o donde la
- * dejó el dedo).
+ * Sin nada fijado no gira sola: se queda donde está o donde la deja el dedo. Al tocar un rival
+ * o una bestia entra en duelo: lo mantiene siempre al frente y el joystick pasa a moverte
+ * alrededor de él. Arrastrar el dedo para mirar suelta el duelo (eso lo decide quien llama).
  */
 export class CameraRig {
   private readonly desiredPosition = new THREE.Vector3();
@@ -64,19 +60,25 @@ export class CameraRig {
   private readonly look = new THREE.Vector3();
   private initialized = false;
   private heading: THREE.Vector2 | null = null;
-  /** Segundos que la cámara respeta el giro que hizo el jugador antes de volver a centrar lo fijado. */
+  /** Segundos que la cámara respeta el giro que hizo el jugador antes de volver a centrar. */
   private manualHold = 0;
-  /** Lo que se está centrando, para notar cuando se fija algo nuevo. */
+  /** Lo que se está siguiendo, para notar cuando cambia. */
   private focusId: number | null = null;
   private turning = false;
+  /** Si este cuadro hay duelo: cambia cómo se lee el joystick. */
+  private dueling = false;
   /**
-   * El "adelante" del joystick mientras el dedo no lo suelta: si la cámara gira en ese rato,
-   * el mago sigue yendo hacia donde iba.
+   * Sin duelo, el "adelante" del joystick mientras el dedo no lo suelta: si la cámara gira en
+   * ese rato, el mago sigue yendo hacia donde iba.
    */
   private moveBasis: THREE.Vector2 | null = null;
-  style: TurnStyle = CENTER_STYLE;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
+
+  /** Si la cámara está en duelo con alguien. */
+  get inDuel(): boolean {
+    return this.dueling;
+  }
 
   /** Vista del menú: la cámara gira despacio alrededor del Crisol. */
   orbit(timeSeconds: number, deltaSeconds: number): void {
@@ -86,17 +88,8 @@ export class CameraRig {
     this.blendTowards(deltaSeconds, 2);
   }
 
-  /**
-   * `focus` es lo que el jugador fijó (o, si cayó, a quien sigue el mago que mira). Si está
-   * cerca y se sale del centro, la cámara gira hacia él a velocidad limitada. `shake` de 0 a 1
-   * sacude la cámara al recibir un golpe fuerte.
-   */
-  update(
-    player: Vec2,
-    focus: { readonly id: number; readonly pos: Vec2 } | null,
-    deltaSeconds: number,
-    shake = 0,
-  ): void {
+  /** `shake` de 0 a 1 sacude la cámara al recibir un golpe fuerte. */
+  update(player: Vec2, focus: CameraFocus | null, deltaSeconds: number, shake = 0): void {
     if (!this.heading) {
       // Al empezar la ronda se mira hacia la plaza.
       this.heading = new THREE.Vector2(-player.x, -player.z);
@@ -104,27 +97,16 @@ export class CameraRig {
       this.heading.normalize();
     }
     this.manualHold = Math.max(0, this.manualHold - deltaSeconds);
-    // Fijar algo nuevo lo centra de una vez (con giro suave), aunque ya estuviera cerca del centro.
     const focusId = focus?.id ?? null;
     if (focusId !== this.focusId) {
       this.focusId = focusId;
-      this.turning = focusId !== null && this.style.centerOnNew;
+      this.turning = false;
     }
-    if (focus && this.manualHold === 0) {
-      const dx = focus.pos.x - player.x;
-      const dz = focus.pos.z - player.z;
-      const distance = Math.hypot(dx, dz);
-      if (distance > 1e-2 && distance < FACE_TARGET_RANGE) {
-        const current = Math.atan2(this.heading.y, this.heading.x);
-        const offset = wrapAngle(Math.atan2(dz, dx) - current);
-        const { speed, deadband, settle } = this.style;
-        if (Math.abs(offset) > deadband) this.turning = true;
-        if (this.turning) {
-          const step = Math.sign(offset) * Math.min(Math.abs(offset), speed * deltaSeconds);
-          this.heading.rotateAround(ORIGIN, step);
-          if (Math.abs(offset - step) < settle) this.turning = false;
-        }
-      }
+    this.dueling = focus?.kind === 'duel';
+    if (focus?.kind === 'duel') {
+      this.faceDuel(player, focus.pos, deltaSeconds);
+    } else if (focus?.kind === 'watch' && this.manualHold === 0) {
+      this.faceWatched(player, focus.pos, deltaSeconds);
     } else {
       this.turning = false;
     }
@@ -132,7 +114,7 @@ export class CameraRig {
     this.desiredPosition.set(player.x - dir.x * BACK, HEIGHT, player.z - dir.y * BACK);
     this.desiredLook.set(player.x + dir.x * AHEAD, 1.2, player.z + dir.y * AHEAD);
 
-    this.blendTowards(deltaSeconds, 6);
+    this.blendTowards(deltaSeconds, this.dueling ? DUEL_FOLLOW_RATE : FOLLOW_RATE);
     if (shake > 0) {
       const amount = shake * shake * 0.18;
       this.camera.position.x += (Math.random() - 0.5) * amount;
@@ -140,7 +122,36 @@ export class CameraRig {
     }
   }
 
-  /** Gira la cámara alrededor del mago; por un rato no se acomoda sola hacia el rival. */
+  /** Duelo: el rival siempre al frente, sin margen y sin esperar. */
+  private faceDuel(player: Vec2, target: Vec2, deltaSeconds: number): void {
+    const heading = this.heading;
+    if (!heading) return;
+    const dx = target.x - player.x;
+    const dz = target.z - player.z;
+    if (Math.hypot(dx, dz) < DUEL_MIN_DISTANCE) return;
+    const offset = wrapAngle(Math.atan2(dz, dx) - Math.atan2(heading.y, heading.x));
+    const eased = offset * (1 - Math.exp(-DUEL_RATE * deltaSeconds));
+    const limit = DUEL_MAX_SPEED * deltaSeconds;
+    heading.rotateAround(ORIGIN, Math.max(-limit, Math.min(limit, eased)));
+  }
+
+  /** Mirando a otro mago: se acomoda solo cuando su blanco se aleja del centro. */
+  private faceWatched(player: Vec2, target: Vec2, deltaSeconds: number): void {
+    const heading = this.heading;
+    if (!heading) return;
+    const dx = target.x - player.x;
+    const dz = target.z - player.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance <= 1e-2 || distance >= FACE_TARGET_RANGE) return;
+    const offset = wrapAngle(Math.atan2(dz, dx) - Math.atan2(heading.y, heading.x));
+    if (Math.abs(offset) > DEADBAND) this.turning = true;
+    if (!this.turning) return;
+    const step = Math.sign(offset) * Math.min(Math.abs(offset), TURN_SPEED * deltaSeconds);
+    heading.rotateAround(ORIGIN, step);
+    if (Math.abs(offset - step) < SETTLED) this.turning = false;
+  }
+
+  /** Gira la cámara alrededor del mago; por un rato no se acomoda sola. */
   rotate(radians: number): void {
     if (!this.heading) return;
     this.heading.rotateAround(ORIGIN, radians);
@@ -157,6 +168,7 @@ export class CameraRig {
     this.manualHold = 0;
     this.focusId = null;
     this.turning = false;
+    this.dueling = false;
     this.moveBasis = null;
   }
 
@@ -177,17 +189,20 @@ export class CameraRig {
   }
 
   /**
-   * Convierte una dirección de pantalla (derecha, arriba) a una dirección en el suelo,
-   * según hacia dónde mira la cámara. Así "arriba" en el joystick siempre es "hacia adelante".
-   */
-  /**
-   * Como `screenToGround`, pero para el joystick de movimiento: mientras no se suelte, "arriba"
-   * sigue siendo el adelante que había al tocarlo, aunque la cámara gire sola.
+   * Como `screenToGround`, pero para el joystick de movimiento.
+   * - Sin duelo: mientras no se suelte, "arriba" sigue siendo el adelante que había al tocarlo,
+   *   aunque la cámara gire.
+   * - En duelo: se lee contra la cámara de este cuadro, que siempre mira al rival. Así arriba
+   *   te acerca, abajo te aleja y los lados te hacen rodearlo sin que se escape del centro.
    */
   moveToGround(right: number, up: number): Vec2 {
     if (right === 0 && up === 0) {
       this.moveBasis = null;
       return { x: 0, z: 0 };
+    }
+    if (this.dueling) {
+      this.moveBasis = null;
+      return this.screenToGround(right, up);
     }
     if (!this.moveBasis) {
       const f = this.forward();
@@ -198,6 +213,10 @@ export class CameraRig {
     return { x: r.x * right + f.x * up, z: r.z * right + f.z * up };
   }
 
+  /**
+   * Convierte una dirección de pantalla (derecha, arriba) a una dirección en el suelo,
+   * según hacia dónde mira la cámara. Así "arriba" en el joystick siempre es "hacia adelante".
+   */
   screenToGround(right: number, up: number): Vec2 {
     const f = this.forward();
     // A la derecha de la cámara, mirando hacia adelante.

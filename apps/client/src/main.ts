@@ -2,7 +2,6 @@ import { DEFAULT_LOOK, GAME_RULES, NO_OMEN, rulesForMode, WIZARD_NAMES } from '@
 import { FixedStepClock, type GameRules, SeededRng } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
-import { type CameraMode, readCameraMode, saveCameraMode } from './camera/CameraMode';
 import { castOf, type OtherWizard, ownLook } from './game/cast';
 import { Diagnostics } from './game/Diagnostics';
 import { Grimoire } from './game/Grimoire';
@@ -65,7 +64,6 @@ let paused = false;
 let badges = new Map<number, WizardBadge>();
 let profile = loadProfile();
 let quality = readQuality();
-let cameraMode: CameraMode = readCameraMode();
 /** Una invitación que llegó antes de que eligieras nombre: se usa al salir del Vestidor. */
 let pendingInvite = '';
 
@@ -91,7 +89,16 @@ const menuPortrait = new MenuPortrait(rules);
 const diagnostics = new Diagnostics(uiRoot, audio.engine, renderer);
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
-const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
+// Arrastrar para mirar a los lados suelta el duelo: la cámara queda libre.
+const cameraDrag = new CameraDrag(
+  canvas,
+  (radians) => rig.rotate(radians),
+  () => {
+    if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
+      input.push({ type: 'lock', targetId: null });
+    }
+  },
+);
 const screenAwake = new ScreenAwake();
 const hud = new Hud(uiRoot, rematch, () => showMenu());
 const menu = new Menu(
@@ -142,7 +149,6 @@ const matchRenderer = new MatchRenderer(
   audio,
   input,
 );
-matchRenderer.cameraMode = cameraMode;
 const flow = new MatchFlow({
   view,
   hud,
@@ -166,11 +172,6 @@ const pauseMenu = new PauseMenu(
     onDiagnostics: (on) => {
       diagnostics.enabled = on;
     },
-    onCameraMode: (mode) => {
-      cameraMode = mode;
-      saveCameraMode(mode);
-      matchRenderer.cameraMode = mode;
-    },
     onLightGraphics: (on) => {
       quality = on ? 'liviana' : 'alta';
       saveQuality(quality);
@@ -180,7 +181,6 @@ const pauseMenu = new PauseMenu(
   },
   diagnostics.enabled,
   quality === 'liviana',
-  cameraMode,
 );
 const screens = new Screens({
   view,
@@ -212,7 +212,17 @@ const backGuard = new BackGuard(
     if (match && !pauseMenu.isOpen) pauseMenu.open();
   },
 );
-new TapToLock(canvas, view.camera, input, () => match);
+const tapToLock = new TapToLock(
+  canvas,
+  view.camera,
+  input,
+  () =>
+    match
+      ? { state: match.state, player: match.present?.(match.player) ?? match.player, rules }
+      : null,
+  () => rig.forward(),
+);
+controls.onDuelButton = () => tapToLock.cycle();
 
 // ---------- Reacciones a lo que toca el jugador ----------
 
@@ -220,13 +230,13 @@ input.onAction((action) => {
   if (!match) return;
   // Tus notas suenan al tocar, con tu tejido tal como lo ves (predicción local incluida).
   audio.playerAction(action, match.present?.(match.player) ?? match.player);
-  // Cámara asistida: disparar sin arrastrar centra la cámara un rato en el blanco.
-  if (action.type === 'cast' && !action.aim) matchRenderer.autoCast(match, rules);
 });
 // Un clic suave en los botones de los menús (los del combate ya suenan con su nota).
 uiRoot.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement | null)?.closest('button');
-  if (!button || button.closest('.element-button, .cast-button, .cancel-button')) return;
+  if (!button || button.closest('.element-button, .cast-button, .cancel-button, .duel-button')) {
+    return;
+  }
   audio.click();
 });
 // Si el celular cambia de app en plena partida contra la IA, queda en pausa.
@@ -422,7 +432,6 @@ function stepMatch(current: MatchView): void {
   for (const event of events) {
     if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
   }
-  matchRenderer.onEvents(events, current);
   if (current instanceof TrainingMatch) {
     for (const event of events) {
       if (event.type === 'release' && event.wizardId === current.playerId) {

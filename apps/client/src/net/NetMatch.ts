@@ -162,6 +162,11 @@ export class NetMatch implements MatchView {
   private predictedBefore: Vec2 | null = null;
   private predictedWeave: Wizard['weave'] = [];
   private predictedFacing: Vec2 | null = null;
+  /**
+   * El último fijado que mandaste (un duelo o soltarlo), hasta que el estado que se muestra lo
+   * refleje. Así la cámara entra en duelo al instante, sin esperar la vuelta del servidor.
+   */
+  private pendingLock: { readonly seq: number; readonly target: number | null } | null = null;
   private readonly previous = new Map<number, Vec2>();
   private glyphIds: Readonly<Record<number, readonly string[]>> = {};
   private netStage: NetStage = { kind: 'lobby' };
@@ -231,6 +236,8 @@ export class NetMatch implements MatchView {
           intents,
         });
         if (this.sent.length > MAX_PENDING) this.sent.shift();
+        const lock = [...intents].reverse().find((i) => i.kind === 'lockTarget');
+        if (lock?.kind === 'lockTarget') this.pendingLock = { seq, target: lock.targetId };
       }
     }
     if (!this.primed) {
@@ -320,12 +327,34 @@ export class NetMatch implements MatchView {
 
   /** Tu mago como se ve en este celular: con el tejido que acabas de tocar, sin esperar. */
   present(wizard: Wizard): Wizard {
-    if (wizard.id !== this.playerId || !this.predicted) return wizard;
+    if (wizard.id !== this.playerId) return wizard;
+    const lockTarget = this.lockShown(wizard);
+    if (!this.predicted)
+      return lockTarget === wizard.lockTarget ? wizard : { ...wizard, lockTarget };
     return {
       ...wizard,
       weave: this.predictedWeave,
       facing: !wizard.channel && this.predictedFacing ? this.predictedFacing : wizard.facing,
+      lockTarget,
     };
+  }
+
+  /**
+   * A quién tienes fijado según este celular: lo último que mandaste, hasta que el estado que se
+   * muestra lo refleje o el servidor lo haya rechazado (por ejemplo, el rival se escondió).
+   */
+  private lockShown(wizard: Wizard): number | null {
+    const pending = this.pendingLock;
+    if (!pending) return wizard.lockTarget;
+    const latest = this.latest;
+    const confirmed = latest?.state.wizards.find((w) => w.id === this.playerId);
+    const rejected =
+      latest !== null && latest.ack >= pending.seq && confirmed?.lockTarget !== pending.target;
+    if (wizard.lockTarget === pending.target || rejected) {
+      this.pendingLock = null;
+      return wizard.lockTarget;
+    }
+    return pending.target;
   }
 
   /**
@@ -514,6 +543,7 @@ export class NetMatch implements MatchView {
     this.primed = false;
     this.previous.clear();
     this.sent.length = 0;
+    this.pendingLock = null;
     this.resuming = true;
     this.awaitingFirst = true;
   }

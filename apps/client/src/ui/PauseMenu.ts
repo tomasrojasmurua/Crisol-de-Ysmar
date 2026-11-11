@@ -1,5 +1,4 @@
 import type { AudioEngine } from '../audio/AudioEngine';
-import { CAMERA_MODES, type CameraMode } from '../camera/CameraMode';
 import { el, query } from './dom';
 import { MENU_ICONS } from './menuIcons';
 
@@ -21,8 +20,6 @@ export class PauseMenu {
   private readonly onlineNote: HTMLElement;
   private readonly diagnosticsToggle: HTMLInputElement;
   private readonly lightToggle: HTMLInputElement;
-  private readonly cameraDetail: HTMLElement;
-  private cameraMode: CameraMode;
   private online = false;
 
   constructor(
@@ -33,13 +30,10 @@ export class PauseMenu {
       readonly onMenu: () => void;
       readonly onDiagnostics: (on: boolean) => void;
       readonly onLightGraphics: (on: boolean) => void;
-      readonly onCameraMode: (mode: CameraMode) => void;
     },
     diagnostics: boolean,
     lightGraphics: boolean,
-    cameraMode: CameraMode,
   ) {
-    this.cameraMode = cameraMode;
     this.button = el('button', 'pause-button') as HTMLButtonElement;
     this.button.type = 'button';
     this.button.setAttribute('aria-label', 'Pausa');
@@ -58,9 +52,6 @@ export class PauseMenu {
           <div class="pause-column">
           <span class="pause-label">Sonido</span>
           <div class="menu-sound-options pause-sound"></div>
-          <span class="pause-label">Cámara <small>(de prueba)</small></span>
-          <div class="pause-camera"></div>
-          <p class="pause-camera-detail"></p>
           </div>
           <div class="pause-column">
           <label class="pause-toggle">
@@ -87,21 +78,6 @@ export class PauseMenu {
     this.diagnosticsToggle.addEventListener('change', () =>
       this.handlers.onDiagnostics(this.diagnosticsToggle.checked),
     );
-
-    this.cameraDetail = query(this.overlay, '.pause-camera-detail');
-    const cameraRow = query(this.overlay, '.pause-camera');
-    for (const mode of CAMERA_MODES) {
-      const option = el('button', 'pause-camera-option', mode.label);
-      option.type = 'button';
-      option.dataset.id = mode.id;
-      option.addEventListener('click', () => {
-        this.cameraMode = mode.id;
-        this.refreshCamera();
-        this.handlers.onCameraMode(mode.id);
-      });
-      cameraRow.append(option);
-    }
-    this.refreshCamera();
 
     const sound = query(this.overlay, '.pause-sound');
     for (const choice of SOUND_CHOICES) {
@@ -152,14 +128,6 @@ export class PauseMenu {
     if (!this.isOpen) return;
     this.overlay.hidden = true;
     this.handlers.onPause(false);
-  }
-
-  private refreshCamera(): void {
-    for (const option of this.overlay.querySelectorAll<HTMLElement>('.pause-camera-option')) {
-      option.classList.toggle('selected', option.dataset.id === this.cameraMode);
-    }
-    this.cameraDetail.textContent =
-      CAMERA_MODES.find((mode) => mode.id === this.cameraMode)?.detail ?? '';
   }
 
   private refreshSound(): void {

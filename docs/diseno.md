@@ -12,6 +12,11 @@ es lo vigente.
   (en vertical una pantalla pide girarlo; en Android se fija la orientación y se pasa a pantalla
   completa al entrar a jugar). Ninguna pieza del HUD puede quedar encima de un botón.
 - **Cámara:** tercera persona sobre el hombro con fijación de objetivo (elegida en el Hito 1 frente a la vista 3/4).
+  Sin nada fijado no gira sola; se gira arrastrando el dedo. Tocar a un rival o una bestia (o el
+  botón de duelo, el de las cuatro esquinas) entra en **duelo**: la cámara lo mantiene siempre al
+  frente, el joystick pasa a rodearlo y unas esquinas lo encuadran. El botón pasa al siguiente
+  rival de izquierda a derecha; arrastrar para mirar suelta el duelo. Se termina solo si el
+  blanco cae, se esconde o pasa de 20 m.
   Gira hacia el rival solo si está a menos de 18 m; si no, conserva su dirección.
 - **Mapa:** el 1v1 se juega solo en la plaza (17 m de radio, sin jungla ni bestias), para que el
   duelo empiece de inmediato. De 2v2 en adelante, el mapa completo de 40 m de radio: una plaza

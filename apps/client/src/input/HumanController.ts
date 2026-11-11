@@ -23,7 +23,8 @@ export class HumanController implements Controller {
     const move = this.moveToGround(this.input.move);
     intents.push({ kind: 'move', x: move.x, z: move.z });
 
-    // Solo se fija tocando. Lo fijado se suelta solo si cae, se esconde o se aleja demasiado:
+    // Solo se fija a mano (tocando o con el botón de duelo), y se suelta arrastrando para mirar.
+    // Además se suelta solo si cae, se esconde o se aleja demasiado:
     // así el disparo y la cámara vuelven a elegir lo mejor puesto. Antes el juego fijaba solo
     // al más cercano y ya no lo soltaba, aunque otro te estuviera atacando al lado.
     if (self.lockTarget !== null) {
