@@ -83,12 +83,7 @@ export class GameScene {
     });
     this.creatures = new CreatureViews(this.scene, rules);
     this.effects = new EffectsView(this.scene, this.particles, playerId);
-    this.scene.add(
-      this.aimGuide.mesh,
-      this.targetMarker.group,
-      this.targetMarker.duelFrame,
-      this.lantern,
-    );
+    this.scene.add(this.aimGuide.mesh, this.targetMarker.group, this.lantern);
 
     this.previewKey.position.set(-1.6, 2.8, -2.6);
     this.previewRim.position.set(1.4, 2.4, 1.8);

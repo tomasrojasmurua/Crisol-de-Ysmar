@@ -224,7 +224,6 @@ export class MatchRenderer {
         : null,
       time,
       duel,
-      camera,
     );
     const aim = this.input.aimPreview;
     view.aimGuide.update(
