@@ -1,14 +1,16 @@
-import { ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
+import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
 import type { GameEvent, GameRules } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import type { GameScene } from '../render/GameScene';
+import type { ComboCallouts } from '../ui/ComboCallouts';
 import { comboStepsView } from '../ui/comboSteps';
 import type { GlyphPicker } from '../ui/GlyphPicker';
 import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { Minimap } from '../ui/Minimap';
 import type { ResultTeam } from '../ui/ResultScreen';
+import { ComboDetector } from './ComboDetector';
 import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
@@ -31,6 +33,7 @@ export interface MatchFlowDeps {
   readonly glyphPicker: GlyphPicker;
   readonly grimoire: Grimoire;
   readonly comboLog: ComboLog;
+  readonly comboCallouts: ComboCallouts;
   readonly renderer: MatchRenderer;
   readonly diagnostics: Diagnostics;
 }
@@ -42,6 +45,7 @@ export interface MatchFlowDeps {
  */
 export class MatchFlow {
   private shownRound = 0;
+  private detector: ComboDetector | null = null;
   private resultShown = false;
   private pickerShown = false;
   /** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
@@ -56,6 +60,7 @@ export class MatchFlow {
 
   /** Una partida nueva (o revancha) empieza de cero. */
   begin(): void {
+    this.detector = null;
     this.shownRound = 0;
     this.resultShown = false;
     this.pickerShown = false;
@@ -69,6 +74,7 @@ export class MatchFlow {
     rules: GameRules,
   ): void {
     const me = current.playerId;
+    this.detectCombos(events, current);
     for (const event of events) {
       if (event.type === 'cast' && event.wizardId === me) {
         if (this.deps.grimoire.discover(event.weave)) {
@@ -80,24 +86,9 @@ export class MatchFlow {
             this.deps.grimoire.total,
           );
         }
-      } else if (
-        event.type === 'combo' &&
-        event.sourceId === me &&
-        !(current instanceof TrainingMatch)
-      ) {
-        // Los aciertos solo cuentan en partidas; en Entrenamiento basta con el nombre en pantalla.
+      } else if (event.type === 'combo' && event.sourceId === me) {
         const combo = ComboLog.forReaction(event.combo);
-        const unlocked = combo ? this.deps.comboLog.record(combo.id) : null;
-        if (unlocked) {
-          this.deps.audio.discover();
-          this.deps.hud.celebrateDiscovery(
-            unlocked.name,
-            comboStepsView(unlocked),
-            this.deps.comboLog.unlockedCount,
-            this.deps.comboLog.total,
-            'Nuevo combo',
-          );
-        }
+        if (combo) this.countCombo(combo, current);
       } else if (event.type === 'phase') {
         this.deps.hud.announcePhase(event.phase);
       } else if (event.type === 'defeated' && event.wizardId === me) {
@@ -234,6 +225,35 @@ export class MatchFlow {
       this.deps.controls.visible = false;
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /** Los combos de hechizos del catálogo: su nombre sobre el blanco y, en partidas, el acierto. */
+  private detectCombos(events: readonly GameEvent[], current: MatchView): void {
+    if (this.detector?.playerId !== current.playerId) {
+      this.detector = new ComboDetector(current.playerId);
+    }
+    for (const hit of this.detector.onStep(events, current.state)) {
+      this.deps.comboCallouts.showCombo(hit.combo.name, hit.targetId);
+      this.countCombo(hit.combo, current);
+    }
+  }
+
+  /**
+   * Suma un acierto: solo en partidas, no en Entrenamiento (ahí basta con el nombre en
+   * pantalla). Si con este el combo aparece en el Grimorio, se celebra.
+   */
+  private countCombo(combo: Combo, current: MatchView): void {
+    if (current instanceof TrainingMatch) return;
+    const unlocked = this.deps.comboLog.record(combo.id);
+    if (!unlocked) return;
+    this.deps.audio.discover();
+    this.deps.hud.celebrateDiscovery(
+      unlocked.name,
+      comboStepsView(unlocked),
+      this.deps.comboLog.unlockedCount,
+      this.deps.comboLog.total,
+      'Nuevo combo',
+    );
   }
 
   /** El marcador final: tu bando primero y después los demás, con su color y su nombre. */

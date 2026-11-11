@@ -1,4 +1,4 @@
-import type { ComboId, ElementId, SpellId } from '@crisol/core';
+import type { ComboId, ElementId, SpellId, StatusId } from '@crisol/core';
 
 /**
  * Un paso de un combo, tal como se dibuja en el Grimorio:
@@ -28,8 +28,8 @@ export interface Combo {
   /** Combo de equipo: el acierto cuenta para cada jugador que puso un paso. */
   readonly team?: true;
   /**
-   * Cuadra en papel pero falta confirmarlo con la simulación (`testing/spellScene`) antes de
-   * que el detector lo cuente.
+   * Todavía no se pudo confirmar con la simulación (ver `ComboDetector.test.ts`): queda en el
+   * catálogo, pero el detector no lo cuenta.
    */
   readonly unverified?: true;
 }
@@ -132,7 +132,6 @@ export const COMBOS: readonly Combo[] = [
     steps: [s('darkComet'), s('iceAge'), s('chainLightning')],
     detail:
       'El Cometa te deja a su lado y lo silencia; cuando cae el hielo, Tormenta y Brasa ya descansaron.',
-    unverified: true,
   },
   {
     id: 'vapor-y-quiebre',
@@ -141,7 +140,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('spark'), s('iceAge'), s('tempest')],
     detail: 'Vapor y congelado en el mismo golpe; la primera llegada de la Tempestad lo quiebra.',
-    unverified: true,
   },
 
   // ---------- Control y golpe ----------
@@ -176,6 +174,7 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('rootCatapult'), s('nightmare'), s('skySpear')],
     detail: 'Enraizado, dormido y, con Tormenta y Brasa ya descansadas, la Lanza.',
+    unverified: true,
   },
   {
     id: 'punalada-ignea',
@@ -208,7 +207,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('instant'), s('meteor')],
     detail: 'El meteoro cae poco después de que despierta.',
-    unverified: true,
   },
 
   // ---------- Potenciar y preparar ----------
@@ -219,7 +217,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('burningEcho'), s('iceAge'), s('chainLightning')],
     detail: 'Congelado más de 2 s seguidos, y el rayo lo quiebra.',
-    unverified: true,
   },
   {
     id: 'forja-paciente',
@@ -254,7 +251,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('pollen'), s('nightmare'), s('spark')],
     detail: 'Dormido junto al Polen: la Chispa lo hace estallar. Pide Afinidad Brasa.',
-    unverified: true,
   },
   {
     id: 'detonador-a-ciegas',
@@ -263,7 +259,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('solarGrenade'), s('blinding')],
     detail: 'La Ceguera toca la granada y la hace estallar mientras él no ve.',
-    unverified: true,
   },
   {
     id: 'cambio-de-olla',
@@ -272,7 +267,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('cauldron'), s('swap')],
     detail: 'Hervidero bajo tus pies e Intercambio: él queda hirviendo.',
-    unverified: true,
   },
   {
     id: 'jaula-prestada',
@@ -418,7 +412,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('linkBolt'), s('blink'), s('spark')],
     detail: 'Te alejas más de 6 m de un salto: queda aturdido 1 s y la Chispa lo alcanza.',
-    unverified: true,
   },
   {
     id: 'lluvia-a-ciegas',
@@ -427,7 +420,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('blinding'), s('meteor')],
     detail: 'Ciego, no ve venir el meteoro.',
-    unverified: true,
   },
   {
     id: 'pista-falsa',
@@ -436,7 +428,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('decoy'), s('meteor')],
     detail: 'Mientras persigue a tu doble, el meteoro cae donde va.',
-    unverified: true,
   },
   {
     id: 'ojo-que-todo-lo-ve',
@@ -455,7 +446,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('eruption'), s('shackle')],
     detail: 'Las rocas caen a hasta 5 m del volcán: atado, no sale de ahí.',
-    unverified: true,
   },
   {
     id: 'atado-a-la-tormenta',
@@ -491,7 +481,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('totemCircle'), s('cauldron')],
     detail: 'Para salir del hervor cruza una línea de tótems y queda aturdido.',
-    unverified: true,
   },
   {
     id: 'olla-contra-el-muro',
@@ -508,7 +497,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('iceTrack'), s('meteor')],
     detail: 'Quien entra se desliza hasta el final sin poder frenar: ahí cae el meteoro.',
-    unverified: true,
   },
   {
     id: 'campo-electrico',
@@ -639,7 +627,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('stormEye'), s('immolation')],
     detail: 'Nada entra a 2 m y tu fuego llega a 2,5: quien se acerca se queda quemándose.',
-    unverified: true,
   },
   {
     id: 'tormenta-en-la-niebla',
@@ -717,3 +704,69 @@ export const COMBOS: readonly Combo[] = [
     unverified: true,
   },
 ];
+
+/**
+ * Cómo se reconoce en partida que un combo de hechizos salió (las reacciones ya tienen su
+ * evento). Los pasos se leen de los hechizos que lanzas ('release'), en orden y sin otro hechizo
+ * tuyo entre medio; el combo cuenta cuando ocurre el remate:
+ * - `hit` (por defecto): golpeas a un mago rival después del último paso. Con `status`, solo si
+ *   el rival tenía ese estado justo antes del golpe (dormido, en el aire, enraizado…).
+ * - `reaction`: sale esa reacción, tuya, después del último paso.
+ * - `cast`: basta con lanzar el último paso (cuando el remate no es un golpe: invocar, cambiar
+ *   de lugar, volver atrás).
+ */
+export interface ComboDetect {
+  readonly finish?: 'hit' | 'reaction' | 'cast';
+  readonly status?: StatusId;
+  readonly reaction?: ComboId;
+  /** El remate es un hilo que quita de a poco (Drenaje): cuenta cualquier golpe, por chico. */
+  readonly trickle?: true;
+}
+
+/** Plazos del detector, en segundos. */
+export const COMBO_TIMING = {
+  /** Lo más que puede pasar entre un paso y el siguiente (cubre el descanso de un elemento). */
+  maxGap: 8,
+  /** Lo más que puede tardar el remate después del último paso (vuelo, aviso, cuenta). */
+  finishWindow: 4.5,
+  /**
+   * Daño mínimo para que un golpe cuente como remate: así no rematan los tics de una quemadura
+   * o de una zona que dejó un paso anterior.
+   */
+  minHit: 1,
+} as const;
+
+/** Lo que no se dice aquí es un `hit` sin estado. */
+export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
+  amarre: { status: 'root' },
+  'raiz-y-hoguera': { finish: 'reaction', reaction: 'ashenCurse' },
+  'cometa-helado': { finish: 'reaction', reaction: 'shatter' },
+  'vapor-y-quiebre': { finish: 'reaction', reaction: 'shatter' },
+  'invierno-eterno': { finish: 'reaction', reaction: 'shatter' },
+  'sueno-y-lanza': { status: 'asleep' },
+  'por-los-aires': { status: 'airborne' },
+  'caer-dormido': { status: 'asleep' },
+  'punalada-ignea': { status: 'silenced' },
+  'luz-en-la-pesadilla': { status: 'asleep' },
+  'sueno-guiado': { status: 'asleep' },
+  'rio-de-sangre': { trickle: true },
+  'vuelo-de-regreso': { status: 'slow' },
+  // Las zarzas queman al cruzarlas: el remate es una quemadura.
+  'silencio-entre-espinas': { status: 'silenced', trickle: true },
+  'grito-y-lanza': { status: 'silenced' },
+  'lluvia-a-ciegas': { status: 'blind' },
+  'caer-con-el-meteoro': { finish: 'cast' },
+  'venganza-y-regreso': { finish: 'cast' },
+  'puerta-propia': { finish: 'cast' },
+  'gemelo-abonado': { finish: 'cast' },
+  'guardian-abonado': { finish: 'cast' },
+  'separar-a-los-enlazados': { finish: 'cast' },
+  'sacrificio-y-transfusion': { finish: 'cast' },
+  'escudo-compartido': { finish: 'cast' },
+};
+
+/**
+ * Los que el detector todavía no puede distinguir de otra jugada parecida: Aliado bomba se ve
+ * igual que poner la Semilla de fuego sobre ti mismo. Quedan en el catálogo, pero no cuentan.
+ */
+export const COMBO_UNDETECTABLE: ReadonlySet<string> = new Set(['aliado-bomba']);

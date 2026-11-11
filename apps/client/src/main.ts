@@ -160,6 +160,7 @@ const flow = new MatchFlow({
   glyphPicker,
   grimoire,
   comboLog,
+  comboCallouts,
   renderer: matchRenderer,
   diagnostics,
 });
