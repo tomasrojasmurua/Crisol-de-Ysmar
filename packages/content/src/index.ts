@@ -20,7 +20,15 @@ export {
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';
-export { COMBOS, type Combo, type ComboStep } from './combos';
+export {
+  COMBO_DETECT,
+  COMBO_TIMING,
+  COMBO_UNDETECTABLE,
+  COMBOS,
+  type Combo,
+  type ComboDetect,
+  type ComboStep,
+} from './combos';
 export { SPELL_DESCRIPTIONS } from './descriptions';
 export { ELEMENTS } from './elements';
 export { FAMILY_NAMES, SPELL_FAMILIES, type SpellFamily } from './families';

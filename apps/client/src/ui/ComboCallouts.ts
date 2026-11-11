@@ -20,6 +20,8 @@ interface Callout {
   readonly root: HTMLElement;
   readonly targetId: number;
   age: number;
+  /** Cuánto más arriba nace: el nombre de un combo va sobre el de la reacción. */
+  readonly lift: number;
 }
 
 /**
@@ -37,10 +39,22 @@ export class ComboCallouts {
   }
 
   show(combo: ComboId, targetId: number): void {
-    const root = el('div', 'combo-callout', `¡${REACTION_TEXT[combo].name}!`);
-    root.style.setProperty('--combo', COMBO_COLORS[combo]);
+    this.add(`¡${REACTION_TEXT[combo].name}!`, COMBO_COLORS[combo], targetId, false);
+  }
+
+  /**
+   * Un combo de hechizos del catálogo: en oro y algo más grande que una reacción, porque es
+   * una jugada tuya entera. Si a la vez salió una reacción, queda encima de ella.
+   */
+  showCombo(name: string, targetId: number): void {
+    this.add(`¡${name}!`, '#f3dfb0', targetId, true);
+  }
+
+  private add(text: string, color: string, targetId: number, big: boolean): void {
+    const root = el('div', big ? 'combo-callout big' : 'combo-callout', text);
+    root.style.setProperty('--combo', color);
     this.layer.append(root);
-    this.callouts.push({ root, targetId, age: 0 });
+    this.callouts.push({ root, targetId, age: 0, lift: big ? 0.9 : 0 });
   }
 
   clear(): void {
@@ -60,7 +74,7 @@ export class ComboCallouts {
         continue;
       }
       const t = callout.age / LIFE_SECONDS;
-      this.projected.set(pos.x, CALLOUT_Y + t * 0.8, pos.z).project(camera);
+      this.projected.set(pos.x, CALLOUT_Y + callout.lift + t * 0.8, pos.z).project(camera);
       const behind = this.projected.z > 1;
       const x = ((this.projected.x + 1) / 2) * window.innerWidth;
       const y = ((1 - this.projected.y) / 2) * window.innerHeight;

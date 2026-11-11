@@ -3747,3 +3747,9 @@ body {
 .lobby-player.away {
   opacity: 0.5;
 }
+
+/* El nombre de un combo del catálogo: más grande que el de una reacción. */
+.combo-callout.big {
+  font-size: 23px;
+  letter-spacing: 0.06em;
+}
