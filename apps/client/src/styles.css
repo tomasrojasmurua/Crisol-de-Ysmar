@@ -625,34 +625,6 @@ body {
 
 /* ---------- Fichas de hechizo (Grimorio y entrenamiento) ---------- */
 
-.grimoire-spell.known {
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-}
-
-.grimoire-missing {
-  grid-column: 1 / -1;
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: rgba(240, 230, 210, 0.6);
-  text-align: center;
-}
-
-.grimoire-detail {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(7, 7, 12, 0.82);
-  border-radius: inherit;
-  z-index: 2;
-  animation: fade-in 0.2s ease both;
-}
-
 .spell-card {
   display: flex;
   flex-direction: column;
@@ -698,12 +670,6 @@ body {
   border: 1px solid rgba(216, 191, 138, 0.35);
   font-size: 12px;
   color: #e8d7a8;
-}
-
-.spell-card-close {
-  font-size: 11px;
-  color: rgba(240, 230, 210, 0.45);
-  text-align: center;
 }
 
 /* ---------- Entrenamiento ---------- */
@@ -2290,7 +2256,7 @@ body {
 }
 
 /* Las cartas responden recién cuando terminaron de entrar (ver GlyphPicker). */
-.glyph-picker.armed .glyph-card {
+#ui .glyph-picker.armed .glyph-card {
   pointer-events: auto;
 }
 
@@ -2338,7 +2304,7 @@ body {
   --icon-size: 28px;
 }
 
-.glyph-sigil .icon {
+#ui .glyph-sigil .icon {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--glyph) 70%, transparent));
 }
 
@@ -2706,130 +2672,414 @@ body {
 
 /* ---------- Grimorio ---------- */
 
+/*
+ * En horizontal todo el encabezado va en una sola fila (volver, título con avance y pestañas
+ * de ícono) para dejarle casi toda la altura a la lista.
+ */
 .grimoire {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-  background: radial-gradient(ellipse at center, rgba(12, 10, 22, 0.72), rgba(7, 7, 12, 0.94));
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(180, 156, 255, 0.07), transparent 60%),
+    radial-gradient(ellipse at center, rgba(12, 10, 22, 0.8), rgba(7, 7, 12, 0.96));
   pointer-events: auto;
   animation: fade-in 0.4s ease both;
 }
 
 .grimoire-book {
   position: relative;
-  width: min(860px, 100%);
+  width: min(900px, 100%);
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
 }
 
 .grimoire-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+#ui .grimoire-close {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  --icon-size: 20px;
+}
+
+.grimoire-title {
+  flex: none;
+  min-width: 0;
 }
 
 .grimoire-head h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: clamp(22px, 4vw, 32px);
+  font-size: 22px;
+  line-height: 1.1;
   letter-spacing: 0.12em;
   color: var(--gold-bright);
-  text-shadow: 0 0 24px rgba(243, 223, 176, 0.4);
+  text-shadow: 0 0 20px rgba(243, 223, 176, 0.35);
 }
 
 .grimoire-progress {
-  margin: 2px 0 0;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11px;
   color: var(--ink-quiet);
+  white-space: nowrap;
+}
+
+.grimoire-progress-track {
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(216, 191, 138, 0.15);
+  overflow: hidden;
+}
+
+.grimoire-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left center;
 }
 
 .grimoire-tabs {
+  flex: 1;
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
-  overflow-x: auto;
-  touch-action: pan-x;
+  min-width: 0;
 }
 
+/* Pestaña: el signo del elemento en su color y cuántos llevas; el nombre va en la lista. */
 #ui .grimoire-tab {
-  flex: 1 0 auto;
+  flex: 0 1 76px;
+  min-width: 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--element) 35%, transparent);
-  background: rgba(0, 0, 0, 0.3);
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(216, 191, 138, 0.22);
+  background: rgba(14, 12, 20, 0.85);
   color: var(--element);
+  --icon-size: 22px;
+  touch-action: manipulation;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
-.grimoire-tabs * {
-  touch-action: pan-x;
-}
-
-.grimoire-tab strong {
-  font-family: var(--display);
-  font-size: 13px;
+#ui .grimoire-tab .icon {
+  opacity: 0.75;
 }
 
 .grimoire-tab-count {
   font-size: 10.5px;
+  letter-spacing: 0.04em;
   color: var(--ink-quiet);
 }
 
 #ui .grimoire-tab.selected {
-  background: color-mix(in srgb, var(--element) 20%, rgba(0, 0, 0, 0.3));
-  box-shadow: 0 0 16px color-mix(in srgb, var(--element) 35%, transparent);
+  border-color: color-mix(in srgb, var(--element) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--element) 22%, rgba(14, 12, 20, 0.9)),
+    rgba(14, 12, 20, 0.9)
+  );
+  box-shadow:
+    inset 0 0 0 2px rgba(7, 7, 12, 0.6),
+    0 0 14px color-mix(in srgb, var(--element) 30%, transparent);
 }
 
+#ui .grimoire-tab.selected .icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--element) 70%, transparent));
+}
+
+#ui .grimoire-tab.selected .grimoire-tab-count {
+  color: var(--ink);
+}
+
+/* La lista: un panel de vidrio ahumado con filete de bronce que se desplaza por dentro. */
 .grimoire-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   touch-action: pan-y;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 6px;
-  align-content: start;
-  padding-bottom: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  border-radius: 8px;
+  background: rgba(10, 9, 15, 0.82);
+  box-shadow: inset 0 0 0 3px rgba(7, 7, 12, 0.6);
 }
 
 .grimoire-list * {
   touch-action: pan-y;
 }
 
-.grimoire-spell {
+.grimoire-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(216, 191, 138, 0.16);
+}
+
+.grimoire-section-sigil {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--element) 55%, #3a2c1c);
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.55));
+  color: var(--element);
+  --icon-size: 21px;
+}
+
+.grimoire-section-text h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+.grimoire-section-count {
+  margin-left: 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-quiet);
+}
+
+.grimoire-section-text p {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--ink-quiet);
+}
+
+.grimoire-group {
+  margin-top: 10px;
+}
+
+.grimoire-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.grimoire-group-count {
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-quiet);
+}
+
+.grimoire-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 6px;
+}
+
+.grimoire-grid.wide {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+#ui .grimoire-spell {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--ink-quiet);
-  font-size: 12.5px;
-  opacity: 0.7;
-}
-
-.grimoire-spell.known {
-  opacity: 1;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--element) 40%, transparent);
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(216, 191, 138, 0.2);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--element) 14%, transparent),
-    rgba(0, 0, 0, 0.25)
+    color-mix(in srgb, var(--element) 10%, rgba(20, 17, 28, 0.9)),
+    rgba(14, 12, 20, 0.9)
   );
+  font: inherit;
+  font-size: 13px;
   color: var(--ink);
+  text-align: left;
+  touch-action: manipulation;
+}
+
+#ui button.grimoire-spell:active {
+  border-color: var(--gold-bright);
+  background: #30251b;
+}
+
+/* Lo que falta: un hueco punteado con la cuenta, sin decir cuáles son. */
+#ui .grimoire-spell.missing {
+  justify-content: center;
+  border-style: dashed;
+  border-color: rgba(216, 191, 138, 0.18);
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink-quiet);
+  font-style: italic;
 }
 
 .grimoire-spell-name {
   line-height: 1.2;
+}
+
+.weave-glyphs {
+  display: inline-flex;
+  gap: 1px;
+  flex: none;
+  --icon-size: 15px;
+}
+
+.weave-glyph {
+  display: grid;
+  place-items: center;
+  color: var(--element);
+}
+
+#ui .grimoire .weave-glyph .icon {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--element) 60%, transparent));
+}
+
+.grimoire-reaction {
+  align-items: flex-start;
+  --icon-size: 22px;
+}
+
+.grimoire-reaction-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grimoire-reaction .grimoire-spell-name {
+  font-family: var(--display);
+  color: var(--gold-bright);
+}
+
+.grimoire-reaction-detail {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-quiet);
+}
+
+/* Ficha abierta encima de la lista. */
+.grimoire-detail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(7, 7, 12, 0.8);
+  z-index: 2;
+  animation: fade-in 0.2s ease both;
+}
+
+.grimoire-card.spell-card {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  background:
+    radial-gradient(
+      ellipse at 15% 0%,
+      color-mix(in srgb, var(--element) 18%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(180deg, rgba(26, 22, 34, 0.98), rgba(11, 10, 16, 0.98));
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 16px 50px rgba(0, 0, 0, 0.6);
+  animation: card-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.weave-glyphs.large {
+  gap: 4px;
+  --icon-size: 22px;
+}
+
+.weave-glyphs.large .weave-glyph {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--element) 55%, #3a2c1c);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#ui .grimoire-card-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink-quiet);
+}
+
+/* Pantallas angostas: las pestañas se achican y la cuenta va bajo el signo. */
+@media (max-width: 760px) {
+  .grimoire-head {
+    gap: 8px;
+  }
+
+  .grimoire-head h2 {
+    font-size: 18px;
+  }
+
+  #ui .grimoire-tab {
+    min-width: 46px;
+    --icon-size: 20px;
+  }
+
+  .grimoire-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .grimoire-grid.wide {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+}
+
+@media (max-height: 360px) {
+  .grimoire-section-text p {
+    display: none;
+  }
+
+  .grimoire-section-sigil {
+    width: 32px;
+    height: 32px;
+    --icon-size: 18px;
+  }
 }
 
 .weave-orbs {
@@ -3026,17 +3276,6 @@ body {
     0 0 10px color-mix(in srgb, var(--combo) 70%, transparent),
     0 2px 3px rgba(0, 0, 0, 0.9);
   will-change: transform, opacity;
-}
-
-.grimoire-combo {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.grimoire-combo-detail {
-  font-size: 11px;
-  color: var(--ink-quiet);
 }
 
 /* Sala de espera en horizontal: el código a la izquierda, quiénes están a la derecha. */
