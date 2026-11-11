@@ -145,6 +145,9 @@ describe('Sala de duelo 1v1', () => {
     const stage = duel.stageFor(1);
     if (stage.kind !== 'choosing') throw new Error('sin elección');
     expect(stage.options.length).toBeGreaterThanOrEqual(3);
+    // El celular recibe el tiempo que queda para mostrar la cuenta antes del Glifo al azar.
+    expect(stage.ticksLeft).toBeGreaterThan(0);
+    expect(stage.ticksLeft).toBeLessThanOrEqual(CHOOSE_TICKS);
     duel.chooseGlyph(1, stage.options[0] ?? '');
     expect(duel.stageFor(1)).toMatchObject({ kind: 'choosing', chosen: true });
     const other = duel.stageFor(2);

@@ -44,6 +44,10 @@ export const MENU_ICONS = {
   ),
   /** Todos contra todos: una corona para el último en pie. */
   ffa: icon('<path d="M3 18h18M4 15l-1-9 5 4 4-6 4 6 5-4-1 9Z"/>'),
+  /** Revancha: dos flechas que se persiguen en círculo. */
+  rematch: icon(
+    '<path d="M20 11a8 8 0 0 0-14.5-4M4 13a8 8 0 0 0 14.5 4"/><path d="M5 3v4h4M19 21v-4h-4"/>',
+  ),
   pause: icon('<path d="M9 5v14M15 5v14"/>'),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
   /** Estrella de cuatro puntas, sólida: adorna el botón principal. */

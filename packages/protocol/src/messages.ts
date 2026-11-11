@@ -2,7 +2,7 @@ import type { ElementId, Intent, MatchState } from '@crisol/core';
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -37,8 +37,16 @@ export type NetStage =
   | { readonly kind: 'lobby' }
   | { readonly kind: 'playing' }
   | { readonly kind: 'intermission'; readonly roundWinner: number; readonly ticksLeft: number }
-  /** Entre rondas: los Glifos que te ofrecen y si ya elegiste (esperas al otro). */
-  | { readonly kind: 'choosing'; readonly options: readonly string[]; readonly chosen: boolean }
+  /**
+   * Entre rondas: los Glifos que te ofrecen, si ya elegiste (esperas al otro) y cuántos pasos
+   * quedan antes de que la Sala elija al azar por quien no eligió.
+   */
+  | {
+      readonly kind: 'choosing';
+      readonly options: readonly string[];
+      readonly chosen: boolean;
+      readonly ticksLeft: number;
+    }
   | { readonly kind: 'finished'; readonly rematch: readonly number[] };
 
 /** Del celular a la Sala. */

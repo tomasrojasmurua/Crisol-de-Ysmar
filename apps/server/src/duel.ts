@@ -506,6 +506,7 @@ export class DuelHost {
           kind: 'choosing',
           options: slot?.options.map((g) => g.id) ?? [],
           chosen: slot?.chosen ?? true,
+          ticksLeft: this.stage.ticksLeft,
         };
       case 'finished':
         return {

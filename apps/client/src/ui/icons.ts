@@ -1,3 +1,4 @@
+import type { Glyph } from '@crisol/content';
 import type { ElementId } from '@crisol/core';
 
 /**
@@ -48,6 +49,32 @@ const DUEL_PATH =
   '<path d="M5 11V5H11M21 5H27V11M27 21V27H21M11 27H5V21"/>' +
   '<path d="M16 10.5L21.5 16L16 21.5L10.5 16Z"/>';
 
+/**
+ * Glifos generales (sin elemento): cada uno con una silueta que cuenta qué hace, para que se
+ * reconozcan entre rondas sin leer la carta entera.
+ */
+const GENERAL_GLYPH_PATHS: Record<string, string> = {
+  // Tres hilos que bajan juntos: conjuros de tres elementos.
+  'eco-triple':
+    '<path d="M9 5C12 11 6 20 9 27"/><path d="M16 5V27"/><path d="M23 5C20 11 26 20 23 27"/>',
+  // Una pluma: conjuros de un solo elemento, livianos.
+  'mano-ligera':
+    '<path d="M25 4C14 5 7 13 8 24C19 23 26 15 25 4Z"/><path d="M8 24L5 28M11 21L19 12"/>',
+  // Reloj de arena: canalizar más rápido.
+  'tejido-veloz':
+    '<path d="M9 4H23M9 28H23"/>' +
+    '<path d="M11 4C11 11 16 13 16 16C16 19 11 21 11 28M21 4C21 11 16 13 16 16C16 19 21 21 21 28"/>',
+  // Soplo de aire: los elementos descansan menos.
+  respiro:
+    '<path d="M4 12H18A4 4 0 1 0 14 8"/><path d="M4 18H23A4 4 0 1 1 19 22"/><path d="M4 24H11"/>',
+  // Escudo tallado en piedra: más vida.
+  'piel-de-piedra':
+    '<path d="M16 3L27 7V15C27 22 22 27 16 29C10 27 5 22 5 15V7Z"/><path d="M5.5 12L16 16L26.5 12M16 16V28.5"/>',
+};
+
+/** Runa de reserva para un Glifo general que todavía no tiene silueta propia. */
+const RUNE_PATH = '<path d="M16 4L26 16L16 28L6 16Z"/><path d="M16 10V22M11 16H21"/>';
+
 function svg(paths: string, className: string): string {
   return (
     `<svg class="icon ${className}" viewBox="0 0 32 32" fill="none" stroke="currentColor" ` +
@@ -57,6 +84,12 @@ function svg(paths: string, className: string): string {
 
 export function elementIcon(element: ElementId): string {
   return svg(ELEMENT_PATHS[element], `icon-${element}`);
+}
+
+/** El signo de un Glifo: el de su elemento o, si es general, el suyo propio. */
+export function glyphIcon(glyph: Glyph): string {
+  if (glyph.element) return elementIcon(glyph.element);
+  return svg(GENERAL_GLYPH_PATHS[glyph.id] ?? RUNE_PATH, 'icon-glyph');
 }
 
 export const CAST_ICON = svg(CAST_PATH, 'icon-cast');
