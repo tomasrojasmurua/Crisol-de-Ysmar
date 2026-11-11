@@ -9,7 +9,7 @@ export interface ScreenRect {
 /** Lo de arriba (reloj, vida, minimapa, panel): las etiquetas se corren hacia abajo. */
 const TOP_SELECTORS = ['.hud-round', '.hud-player', '.minimap', '.training-panel'];
 /** Los botones del tejido: una etiqueta encima se vuelve casi transparente para no taparlos. */
-const PAD_SELECTORS = ['.element-button', '.cast-button', '.cancel-button'];
+const PAD_SELECTORS = ['.element-button', '.cast-button', '.cancel-button', '.duel-button'];
 const STICK_SELECTORS = ['.joystick-base'];
 /** Cada cuánto se vuelven a medir (la interfaz casi no se mueve). */
 const REFRESH_MS = 400;
