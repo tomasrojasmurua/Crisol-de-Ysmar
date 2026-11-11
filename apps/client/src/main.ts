@@ -18,7 +18,6 @@ import {
 import {
   autoTarget,
   type Beast,
-  createMatch,
   ELEMENT_IDS,
   type ElementId,
   FixedStepClock,
@@ -36,10 +35,10 @@ import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protoc
 import * as THREE from 'three';
 import { GameAudio } from './audio/GameAudio';
 import { type CameraMode, readCameraMode, saveCameraMode } from './camera/CameraMode';
-import { CameraRig, CENTER_STYLE, FOLLOW_STYLE } from './camera/CameraRig';
+import { CENTER_STYLE, FOLLOW_STYLE } from './camera/CameraRig';
+import { Diagnostics } from './game/Diagnostics';
 import { Grimoire } from './game/Grimoire';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
-import { MatchPerfLog } from './game/MatchPerfLog';
 import type { MatchView } from './game/MatchView';
 import {
   type Appearance,
@@ -58,25 +57,14 @@ import { TouchControls } from './input/TouchControls';
 import { leftRoom, recentRoomCode, rememberRoom, roomToRejoin } from './net/lastRoom';
 import { NetMatch } from './net/NetMatch';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
-import { AdaptiveResolution } from './render/AdaptiveResolution';
-import { AimGuide } from './render/AimGuide';
-import { ArenaView } from './render/arena/ArenaView';
-import { MapViews } from './render/arena/MapViews';
-import { ZoneView } from './render/arena/ZoneView';
-import { CreatureViews } from './render/CreatureViews';
-import { EffectsView } from './render/EffectsView';
+import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
-import { Particles } from './render/Particles';
 import { teamColorHex } from './render/palette';
-import { PostProcessing } from './render/postprocessing';
 import { readQuality, saveQuality } from './render/Quality';
-import { SpellViews, type SpellWorld } from './render/SpellViews';
-import { TargetMarker } from './render/TargetMarker';
 import { type WizardLook, WizardView } from './render/WizardView';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { EdgeIndicators } from './ui/EdgeIndicators';
-import { FpsMeter } from './ui/FpsMeter';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook, weaveOrbs } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
@@ -100,48 +88,23 @@ if (!canvas || !uiRoot) {
 
 // ---------- Escena ----------
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: false,
-  powerPreference: 'high-performance',
-});
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-const particles = new Particles();
-const arena = new ArenaView(rules.arenaRadius, particles);
-const scene = arena.scene;
-scene.add(particles.points);
-const zone = new ZoneView(rules.arenaRadius);
-scene.add(zone.group);
-const maps = new MapViews(scene, arena, zone, rules);
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
-const rig = new CameraRig(camera);
-const post = new PostProcessing(renderer, scene, camera);
-/** El aspecto de cada mago de la partida, para que su Señuelo se vea igual que él. */
-const wizardLooks = new Map<number, WizardLook>();
-const spells = new SpellViews(scene, rules, particles, (ownerId) => {
-  const look = wizardLooks.get(ownerId);
-  return look ? new WizardView({ ...look, isPlayer: false }, rules, particles) : null;
-});
-const NO_SPELL_WORLD: SpellWorld = {
-  positionOf: () => ({ x: 0, z: 0 }),
-  time: 0,
-  delta: 0,
-  wizard: () => undefined,
-  wizardPos: () => undefined,
-};
-const creatures = new CreatureViews(scene, rules);
-const effects = new EffectsView(scene, particles, PLAYER_ID);
-const aimGuide = new AimGuide();
-scene.add(aimGuide.mesh);
-const targetMarker = new TargetMarker('#f3dfb0');
-scene.add(targetMarker.group);
-// Una luz suave sobre tu mago: en la jungla siempre se ve dónde estás.
-const lantern = new THREE.PointLight('#ffe2b0', 0, 11, 1.4);
-scene.add(lantern);
+const view = new GameScene(canvas, rules, PLAYER_ID);
+const {
+  renderer,
+  scene,
+  particles,
+  zone,
+  maps,
+  camera,
+  rig,
+  spells,
+  creatures,
+  effects,
+  aimGuide,
+  targetMarker,
+  resolution,
+  wizardLooks,
+} = view;
 
 // ---------- Interfaz ----------
 
@@ -170,10 +133,7 @@ uiRoot.addEventListener('click', (event) => {
 });
 const minimap = new Minimap(uiRoot, rules);
 const menuPortrait = new MenuPortrait(rules);
-const fpsMeter = new FpsMeter(uiRoot);
-/** Lo que pasó con el rendimiento en toda la partida (se ve al final, con los datos activados). */
-const perfLog = new MatchPerfLog();
-let audioCutsSeen = 0;
+const diagnostics = new Diagnostics(uiRoot, audio.engine, renderer);
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
 const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians));
@@ -220,22 +180,11 @@ const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
 let match: MatchView | null = null;
 /** El duelo en red, si estás jugando con un amigo. */
 let net: NetMatch | null = null;
-const netBadge = document.createElement('div');
-netBadge.className = 'net-badge';
-netBadge.hidden = true;
-uiRoot.append(netBadge);
 /** Con la pausa abierta contra la IA, la partida se detiene; en red sigue corriendo. */
 let paused = false;
 let lastAlpha = 1;
 let quality = readQuality();
-/** Alta: todo el ambiente. Liviana: sin sombras, luces de brasero, resplandor ni estelas. */
-function applyQuality(): void {
-  const full = quality === 'alta';
-  post.enabled = full;
-  arena.setLight(full);
-  spells.trailsEnabled = full;
-}
-applyQuality();
+view.applyQuality(quality);
 
 // ---------- Modos de cámara (de prueba, se eligen en Pausa) ----------
 
@@ -276,8 +225,7 @@ const pauseMenu = new PauseMenu(
     },
     onMenu: () => showMenu(),
     onDiagnostics: (on) => {
-      fpsMeter.enabled = on;
-      netBadge.hidden = !(on && net);
+      diagnostics.enabled = on;
     },
     onCameraMode: (mode) => {
       cameraMode = mode;
@@ -287,11 +235,11 @@ const pauseMenu = new PauseMenu(
     onLightGraphics: (on) => {
       quality = on ? 'liviana' : 'alta';
       saveQuality(quality);
-      applyQuality();
-      if (match) perfLog.qualityChanged(quality);
+      view.applyQuality(quality);
+      if (match) diagnostics.qualityChanged(quality);
     },
   },
-  fpsMeter.enabled,
+  diagnostics.enabled,
   quality === 'liviana',
   cameraMode,
 );
@@ -344,46 +292,8 @@ function lookOf(
 
 // ---------- Vestidor y Grimorio ----------
 
-/** El mago del Vestidor: un mago quieto en el centro de la arena que gira despacio. */
-let preview: { view: WizardView; wizard: Wizard } | null = null;
-// Luz de estudio para el Vestidor: una principal cálida y un contraluz frío.
-const previewKey = new THREE.PointLight('#ffe2bd', 0, 14, 1.4);
-const previewRim = new THREE.PointLight('#9fb6ff', 0, 12, 1.4);
-previewKey.position.set(-1.6, 2.8, -2.6);
-previewRim.position.set(1.4, 2.4, 1.8);
-// Apagadas del todo fuera del Vestidor: una luz en 0 igual se calcula en cada píxel.
-previewKey.visible = false;
-previewRim.visible = false;
-scene.add(previewKey, previewRim);
-
 function showPreview(draft: Profile): void {
-  preview?.view.dispose();
-  const state = createMatch(
-    { seed: 1, deathRule: 'spectre', wizards: [{ team: 0, spawn: { x: 0, z: 0 } }] },
-    rules,
-  );
-  const wizard = state.wizards[0];
-  if (!wizard) return;
-  const view = new WizardView(
-    lookOf(draft.look, draft.affinity, '#e8d7a8', true),
-    rules,
-    particles,
-  );
-  scene.add(view.group);
-  preview = { view, wizard };
-  previewKey.intensity = 22;
-  previewRim.intensity = 14;
-  previewKey.visible = true;
-  previewRim.visible = true;
-}
-
-function hidePreview(): void {
-  preview?.view.dispose();
-  preview = null;
-  previewKey.intensity = 0;
-  previewRim.intensity = 0;
-  previewKey.visible = false;
-  previewRim.visible = false;
+  view.showPreview(lookOf(draft.look, draft.affinity, '#e8d7a8', true), rules);
 }
 
 function openWardrobe(): void {
@@ -400,7 +310,7 @@ function openGrimoire(): void {
 function closeOverlays(): void {
   wardrobe.hide();
   grimoireBook.hide();
-  hidePreview();
+  view.hidePreview();
   menu.setIdentity(profile, grimoire.count, grimoire.total);
   menuPortrait.setLook(lookOf(profile.look, profile.affinity, '#e8d7a8', true));
   menu.visible = true;
@@ -409,17 +319,6 @@ function closeOverlays(): void {
     pendingInvite = '';
     joinRoom(code);
   }
-}
-
-/** Cámara del Vestidor: el mago a un lado y el panel al otro. */
-function previewCamera(time: number, delta: number): void {
-  if (!preview) return;
-  const { view, wizard } = preview;
-  const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
-  wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
-  view.update(wizard, 0, 0, time, delta, false, rules);
-  camera.position.set(-0.8, 1.65, -3.0);
-  camera.lookAt(-0.8, 1.25, 0);
 }
 
 /** Color del bando de un equipo, a partir de cualquiera de sus magos. */
@@ -431,7 +330,7 @@ function teamColor(team: number): string {
 /** Cambia el mapa que se dibuja y el que usan el minimapa y la vista. */
 function useRules(next: GameRules): void {
   rules = next;
-  maps.apply(next);
+  view.useRules(next);
   minimap.setRules(next);
 }
 
@@ -445,18 +344,16 @@ function showMenu(): void {
   net = null;
   if (location.search) history.replaceState(null, '', location.pathname);
   lobby.hide();
-  netBadge.hidden = true;
+  diagnostics.net = false;
   watchBadge.hidden = true;
   edges.clear();
   pauseMenu.setAvailable(false, false);
   paused = false;
   match = null;
   useRules(GAME_RULES);
-  targetMarker.update(null, 0);
-  creatures.clear();
+  view.clearMatch();
   glyphPicker.hide();
   clearWizards();
-  spells.sync([], NO_SPELL_WORLD);
   menu.visible = true;
   audio.setMood('menu');
   hud.visible = false;
@@ -466,12 +363,11 @@ function showMenu(): void {
   blindVeil.reset();
   comboCallouts.clear();
   cameraDrag.enabled = false;
-  lantern.intensity = 0;
-  lantern.visible = false;
+  view.setLantern(false);
   hud.hideResult();
   wardrobe.hide();
   grimoireBook.hide();
-  hidePreview();
+  view.hidePreview();
   menu.setIdentity(profile, grimoire.count, grimoire.total);
   menuPortrait.setLook(lookOf(profile.look, profile.affinity, '#e8d7a8', true));
 }
@@ -539,7 +435,7 @@ function startNetMatch(current: NetMatch): void {
   const info = (id: number): PlayerInfo | undefined => current.roster.find((p) => p.id === id);
   lobby.hide();
   // Los datos de la conexión solo se ven si se pidieron en Pausa.
-  netBadge.hidden = !fpsMeter.enabled;
+  diagnostics.net = true;
   beginMatch(current, (id) => ({
     name: info(id)?.name ?? 'Rival',
     look: info(id)?.look ?? profile.look,
@@ -578,7 +474,7 @@ function beginMatch(
     scene.add(view.group);
     wizardViews.set(wizard.id, view);
   }
-  spells.sync([], NO_SPELL_WORLD);
+  view.clearSpells();
   labels.reset(badges, current.playerId);
   menu.visible = false;
   hud.visible = true;
@@ -587,8 +483,7 @@ function beginMatch(
   controls.visible = true;
   minimap.show(true);
   cameraDrag.enabled = true;
-  lantern.intensity = 5;
-  lantern.visible = true;
+  view.setLantern(true);
   minimap.reset();
   shownRound = 0;
   resultShown = false;
@@ -602,8 +497,7 @@ function beginMatch(
   pauseMenu.setAvailable(true, current === net);
   screenAwake.active = true;
   resolution.restart();
-  perfLog.start(resolution.pixelRatio, quality);
-  audioCutsSeen = audio.engine.interruptions;
+  diagnostics.matchStarted(resolution.pixelRatio, quality);
   obstacles.invalidate();
   rig.snap();
 }
@@ -732,7 +626,7 @@ function updateMatchFlow(current: MatchView): void {
     const detail =
       winner >= 0 && winner !== playerTeam ? ` · ganó ${teamName(current, winner)}` : '';
     hud.showResult(title, `${own} a ${Math.max(0, ...others)}${detail}`);
-    if (fpsMeter.enabled) hud.showPerf(perfLog.summary(audio.engine.playing));
+    hud.showPerf(diagnostics.report());
     controls.visible = false;
   }
 }
@@ -823,7 +717,9 @@ function joinRoom(code: string): void {
         // Sigues en la sala: si la página se cierra sin querer, se vuelve sola.
         if (current === net) rememberRoom(code);
         const simulated = stats.simulated ? ` · ${stats.simulated}` : '';
-        netBadge.textContent = `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`;
+        diagnostics.netStats(
+          `${stats.ping} ms · colchón ${stats.buffer}/${stats.target} · cortes ${stats.stalls} · ${stats.kbps} kB/s · máx ${stats.biggest} B${simulated}`,
+        );
       },
     },
   );
@@ -880,22 +776,7 @@ function lockAt(screenX: number, screenY: number): void {
 
 // ---------- Tamaño ----------
 
-/** Baja la resolución si el celular no alcanza los cuadros por segundo, y la sube si sobra. */
-const resolution = new AdaptiveResolution(window.devicePixelRatio);
-
-function resize(): void {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const pixelRatio = resolution.pixelRatio;
-  renderer.setPixelRatio(pixelRatio);
-  renderer.setSize(width, height, false);
-  post.setSize(width, height, pixelRatio);
-  particles.setViewportHeight(height * pixelRatio);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('resize', () => view.resize());
 
 // ---------- Bucle ----------
 
@@ -904,20 +785,15 @@ const clock = new FixedStepClock();
 let lastFrame = performance.now();
 let elapsed = 0;
 
-// Las llamadas de dibujo se cuentan por cuadro completo (sombras y resplandor incluidos).
-renderer.info.autoReset = false;
-
 renderer.setAnimationLoop((now) => {
-  const workStart = performance.now();
-  renderer.info.reset();
   let simMs = 0;
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
-  fpsMeter.sample(frameMs);
+  diagnostics.beginFrame(frameMs);
   const newRatio = resolution.sample(frameMs);
   if (newRatio !== null) {
-    resize();
-    perfLog.resolutionChanged(newRatio);
+    view.resize();
+    diagnostics.resolutionChanged(newRatio);
   }
   const delta = frameMs / 1000;
   elapsed += delta;
@@ -960,32 +836,16 @@ renderer.setAnimationLoop((now) => {
     simMs = performance.now() - simStart;
     updateMatchFlow(current);
     renderMatch(current, alpha, delta);
-  } else if (preview) {
-    previewCamera(elapsed, delta);
+  } else if (view.previewing) {
+    view.updatePreview(elapsed, delta, rules);
     zone.update(rules.arenaRadius, elapsed);
   } else {
     rig.orbit(elapsed, delta);
     zone.update(rules.arenaRadius, elapsed);
   }
 
-  if (!current) maps.jungle.setBurned([]);
-  arena.update(elapsed, delta);
-  maps.jungle.update(elapsed, camera.position, current ? current.player.pos : null);
-  effects.update(simDelta);
-  particles.update(simDelta);
-  post.render();
-  if (current && !pausedHere && !resultShown) {
-    perfLog.frame(frameMs, {
-      simMs,
-      jsMs: performance.now() - workStart,
-      calls: renderer.info.render.calls,
-      triangles: renderer.info.render.triangles,
-    });
-    while (audioCutsSeen < audio.engine.interruptions) {
-      audioCutsSeen += 1;
-      perfLog.audioCut();
-    }
-  }
+  view.render(elapsed, delta, simDelta, current ? current.player.pos : null);
+  if (current && !pausedHere && !resultShown) diagnostics.matchFrame(frameMs, simMs);
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);
@@ -1126,9 +986,7 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   const forward = rig.forward();
   WizardView.viewYaw = Math.atan2(-forward.x, -forward.z);
   audio.setListener(playerPos, rig.forward(), current.playerId);
-  arena.focus(playerPos.x, playerPos.z);
-  lantern.position.set(playerPos.x, 3.2, playerPos.z);
-  arena.lightBraziersNear(playerPos.x, playerPos.z);
+  view.follow(playerPos);
   targetMarker.update(player.hp > 0 ? targetPos : null, time);
   const aim = input.aimPreview;
   aimGuide.update(playerPos, aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null);
