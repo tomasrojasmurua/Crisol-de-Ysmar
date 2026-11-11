@@ -3,11 +3,13 @@ import type { GameEvent, GameRules } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import type { GameScene } from '../render/GameScene';
+import { comboStepsView } from '../ui/comboSteps';
 import type { GlyphPicker } from '../ui/GlyphPicker';
 import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { Minimap } from '../ui/Minimap';
 import type { ResultTeam } from '../ui/ResultScreen';
+import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
 import type { MatchRenderer } from './MatchRenderer';
@@ -28,6 +30,7 @@ export interface MatchFlowDeps {
   readonly controls: TouchControls;
   readonly glyphPicker: GlyphPicker;
   readonly grimoire: Grimoire;
+  readonly comboLog: ComboLog;
   readonly renderer: MatchRenderer;
   readonly diagnostics: Diagnostics;
 }
@@ -75,6 +78,24 @@ export class MatchFlow {
             weaveOrbs(event.weave),
             this.deps.grimoire.count,
             this.deps.grimoire.total,
+          );
+        }
+      } else if (
+        event.type === 'combo' &&
+        event.sourceId === me &&
+        !(current instanceof TrainingMatch)
+      ) {
+        // Los aciertos solo cuentan en partidas; en Entrenamiento basta con el nombre en pantalla.
+        const combo = ComboLog.forReaction(event.combo);
+        const unlocked = combo ? this.deps.comboLog.record(combo.id) : null;
+        if (unlocked) {
+          this.deps.audio.discover();
+          this.deps.hud.celebrateDiscovery(
+            unlocked.name,
+            comboStepsView(unlocked),
+            this.deps.comboLog.unlockedCount,
+            this.deps.comboLog.total,
+            'Nuevo combo',
           );
         }
       } else if (event.type === 'phase') {

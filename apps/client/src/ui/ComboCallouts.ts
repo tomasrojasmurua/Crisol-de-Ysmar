@@ -1,4 +1,4 @@
-import { COMBO_TEXT } from '@crisol/content';
+import { REACTION_TEXT } from '@crisol/content';
 import type { ComboId, Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 import { el } from './dom';
@@ -37,7 +37,7 @@ export class ComboCallouts {
   }
 
   show(combo: ComboId, targetId: number): void {
-    const root = el('div', 'combo-callout', `¡${COMBO_TEXT[combo].name}!`);
+    const root = el('div', 'combo-callout', `¡${REACTION_TEXT[combo].name}!`);
     root.style.setProperty('--combo', COMBO_COLORS[combo]);
     this.layer.append(root);
     this.callouts.push({ root, targetId, age: 0 });

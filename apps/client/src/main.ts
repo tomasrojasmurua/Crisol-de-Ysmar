@@ -2,6 +2,7 @@ import { DEFAULT_LOOK, GAME_RULES, NO_OMEN, rulesForMode, WIZARD_NAMES } from '@
 import { FixedStepClock, type GameRules, SeededRng } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
+import { ComboLog } from './game/ComboLog';
 import { castOf, type OtherWizard, ownLook } from './game/cast';
 import { Diagnostics } from './game/Diagnostics';
 import { Grimoire } from './game/Grimoire';
@@ -81,6 +82,7 @@ const human = new HumanController(
 );
 const audio = new GameAudio();
 const grimoire = new Grimoire();
+const comboLog = new ComboLog();
 const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
 const controls = new TouchControls(uiRoot, input);
@@ -157,6 +159,7 @@ const flow = new MatchFlow({
   controls,
   glyphPicker,
   grimoire,
+  comboLog,
   renderer: matchRenderer,
   diagnostics,
 });
@@ -279,7 +282,7 @@ function openWardrobe(): void {
 
 function openGrimoire(): void {
   menu.visible = false;
-  grimoireBook.show(grimoire);
+  grimoireBook.show(grimoire, comboLog);
 }
 
 function closeOverlays(): void {
