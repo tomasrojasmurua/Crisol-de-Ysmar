@@ -2,6 +2,14 @@ import type { Glyph, Omen } from '@crisol/content';
 import type { ElementId, GameEvent, MatchState, SeriesState, Vec2, Wizard } from '@crisol/core';
 import type { MatchOptions, MatchStage } from './LocalMatch';
 
+/** En red, al terminar: la revancha empieza cuando la piden todos los conectados. */
+export interface RematchStatus {
+  readonly asked: number;
+  readonly needed: number;
+  /** Si este celular ya la pidió. */
+  readonly mine: boolean;
+}
+
 /**
  * Lo que la pantalla necesita de una partida, sea contra la IA en el celular (`LocalMatch`)
  * o en red contra un amigo (`NetMatch`). Así el dibujo y el HUD no saben de dónde viene.
@@ -26,4 +34,6 @@ export interface MatchView {
   present?(wizard: Wizard): Wizard;
   /** En red: si la Sala dice que no ves a ese rival. */
   isHidden?(id: number): boolean;
+  /** En red: cómo va la revancha; `null` si la serie no terminó. */
+  rematchStatus?(): RematchStatus | null;
 }

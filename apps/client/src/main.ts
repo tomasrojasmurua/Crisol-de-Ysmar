@@ -375,9 +375,8 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
 /** El botón Revancha del resultado: en red se pide a la sala; contra la IA, empieza otra. */
 function rematch(): void {
   if (net) {
+    // El resultado queda a la vista con el botón en espera: Menú sigue a mano si el otro se fue.
     net.requestRematch();
-    hud.hideResult();
-    hud.announce('Revancha pedida', 'Esperando a tu rival', 3);
   } else startMatch(match?.options ?? menu.options);
 }
 
@@ -464,7 +463,7 @@ renderer.setAnimationLoop((now) => {
     lastAlpha = alpha;
     for (let i = 0; i < steps; i++) stepMatch(current);
     simMs = performance.now() - simStart;
-    flow.update(current, badges);
+    flow.update(current, badges, rules);
     renderMatch(current, alpha, delta);
   } else if (view.previewing) {
     view.updatePreview(elapsed, delta, rules);

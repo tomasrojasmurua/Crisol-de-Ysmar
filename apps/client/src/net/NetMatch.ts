@@ -9,6 +9,7 @@ import {
   liveRules,
   type MatchState,
   type SeriesState,
+  TICK_RATE,
   teamCount,
   type Vec2,
   vec2,
@@ -32,7 +33,7 @@ import {
   type StateFrame,
 } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from '../game/LocalMatch';
-import type { MatchView } from '../game/MatchView';
+import type { MatchView, RematchStatus } from '../game/MatchView';
 import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl } from './serverUrl';
 
@@ -301,6 +302,18 @@ export class NetMatch implements MatchView {
   requestRematch(): void {
     this.rematchAsked = true;
     this.send({ type: 'rematch' });
+  }
+
+  /** Al terminar la serie: cuántos piden revancha, cuántos hacen falta y si ya la pediste. */
+  rematchStatus(): RematchStatus | null {
+    if (this.netStage.kind !== 'finished') return null;
+    const asked = new Set(this.netStage.rematch);
+    const humans = this.roster.filter((p) => !p.bot && p.connected);
+    return {
+      asked: humans.filter((p) => asked.has(p.id)).length,
+      needed: humans.length,
+      mine: this.rematchAsked || asked.has(this.playerId),
+    };
   }
 
   glyphsOf(id: number): readonly Glyph[] {
@@ -733,6 +746,7 @@ function toStage(stage: NetStage, previous: MatchStage): MatchStage {
       return {
         kind: 'choosing',
         options: stage.options.map(glyphById).filter((g): g is Glyph => g !== undefined),
+        secondsLeft: stage.ticksLeft / TICK_RATE,
       };
     case 'finished':
       return { kind: 'finished' };

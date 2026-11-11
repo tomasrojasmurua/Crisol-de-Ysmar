@@ -11,6 +11,7 @@ import {
 } from '@crisol/core';
 import { el, formatClock, query } from './dom';
 import { CAST_ICON, elementIcon } from './icons';
+import { type RematchView, ResultScreen, type ResultSummary } from './ResultScreen';
 
 /** Reloj de arena de la cinta de ronda. */
 const HOURGLASS_ICON =
@@ -59,10 +60,7 @@ export class Hud {
   private readonly bannerTitle: HTMLElement;
   private readonly bannerSubtitle: HTMLElement;
   private readonly spectreHint: HTMLElement;
-  private readonly result: HTMLElement;
-  private readonly resultTitle: HTMLElement;
-  private readonly resultScore: HTMLElement;
-  private readonly resultPerf: HTMLElement;
+  private readonly result: ResultScreen;
   private bannerTimer: number | undefined;
   private discoveryTimer: number | undefined;
   private readonly discovery: HTMLElement;
@@ -102,17 +100,7 @@ export class Hud {
         <div class="hud-banner-subtitle"></div>
       </div>
       <p class="hud-spectre" hidden>Eres un espectro · el botón central lanza tu Lamento · un aliado a tu lado te revive</p>
-      <div class="hud-result" hidden>
-        <div class="hud-result-card">
-          <h2></h2>
-          <p class="hud-result-score"></p>
-          <div class="hud-result-actions">
-            <button type="button" class="primary rematch">Revancha</button>
-            <button type="button" class="secondary to-menu">Menú</button>
-          </div>
-          <ul class="hud-result-perf" hidden></ul>
-        </div>
-      </div>`;
+`;
     parent.append(this.root);
     this.playerFill = query(this.root, '.hud-fill');
     this.playerLives = query(this.root, '.hud-lives');
@@ -130,12 +118,7 @@ export class Hud {
     this.bannerTitle = query(this.root, '.hud-banner-title');
     this.bannerSubtitle = query(this.root, '.hud-banner-subtitle');
     this.spectreHint = query(this.root, '.hud-spectre');
-    this.result = query(this.root, '.hud-result');
-    this.resultTitle = query(this.root, '.hud-result h2');
-    this.resultScore = query(this.root, '.hud-result-score');
-    this.resultPerf = query(this.root, '.hud-result-perf');
-    query(this.root, '.rematch').addEventListener('click', onRematch);
-    query(this.root, '.to-menu').addEventListener('click', onMenu);
+    this.result = new ResultScreen(this.root, onRematch, onMenu);
   }
 
   setPlayerName(name: string): void {
@@ -285,21 +268,22 @@ export class Hud {
     this.announce(PHASE_NAMES[phase], PHASE_HINTS[phase]);
   }
 
-  showResult(title: string, score: string): void {
-    this.resultTitle.textContent = title;
-    this.resultScore.textContent = score;
-    this.result.hidden = false;
+  showResult(summary: ResultSummary): void {
+    this.result.show(summary);
   }
 
   hideResult(): void {
-    this.result.hidden = true;
-    this.resultPerf.hidden = true;
+    this.result.hide();
   }
 
   /** Informe de rendimiento de la partida bajo el resultado; vacío lo oculta. */
   showPerf(lines: readonly string[]): void {
-    this.resultPerf.replaceChildren(...lines.map((line) => el('li', '', line)));
-    this.resultPerf.hidden = lines.length === 0;
+    this.result.showPerf(lines);
+  }
+
+  /** En red: cómo va la revancha en la pantalla final. */
+  setRematch(status: RematchView | null): void {
+    this.result.setRematch(status);
   }
 
   private renderScore(

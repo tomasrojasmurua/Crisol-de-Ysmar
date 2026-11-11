@@ -41,8 +41,11 @@ export interface MatchOptions {
 export type MatchStage =
   | { readonly kind: 'playing' }
   | { readonly kind: 'intermission'; readonly roundWinner: number; ticksLeft: number }
-  /** Entre rondas: el jugador elige un Glifo entre estas opciones. */
-  | { readonly kind: 'choosing'; readonly options: readonly Glyph[] }
+  /**
+   * Entre rondas: el jugador elige un Glifo entre estas opciones. En red, `secondsLeft` es lo
+   * que falta para que la Sala elija al azar; contra la IA no hay apuro.
+   */
+  | { readonly kind: 'choosing'; readonly options: readonly Glyph[]; readonly secondsLeft?: number }
   /** En red: ya elegiste tu Glifo y esperas al rival. */
   | { readonly kind: 'waiting' }
   | { readonly kind: 'finished' };

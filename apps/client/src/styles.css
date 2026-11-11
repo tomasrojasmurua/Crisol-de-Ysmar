@@ -1391,9 +1391,28 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(ellipse at center, rgba(7, 7, 12, 0.55), rgba(7, 7, 12, 0.92));
+  --outcome: var(--gold-bright);
+  --outcome-glow: rgba(243, 223, 176, 0.5);
+  background:
+    radial-gradient(
+      ellipse at 50% 40%,
+      color-mix(in srgb, var(--outcome) 10%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(ellipse at center, rgba(7, 7, 12, 0.6), rgba(7, 7, 12, 0.94));
   pointer-events: auto;
   animation: fade-in 0.6s ease both;
+}
+
+/* Derrota: el oro se apaga hacia un rojo de brasa fría; empate: plata. */
+.hud-result[data-outcome="loss"] {
+  --outcome: #d98a7e;
+  --outcome-glow: rgba(208, 74, 82, 0.4);
+}
+
+.hud-result[data-outcome="draw"] {
+  --outcome: #c9c3d6;
+  --outcome-glow: rgba(180, 156, 255, 0.35);
 }
 
 @keyframes fade-in {
@@ -1403,28 +1422,124 @@ body {
 }
 
 .hud-result-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   max-height: 100%;
   overflow-y: auto;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-  box-sizing: border-box;
   text-align: center;
 }
 
-.hud-result h2 {
-  margin: 0;
-  font-family: var(--display);
-  font-size: clamp(40px, 8vw, 80px);
-  letter-spacing: 0.1em;
-  color: var(--gold-bright);
-  text-shadow:
-    0 0 30px rgba(243, 223, 176, 0.5),
-    0 0 80px rgba(180, 156, 255, 0.35);
+.hud-result-crest {
+  width: clamp(40px, 12vh, 60px);
+  height: clamp(40px, 12vh, 60px);
+  color: var(--outcome);
+  filter: drop-shadow(0 0 10px var(--outcome-glow));
+  animation: crest-in 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.hud-result-score {
-  margin: 8px 0 22px;
+.hud-result-crest svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes crest-in {
+  from {
+    transform: translateY(-10px) scale(0.7);
+    opacity: 0;
+  }
+}
+
+.hud-result h2 {
+  margin: 2px 0 0;
+  font-family: var(--display);
+  font-size: clamp(36px, 13vh, 72px);
+  line-height: 1.05;
+  letter-spacing: 0.12em;
+  color: var(--outcome);
+  text-shadow:
+    0 0 28px var(--outcome-glow),
+    0 0 80px rgba(180, 156, 255, 0.25);
+}
+
+.hud-result-detail {
+  margin: 2px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   color: var(--ink-quiet);
+}
+
+/* Marcador: un bando al lado del otro, con los rombos de la cinta de ronda en grande. */
+.hud-result-score {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 10px;
+  margin: clamp(10px, 4vh, 20px) 0 clamp(12px, 5vh, 24px);
+}
+
+.hud-result-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 84px;
+  padding: 8px 12px 6px;
+  border: 1px solid rgba(216, 191, 138, 0.22);
+  border-radius: 8px;
+  background: rgba(14, 12, 20, 0.72);
+  box-shadow: inset 0 0 0 2px rgba(7, 7, 12, 0.6);
+}
+
+.hud-result-team.winner {
+  border-color: color-mix(in srgb, var(--team) 70%, transparent);
+  box-shadow:
+    inset 0 0 0 2px rgba(7, 7, 12, 0.6),
+    0 0 16px color-mix(in srgb, var(--team) 30%, transparent);
+}
+
+.hud-result-pips {
+  display: flex;
+  gap: 7px;
+  padding: 2px;
+}
+
+.hud-result-pips .pip {
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--team);
+  opacity: 0.6;
+}
+
+.hud-result-pips .pip.won {
+  background: var(--team);
+  box-shadow: 0 0 9px var(--team);
+  opacity: 1;
+}
+
+.hud-result-team-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+
+.hud-result-team.own .hud-result-team-name {
+  color: var(--gold-bright);
+}
+
+.hud-result-rematch {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--trama);
 }
 
 .hud-result-perf {
@@ -1445,6 +1560,32 @@ body {
   display: flex;
   gap: 12px;
   justify-content: center;
+}
+
+#ui .hud-result-actions .primary,
+#ui .hud-result-actions .secondary {
+  min-width: 150px;
+  min-height: 48px;
+}
+
+/* Alguien ya pidió revancha: el botón late para que se note sin leer. */
+#ui .hud-result-actions .primary.called {
+  animation: rematch-call 1.4s ease-in-out infinite;
+}
+
+@keyframes rematch-call {
+  50% {
+    box-shadow:
+      inset 0 0 0 2px #17120e,
+      0 0 22px rgba(180, 156, 255, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-result-crest,
+  #ui .hud-result-actions .primary.called {
+    animation: none;
+  }
 }
 
 /* ---------- Etiquetas sobre los magos ---------- */
@@ -2074,23 +2215,30 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: clamp(8px, 3vh, 16px);
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-  background: radial-gradient(ellipse at center, rgba(12, 10, 22, 0.7), rgba(7, 7, 12, 0.95));
+  background:
+    radial-gradient(ellipse at 50% 55%, rgba(180, 156, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at center, rgba(12, 10, 22, 0.72), rgba(7, 7, 12, 0.95));
   pointer-events: auto;
   animation: fade-in 0.5s ease both;
+}
+
+.glyph-head {
+  text-align: center;
 }
 
 .glyph-picker h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: clamp(22px, 4.5vw, 34px);
+  font-size: clamp(22px, 7vh, 32px);
   letter-spacing: 0.14em;
   color: var(--gold-bright);
   text-shadow: 0 0 24px rgba(243, 223, 176, 0.45);
 }
 
 .glyph-subtitle {
-  margin: 4px 0 14px;
+  margin: 2px 0 0;
   font-size: 12px;
   letter-spacing: 0.08em;
   color: var(--ink-quiet);
@@ -2100,40 +2248,50 @@ body {
   display: flex;
   gap: 12px;
   justify-content: center;
-  flex-wrap: wrap;
   max-width: 100%;
 }
 
+/*
+ * Carta de vidrio ahumado con doble filete de bronce, como los botones del menú. El color del
+ * elemento queda solo en el signo y en un brillo arriba: así cuatro cartas no se vuelven un
+ * arcoíris y el texto se lee igual en todas.
+ */
 #ui .glyph-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  width: 150px;
-  min-height: 170px;
-  padding: 16px 12px 14px;
-  border-radius: 16px;
+  width: clamp(132px, 19vw, 168px);
+  min-height: clamp(150px, 46vh, 190px);
+  padding: 14px 12px 14px;
+  border-radius: 10px;
   font: inherit;
   color: var(--ink);
   text-align: center;
-  cursor: pointer;
   background:
     radial-gradient(
-      circle at 50% 22%,
-      color-mix(in srgb, var(--glyph) 28%, transparent),
-      transparent 60%
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--glyph) 22%, transparent),
+      transparent 62%
     ),
-    linear-gradient(180deg, rgba(26, 22, 36, 0.95), rgba(12, 10, 18, 0.95));
-  border: 1px solid color-mix(in srgb, var(--glyph) 55%, transparent);
+    linear-gradient(180deg, rgba(26, 22, 34, 0.96), rgba(11, 10, 16, 0.96));
+  border: 1px solid rgba(216, 191, 138, 0.45);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 0 18px color-mix(in srgb, var(--glyph) 25%, transparent);
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 10px 26px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
   animation: card-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+/* Las cartas responden recién cuando terminaron de entrar (ver GlyphPicker). */
+.glyph-picker.armed .glyph-card {
+  pointer-events: auto;
 }
 
 #ui .glyph-card:nth-child(2) {
@@ -2150,9 +2308,11 @@ body {
 
 #ui .glyph-card:active {
   transform: scale(0.96);
+  border-color: var(--gold-bright);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
-    0 0 32px color-mix(in srgb, var(--glyph) 60%, transparent);
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(243, 223, 176, 0.3),
+    0 0 28px color-mix(in srgb, var(--glyph) 50%, transparent);
 }
 
 @keyframes card-in {
@@ -2162,24 +2322,30 @@ body {
   }
 }
 
+/* El signo va en un engaste redondo, como los botones de elemento en partida. */
 .glyph-sigil {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  font-size: 24px;
-  line-height: 1;
   color: var(--glyph);
-  border: 1px solid color-mix(in srgb, var(--glyph) 60%, transparent);
-  background: rgba(0, 0, 0, 0.35);
-  text-shadow: 0 0 12px var(--glyph);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--glyph) 35%, transparent);
+  border: 2px solid color-mix(in srgb, var(--glyph) 55%, #3a2c1c);
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.55));
+  box-shadow:
+    inset 0 0 0 2px rgba(7, 7, 12, 0.7),
+    0 0 16px color-mix(in srgb, var(--glyph) 30%, transparent);
+  --icon-size: 28px;
+}
+
+.glyph-sigil .icon {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--glyph) 70%, transparent));
 }
 
 .glyph-name {
   font-family: var(--display);
   font-size: 14px;
+  line-height: 1.2;
   letter-spacing: 0.05em;
   color: var(--gold-bright);
 }
@@ -2190,33 +2356,116 @@ body {
   color: var(--ink-quiet);
 }
 
+/* Al pie: tus Glifos a la izquierda y, en red, el reloj a la derecha. */
+.glyph-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+  min-height: 0;
+}
+
 .glyph-owned {
-  margin: 14px 0 0;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--gold);
-  opacity: 0.8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .glyph-owned:empty {
   display: none;
 }
 
-@media (max-height: 430px) {
-  .glyph-subtitle {
-    margin-bottom: 8px;
-  }
+.glyph-owned-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
 
+.glyph-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  border-radius: 999px;
+  background: rgba(14, 12, 20, 0.8);
+  font-size: 11px;
+  color: var(--gold);
+  --icon-size: 14px;
+  --icon-color: var(--glyph);
+}
+
+.glyph-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+}
+
+.glyph-clock-track {
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(216, 191, 138, 0.15);
+  overflow: hidden;
+}
+
+.glyph-clock-fill {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left center;
+  transition: transform 1s linear;
+}
+
+.glyph-clock.urgent {
+  color: #f0a0a6;
+}
+
+.glyph-clock.urgent .glyph-clock-fill {
+  background: var(--danger);
+}
+
+/* Celulares en horizontal: cartas más bajas y texto más apretado. */
+@media (max-height: 430px) {
   #ui .glyph-card {
-    width: 140px;
     min-height: 0;
     padding: 10px 10px 12px;
+    gap: 4px;
   }
 
   .glyph-sigil {
-    width: 36px;
-    height: 36px;
-    font-size: 19px;
+    width: 42px;
+    height: 42px;
+    --icon-size: 23px;
+  }
+
+  .glyph-text {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
+
+/* Cuatro cartas en una pantalla angosta: más finas para que quepan en una fila. */
+@media (max-width: 720px) {
+  #ui .glyph-cards.four .glyph-card {
+    width: calc((100vw - var(--safe-left) - var(--safe-right) - 36px) / 4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .glyph-card {
+    animation: none;
+  }
+
+  .glyph-clock-fill {
+    transition: none;
   }
 }
 

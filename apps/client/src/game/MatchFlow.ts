@@ -7,6 +7,7 @@ import type { GlyphPicker } from '../ui/GlyphPicker';
 import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { Minimap } from '../ui/Minimap';
+import type { ResultTeam } from '../ui/ResultScreen';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
 import type { MatchRenderer } from './MatchRenderer';
@@ -135,7 +136,7 @@ export class MatchFlow {
   }
 
   /** Anuncios de ronda, elección de Glifo y resultado, según la etapa de la partida. */
-  update(current: MatchView, badges: ReadonlyMap<number, WizardBadge>): void {
+  update(current: MatchView, badges: ReadonlyMap<number, WizardBadge>, rules: GameRules): void {
     const playerTeam = current.player.team;
     const stage = current.stage;
     if (stage.kind === 'playing' && current.roundNumber !== this.shownRound) {
@@ -173,7 +174,14 @@ export class MatchFlow {
       this.deps.audio.setMood('menu');
       this.deps.controls.visible = false;
       const lost = current.series.roundsPlayed > 0 && this.lastWinner !== playerTeam;
-      this.deps.glyphPicker.show(stage.options, current.glyphsOf(current.playerId), lost);
+      this.deps.glyphPicker.show(
+        stage.options,
+        current.glyphsOf(current.playerId),
+        lost,
+        stage.secondsLeft ?? null,
+      );
+    } else if (stage.kind === 'choosing' && stage.secondsLeft !== undefined) {
+      this.deps.glyphPicker.setClock(stage.secondsLeft);
     }
     if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
       const winner = stage.roundWinner;
@@ -191,16 +199,47 @@ export class MatchFlow {
       this.resultShown = true;
       const winner = current.series.winnerTeam ?? -1;
       this.deps.audio.finish(winner === playerTeam);
-      const title = winner === playerTeam ? 'Victoria' : winner < 0 ? 'Empate' : 'Derrota';
-      const own = current.series.wins[playerTeam] ?? 0;
-      const others = current.series.wins.filter((_, team) => team !== playerTeam);
-      const detail =
-        winner >= 0 && winner !== playerTeam
-          ? ` · ganó ${this.teamName(current, winner, badges)}`
-          : '';
-      this.deps.hud.showResult(title, `${own} a ${Math.max(0, ...others)}${detail}`);
+      const ffa = current.options.mode.kind === 'ffa';
+      this.deps.hud.showResult({
+        outcome: winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss',
+        detail:
+          winner >= 0 && winner !== playerTeam
+            ? `Ganó ${ffa ? this.teamName(current, winner, badges) : 'el equipo rival'}`
+            : '',
+        teams: this.resultTeams(current, badges, winner),
+        roundsToWin: rules.round.roundsToWin,
+      });
       this.deps.hud.showPerf(this.deps.diagnostics.report());
       this.deps.controls.visible = false;
     }
+    if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /** El marcador final: tu bando primero y después los demás, con su color y su nombre. */
+  private resultTeams(
+    current: MatchView,
+    badges: ReadonlyMap<number, WizardBadge>,
+    winner: number,
+  ): ResultTeam[] {
+    const playerTeam = current.player.team;
+    const ffa = current.options.mode.kind === 'ffa';
+    const teams = current.series.wins.map((wins, team): ResultTeam => {
+      const member = current.state.wizards.find((w) => w.team === team);
+      const own = team === playerTeam;
+      return {
+        label: own
+          ? ffa
+            ? 'Tú'
+            : 'Tu equipo'
+          : ffa
+            ? ((member && badges.get(member.id)?.name) ?? 'Rival')
+            : 'Equipo rival',
+        color: (member && badges.get(member.id)?.color) ?? '#d8bf8a',
+        wins,
+        own,
+        winner: team === winner,
+      };
+    });
+    return [...teams.filter((t) => t.own), ...teams.filter((t) => !t.own)];
   }
 }
