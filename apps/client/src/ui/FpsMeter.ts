@@ -1,25 +1,27 @@
 import { el } from './dom';
 
-const STORAGE_KEY = 'crisol.fps';
+/** Versiones anteriores guardaban aquí si el medidor quedaba encendido; se borra al abrir. */
+const LEGACY_STORAGE_KEY = 'crisol.fps';
 /** Cada cuánto se refresca la cifra: más seguido haría ilegible el número. */
 const WINDOW_MS = 500;
 
 /**
  * Medidor de rendimiento: cuadros por segundo y el cuadro más lento de cada medio segundo
- * (los tirones se notan en el peor cuadro, no en el promedio). Apagado por defecto: se
- * enciende en Pausa → "Mostrar datos de rendimiento" (o con `?fps=1`) y queda guardado.
+ * (los tirones se notan en el peor cuadro, no en el promedio). Siempre empieza apagado: solo se
+ * enciende en Pausa → "Mostrar datos de rendimiento", y no se guarda: al volver a abrir el juego
+ * está apagado otra vez.
  */
 export class FpsMeter {
   private readonly root: HTMLElement;
   private frames = 0;
   private spentMs = 0;
   private worstMs = 0;
-  private on: boolean;
+  private on = false;
 
   constructor(parent: HTMLElement) {
-    this.on = readSetting();
+    forgetLegacySetting();
     this.root = el('div', 'fps-meter');
-    this.root.hidden = !this.on;
+    this.root.hidden = true;
     parent.append(this.root);
   }
 
@@ -30,12 +32,6 @@ export class FpsMeter {
   set enabled(value: boolean) {
     this.on = value;
     this.root.hidden = !value;
-    try {
-      if (value) localStorage.setItem(STORAGE_KEY, '1');
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Sin almacenamiento: vale solo por esta vez.
-    }
   }
 
   sample(frameMs: number): void {
@@ -53,13 +49,10 @@ export class FpsMeter {
   }
 }
 
-function readSetting(): boolean {
+function forgetLegacySetting(): void {
   try {
-    const asked = new URLSearchParams(location.search).get('fps');
-    if (asked === '1') localStorage.setItem(STORAGE_KEY, '1');
-    if (asked === '0') localStorage.removeItem(STORAGE_KEY);
-    return localStorage.getItem(STORAGE_KEY) === '1';
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
-    return false;
+    // Sin almacenamiento no hay nada que borrar.
   }
 }
