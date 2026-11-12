@@ -60,6 +60,13 @@ const HARD_SKIP = 30;
  */
 const RECONNECT_MS = 5 * 60_000;
 const RECONNECT_EVERY_MS = 1500;
+/**
+ * Si un intento de conexión no contesta en este tiempo, se abandona y se intenta otro. Sin señal
+ * (un túnel, un cambio de antena), el celular puede dejar el intento colgado un minuto o más: así
+ * quedaba un amigo mirando una partida congelada aunque la señal ya hubiera vuelto. Alcanza para
+ * conectar con 750 ms de ida y vuelta y algún paquete perdido.
+ */
+const CONNECT_TIMEOUT_MS = 8000;
 const PING_EVERY_MS = 2000;
 /** Si no llega nada en este tiempo con la app a la vista, la conexión está muerta aunque no avise. */
 const SILENCE_MS = 6000;
@@ -198,6 +205,7 @@ export class NetMatch implements MatchView {
   private readonly onVisibility = (): void => this.visibilityChanged();
   private readonly onOnline = (): void => this.retryNow();
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private bytesIn = 0;
   private biggest = 0;
   private measuredAt = 0;
@@ -316,7 +324,8 @@ export class NetMatch implements MatchView {
   rematchStatus(): RematchStatus | null {
     if (this.netStage.kind !== 'finished') return null;
     const asked = new Set(this.netStage.rematch);
-    const humans = this.roster.filter((p) => !p.bot && p.connected);
+    // Quien está fuera de la app no frena la revancha (la Sala tampoco lo espera).
+    const humans = this.roster.filter((p) => !p.bot && p.connected && !p.away);
     return {
       asked: humans.filter((p) => asked.has(p.id)).length,
       needed: humans.length,
@@ -424,6 +433,7 @@ export class NetMatch implements MatchView {
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('online', this.onOnline);
     if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.connectTimer) clearTimeout(this.connectTimer);
     if (this.returnCheck) clearTimeout(this.returnCheck);
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.socket?.close(1000, 'Salió');
@@ -440,7 +450,14 @@ export class NetMatch implements MatchView {
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
     this.decoder = new StateDecoder();
+    if (this.connectTimer) clearTimeout(this.connectTimer);
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (socket !== this.socket || socket.readyState !== WebSocket.CONNECTING) return;
+      this.abandon(socket, 4005);
+    }, CONNECT_TIMEOUT_MS);
     socket.addEventListener('open', () => {
+      if (socket !== this.socket) return;
       if (this.lostAt !== 0) {
         this.listener.notice('Conexión recuperada');
         const seconds = Math.round((Date.now() - this.lostAt) / 1000);
@@ -520,19 +537,44 @@ export class NetMatch implements MatchView {
     if (!socket || socket.readyState !== WebSocket.OPEN || document.hidden) return;
     if (performance.now() - this.lastHeard > SILENCE_MS) {
       // Cambio de wifi a 4G, túnel…: el socket queda colgado sin cerrarse. Se fuerza el corte.
-      socket.close(4004, 'Sin respuesta');
-      this.onClose(socket, 4004);
+      this.abandon(socket, 4004);
       return;
     }
     this.send({ type: 'ping', sentAt: performance.now() });
   }
 
-  /** Volvió la señal: no se espera al próximo intento. */
+  /** Da por muerto un socket que no contesta y sigue como si se hubiera cortado. */
+  private abandon(socket: WebSocket, code: number): void {
+    try {
+      socket.close(code);
+    } catch {
+      // Ya estaba cerrándose.
+    }
+    this.onClose(socket, code);
+  }
+
+  /**
+   * Volvió la señal: no se espera al próximo intento. Si había uno colgado (empezó sin señal),
+   * se abandona y se intenta de nuevo ya.
+   */
   private retryNow(): void {
-    if (this.closed || this.lostAt === 0 || !this.retryTimer) return;
-    clearTimeout(this.retryTimer);
-    this.retryTimer = null;
-    this.connect();
+    if (this.closed || this.lostAt === 0) return;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+      this.connect();
+      return;
+    }
+    const socket = this.socket;
+    if (socket?.readyState === WebSocket.CONNECTING) {
+      this.socket = null;
+      try {
+        socket.close();
+      } catch {
+        // Ya estaba cerrándose.
+      }
+      this.connect();
+    }
   }
 
   /**
@@ -557,8 +599,7 @@ export class NetMatch implements MatchView {
           this.returnCheck = null;
           const socket = this.socket;
           if (this.closed || !socket || this.lastHeard > returnedAt) return;
-          socket.close(4004, 'Sin respuesta al volver');
-          this.onClose(socket, 4004);
+          this.abandon(socket, 4004);
         }, RETURN_CHECK_MS);
       }
       if (this.lostAt !== 0) {

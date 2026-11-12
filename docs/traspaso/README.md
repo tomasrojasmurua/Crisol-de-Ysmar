@@ -141,9 +141,12 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    abrirse (`platform/homeScreen.ts`), porque Safari y el ícono no comparten almacenamiento. Por eso
    el manifiesto no tiene `start_url`. Falta probarlo en un iPhone real. Pendiente para después de
    la prueba (b): el perfil en D1 con código de respaldo.
-3. **Prueba de estrés de la red con 6.** Ya existe un simulador de lag (`apps/client/src/net/LagSimulator.ts`,
-   `apps/server/red/`). Correr salas de 6 con 150-300 ms y 5% de pérdida, quien crea la sala con mala
-   conexión, reconexiones a mitad de ronda y la app en segundo plano. Arreglar lo que salga.
+3. **Prueba de estrés de la red con 6.** Hecho: `apps/client/red/celulares.test.ts` corre 6
+   celulares sin pantalla con el código de red real contra `pnpm dev:server` (ver
+   `docs/arquitectura.md`, "Prueba de estrés"). Encontró y se arregló: tras perder la señal un
+   celular podía quedar colgado más de un minuto sin volver; al empezar cada ronda la IA tomaba
+   a todos un instante (con avisos falsos de "se fue"); si quien creó la sala quedaba colgado
+   nadie podía empezar; y la revancha esperaba a quien estaba en WhatsApp.
 4. **Rendimiento en Android de gama media.** Medir con el informe por partida (`MatchPerfLog`) y los
    gráficos livianos de Pausa; revisar que la resolución adaptativa baje a tiempo en 3v3 y libre de 6.
 5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y

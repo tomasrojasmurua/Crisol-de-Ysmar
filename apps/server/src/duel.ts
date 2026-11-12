@@ -64,6 +64,12 @@ export const SILENT_TICKS = TICK_RATE * 2;
  * conserva su lugar este rato. Antes se lo borraba en el acto y volvía como otro jugador.
  */
 export const LOBBY_GRACE_TICKS = TICK_RATE * 60;
+/**
+ * En la sala de espera, si de quien manda no llega nada en este tiempo (ni el ping de cada 2 s:
+ * se le colgó la señal o está en WhatsApp), manda el siguiente. Cuando vuelve, recupera el mando.
+ * Antes, si quien creó la sala quedaba colgado, nadie más podía empezar.
+ */
+export const HOST_SILENT_TICKS = TICK_RATE * 20;
 /** A qué modo crece la sala si llega alguien y no hay puesto. */
 const GROWS_TO: readonly (readonly [GameMode, GameMode])[] = [
   [{ kind: 'duel' }, { kind: 'teams', size: 2 }],
@@ -101,6 +107,8 @@ interface Slot {
   away: boolean;
   /** Paso en que llegó su último mensaje de toques. */
   heardAt: number;
+  /** Paso en que llegó su último mensaje de cualquier tipo (también el ping). */
+  aliveAt: number;
   pending: Intent[];
   /** El número del último mensaje de toques recibido y el del último ya jugado. */
   received: number;
@@ -183,6 +191,7 @@ export class DuelHost {
       back.connected = true;
       back.away = false;
       back.heardAt = this.clock;
+      back.aliveAt = this.clock;
       back.pending = [];
       back.received = 0;
       back.acked = 0;
@@ -213,6 +222,7 @@ export class DuelHost {
       connected: true,
       away: false,
       heardAt: this.clock,
+      aliveAt: this.clock,
       pending: [],
       received: 0,
       acked: 0,
@@ -252,6 +262,7 @@ export class DuelHost {
       connected: true,
       away: false,
       heardAt: this.clock,
+      aliveAt: this.clock,
       pending: [],
       received: 0,
       acked: 0,
@@ -347,6 +358,7 @@ export class DuelHost {
         connected: false,
         away: false,
         heardAt: this.clock,
+        aliveAt: this.clock,
         pending: [],
         received: 0,
         acked: 0,
@@ -450,6 +462,12 @@ export class DuelHost {
     return !slot?.away;
   }
 
+  /** Llegó algo de este jugador (cualquier mensaje): su conexión está viva. */
+  heard(playerId: number): void {
+    const slot = this.slots.get(playerId);
+    if (slot) slot.aliveAt = this.clock;
+  }
+
   /** Lo que tocó un jugador desde el último paso; `seq` numera sus mensajes. */
   intents(playerId: number, intents: readonly Intent[], seq = 0): void {
     const slot = this.slots.get(playerId);
@@ -477,12 +495,22 @@ export class DuelHost {
     this.maybeNextRound();
   }
 
-  /** Pide la revancha; cuando la piden los dos (o el otro ya no está), empieza otra partida. */
+  /**
+   * Pide la revancha; cuando la piden todos los que están (o el otro ya no está), empieza otra
+   * partida. Quien está fuera de la app no la frena: antes, un amigo con el juego en segundo
+   * plano dejaba a todos esperando la revancha.
+   */
   rematch(playerId: number): void {
     const slot = this.slots.get(playerId);
     if (!slot || this.stage.kind !== 'finished') return;
     slot.rematch = true;
-    if ([...this.slots.values()].every((s) => s.rematch || !s.connected)) this.startSeries();
+    this.maybeRematch();
+  }
+
+  private maybeRematch(): void {
+    const humans = [...this.slots.values()].filter((s) => !s.bot);
+    if (!humans.some((s) => s.rematch)) return;
+    if (humans.every((s) => s.rematch || !s.connected || s.away)) this.startSeries();
   }
 
   /** Avanza un paso. */
@@ -491,8 +519,11 @@ export class DuelHost {
     switch (this.stage.kind) {
       case 'lobby':
         this.releaseLobbySeats();
+        this.refreshHost();
         return;
       case 'finished':
+        // Si quien faltaba se fue o salió de la app, los que pidieron la revancha no esperan más.
+        this.maybeRematch();
         return;
       case 'intermission':
         if (--this.stage.ticksLeft <= 0) this.offerGlyphs(this.stage.roundWinner);
@@ -523,6 +554,17 @@ export class DuelHost {
         this.hostId = [...this.slots.keys()].sort((a, b) => a - b)[0] ?? 0;
       }
     }
+  }
+
+  /**
+   * Manda quien llegó primero entre los que siguen respondiendo: si quien creó la sala se cuelga,
+   * manda el siguiente, y cuando vuelve recupera el mando.
+   */
+  private refreshHost(): void {
+    const reachable = [...this.slots.values()]
+      .filter((s) => !s.bot && s.connected && this.clock - s.aliveAt <= HOST_SILENT_TICKS)
+      .sort((a, b) => a.arrival - b.arrival)[0];
+    if (reachable) this.hostId = reachable.id;
   }
 
   /** La etapa vista por un jugador: sus opciones de Glifo son solo suyas. */
@@ -707,6 +749,9 @@ export class DuelHost {
 
   private startRound(): MatchState {
     this.lastSeen.clear();
+    // Entre rondas nadie manda toques: se cuenta desde ahora. Si no, al empezar cada ronda todos
+    // parecían callados y la IA los tomaba un instante (con aviso de "se fue" para todos).
+    for (const slot of this.slots.values()) slot.heardAt = this.clock;
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
     const deathRule = this.settings.lives ? 'lives' : 'out';
     const setup = modeSetup(this.settings.mode, roundSeed, deathRule, this.rules);
