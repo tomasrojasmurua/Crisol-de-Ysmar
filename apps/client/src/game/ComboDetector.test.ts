@@ -97,6 +97,15 @@ const NEEDS_RIVAL = new Set([
   'escudo-compartido',
   'jaula-y-respiro',
   'aliado-bomba',
+  // Piden que dos rivales te estén atacando o tener a uno encerrado.
+  'coraza-y-mil-pasos',
+  'hielo-y-fuga',
+  'espejo-y-salto',
+  'olvido-y-fuga',
+  'trueno-y-lluvia',
+  'cosecha-en-el-anillo',
+  'aguante',
+  'doble-y-respiro',
   // Piden elegir dónde cae el hechizo de suelo.
   'cambio-de-cielo',
   'plato-servido',
@@ -416,6 +425,47 @@ describe('ComboDetector: combos que piden algo del rival o de un aliado', () => 
       1: { 0: ['thornRing', 2], 110: ['sap', 1] },
     });
     expect(found).toContain('jaula-y-respiro');
+  });
+});
+
+describe('ComboDetector: aguantar, devolver y escapar', () => {
+  /** Dos rivales al frente que te disparan Chispas en los pasos que se digan. */
+  const twoRivals = [me, { team: 1, x: -3, z: 7 }, { team: 1, x: 3, z: 7 }];
+  const sparks = (a: number, b: number) => ({
+    2: { [a]: ['spark', 1] as const },
+    3: { [b]: ['spark', 1] as const },
+  });
+
+  it.each([
+    ['coraza-y-mil-pasos', { 0: ['obsidian', 2], 40: ['thousandSteps', 2] }, sparks(12, 16)],
+    ['hielo-y-fuga', { 0: ['iceCoffin', 2], 60: ['blink', 2] }, sparks(12, 16)],
+    ['espejo-y-salto', { 0: ['waterMirror', 2], 60: ['blink', 2] }, sparks(20, 25)],
+    ['olvido-y-fuga', { 10: ['oblivionMist', 2], 40: ['blink', 2] }, sparks(0, 5)],
+    ['trueno-y-lluvia', { 10: ['thunderclap', 2], 40: ['healingRain', 1] }, sparks(0, 5)],
+    ['aguante', { 0: ['depth', 2], 40: ['sap', 1] }, sparks(15, 20)],
+    ['doble-y-respiro', { 15: ['decoy', 2], 40: ['sap', 1] }, sparks(0, 5)],
+  ] as const)('%s sale cuando dos rivales te atacan', (id, mine, theirs) => {
+    expect(scene(twoRivals, { 1: mine as Plan[number], ...theirs })).toContain(id);
+  });
+
+  it('sin dos rivales atacándote, Hielo y fuga no cuenta', () => {
+    const found = scene(twoRivals, { 1: { 0: ['iceCoffin', 2], 60: ['blink', 2] } });
+    expect(found).not.toContain('hielo-y-fuga');
+  });
+
+  it('con uno solo atacándote, tampoco', () => {
+    const found = scene(twoRivals, {
+      1: { 0: ['iceCoffin', 2], 60: ['blink', 2] },
+      2: { 12: ['spark', 1], 40: ['spark', 1] },
+    });
+    expect(found).not.toContain('hielo-y-fuga');
+  });
+
+  it('Cosecha en el anillo: la Ola sale con un rival encerrado en tus zarzas', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }], {
+      1: { 0: ['thornRing', 2], 30: ['soulTide', 2] },
+    });
+    expect(found).toContain('cosecha-en-el-anillo');
   });
 });
 

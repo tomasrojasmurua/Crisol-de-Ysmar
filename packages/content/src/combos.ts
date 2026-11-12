@@ -808,7 +808,9 @@ export interface ComboDetect {
  *   porcentaje).
  * - `sharedShield`: te pegan y la burbuja de tu aliado injertado absorbe su parte.
  * - `seedOnAlly`: la Semilla de fuego que explota la llevaba un aliado, no tú.
- * - `ringActive`: te curas mientras tu Anillo de zarzas sigue en pie.
+ * - `ringActive`: tu Anillo de zarzas sigue en pie y encierra a un rival.
+ * - `twoAttackers`: dos rivales distintos te atacaron (aunque no te hicieran daño) desde poco antes
+ *   del primer paso hasta el último.
  * - `selfShield`: tenías escudo cuando tu fuego lo alcanzó.
  */
 export type ComboCheck =
@@ -819,6 +821,7 @@ export type ComboCheck =
   | 'sharedShield'
   | 'seedOnAlly'
   | 'ringActive'
+  | 'twoAttackers'
   | 'selfShield';
 
 /** Plazos del detector, en segundos. */
@@ -868,13 +871,16 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'aliado-bomba': { check: 'seedOnAlly' },
   'jaula-y-respiro': { finish: 'cast', check: 'ringActive' },
   'escudo-y-hoguera': { check: 'selfShield', trickle: true },
-  'hielo-y-fuga': { finish: 'cast' },
-  'espejo-y-salto': { finish: 'cast' },
-  'olvido-y-fuga': { finish: 'cast' },
-  'trueno-y-lluvia': { finish: 'cast' },
+  // Aguantar, devolver y escapar: cuentan si dos rivales distintos te estaban atacando, o si
+  // tienes a uno encerrado en las zarzas.
+  'coraza-y-mil-pasos': { check: 'twoAttackers' },
+  'hielo-y-fuga': { finish: 'cast', check: 'twoAttackers' },
+  'espejo-y-salto': { finish: 'cast', check: 'twoAttackers' },
+  'olvido-y-fuga': { finish: 'cast', check: 'twoAttackers' },
+  'trueno-y-lluvia': { finish: 'cast', check: 'twoAttackers' },
   'cosecha-en-el-anillo': { finish: 'cast', check: 'ringActive' },
-  aguante: { finish: 'cast' },
-  'doble-y-respiro': { finish: 'cast' },
+  aguante: { finish: 'cast', check: 'twoAttackers' },
+  'doble-y-respiro': { finish: 'cast', check: 'twoAttackers' },
   // El Llanto suelta los proyectiles recién al terminar (5 s).
   'tormenta-de-vuelta': { window: 7 },
 };
