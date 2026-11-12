@@ -34,6 +34,7 @@ import {
 } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from '../game/LocalMatch';
 import type { MatchView, RematchStatus } from '../game/MatchView';
+import { reportProblem } from '../platform/ErrorReporter';
 import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl } from './serverUrl';
 
@@ -190,6 +191,8 @@ export class NetMatch implements MatchView {
   /** Volviste a la misma partida (tras un corte o al volver a la app): sigue sin rearmar nada. */
   private resuming = false;
   private lastHeard = 0;
+  /** Cuándo se abrió la conexión actual (para el registro de errores). */
+  private openedAt = 0;
   private hiddenAt = 0;
   private returnCheck: ReturnType<typeof setTimeout> | null = null;
   private readonly onVisibility = (): void => this.visibilityChanged();
@@ -438,9 +441,14 @@ export class NetMatch implements MatchView {
     this.socket = socket;
     this.decoder = new StateDecoder();
     socket.addEventListener('open', () => {
-      if (this.lostAt !== 0) this.listener.notice('Conexión recuperada');
+      if (this.lostAt !== 0) {
+        this.listener.notice('Conexión recuperada');
+        const seconds = Math.round((Date.now() - this.lostAt) / 1000);
+        reportProblem('red', 'Conexión recuperada', `tras ${seconds} s`);
+      }
       this.lostAt = 0;
       this.lastHeard = performance.now();
+      this.openedAt = this.lastHeard;
       this.send({
         type: 'hello',
         protocol: PROTOCOL_VERSION,
@@ -486,9 +494,17 @@ export class NetMatch implements MatchView {
     if (this.lostAt === 0) {
       this.lostAt = now;
       this.listener.problem('Se cortó la conexión: reconectando…', false);
+      const connected =
+        this.openedAt > 0 ? Math.round((performance.now() - this.openedAt) / 1000) : 0;
+      reportProblem(
+        'red',
+        'Se cortó la conexión',
+        `código ${code} · ${connected} s conectado · ${this.started ? 'jugando' : 'sala de espera'}${document.hidden ? ' · app en segundo plano' : ''}`,
+      );
     }
     if (now - this.lostAt > RECONNECT_MS) {
       this.listener.problem('No se pudo volver a la sala', true);
+      reportProblem('red', 'No se pudo volver a la sala', `código ${code}`);
       this.close();
       return;
     }
@@ -576,6 +592,7 @@ export class NetMatch implements MatchView {
             'La sala se reinició y la partida se perdió. Vuelve al menú desde Pausa y creen otra sala.',
             true,
           );
+          reportProblem('red', 'La sala se reinició y la partida se perdió');
           this.close();
           return;
         }
@@ -629,6 +646,7 @@ export class NetMatch implements MatchView {
       case 'error':
         this.lastError = message.reason;
         this.listener.problem(message.reason, false);
+        reportProblem('red', `La Sala respondió: ${message.reason}`);
         return;
     }
   }
@@ -638,8 +656,13 @@ export class NetMatch implements MatchView {
     let frame: StateFrame;
     try {
       frame = this.decoder.decode(data) as StateFrame;
-    } catch {
+    } catch (error) {
       // Se perdió el hilo: al reconectar, la Sala manda un estado completo.
+      reportProblem(
+        'red',
+        'Estado ilegible',
+        error instanceof Error ? (error.stack ?? error.message) : '',
+      );
       socket.close(4003, 'Estado ilegible');
       return;
     }

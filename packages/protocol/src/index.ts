@@ -1,5 +1,14 @@
 export { decodeClientMessage, decodeServerMessage, encode } from './codec';
 export {
+  cleanReport,
+  describeDevice,
+  type ErrorReport,
+  parseReports,
+  REPORT_KINDS,
+  REPORT_LIMITS,
+  type ReportKind,
+} from './errorReport';
+export {
   type ClientMessage,
   isValidRoomCode,
   type NetStage,

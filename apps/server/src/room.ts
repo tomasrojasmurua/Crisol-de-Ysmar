@@ -10,6 +10,7 @@ import {
 } from '@crisol/protocol';
 import { DuelHost } from './duel';
 import type { Env } from './env';
+import { reportRoomError } from './errorLog';
 
 /** Lo que la Sala recuerda de cada socket (sobrevive a que la Sala se duerma). */
 interface Attachment {
@@ -35,6 +36,8 @@ export class Room extends DurableObject<Env> {
   private lastAway = '';
   /** Lo último que se le mandó a cada conexión, para mandarle solo lo que cambió. */
   private readonly encoders = new Map<WebSocket, StateEncoder>();
+  /** Errores ya anotados: uno que se repite cada paso se guarda una sola vez. */
+  private readonly reported = new Set<string>();
 
   override async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -51,7 +54,12 @@ export class Room extends DurableObject<Env> {
       send(socket, { type: 'error', reason: 'Mensaje no reconocido' });
       return;
     }
-    this.handle(socket, message);
+    try {
+      this.handle(socket, message);
+    } catch (error) {
+      // Un mensaje que falla no tumba la sala: se anota y se sigue.
+      this.report(`mensaje ${message.type}`, error);
+    }
   }
 
   override async webSocketClose(socket: WebSocket): Promise<void> {
@@ -200,6 +208,23 @@ export class Room extends DurableObject<Env> {
   }
 
   private onClock(): void {
+    try {
+      this.advanceClock();
+    } catch (error) {
+      this.report('paso', error);
+      throw error;
+    }
+  }
+
+  /** Anota un error de la Sala en el registro (una vez por mensaje distinto). */
+  private report(where: string, error: unknown): void {
+    const key = `${where}|${error instanceof Error ? error.message : String(error)}`;
+    if (this.reported.has(key)) return;
+    this.reported.add(key);
+    this.ctx.waitUntil(reportRoomError(this.env.ERRORS, this.ctx.id.name ?? '', where, error));
+  }
+
+  private advanceClock(): void {
     const duel = this.host;
     if (!duel) return;
     const now = Date.now();

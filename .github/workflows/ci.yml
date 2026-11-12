@@ -65,6 +65,9 @@ jobs:
         with:
           name: client-dist
           path: apps/client/dist
+      - name: Revisar acceso al registro de errores (D1)
+        if: steps.creds.outputs.ready == 'true'
+        run: node scripts/errores.mjs --revisar
       - name: Publicar el servidor (solo main)
         if: steps.creds.outputs.ready == 'true' && github.ref == 'refs/heads/main'
         run: pnpm --filter @crisol/server run deploy

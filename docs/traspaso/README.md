@@ -131,10 +131,10 @@ mala conexión que suele crear la sala) y llegar con una versión tan revisada q
 "acá podría ser mejor" y no "se cayó", "no se puede jugar" o "no me pude reconectar". **Aceptó
 congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar el orden con él):
 
-1. **Registro remoto de errores.** Hoy no existe nada: si a un amigo se le cae el juego, solo se
-   sabrá "se me cayó". Capturar `error` y `unhandledrejection` en el cliente (y desconexiones raras)
-   y mandarlos a la Sala o a un Worker que los guarde (D1 o Workers Analytics Engine), con versión,
-   modelo de celular, sala y partida. Sin datos personales. Una pantalla o un comando para leerlos.
+1. **Registro remoto de errores. Hecho:** errores, promesas rechazadas, cortes de red y excepciones
+   de la Sala se guardan en D1 (`crisol-errores`) con versión, celular, sala y partida, sin datos
+   personales. Se leen con el flujo "Leer errores" de GitHub o `pnpm errores`
+   ([docs/errores.md](../errores.md)).
 2. **Que el progreso no se pierda en iPhone.** Hecho (a): en iPhone, bajo Sonido, una tarjeta
    discreta invita a "Agregar a inicio" (`ui/HomeScreenInvite.ts`). Mientras su explicación está
    abierta, la dirección lleva el progreso empacado (`#traer=…`) y el ícono nuevo lo desempaca al
