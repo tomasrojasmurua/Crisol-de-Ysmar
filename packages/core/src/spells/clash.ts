@@ -1,7 +1,8 @@
 import { type ElementId, opposingOf } from '../elements';
 import type { EntityId, MatchState, Projectile } from '../match/state';
-import { distance, scale, type Vec2 } from '../math/vec2';
+import { add, distance, distanceToSegment, scale, type Vec2 } from '../math/vec2';
 import type { GameRules } from '../rules';
+import { TICK_RATE } from '../sim/fixedStep';
 
 /**
  * Choque de tejidos. Lo único que se desarma son proyectiles rivales en el aire; lo que los
@@ -85,12 +86,16 @@ export function dismantleInArea(
   const gone = new Set<EntityId>();
   const first = weave[0];
   if (first === undefined) return gone;
-  const margin = rules.interactions.clash.margin;
+  const { margin, lookaheadTicks } = rules.interactions.clash;
   for (const projectile of state.spells) {
     if (projectile.kind !== 'projectile' || projectile.team === team || projectile.held) continue;
     const element = firstElement(projectile);
     if (element === undefined || !opposingOf(first).includes(element)) continue;
-    if (distance(projectile.pos, pos) > radius + projectile.radius + margin) continue;
+    // Donde está y por donde va a pasar en los próximos pasos.
+    const ahead = add(projectile.pos, scale(projectile.velocity, lookaheadTicks / TICK_RATE));
+    if (distanceToSegment(pos, projectile.pos, ahead) > radius + projectile.radius + margin) {
+      continue;
+    }
     const length = projectile.payload.weave.length;
     if (weave.length >= length) {
       gone.add(projectile.id);

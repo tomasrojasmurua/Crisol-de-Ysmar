@@ -393,7 +393,14 @@ export interface GameRules {
      * pentágono chocan en el aire. `margin` se suma a sus radios para que apuntar a mano a un
      * proyectil que viene sea posible en el celular.
      */
-    readonly clash: { readonly margin: number };
+    readonly clash: {
+      readonly margin: number;
+      /**
+       * Un cono o una explosión desarma también al proyectil que va a pasar por su área en
+       * los próximos pasos: lo que vuela rápido (la Chispa) se intercepta en su camino.
+       */
+      readonly lookaheadTicks: number;
+    };
   };
   readonly round: RoundRules;
   /** Apuntado automático: a qué se dispara cuando se toca el botón sin arrastrar. */

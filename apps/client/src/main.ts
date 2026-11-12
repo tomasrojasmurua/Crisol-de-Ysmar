@@ -11,8 +11,9 @@ import { MatchFlow } from './game/MatchFlow';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
-import { TrainingMatch } from './game/TrainingMatch';
-import { Tutorial } from './game/Tutorial';
+import { DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
+import { GIFT_CHAPTER, Tutorial } from './game/Tutorial';
+import { TutorialProgress } from './game/TutorialProgress';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
@@ -102,6 +103,7 @@ const cameraDrag = new CameraDrag(
     if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
       input.push({ type: 'lock', targetId: null });
     }
+    if (tutorial?.signal('look')) afterTutorialAdvance();
   },
 );
 const screenAwake = new ScreenAwake();
@@ -112,7 +114,7 @@ const menu = new Menu(
   () => openWardrobe(),
   () => openGrimoire(),
   () => openLobby(),
-  () => trainingChooser.show(!comboLog.tutorialDone),
+  () => trainingChooser.show(!comboLog.tutorialDone && tutorialProgress.count === 0),
   audio.engine,
 );
 const wardrobe = new Wardrobe(
@@ -139,11 +141,20 @@ const trainingPanel = new TrainingPanel(
   },
   () => showMenu(),
 );
-const trainingChooser = new TrainingChooser(uiRoot, (kind) => startTraining(kind === 'tutorial'));
+const tutorialProgress = new TutorialProgress();
+const trainingChooser = new TrainingChooser(
+  uiRoot,
+  (choice) =>
+    choice.kind === 'tutorial'
+      ? startTraining({ chapter: choice.chapter, onlyOne: choice.onlyOne })
+      : startTraining(),
+  (chapterId) => tutorialProgress.has(chapterId),
+);
 const tutorialCard = new TutorialCard(
   uiRoot,
   () => freePlay(),
   () => showMenu(),
+  () => afterTutorialAdvance(),
 );
 /** El tutorial en curso, si el entrenamiento es el tutorial. */
 let tutorial: Tutorial | null = null;
@@ -344,9 +355,10 @@ function startMatch(options: MatchOptions): void {
 
 /**
  * El modo entrenamiento: tú contra un muñeco, con el panel de lo que estás tejiendo. Con
- * `withTutorial`, la tarjeta del tutorial guía paso a paso y los elementos descansan.
+ * `lesson`, la tarjeta del tutorial guía paso a paso desde ese capítulo (o solo ese) y los
+ * elementos descansan.
  */
-function startTraining(withTutorial = false): void {
+function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: boolean }): void {
   enterImmersive();
   useRules(rulesForMode({ kind: 'duel' }));
   const current = new TrainingMatch(rules, human, profile.affinity);
@@ -356,20 +368,41 @@ function startTraining(withTutorial = false): void {
     look: { ...DEFAULT_LOOK, robe: 'hueso', headwear: 'ninguno', face: 'automata' },
   }));
   trainingPanel.visible = true;
-  if (withTutorial) {
+  if (lesson) {
     current.restless = false;
     trainingPanel.tutorial = true;
-    tutorial = new Tutorial(current.playerId);
+    tutorial = new Tutorial(current.playerId, DUMMY_ID, lesson.chapter, lesson.onlyOne);
+    current.setDummy(tutorial.dummy);
     tutorialCard.show(tutorial);
   }
   obstacles.invalidate();
 }
 
-/** Terminado el tutorial, seguir practicando con el mismo muñeco. */
+/** Terminado el tutorial, seguir practicando con el mismo muñeco (otra vez quieto). */
 function freePlay(): void {
   endTutorial();
   trainingPanel.tutorial = false;
-  if (match instanceof TrainingMatch) match.restless = true;
+  if (match instanceof TrainingMatch) {
+    match.restless = true;
+    match.setDummy('idle');
+  }
+}
+
+/**
+ * Después de que el tutorial avanzó: guarda los capítulos terminados, entrega los 3 combos al
+ * cerrar el capítulo de combos y le dice al muñeco qué hacer ahora.
+ */
+function afterTutorialAdvance(): void {
+  if (!tutorial) return;
+  for (const chapterId of tutorial.finished) {
+    if (tutorialProgress.has(chapterId)) continue;
+    tutorialProgress.add(chapterId);
+    if (chapterId === GIFT_CHAPTER && !comboLog.tutorialDone) {
+      comboLog.completeTutorial();
+      audio.discover();
+    }
+  }
+  if (match instanceof TrainingMatch) match.setDummy(tutorial.dummy);
 }
 
 function endTutorial(): void {
@@ -470,12 +503,11 @@ function stepMatch(current: MatchView): void {
     if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
   }
   if (current instanceof TrainingMatch && tutorial && !tutorial.done) {
-    if (tutorial.onStep(events, current.state)) {
-      if (tutorial.done) {
-        comboLog.completeTutorial();
-        audio.discover();
-      }
+    if (tutorial.onStep(events, current.state, current.lastIntents)) {
+      afterTutorialAdvance();
       tutorialCard.render();
+    } else {
+      tutorialCard.refreshProgress();
     }
   }
   if (current instanceof TrainingMatch) {

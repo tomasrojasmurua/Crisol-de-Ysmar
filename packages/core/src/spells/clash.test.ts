@@ -113,8 +113,26 @@ describe('choque de tejidos con el área de un hechizo', () => {
 
   it('un Salpicón hacia otro lado no la toca', () => {
     const state = scene([{ x: 0, z: 10 }]);
-    projectile(state, 100, 1, ['brasa'], { x: 0, z: 2 });
+    projectile(state, 100, 1, ['brasa'], { x: 3, z: 2 });
     castSpell(state, wizard(state, 1), 'splash', ['marea'], { x: 0, z: -1 }, rules);
+    expect(flying(state)).toHaveLength(1);
+  });
+});
+
+describe('interceptar en el camino', () => {
+  it('un Salpicón alcanza a la Chispa que todavía viene, si va a pasar por su área', () => {
+    const state = scene([{ x: 0, z: 10 }]);
+    // A 5 m, fuera del cono, pero volando hacia ti a 10 m/s: en 0,2 s entra.
+    projectile(state, 100, 1, ['brasa'], { x: 0, z: 5 });
+    castSpell(state, wizard(state, 1), 'splash', ['marea'], { x: 0, z: 1 }, rules);
+    expect(flying(state)).toHaveLength(0);
+  });
+
+  it('una Chispa que se aleja no se intercepta', () => {
+    const state = scene([{ x: 0, z: 10 }]);
+    const p = projectile(state, 100, 1, ['brasa'], { x: 0, z: 5 });
+    p.velocity = { x: 0, z: 10 };
+    castSpell(state, wizard(state, 1), 'splash', ['marea'], { x: 0, z: 1 }, rules);
     expect(flying(state)).toHaveLength(1);
   });
 });

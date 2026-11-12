@@ -1,5 +1,6 @@
-import type { Glyph, Omen } from '@crisol/content';
+import { BOT_PROFILES, type Glyph, type Omen } from '@crisol/content';
 import {
+  BotController,
   type Controller,
   createMatch,
   createSeries,
@@ -7,6 +8,7 @@ import {
   type ElementId,
   type GameEvent,
   type GameRules,
+  type Intent,
   type MatchState,
   modeSetup,
   type SeriesState,
@@ -16,9 +18,11 @@ import {
 } from '@crisol/core';
 import type { MatchOptions, MatchStage } from './LocalMatch';
 import type { MatchView } from './MatchView';
+import type { DummyMode } from './Tutorial';
 
 const PLAYER = 1;
-const DUMMY = 2;
+export const DUMMY_ID = 2;
+const DUMMY = DUMMY_ID;
 /** Tan lejos que la ronda nunca cierra la zona ni se acaba el tiempo. */
 const ENDLESS = 1_000_000_000;
 /** Bajo esta fracción de vida, el muñeco (o tú) vuelve a estar entero. */
@@ -32,9 +36,53 @@ const TRAINING_OMEN: Omen = {
   mods: {},
 };
 
+/** Pasos entre un ataque y otro del muñeco del tutorial. */
+const SPARK_EVERY = 95;
+const METEOR_EVERY = 170;
+/** A qué distancia se queda el muñeco cuando ataca. */
+const ATTACK_DISTANCE = 8;
+
 /**
- * El modo entrenamiento: tú contra un muñeco que no ataca y se recupera solo, sin zona que se
- * cierre ni fin de ronda. Con "sin cansancio", tus elementos descansan al instante para que
+ * El muñeco del tutorial cuando ataca: una Chispa cada tanto, o un Meteoro que se teje a la
+ * vista (Brasa, Brasa, Brasa) y cae donde estás. Apunta solo al jugador.
+ */
+class TutorialDummy implements Controller {
+  private tick = 0;
+  private pending: Intent[] = [];
+
+  constructor(private readonly mode: 'sparks' | 'meteor') {}
+
+  intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
+    this.tick++;
+    const intents: Intent[] = [];
+    // Se acerca hasta quedar a tiro (a unos 8 m): de lejos, sus Chispas no llegarían.
+    const player = state.wizards.find((w) => w.id === PLAYER);
+    if (player) {
+      const dx = player.pos.x - self.pos.x;
+      const dz = player.pos.z - self.pos.z;
+      const d = Math.hypot(dx, dz);
+      intents.push(
+        d > ATTACK_DISTANCE ? { kind: 'move', x: dx / d, z: dz / d } : { kind: 'move', x: 0, z: 0 },
+      );
+    }
+    const every = this.mode === 'sparks' ? SPARK_EVERY : METEOR_EVERY;
+    if (this.pending.length === 0 && this.tick % every === 0) {
+      const weave: Intent[] =
+        this.mode === 'sparks'
+          ? [{ kind: 'weave', element: 'brasa' }]
+          : (['brasa', 'brasa', 'brasa'] as const).map((element) => ({ kind: 'weave', element }));
+      this.pending = [...weave, { kind: 'cast', dirX: 0, dirZ: 0 }];
+    }
+    // Un elemento por paso, como una persona: el tejido se alcanza a leer.
+    const next = this.pending.shift();
+    if (next) intents.push(next);
+    return intents;
+  }
+}
+
+/**
+ * El modo entrenamiento: tú contra un muñeco que se recupera solo, sin zona que se cierre ni
+ * fin de ronda. En el tutorial el muñeco puede atacar o volverse un mago Aprendiz (el examen). Con "sin cansancio", tus elementos descansan al instante para que
  * puedas probar combinaciones seguidas.
  */
 export class TrainingMatch implements MatchView {
@@ -52,6 +100,10 @@ export class TrainingMatch implements MatchView {
   /** Las reglas del entrenamiento: las de siempre, con una ronda sin fin. */
   readonly rules: GameRules;
   private readonly previous = new Map<number, Vec2>();
+  /** Lo que mandó tu dedo en el último paso (el tutorial mira si arrastraste ✦). */
+  lastIntents: readonly Intent[] = [];
+  private dummyMode: DummyMode = 'idle';
+  private dummyBrain: Controller | null = null;
 
   constructor(
     rules: GameRules,
@@ -77,6 +129,23 @@ export class TrainingMatch implements MatchView {
     this.state = createMatch(setup, this.rules);
   }
 
+  /** Qué hace el muñeco (lo cambia el tutorial). */
+  setDummy(mode: DummyMode): void {
+    if (mode === this.dummyMode) return;
+    this.dummyMode = mode;
+    const dummy = this.state.wizards.find((w) => w.id === DUMMY);
+    if (dummy) {
+      dummy.weave = [];
+      dummy.channel = null;
+    }
+    this.dummyBrain =
+      mode === 'idle'
+        ? null
+        : mode === 'bot'
+          ? new BotController(7, this.rules, BOT_PROFILES.apprentice)
+          : new TutorialDummy(mode);
+  }
+
   get player(): Wizard {
     return this.state.wizards.find((w) => w.id === PLAYER) as Wizard;
   }
@@ -94,12 +163,19 @@ export class TrainingMatch implements MatchView {
         this.previous.set(spell.id, spell.pos);
       }
     }
+    this.lastIntents = this.human.intentsFor(this.state, this.player);
+    const dummy = this.state.wizards.find((w) => w.id === DUMMY);
+    const dummyIntents =
+      dummy && this.dummyBrain ? this.dummyBrain.intentsFor(this.state, dummy) : [];
     const intents = new Map([
-      [PLAYER, this.human.intentsFor(this.state, this.player)],
-      [DUMMY, []],
+      [PLAYER, this.lastIntents],
+      [DUMMY, dummyIntents],
     ]);
     stepMatch(this.state, intents, this.rules);
-    for (const wizard of this.state.wizards) refill(wizard);
+    // En el examen el Aprendiz sí cae (y vuelve a pararse); tú nunca.
+    for (const wizard of this.state.wizards) {
+      refill(wizard, wizard.id === DUMMY && this.dummyMode === 'bot');
+    }
     this.state.winnerTeam = null;
     if (this.restless) {
       for (const element of ELEMENT_IDS) this.player.fatigue[element] = 0;
@@ -123,9 +199,13 @@ export class TrainingMatch implements MatchView {
   }
 }
 
-/** Nadie cae en el entrenamiento: con poca vida, vuelve a estar entero. */
-function refill(wizard: Wizard): void {
-  if (wizard.fallen || wizard.hp < wizard.maxHp * REFILL_BELOW) {
+/**
+ * Nadie cae en el entrenamiento: con poca vida, vuelve a estar entero. Con `onlyWhenFallen`
+ * (el Aprendiz del examen) se lo deja bajar hasta caer, y recién ahí se para de nuevo.
+ */
+function refill(wizard: Wizard, onlyWhenFallen = false): void {
+  const low = !onlyWhenFallen && wizard.hp < wizard.maxHp * REFILL_BELOW;
+  if (wizard.fallen || low) {
     wizard.fallen = null;
     wizard.hp = wizard.maxHp;
     wizard.statuses = {};
