@@ -41,41 +41,60 @@ const SPARK_EVERY = 95;
 const METEOR_EVERY = 170;
 /** A qué distancia se queda el muñeco cuando ataca. */
 const ATTACK_DISTANCE = 8;
+/** Con Chispas se queda más lejos: la Chispa tarda más en llegar y se alcanza a esquivar. */
+const SPARK_DISTANCE = 11;
+/**
+ * Pasos que el muñeco muestra la Brasa sobre la cabeza antes de soltar la Chispa (medio
+ * segundo): es lo que enseña "Leer al rival" y lo que da tiempo de caminar de lado.
+ */
+const SPARK_TELL = 15;
 
 /**
  * El muñeco del tutorial cuando ataca: una Chispa cada tanto, o un Meteoro que se teje a la
- * vista (Brasa, Brasa, Brasa) y cae donde estás. Apunta solo al jugador.
+ * vista (Brasa, Brasa, Brasa) y cae donde estás. Antes de la Chispa deja la Brasa a la vista
+ * un momento y la lanza a donde estás, para que se pueda leer y esquivar caminando.
  */
 class TutorialDummy implements Controller {
   private tick = 0;
-  private pending: Intent[] = [];
+  /** Lo que hará en los próximos pasos; `null` es un paso de espera con el tejido a la vista. */
+  private pending: (Intent | null)[] = [];
 
   constructor(private readonly mode: 'sparks' | 'meteor') {}
 
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
     this.tick++;
     const intents: Intent[] = [];
-    // Se acerca hasta quedar a tiro (a unos 8 m): de lejos, sus Chispas no llegarían.
+    // Se acerca hasta quedar a tiro: de lejos, sus hechizos no llegarían.
     const player = state.wizards.find((w) => w.id === PLAYER);
     if (player) {
       const dx = player.pos.x - self.pos.x;
       const dz = player.pos.z - self.pos.z;
       const d = Math.hypot(dx, dz);
+      const keep = this.mode === 'sparks' ? SPARK_DISTANCE : ATTACK_DISTANCE;
       intents.push(
-        d > ATTACK_DISTANCE ? { kind: 'move', x: dx / d, z: dz / d } : { kind: 'move', x: 0, z: 0 },
+        d > keep ? { kind: 'move', x: dx / d, z: dz / d } : { kind: 'move', x: 0, z: 0 },
       );
     }
     const every = this.mode === 'sparks' ? SPARK_EVERY : METEOR_EVERY;
     if (this.pending.length === 0 && this.tick % every === 0) {
-      const weave: Intent[] =
+      const weave: (Intent | null)[] =
         this.mode === 'sparks'
-          ? [{ kind: 'weave', element: 'brasa' }]
+          ? [{ kind: 'weave', element: 'brasa' }, ...Array<null>(SPARK_TELL).fill(null)]
           : (['brasa', 'brasa', 'brasa'] as const).map((element) => ({ kind: 'weave', element }));
       this.pending = [...weave, { kind: 'cast', dirX: 0, dirZ: 0 }];
     }
     // Un elemento por paso, como una persona: el tejido se alcanza a leer.
     const next = this.pending.shift();
-    if (next) intents.push(next);
+    if (next?.kind === 'cast' && this.mode === 'sparks' && player) {
+      // La Chispa va a donde estás ahora, sin adelantarse a tu paso (el apuntado automático sí
+      // se adelanta): así caminar de lado alcanza para esquivarla, que es lo que se enseña.
+      const dx = player.pos.x - self.pos.x;
+      const dz = player.pos.z - self.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      intents.push({ kind: 'cast', dirX: dx / d, dirZ: dz / d });
+    } else if (next) {
+      intents.push(next);
+    }
     return intents;
   }
 }

@@ -65,10 +65,11 @@ function play(
   plan: (tick: number, state: MatchState) => Intent[],
   chapter: string,
   maxTicks: number,
+  startStep = 0,
 ): { tutorial: Tutorial; reached: string[]; match: TrainingMatch } {
   const match = new TrainingMatch(DUEL_RULES, new Script(plan), null);
   match.restless = false;
-  const tutorial = new Tutorial(match.playerId, DUMMY_ID, chapterIndex(chapter), true);
+  const tutorial = new Tutorial(match.playerId, DUMMY_ID, chapterIndex(chapter), true, startStep);
   match.setDummy(tutorial.dummy);
   const reached: string[] = [];
   for (let i = 0; i < maxTicks && !tutorial.done; i++) {
@@ -116,6 +117,44 @@ describe('Tutorial por capítulos', () => {
     expect(tutorial.signal('look')).toBe(true);
     expect(reached).toEqual([]);
     expect(tutorial.step?.title).toBe('Duelo');
+  });
+
+  it('la cámara: fijar al muñeco, soltarlo y leer cómo saltar entre rivales', () => {
+    const { tutorial, reached } = play(
+      (tick) => {
+        if (tick === 3) return [{ kind: 'lockTarget', targetId: DUMMY_ID }];
+        // Girar la cámara a mano manda soltar el duelo.
+        if (tick === 10) return [{ kind: 'lockTarget', targetId: null }];
+        return [];
+      },
+      'camara',
+      30,
+      1,
+    );
+    expect(reached).toEqual(['Duelo', 'Soltar', 'Saltar entre rivales']);
+    expect(tutorial.done).toBe(true);
+  });
+
+  it('tejer pide hechizos justos: Rayo en cadena y Era de hielo', () => {
+    // Brasa → Tormenta es otro tejido de dos: no cuenta, el orden importa.
+    const reversed = (Object.keys(SPELL_WEAVES) as SpellId[]).find(
+      (id) => SPELL_WEAVES[id].join() === 'brasa,tormenta',
+    );
+    if (!reversed) throw new Error('falta el tejido Brasa → Tormenta');
+    const casts = new Map<number, SpellId>([
+      [5, reversed],
+      // Después de que Brasa y Tormenta descansan (3 s).
+      [110, 'chainLightning'],
+      [160, 'iceAge'],
+    ]);
+    const plan = (tick: number, state: MatchState): Intent[] => {
+      const spell = casts.get(tick);
+      return spell ? castAt(state, spell) : [];
+    };
+    expect(play(plan, 'tejer', 35).tutorial.step?.title).toBe('Dos elementos');
+    const { tutorial, reached } = play(plan, 'tejer', 300);
+    expect(reached).toEqual(['El orden importa', 'Dos elementos', 'Un Gran hechizo']);
+    expect(tutorial.finished).toEqual(['tejer']);
   });
 
   it('los cinco básicos se cuentan uno por uno', () => {
@@ -181,6 +220,33 @@ describe('Tutorial por capítulos', () => {
     );
     expect(reached.slice(0, 2)).toEqual(['Leer al rival', 'Esquivar']);
     expect(tutorial.step?.title).toBe('Muro de hielo');
+  });
+
+  it('esquivar caminando: con reflejos de persona alcanza al ver la Brasa', () => {
+    // Una persona reacciona medio segundo después de ver la Brasa sobre el muñeco y
+    // camina de lado un rato; no mira la Chispa en vuelo.
+    const REACTION = 15;
+    let seenAt = -1;
+    let side = 1;
+    const { reached } = play(
+      (tick, state) => {
+        const weaving = dummy(state).weave.length > 0;
+        if (weaving && seenAt < 0) {
+          seenAt = tick;
+          side = -side;
+        }
+        if (seenAt < 0 || tick < seenAt + REACTION) return [{ kind: 'move', x: 0, z: 0 }];
+        if (tick > seenAt + REACTION + 30) {
+          seenAt = -1;
+          return [{ kind: 'move', x: 0, z: 0 }];
+        }
+        const dir = toward(me(state).pos, dummy(state).pos);
+        return [{ kind: 'move', x: -dir.z * side, z: dir.x * side }];
+      },
+      'defensa',
+      1500,
+    );
+    expect(reached.slice(0, 2)).toEqual(['Leer al rival', 'Esquivar']);
   });
 
   it('un Salpicón hacia la Chispa que viene cuenta como choque de tejidos', () => {

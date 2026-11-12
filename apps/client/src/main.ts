@@ -1,5 +1,5 @@
 import { DEFAULT_LOOK, GAME_RULES, NO_OMEN, rulesForMode, WIZARD_NAMES } from '@crisol/content';
-import { FixedStepClock, type GameRules, SeededRng } from '@crisol/core';
+import { FixedStepClock, type GameRules, type Intent, SeededRng } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
 import { ComboLog } from './game/ComboLog';
@@ -111,7 +111,11 @@ const cameraDrag = new CameraDrag(
     if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
       input.push({ type: 'lock', targetId: null });
     }
-    if (tutorial?.signal('look')) afterTutorialAdvance();
+    tutorialCard.collapse();
+    if (tutorial?.signal('look')) {
+      afterTutorialAdvance();
+      tutorialCard.render();
+    }
   },
 );
 const screenAwake = new ScreenAwake();
@@ -509,6 +513,11 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   });
 }
 
+/** Si lo que mandó tu dedo es jugar: moverte, tejer o lanzar (no quedarse quieto). */
+function playing(intent: Intent): boolean {
+  return intent.kind === 'move' ? intent.x !== 0 || intent.z !== 0 : intent.kind !== 'lockTarget';
+}
+
 /** Avanza la partida un paso fijo y reparte lo que pasó a quien lo muestra o lo hace sonar. */
 function stepMatch(current: MatchView): void {
   const events = current.step();
@@ -520,6 +529,8 @@ function stepMatch(current: MatchView): void {
     if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
   }
   if (current instanceof TrainingMatch && tutorial && !tutorial.done) {
+    // Al empezar a jugar, la guía se recoge a una línea para dejar ver la partida.
+    if (current.lastIntents.some(playing)) tutorialCard.collapse();
     if (tutorial.onStep(events, current.state, current.lastIntents)) {
       afterTutorialAdvance();
       tutorialCard.render();
