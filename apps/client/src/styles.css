@@ -402,13 +402,27 @@ body {
   background: linear-gradient(180deg, #4a341f, #1f1812);
 }
 
-/* Tamaño (2v2, 3v3; 4 o 6 magos) y regla al caer: fichas chicas. */
+/* Tamaño (2v2, 3v3; 4 o 6 magos), regla al caer y dificultad de la IA: fichas chicas. */
 .menu-sizes,
-.menu-rules {
+.menu-rules,
+.menu-level {
   display: flex;
   justify-content: center;
   gap: 6px;
   min-height: 28px;
+}
+
+.menu-level {
+  align-items: center;
+}
+
+.menu-level-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--trama);
+  margin-right: 2px;
 }
 
 .menu-sizes.empty {
@@ -425,6 +439,10 @@ body {
   font-weight: 600;
   color: var(--ink-quiet);
   touch-action: manipulation;
+}
+
+#ui .menu-level .menu-chip {
+  min-width: 0;
 }
 
 #ui .menu-chip.selected {

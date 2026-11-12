@@ -4,7 +4,15 @@ import { ELEMENT_IDS } from '../elements';
 import { lineBlocked } from '../match/obstacles';
 import { currentTarget, isAlive } from '../match/queries';
 import { roundPhase } from '../match/round';
-import type { Beast, MatchState, Projectile, Shrine, Wizard } from '../match/state';
+import type {
+  Beast,
+  EntityId,
+  MatchState,
+  Projectile,
+  Shrine,
+  Strike,
+  Wizard,
+} from '../match/state';
 import {
   add,
   distance,
@@ -22,6 +30,11 @@ import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { Navigator } from './navigation';
 import { type AimMode, type Plan, spellOptions } from './spellPlans';
 
+/** Las dificultades de la IA: Aprendiz, Duelista y Maestro. */
+export type BotLevel = 'apprentice' | 'duelist' | 'master';
+export const BOT_LEVELS: readonly BotLevel[] = ['apprentice', 'duelist', 'master'];
+
+/** Cómo juega un bot. Los valores de cada dificultad viven en `packages/content`. */
 export interface BotProfile {
   /** Pasos de "pensar" entre un conjuro y el siguiente. */
   readonly reactionTicks: readonly [number, number];
@@ -29,13 +42,35 @@ export interface BotProfile {
   readonly aimError: number;
   /** Distancia que intenta mantener con su rival. */
   readonly preferredDistance: number;
+  /** Probabilidad de esquivar un proyectil que viene hacia él. */
+  readonly dodgeProjectiles: number;
+  /** Probabilidad de salir del aviso de un golpe en el suelo (Meteoro, Era de hielo…). */
+  readonly dodgeStrikes: number;
+  /** Probabilidad de moverse de lado al ver que el rival canaliza un Gran hechizo. */
+  readonly readWeave: number;
+  /** Cuánto pesa un hechizo que usó hace poco, por cada vez (1: no le importa repetir). */
+  readonly repeatPenalty: number;
+  /** Probabilidad de improvisar un tejido al azar en vez de elegir uno pensado. */
+  readonly improvise: number;
+  /** Cuánto recuerda dónde vio al rival si lo pierde de vista (ceguera, Velo), en pasos. */
+  readonly memoryTicks: number;
 }
 
+/** Un bot de nivel medio, para pruebas y para quien no elige dificultad. */
 export const DEFAULT_BOT: BotProfile = {
   reactionTicks: [14, 32],
   aimError: 0.14,
   preferredDistance: 7,
+  dodgeProjectiles: 0.7,
+  dodgeStrikes: 0.75,
+  readWeave: 0.4,
+  repeatPenalty: 0.45,
+  improvise: 0.2,
+  memoryTicks: 90,
 };
+
+/** Hechizos usados hace poco que el bot recuerda para no repetirse. */
+const RECENT_PLANS = 4;
 
 /**
  * Hechicero controlado por la IA. Usa las mismas intenciones y reglas que un jugador:
@@ -49,6 +84,12 @@ export class BotController implements Controller {
   private strafeSign = 1;
   private strafeTicks = 0;
   private readonly nav: Navigator;
+  /** Dónde vio por última vez a su rival, para seguir peleando si lo pierde de vista. */
+  private lastSeen: { readonly id: EntityId; readonly pos: Vec2; readonly tick: number } | null =
+    null;
+  /** Qué decidió ante cada amenaza (esquivar o no), para no volver a tirar el dado cada paso. */
+  private readonly decisions = new Map<EntityId, boolean>();
+  private readonly recent: string[] = [];
 
   constructor(
     seed: number,
@@ -64,14 +105,19 @@ export class BotController implements Controller {
       this.plan = null;
       return [];
     }
-    const target = currentTarget(state as MatchState, self as Wizard, this.rules);
+    const seen = currentTarget(state as MatchState, self as Wizard, this.rules);
+    if (seen) this.lastSeen = { id: seen.id, pos: seen.pos, tick: state.tick };
+    // Ciego o con el rival escondido: nunca se queda quieto. Pelea contra donde lo vio por
+    // última vez y, si ya no lo recuerda, se mueve esquivando.
+    const target = seen ?? this.remembered(state);
     if (!target) {
-      return [{ kind: 'move', x: 0, z: 0 }];
+      const wander = this.wander(state, self);
+      return [{ kind: 'move', x: wander.x, z: wander.z }];
     }
     const intents: Intent[] = [];
-    const beast = this.beastToHunt(state, self, target);
+    const beast = seen ? this.beastToHunt(state, self, target) : undefined;
     const lockId = beast ? beast.id : target.id;
-    if (self.lockTarget !== lockId) {
+    if (seen && self.lockTarget !== lockId) {
       intents.push({ kind: 'lockTarget', targetId: lockId });
     }
     const ally = this.allyToRevive(state, self, target);
@@ -186,8 +232,8 @@ export class BotController implements Controller {
 
     // Casi siempre elige un hechizo propio según la situación; a veces improvisa un tejido.
     const spells = spellOptions({ state, self, target, available, threatened });
-    if (spells.length > 0 && this.rng.next() < 0.8) {
-      return this.pickWeighted(spells);
+    if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
+      return this.remember(this.pickWeighted(spells));
     }
 
     let first: ElementId;
@@ -226,14 +272,83 @@ export class BotController implements Controller {
       this.strafeTicks = this.rng.int(40, 90);
     }
     let move = add(scale(toTarget, radial), scale(perpendicular(toTarget), this.strafeSign * 0.8));
-
-    const threat = incomingProjectiles(state, self)[0];
-    if (threat) {
-      const side = perpendicular(normalize(threat.velocity));
-      const away = dot(side, sub(self.pos, threat.pos)) >= 0 ? 1 : -1;
-      move = add(move, scale(side, 2 * away));
+    // Si el rival canaliza un Gran hechizo, se corre de lado para que no lo pille quieto.
+    if (this.readsWeave(target)) {
+      move = add(move, scale(perpendicular(toTarget), this.strafeSign * 1.6));
     }
-    return this.keepInZone(state, self, move);
+    return this.keepInZone(state, self, add(move, this.dodge(state, self)));
+  }
+
+  /** El rival que perdió de vista, en el último lugar donde lo vio, mientras lo recuerde. */
+  private remembered(state: Readonly<MatchState>): Wizard | undefined {
+    const last = this.lastSeen;
+    if (!last || state.tick - last.tick > this.profile.memoryTicks) return undefined;
+    const rival = state.wizards.find((w) => w.id === last.id && isAlive(w));
+    // Una copia con la posición recordada: no se usa su posición real, que no ve.
+    return rival ? { ...rival, pos: last.pos, moveInput: { x: 0, z: 0 } } : undefined;
+  }
+
+  /** Sin nadie a la vista: rodea el centro de la zona cambiando de lado, sin quedarse quieto. */
+  private wander(state: Readonly<MatchState>, self: Readonly<Wizard>): Vec2 {
+    if (--this.strafeTicks <= 0) {
+      this.strafeSign = this.rng.next() < 0.5 ? -1 : 1;
+      this.strafeTicks = this.rng.int(30, 70);
+    }
+    const toCenter = normalize(scale(self.pos, -1), self.facing);
+    const around = add(scale(perpendicular(toCenter), this.strafeSign), scale(toCenter, 0.3));
+    return this.keepInZone(state, self, add(around, this.dodge(state, self)));
+  }
+
+  /**
+   * Hacia dónde correrse para esquivar: de lado ante un proyectil que viene, y hacia afuera
+   * del aviso de un golpe en el suelo. Cada amenaza se decide una vez según la dificultad.
+   */
+  private dodge(state: Readonly<MatchState>, self: Readonly<Wizard>): Vec2 {
+    let move: Vec2 = { x: 0, z: 0 };
+    for (const projectile of incomingProjectiles(state, self)) {
+      if (!this.decide(projectile.id, this.profile.dodgeProjectiles)) continue;
+      const side = perpendicular(normalize(projectile.velocity));
+      const away = dot(side, sub(self.pos, projectile.pos)) >= 0 ? 1 : -1;
+      move = add(move, scale(side, 2 * away));
+      break;
+    }
+    const margin = this.rules.wizard.radius + 0.5;
+    for (const strike of state.spells) {
+      if (strike.kind !== 'strike' || strike.team === self.team || strike.ticksLeft <= 0) continue;
+      const out = outOfStrike(strike, self.pos, margin);
+      if (out && this.decide(strike.id, this.profile.dodgeStrikes)) {
+        move = add(move, scale(out, 3));
+      }
+    }
+    return move;
+  }
+
+  /** Tira el dado una sola vez por amenaza y recuerda lo que salió. */
+  private decide(id: EntityId, chance: number): boolean {
+    const known = this.decisions.get(id);
+    if (known !== undefined) return known;
+    if (this.decisions.size > 64) this.decisions.clear();
+    const yes = this.rng.next() < chance;
+    this.decisions.set(id, yes);
+    return yes;
+  }
+
+  /** Si lee que el rival canaliza un Gran hechizo (una vez por canalización). */
+  private readsWeave(target: Wizard): boolean {
+    // Clave negativa: no choca con los ids de proyectiles y golpes.
+    const key = -1 - target.id;
+    if ((target.channel?.weave.length ?? 0) < MAX_WEAVE_LENGTH) {
+      this.decisions.delete(key);
+      return false;
+    }
+    return this.decide(key, this.profile.readWeave);
+  }
+
+  /** Anota el hechizo elegido, para que pese menos si lo quiere repetir enseguida. */
+  private remember(plan: Plan): Plan {
+    this.recent.push(plan.elements.join('>'));
+    if (this.recent.length > RECENT_PLANS) this.recent.shift();
+    return plan;
   }
 
   /** Durante la Caza, si no hay rivales cerca, va por la bestia más cercana. */
@@ -298,9 +413,7 @@ export class BotController implements Controller {
         : d < stopAt - 1
           ? scale(normalize(offset), -1)
           : { x: 0, z: 0 };
-    const threat = incomingProjectiles(state, self)[0];
-    const dodge = threat ? scale(perpendicular(normalize(threat.velocity)), 1.5) : { x: 0, z: 0 };
-    return this.keepInZone(state, self, add(toward, dodge));
+    return this.keepInZone(state, self, add(toward, this.dodge(state, self)));
   }
 
   /** Se aleja del borde: de la arena al principio y de la zona cuando se cierra. */
@@ -350,10 +463,16 @@ export class BotController implements Controller {
   }
 
   private pickWeighted(options: readonly (Plan & { readonly weight: number })[]): Plan {
-    const total = options.reduce((sum, o) => sum + o.weight, 0);
+    // Lo que usó hace poco pesa menos: así no repite el mismo hechizo una y otra vez.
+    const weightOf = (option: Plan & { readonly weight: number }): number => {
+      const key = option.elements.join('>');
+      const times = this.recent.filter((k) => k === key).length;
+      return option.weight * this.profile.repeatPenalty ** times;
+    };
+    const total = options.reduce((sum, o) => sum + weightOf(o), 0);
     let roll = this.rng.next() * total;
     for (const option of options) {
-      roll -= option.weight;
+      roll -= weightOf(option);
       if (roll <= 0) return { elements: [...option.elements], aimMode: option.aimMode };
     }
     const last = this.pick(options);
@@ -392,4 +511,23 @@ function incomingProjectiles(state: Readonly<MatchState>, self: Readonly<Wizard>
       distance(s.pos, self.pos) < 6 &&
       dot(s.velocity, sub(self.pos, s.pos)) > 0,
   );
+}
+
+/**
+ * Hacia dónde salir del aviso de un golpe en el suelo (círculo o línea), o null si no lo
+ * alcanza. `margin` es cuánto más allá del borde quiere quedar.
+ */
+function outOfStrike(strike: Strike, pos: Vec2, margin: number): Vec2 | null {
+  const reach = strike.radius + margin;
+  if (!strike.line) {
+    const offset = sub(pos, strike.pos);
+    if (length(offset) >= reach) return null;
+    return normalize(offset, { x: 1, z: 0 });
+  }
+  const { dir, length: span } = strike.line;
+  const along = Math.max(0, Math.min(span, dot(sub(pos, strike.pos), dir)));
+  const closest = add(strike.pos, scale(dir, along));
+  const offset = sub(pos, closest);
+  if (length(offset) >= reach) return null;
+  return normalize(offset, perpendicular(dir));
 }

@@ -1,6 +1,7 @@
-import { rulesForMode } from '@crisol/content';
+import { BOT_LEVEL_NAMES, BOT_PROFILES, rulesForMode } from '@crisol/content';
 import {
   BotController,
+  type BotLevel,
   createMatch,
   duelSetup,
   type GameEvent,
@@ -25,10 +26,17 @@ interface Result {
   readonly releases: GameEvent[];
 }
 
-function playDuel(seed: number): Result {
+/** Un duelo entre dos bots; por defecto, los dos Duelistas. */
+function playDuel(
+  seed: number,
+  levels: readonly [BotLevel, BotLevel] = ['duelist', 'duelist'],
+): Result {
   const state: MatchState = createMatch(duelSetup(seed, RULES), RULES);
   const bots = new Map(
-    state.wizards.map((w) => [w.id, new BotController(seed * 31 + w.id, RULES)]),
+    state.wizards.map((w, i) => [
+      w.id,
+      new BotController(seed * 31 + w.id, RULES, BOT_PROFILES[levels[i] ?? 'duelist']),
+    ]),
   );
   const releases: GameEvent[] = [];
   while (state.winnerTeam === null && state.tick < MAX_TICKS) {
@@ -67,4 +75,23 @@ console.log(`Duración media de un duelo: ${average.toFixed(1)} s`);
 console.log('Hechizos lanzados:');
 for (const [spell, count] of [...spellCounts].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${spell.padEnd(16)} ${count}`);
+}
+
+// Las dificultades entre sí: cada cruce juega en los dos lados, para no premiar al sur.
+const PAIRS: readonly [BotLevel, BotLevel][] = [
+  ['master', 'duelist'],
+  ['duelist', 'apprentice'],
+  ['master', 'apprentice'],
+];
+const perPair = Math.max(20, Math.round(matches / 4));
+console.log(`Dificultades (${perPair} duelos por cruce, mitad de cada lado):`);
+for (const [strong, weak] of PAIRS) {
+  let strongWins = 0;
+  for (let i = 0; i < perPair; i++) {
+    const swap = i % 2 === 1;
+    const result = playDuel(firstSeed + i, swap ? [weak, strong] : [strong, weak]);
+    if (result.winnerTeam === (swap ? 1 : 0)) strongWins++;
+  }
+  const share = ((strongWins / perPair) * 100).toFixed(0);
+  console.log(`  ${BOT_LEVEL_NAMES[strong]} le gana a ${BOT_LEVEL_NAMES[weak]}: ${share}%`);
 }

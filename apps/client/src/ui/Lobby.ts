@@ -1,4 +1,5 @@
-import { type GameMode, playerCount } from '@crisol/core';
+import { BOT_LEVEL_NAMES } from '@crisol/content';
+import { BOT_LEVELS, type GameMode, playerCount } from '@crisol/core';
 import {
   BEST_OF,
   isValidRoomCode,
@@ -101,6 +102,14 @@ const SETTING_ROWS: readonly SettingRow[] = [
       chosen: (s) => s.lives === lives,
     })),
     shown: (s) => livesAllowed(s.mode),
+  },
+  {
+    title: 'IA en los puestos libres',
+    options: BOT_LEVELS.map((botLevel) => ({
+      label: BOT_LEVEL_NAMES[botLevel],
+      pick: (s) => ({ ...s, botLevel }),
+      chosen: (s) => s.botLevel === botLevel,
+    })),
   },
 ];
 
