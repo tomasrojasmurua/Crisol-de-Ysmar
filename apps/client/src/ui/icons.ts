@@ -7,10 +7,10 @@ import type { ElementId } from '@crisol/core';
  * propia para que se distingan también sin color (daltonismo, pulgar encima, pantalla chica).
  */
 const ELEMENT_PATHS: Record<ElementId, string> = {
-  // Tres lenguas de fuego; la interior queda separada del borde para que no se empaste.
+  // Tres lenguas de fuego; la interior va alta y corta, despegada de la base, para que no se empaste.
   brasa:
     '<path d="M18 3.5C20 8 17 11 18 15C20 18 22 16 23 13C28 19 27 25 22 28C19 29 13 29 10 27C4 23 5 17 9 13C9 17 12 19 14 20C12 14 17 11 18 3.5Z"/>' +
-    '<path d="M15 26C13 24 14.5 21 17 19.5C17 22.5 20 24 18.5 26"/>',
+    '<path d="M15 24.5C13.2 22.8 14.6 20.8 17 19.5C17 22 19.8 23 18.5 24.5"/>',
   // Rayo anguloso: lo único hecho de rectas.
   tormenta: '<path d="M19 3.5L7 18H16L13 28.5L26 13H18L21 3.5Z"/>',
   // Ola que rompe: silueta horizontal, para no confundirse con la llama.
