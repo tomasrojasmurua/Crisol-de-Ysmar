@@ -26,11 +26,22 @@ describe('ComboLog', () => {
   beforeEach(() => vi.stubGlobal('localStorage', memoryStorage()));
   afterEach(() => vi.unstubAllGlobals());
 
-  it('trae desbloqueados solo los 3 combos del tutorial', () => {
+  it('empieza sin combos y el tutorial entrega sus 3', () => {
     const log = new ComboLog();
+    expect(log.unlockedCount).toBe(0);
+    log.completeTutorial();
     expect(log.unlockedCount).toBe(3);
-    expect(log.isUnlocked(byId('amarre'))).toBe(true);
-    expect(log.isUnlocked(byId('lena'))).toBe(false);
+    const again = new ComboLog();
+    expect(again.tutorialDone).toBe(true);
+    expect(again.isUnlocked(byId('amarre'))).toBe(true);
+    expect(again.isUnlocked(byId('lena'))).toBe(false);
+  });
+
+  it('un combo del tutorial también aparece si se acierta 3 veces en partidas', () => {
+    const log = new ComboLog();
+    log.record('quiebre');
+    log.record('quiebre');
+    expect(log.record('quiebre')?.id).toBe('quiebre');
   });
 
   it('un combo aparece al tercer acierto y queda guardado', () => {
@@ -74,7 +85,7 @@ describe('ComboLog', () => {
       '[{"id": 1}, {"id": "x", "name": "Y", "steps": ["nope", "spark"]}]',
     );
     const log = new ComboLog();
-    expect(log.unlockedCount).toBe(3);
+    expect(log.unlockedCount).toBe(0);
     expect(log.ownCombos).toEqual([{ id: 'x', name: 'Y', steps: ['spark'], note: '' }]);
   });
 });

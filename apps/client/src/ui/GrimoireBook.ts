@@ -246,7 +246,11 @@ export class GrimoireBook {
         COMBO_TAB_ICON,
         'Combos',
         `${log.unlockedCount} de ${log.total}`,
-        left > 0 ? `Te faltan ${left} por descubrir` : 'Los descubriste todos',
+        !log.tutorialDone
+          ? 'El tutorial de Entrenamiento te entrega los primeros 3'
+          : left > 0
+            ? `Te faltan ${left} por descubrir`
+            : 'Los descubriste todos',
         true,
       ),
     );

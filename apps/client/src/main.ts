@@ -12,6 +12,7 @@ import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
 import { TrainingMatch } from './game/TrainingMatch';
+import { Tutorial } from './game/Tutorial';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
 import { HumanController } from './input/HumanController';
@@ -36,7 +37,9 @@ import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { PauseMenu } from './ui/PauseMenu';
 import { Screens } from './ui/Screens';
+import { TrainingChooser } from './ui/TrainingChooser';
 import { TrainingPanel } from './ui/TrainingPanel';
+import { TutorialCard } from './ui/TutorialCard';
 import { UiObstacles } from './ui/UiObstacles';
 import { Wardrobe } from './ui/Wardrobe';
 import { WorldLabels } from './ui/WorldLabels';
@@ -109,7 +112,7 @@ const menu = new Menu(
   () => openWardrobe(),
   () => openGrimoire(),
   () => openLobby(),
-  () => startTraining(),
+  () => trainingChooser.show(!comboLog.tutorialDone),
   audio.engine,
 );
 const wardrobe = new Wardrobe(
@@ -136,6 +139,14 @@ const trainingPanel = new TrainingPanel(
   },
   () => showMenu(),
 );
+const trainingChooser = new TrainingChooser(uiRoot, (kind) => startTraining(kind === 'tutorial'));
+const tutorialCard = new TutorialCard(
+  uiRoot,
+  () => freePlay(),
+  () => showMenu(),
+);
+/** El tutorial en curso, si el entrenamiento es el tutorial. */
+let tutorial: Tutorial | null = null;
 const lobby = new Lobby(
   uiRoot,
   () => joinRoom(randomRoomCode(Math.random)),
@@ -271,6 +282,7 @@ function showMenu(): void {
   if (location.search) history.replaceState(null, '', location.pathname);
   paused = false;
   match = null;
+  endTutorial();
   useRules(GAME_RULES);
   screens.menu(profile, grimoire);
 }
@@ -330,8 +342,11 @@ function startMatch(options: MatchOptions): void {
   beginMatch(current, (id) => others.get(id) ?? { name: 'Hechicero', look: profile.look });
 }
 
-/** El modo entrenamiento: tú contra un muñeco, con el panel de lo que estás tejiendo. */
-function startTraining(): void {
+/**
+ * El modo entrenamiento: tú contra un muñeco, con el panel de lo que estás tejiendo. Con
+ * `withTutorial`, la tarjeta del tutorial guía paso a paso y los elementos descansan.
+ */
+function startTraining(withTutorial = false): void {
   enterImmersive();
   useRules(rulesForMode({ kind: 'duel' }));
   const current = new TrainingMatch(rules, human, profile.affinity);
@@ -341,7 +356,25 @@ function startTraining(): void {
     look: { ...DEFAULT_LOOK, robe: 'hueso', headwear: 'ninguno', face: 'automata' },
   }));
   trainingPanel.visible = true;
+  if (withTutorial) {
+    current.restless = false;
+    trainingPanel.tutorial = true;
+    tutorial = new Tutorial(current.playerId);
+    tutorialCard.show(tutorial);
+  }
   obstacles.invalidate();
+}
+
+/** Terminado el tutorial, seguir practicando con el mismo muñeco. */
+function freePlay(): void {
+  endTutorial();
+  trainingPanel.tutorial = false;
+  if (match instanceof TrainingMatch) match.restless = true;
+}
+
+function endTutorial(): void {
+  tutorial = null;
+  tutorialCard.hide();
 }
 
 /** Empieza (o reempieza) una partida en red: los nombres y el aspecto vienen de la sala. */
@@ -434,6 +467,15 @@ function stepMatch(current: MatchView): void {
   audio.onEvents(events, current.state);
   for (const event of events) {
     if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
+  }
+  if (current instanceof TrainingMatch && tutorial && !tutorial.done) {
+    if (tutorial.onStep(events, current.state)) {
+      if (tutorial.done) {
+        comboLog.completeTutorial();
+        audio.discover();
+      }
+      tutorialCard.render();
+    }
   }
   if (current instanceof TrainingMatch) {
     for (const event of events) {

@@ -3,6 +3,7 @@ import { type ComboId, SPELL_IDS, type SpellId } from '@crisol/core';
 
 const HITS_KEY = 'crisol.combos';
 const OWN_KEY = 'crisol.misCombos';
+const TUTORIAL_KEY = 'crisol.tutorial';
 
 /** Hasta cuántos hechizos lleva un combo propio. */
 export const OWN_COMBO_MAX_STEPS = 4;
@@ -20,16 +21,29 @@ export interface OwnCombo {
 /**
  * Los combos del catálogo que el jugador acertó en partidas y los que anotó él mismo, guardados
  * en este celular. Un combo aparece en el Grimorio al juntar sus aciertos (3, o 5 los más
- * poderosos); antes no se muestra nada de él. Los del tutorial vienen desbloqueados mientras
- * el tutorial no exista.
+ * poderosos); antes no se muestra nada de él. Los 3 del tutorial los entrega el tutorial (o
+ * aparecen igual si se aciertan 3 veces en partidas).
  */
 export class ComboLog {
   private readonly hits: Map<string, number>;
   private own: OwnCombo[];
+  private tutorial: boolean;
 
   constructor() {
     this.hits = loadHits();
     this.own = loadOwn();
+    this.tutorial = load(TUTORIAL_KEY) === true;
+  }
+
+  /** Si ya terminó el tutorial de Entrenamiento. */
+  get tutorialDone(): boolean {
+    return this.tutorial;
+  }
+
+  /** Termina el tutorial: sus 3 combos quedan en el Grimorio. */
+  completeTutorial(): void {
+    this.tutorial = true;
+    save(TUTORIAL_KEY, true);
   }
 
   get total(): number {
@@ -41,7 +55,8 @@ export class ComboLog {
   }
 
   isUnlocked(combo: Combo): boolean {
-    return combo.tutorial === true || (this.hits.get(combo.id) ?? 0) >= combo.needed;
+    if (combo.tutorial && this.tutorial) return true;
+    return (this.hits.get(combo.id) ?? 0) >= combo.needed;
   }
 
   /**
@@ -91,6 +106,14 @@ function save(key: string, value: unknown): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Sin almacenamiento: dura solo esta visita.
+  }
+}
+
+function load(key: string): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null');
+  } catch {
+    return null;
   }
 }
 

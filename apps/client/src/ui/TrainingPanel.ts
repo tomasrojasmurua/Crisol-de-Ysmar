@@ -56,9 +56,19 @@ export class TrainingPanel {
     this.bar.hidden = !value;
     this.spell.hidden = !value;
     if (value) {
-      this.rest.checked = true;
+      this.tutorial = false;
       this.showEmpty();
     }
+  }
+
+  /**
+   * En el tutorial los elementos descansan de verdad (es parte de lo que enseña), así que no se
+   * ofrece "Sin cansancio".
+   */
+  set tutorial(on: boolean) {
+    query(this.bar, '.training-title').textContent = on ? 'Tutorial' : 'Entrenamiento';
+    query(this.bar, '.training-rest').hidden = on;
+    this.rest.checked = !on;
   }
 
   /** Salió un hechizo tuyo: sus colores y su nombre quedan a la vista. */
