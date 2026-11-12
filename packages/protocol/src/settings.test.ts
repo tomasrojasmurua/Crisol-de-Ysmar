@@ -9,6 +9,7 @@ describe('ajustes de la sala', () => {
       bestOf: 1,
       glyphs: false,
       omen: false,
+      lives: true,
     };
     expect(cleanRoomSettings(settings)).toEqual(settings);
   });
@@ -18,5 +19,11 @@ describe('ajustes de la sala', () => {
       cleanRoomSettings({ mode: { kind: 'ffa', players: 40 }, minutes: 99, bestOf: 2, omen: 'sí' }),
     ).toEqual(DEFAULT_ROOM_SETTINGS);
     expect(cleanRoomSettings(null)).toEqual(DEFAULT_ROOM_SETTINGS);
+  });
+
+  it('las Vidas vienen apagadas y no se pueden en el 1v1', () => {
+    expect(DEFAULT_ROOM_SETTINGS.lives).toBe(false);
+    expect(cleanRoomSettings({ mode: { kind: 'duel' }, lives: true }).lives).toBe(false);
+    expect(cleanRoomSettings({ mode: { kind: 'ffa', players: 4 }, lives: true }).lives).toBe(true);
   });
 });

@@ -11,6 +11,8 @@ export interface RoomSettings {
   readonly glyphs: boolean;
   /** Si la partida tiene un Presagio. */
   readonly omen: boolean;
+  /** 3 Vidas por ronda. En el 1v1 no se ofrece: el mejor de 3 ya es la segunda oportunidad. */
+  readonly lives: boolean;
 }
 
 export const ROUND_MINUTES: readonly number[] = [2, 3, 4, 5];
@@ -22,6 +24,7 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   bestOf: 3,
   glyphs: true,
   omen: true,
+  lives: false,
 };
 
 /** Los modos que se pueden jugar en red. */
@@ -56,7 +59,13 @@ export function cleanRoomSettings(raw: unknown): RoomSettings {
     bestOf,
     glyphs: typeof source.glyphs === 'boolean' ? source.glyphs : DEFAULT_ROOM_SETTINGS.glyphs,
     omen: typeof source.omen === 'boolean' ? source.omen : DEFAULT_ROOM_SETTINGS.omen,
+    lives: source.lives === true && livesAllowed(mode ?? DEFAULT_ROOM_SETTINGS.mode),
   };
+}
+
+/** Las Vidas solo se ofrecen de 2 contra 2 en adelante y en los todos contra todos. */
+export function livesAllowed(mode: GameMode): boolean {
+  return mode.kind !== 'duel';
 }
 
 function isMode(value: unknown): value is GameMode {

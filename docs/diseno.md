@@ -41,7 +41,8 @@ es lo vigente.
 - **Partida:** mejor de 3 rondas sin reloj (Caza, Convergencia y Duelo final, un minuto cada una, y
   luego muerte súbita: la zona se cierra del todo y su daño sube hasta que alguien cae). Modos 1v1,
   2v2, 3v3 y todos contra todos hasta 6. Al morir quedas fuera de la ronda y miras a quienes siguen
-  (las 3 Vidas están en pausa; el Espectro se eliminó en noviembre de 2026). Hay un **modo entrenamiento** contra un muñeco, con un
+  (las 3 Vidas son opcionales de 2v2 en adelante, apagadas por defecto; el Espectro se eliminó en
+  noviembre de 2026). Hay un **modo entrenamiento** contra un muñeco, con un
   panel que muestra lo que estás tejiendo y qué hace. El Grimorio muestra solo lo descubierto y, al
   tocar un conjuro, qué hace.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
