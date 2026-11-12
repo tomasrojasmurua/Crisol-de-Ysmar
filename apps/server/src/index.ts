@@ -1,5 +1,6 @@
 import { isValidRoomCode } from '@crisol/protocol';
 import type { Env } from './env';
+import { receiveReports } from './errorLog';
 import { generateRoomCode } from './roomCode';
 
 export { Room } from './room';
@@ -8,11 +9,18 @@ const ROOM_SOCKET_PATH = /^\/api\/rooms\/([A-Z0-9]+)\/socket$/;
 
 /** Worker de entrada: crea salas y conecta cada celular con su Sala. */
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
       return Response.json({ ok: true });
+    }
+
+    if (
+      url.pathname === '/api/errors' &&
+      (request.method === 'POST' || request.method === 'OPTIONS')
+    ) {
+      return receiveReports(request, env.ERRORS, (task) => ctx.waitUntil(task));
     }
 
     if (url.pathname === '/api/rooms' && request.method === 'POST') {

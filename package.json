@@ -18,7 +18,8 @@
     "format": "biome check --write .",
     "check:deps": "node scripts/check-dependencies.mjs",
     "check": "pnpm lint && pnpm check:deps && pnpm typecheck && pnpm test",
-    "balance": "pnpm --filter @crisol/balance start"
+    "balance": "pnpm --filter @crisol/balance start",
+    "errores": "node scripts/errores.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
