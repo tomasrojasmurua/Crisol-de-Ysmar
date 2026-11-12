@@ -25,6 +25,7 @@ import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
 import { BackGuard } from './platform/BackGuard';
 import { startErrorReports } from './platform/ErrorReporter';
+import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
@@ -52,6 +53,8 @@ import { WorldLabels } from './ui/WorldLabels';
 // Lo primero: si algo falla de aquí en adelante, queda en el registro (ver docs/errores.md).
 startErrorReports(() => ({ room: net?.code ?? '', match: describeMatch() }));
 blockBrowserGestures();
+// Abierto desde el ícono recién agregado a inicio: trae el progreso que tenía Safari.
+adoptCarriedProgress();
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const uiRoot = document.querySelector<HTMLElement>('#ui');
 if (!canvas || !uiRoot) {

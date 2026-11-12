@@ -135,11 +135,12 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    de la Sala se guardan en D1 (`crisol-errores`) con versión, celular, sala y partida, sin datos
    personales. Se leen con el flujo "Leer errores" de GitHub o `pnpm errores`
    ([docs/errores.md](../errores.md)).
-2. **Que el progreso no se pierda en iPhone.** Grimorio, combos desbloqueados, capítulos del
-   tutorial y Vestidor viven solo en `localStorage`. Safari puede borrarlo tras unos días sin abrir
-   el sitio si no está en la pantalla de inicio. Opciones: invitar a "Agregar a inicio" (el
-   `manifest.webmanifest` ya existe), y/o el perfil en D1 con un código de respaldo (decisión ya
-   tomada a futuro). Pedirle a Tomás que elija.
+2. **Que el progreso no se pierda en iPhone.** Hecho (a): en iPhone, bajo Sonido, una tarjeta
+   discreta invita a "Agregar a inicio" (`ui/HomeScreenInvite.ts`). Mientras su explicación está
+   abierta, la dirección lleva el progreso empacado (`#traer=…`) y el ícono nuevo lo desempaca al
+   abrirse (`platform/homeScreen.ts`), porque Safari y el ícono no comparten almacenamiento. Por eso
+   el manifiesto no tiene `start_url`. Falta probarlo en un iPhone real. Pendiente para después de
+   la prueba (b): el perfil en D1 con código de respaldo.
 3. **Prueba de estrés de la red con 6.** Ya existe un simulador de lag (`apps/client/src/net/LagSimulator.ts`,
    `apps/server/red/`). Correr salas de 6 con 150-300 ms y 5% de pérdida, quien crea la sala con mala
    conexión, reconexiones a mitad de ronda y la app en segundo plano. Arreglar lo que salga.
