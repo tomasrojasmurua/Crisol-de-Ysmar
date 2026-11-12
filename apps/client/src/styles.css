@@ -3953,3 +3953,141 @@ body {
   text-transform: uppercase;
   color: var(--trama);
 }
+
+/* ---------- Agregar a inicio (solo iPhone) ---------- */
+
+/* Discreta, bajo Sonido: más tenue que Grimorio, pero se lee de un vistazo. */
+#ui .menu-home {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(7, 7, 12, 0.7);
+  border-color: rgba(180, 156, 255, 0.4);
+  text-align: left;
+  --icon-size: 18px;
+  --icon-color: var(--trama);
+}
+
+#ui .menu-home:active {
+  background: #1d1828;
+}
+
+.menu-home-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.menu-home-text strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.menu-home-text span {
+  font-size: 11px;
+  color: var(--ink-quiet);
+}
+
+.home-invite {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: rgba(7, 7, 12, 0.8);
+  pointer-events: auto;
+  overflow-y: auto;
+  animation: fade-in 0.2s ease both;
+}
+
+.home-invite-card {
+  width: min(560px, 100%);
+  padding: 10px 16px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.98), rgba(11, 10, 16, 0.98));
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 16px 50px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.home-invite-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+}
+
+.home-invite-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  color: var(--gold-bright);
+}
+
+#ui .home-invite-head .grimoire-card-close {
+  top: -4px;
+  right: -8px;
+}
+
+.home-invite-why {
+  margin: 4px 0 8px;
+  color: var(--ink-quiet);
+  text-align: center;
+}
+
+.home-invite-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.home-invite-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.home-invite-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--bronze);
+  font-family: var(--display);
+  font-size: 12px;
+  color: var(--gold-bright);
+}
+
+.home-invite-steps b {
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.home-invite-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: bottom;
+  --icon-size: 16px;
+  --icon-color: var(--gold-bright);
+}
+
+.home-invite-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}

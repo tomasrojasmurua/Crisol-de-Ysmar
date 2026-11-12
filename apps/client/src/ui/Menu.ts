@@ -10,6 +10,7 @@ import type { AudioEngine } from '../audio/AudioEngine';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
 import { el, query } from './dom';
+import { HomeScreenInvite } from './HomeScreenInvite';
 import { elementIcon } from './icons';
 import { MENU_ICONS } from './menuIcons';
 
@@ -157,6 +158,7 @@ export class Menu {
     this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
     this.sizes = query(this.root, '.menu-sizes');
+    new HomeScreenInvite(query(this.root, '.menu-side'), this.root);
     query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
     this.portrait.addEventListener('click', onWardrobe);
     query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);

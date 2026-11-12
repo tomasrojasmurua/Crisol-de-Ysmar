@@ -24,6 +24,7 @@ import { leftRoom, recentRoomCode, roomToRejoin } from './net/lastRoom';
 import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
 import { BackGuard } from './platform/BackGuard';
+import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
@@ -49,6 +50,8 @@ import { WorldLabels } from './ui/WorldLabels';
 // hace cada una vive en su archivo (escena, dibujo y curso de la partida, pantallas, sala).
 
 blockBrowserGestures();
+// Abierto desde el ícono recién agregado a inicio: trae el progreso que tenía Safari.
+adoptCarriedProgress();
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const uiRoot = document.querySelector<HTMLElement>('#ui');
 if (!canvas || !uiRoot) {

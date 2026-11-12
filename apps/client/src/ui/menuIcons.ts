@@ -50,6 +50,8 @@ export const MENU_ICONS = {
   ),
   pause: icon('<path d="M9 5v14M15 5v14"/>'),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
+  /** Un celular con un signo más: agregar el juego a la pantalla de inicio. */
+  keep: icon('<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 8v6M9 11h6"/>'),
   /** Estrella de cuatro puntas, sólida: adorna el botón principal. */
   star: icon(
     '<path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z" fill="currentColor"/>',
