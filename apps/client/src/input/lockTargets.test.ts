@@ -1,5 +1,12 @@
 import { GAME_RULES } from '@crisol/content';
-import { type Beast, createMatch, type MatchState, type Wizard } from '@crisol/core';
+import {
+  autoTarget,
+  type Beast,
+  createMatch,
+  type MatchState,
+  type Summon,
+  type Wizard,
+} from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { canLock, nextLockTarget } from './lockTargets';
 
@@ -112,5 +119,53 @@ describe('botón de duelo', () => {
   it('sin nada al alcance no fija nada', () => {
     const { state, me } = arena([{ x: 0, z: 60 }]);
     expect(nextLockTarget(state, me, rules, FORWARD, null)).toBeNull();
+  });
+});
+
+describe('fijar invocaciones', () => {
+  function addSummon(state: MatchState, id: number, team: number, x: number, z: number): Summon {
+    const summon = {
+      kind: 'summon',
+      summon: 'mossGuardian',
+      id,
+      ownerId: team === 0 ? 1 : 2,
+      team,
+      pos: { x, z },
+      facing: { x: 0, z: 1 },
+      hp: 60,
+      maxHp: 60,
+      radius: 0.6,
+      durationTicks: 300,
+      ticksLeft: 300,
+      cooldown: 0,
+      targetId: null,
+      slot: 0,
+    } as unknown as Summon;
+    state.spells.push(summon);
+    return summon;
+  }
+
+  it('se fija una invocación rival, no una tuya ni una caída', () => {
+    const { state, me } = arena([{ x: 0, z: 10 }]);
+    addSummon(state, 90, 1, 2, 4);
+    addSummon(state, 91, 0, -2, 4);
+    const fallen = addSummon(state, 92, 1, 3, 3);
+    fallen.hp = 0;
+    expect(canLock(state, me, rules, 90)).toBe(true);
+    expect(canLock(state, me, rules, 91)).toBe(false);
+    expect(canLock(state, me, rules, 92)).toBe(false);
+  });
+
+  it('fijada, el disparo automático va a la invocación y no al mago', () => {
+    const { state, me } = arena([{ x: 0, z: 6 }]);
+    addSummon(state, 90, 1, 4, 4);
+    me.lockTarget = 90;
+    expect(autoTarget(state, me, rules)).toMatchObject({ id: 90, kind: 'summon' });
+  });
+
+  it('el botón de duelo no pasa por las invocaciones', () => {
+    const { state, me } = arena([{ x: 0, z: 6 }]);
+    addSummon(state, 90, 1, 0, 3);
+    expect(nextLockTarget(state, me, rules, FORWARD, null)).toBe(2);
   });
 });

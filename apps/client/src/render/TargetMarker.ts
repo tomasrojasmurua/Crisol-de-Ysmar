@@ -5,7 +5,7 @@ import { glow } from './palette';
 export interface MarkedTarget {
   readonly id: number;
   readonly pos: { readonly x: number; readonly z: number };
-  readonly kind: 'wizard' | 'beast';
+  readonly kind: 'wizard' | 'beast' | 'summon';
   readonly guardian?: boolean;
 }
 
@@ -78,7 +78,13 @@ export class TargetMarker {
       this.duelId = target.id;
       this.duelSince = timeSeconds;
     }
-    const size = target.guardian ? GUARDIAN_SCALE : target.kind === 'beast' ? 1.1 : 1;
+    const size = target.guardian
+      ? GUARDIAN_SCALE
+      : target.kind === 'beast'
+        ? 1.1
+        : target.kind === 'summon'
+          ? 0.8
+          : 1;
     // Se cierra desde más grande al fijar.
     const t = Math.min(1, (timeSeconds - this.duelSince) / SNAP_SECONDS);
     const snap = 1 + (1 - t) * (1 - t) * 0.6;

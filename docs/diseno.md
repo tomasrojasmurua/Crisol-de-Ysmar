@@ -13,7 +13,7 @@ es lo vigente.
   completa al entrar a jugar). Ninguna pieza del HUD puede quedar encima de un botón.
 - **Cámara:** tercera persona sobre el hombro con fijación de objetivo (elegida en el Hito 1 frente a la vista 3/4).
   Sin nada fijado no gira sola; se gira arrastrando el dedo. Tocar a un rival o una bestia (o el
-  botón de duelo, el de las cuatro esquinas) entra en **duelo**: la cámara lo mantiene siempre al
+  botón de duelo, el de las cuatro esquinas) entra en **duelo** (también se puede tocar una invocación rival): la cámara lo mantiene siempre al
   frente, el joystick pasa a rodearlo y un anillo brillante lo marca en el suelo. El botón pasa al siguiente
   rival de izquierda a derecha; arrastrar para mirar suelta el duelo. Se termina solo si el
   blanco cae, se esconde o pasa de 20 m.
