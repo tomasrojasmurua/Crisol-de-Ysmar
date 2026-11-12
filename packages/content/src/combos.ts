@@ -39,7 +39,7 @@ const anyOf = (element: ElementId): ComboStep => ({ element });
 const ANY: ComboStep = { any: true };
 
 /**
- * El catálogo cerrado de combos: 6 reacciones y 70 seguidillas de hechizos. Solo documenta
+ * El catálogo cerrado de combos: 6 reacciones y 78 seguidillas de hechizos. Solo documenta
  * sinergias que ya existen en el juego; acertarlos no da nada extra, el premio es descubrirlos.
  * Ver `claude/crisol-combos-grimorio.md` en el proyecto para las reglas que les dan forma.
  */
@@ -704,6 +704,74 @@ export const COMBOS: readonly Combo[] = [
     detail: 'El daño se reparte y la burbuja absorbe la parte de los dos.',
     team: true,
   },
+  // ---------- Tercera tanda: aguantar, devolver y escapar ----------
+  {
+    id: 'coraza-y-mil-pasos',
+    name: 'Coraza y mil pasos',
+    level: 3,
+    needed: 3,
+    steps: [s('obsidian'), s('thousandSteps')],
+    detail:
+      'La Obsidiana aguanta los golpes y, cuando te rodean, saltas intocable golpeando a todos a 8 m.',
+  },
+  {
+    id: 'hielo-y-fuga',
+    name: 'Hielo y fuga',
+    level: 2,
+    needed: 3,
+    steps: [s('iceCoffin'), s('blink')],
+    detail: 'Te congelas sin recibir daño mientras te pegan y, al salir, te teletransportas lejos.',
+  },
+  {
+    id: 'espejo-y-salto',
+    name: 'Espejo y salto',
+    level: 2,
+    needed: 3,
+    steps: [s('waterMirror'), s('blink')],
+    detail: 'Devuelves todo lo que te lanzan y después te escapas con el Destello.',
+  },
+  {
+    id: 'olvido-y-fuga',
+    name: 'Olvido y fuga',
+    level: 2,
+    needed: 3,
+    steps: [s('oblivionMist'), s('blink')],
+    detail:
+      'Los que te rodean pierden lo que estaban tejiendo y tú te vas antes de que vuelvan a tejer.',
+  },
+  {
+    id: 'trueno-y-lluvia',
+    name: 'Trueno y lluvia',
+    level: 2,
+    needed: 3,
+    steps: [s('thunderclap'), s('healingRain')],
+    detail: 'El Trueno cansa a los que tienes cerca de su último elemento y la lluvia te cura.',
+  },
+  {
+    id: 'cosecha-en-el-anillo',
+    name: 'Cosecha en el anillo',
+    level: 3,
+    needed: 3,
+    steps: [s('thornRing'), s('soulTide')],
+    detail:
+      'Encierras a varios en las zarzas y la Ola de almas los atraviesa: te cura por cada uno.',
+  },
+  {
+    id: 'aguante',
+    name: 'Aguante',
+    level: 2,
+    needed: 3,
+    steps: [s('depth'), s('sap')],
+    detail: 'Con la Profundidad el daño te llega de a poco, y la Savia te cura mientras tanto.',
+  },
+  {
+    id: 'doble-y-respiro',
+    name: 'Doble y respiro',
+    level: 2,
+    needed: 3,
+    steps: [s('decoy'), s('sap')],
+    detail: 'Te vuelves invisible, tu doble se los lleva y tú te curas.',
+  },
 ];
 
 /**
@@ -800,6 +868,13 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'aliado-bomba': { check: 'seedOnAlly' },
   'jaula-y-respiro': { finish: 'cast', check: 'ringActive' },
   'escudo-y-hoguera': { check: 'selfShield', trickle: true },
+  'hielo-y-fuga': { finish: 'cast' },
+  'espejo-y-salto': { finish: 'cast' },
+  'olvido-y-fuga': { finish: 'cast' },
+  'trueno-y-lluvia': { finish: 'cast' },
+  'cosecha-en-el-anillo': { finish: 'cast', check: 'ringActive' },
+  aguante: { finish: 'cast' },
+  'doble-y-respiro': { finish: 'cast' },
   // El Llanto suelta los proyectiles recién al terminar (5 s).
   'tormenta-de-vuelta': { window: 7 },
 };
