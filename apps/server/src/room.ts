@@ -72,6 +72,7 @@ export class Room extends DurableObject<Env> {
 
   private handle(socket: WebSocket, message: ClientMessage): void {
     const playerId = (socket.deserializeAttachment() as Attachment | null)?.playerId;
+    if (playerId !== undefined) this.duel.heard(playerId);
     switch (message.type) {
       case 'hello': {
         if (message.protocol !== PROTOCOL_VERSION) {
@@ -217,8 +218,8 @@ export class Room extends DurableObject<Env> {
       }
       this.broadcastState();
     }
-    // Alguien se quedó callado (sin señal) o volvió a hablar: se avisa a todos.
-    const away = duel.awayKey;
+    // Alguien se quedó callado (sin señal) o volvió a hablar, o cambió quien manda: se avisa.
+    const away = `${duel.awayKey}|${duel.hostId}`;
     if (away !== this.lastAway) {
       this.lastAway = away;
       this.broadcastPlayers();
