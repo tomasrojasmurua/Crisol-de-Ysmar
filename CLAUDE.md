@@ -11,7 +11,11 @@ documentación van en español; los identificadores de código en inglés.
 
 ## Si llegas nuevo al proyecto
 
-- Lee primero `docs/traspaso/README.md`: estado actual, decisiones tomadas, qué sigue y cómo trabaja
-  Tomás. Las copias de los documentos de diseño originales están en `docs/traspaso/referencia/`.
-- Tomás aprueba los PR escribiendo "merge"; recién ahí se fusionan, con el CI en verde.
-- Prioridad: la fluidez del multijugador (Hito 2), que todavía no existe.
+- Lee primero `docs/traspaso/README.md`: estado actual, decisiones tomadas, qué sigue, pendientes
+  y cómo trabaja Tomás. Las copias de los documentos de otras cuentas están en
+  `docs/traspaso/referencia/`.
+- Un PR por frente; se fusiona apenas el CI está en verde (Tomás ya no escribe "merge").
+- Prioridad: la fluidez del multijugador. Frente actual: "Listo para los 5" (prueba en red con
+  amigos; contenido nuevo congelado).
+- Si cambia la forma del estado, los eventos o los ajustes de sala, sube `PROTOCOL_VERSION`.
+- Celular solo en horizontal: nada puede tapar los botones (revisa a 844×390).
