@@ -152,7 +152,8 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
 5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.
-6. **Lista para la prueba:** un mensaje para los amigos con el enlace, qué probar y cómo reportar.
+6. **Lista para la prueba. Hecho:** la revisión del punto 5 como lista para el iPhone y el mensaje
+   de WhatsApp para los amigos están en [docs/prueba-con-amigos.md](../prueba-con-amigos.md).
 
 Tomás también aceptó, para después de la prueba: decidir con datos si las rondas son cortas (en el
 simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
