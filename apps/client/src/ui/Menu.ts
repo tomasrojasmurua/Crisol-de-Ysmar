@@ -129,7 +129,7 @@ export class Menu {
         <div class="menu-rules"></div>
         <button type="button" class="primary menu-play">${MENU_ICONS.star}<span>Entrar al Crisol</span>${MENU_ICONS.star}</button>
         <div class="menu-extra">
-          <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con un amigo</span></button>
+          <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con amigos</span></button>
           <button type="button" class="secondary menu-training">${MENU_ICONS.training}<span>Entrenamiento</span></button>
         </div>
       </section>

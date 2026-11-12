@@ -13,7 +13,7 @@ cuenta de Claude; sus copias están en [`referencia/`](referencia/).
 Duelo de hechiceros para celular, jugado en el navegador desde un enlace de WhatsApp, donde la magia
 se **teje** en tiempo real combinando cinco elementos. Hoy se juega completo contra la IA en
 [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev). Ya se puede jugar un duelo 1v1 en
-red con un amigo (menú → Jugar con un amigo).
+red con un amigo (menú → Jugar con amigos).
 
 ## Quién es Tomás y cómo trabaja
 
