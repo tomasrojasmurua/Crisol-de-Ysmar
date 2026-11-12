@@ -1,33 +1,41 @@
 # Traspaso del proyecto Crisol de Ysmar
 
-Este documento junta todo lo que una cuenta nueva de Claude necesita para seguir el proyecto sin
-volver a preguntar. Estado al 9 de noviembre de 2026, con `main` al día hasta el PR #19 y la tanda 4
-de Grandes hechizos en su PR.
+Este documento junta todo lo que una cuenta de Claude necesita para seguir el proyecto sin volver
+a preguntar. **Estado al 12 de noviembre de 2026, con `main` al día hasta el PR #78.** Reemplaza al
+traspaso del 9 de noviembre.
 
-**Si eres Claude y estás empezando:** lee este archivo, luego `CLAUDE.md`, `CONTRIBUTING.md`,
-`docs/diseno.md` y `docs/arquitectura.md`. Los documentos de diseño originales vivían en otra
-cuenta de Claude; sus copias están en [`referencia/`](referencia/).
+**Si eres Claude y estás empezando:** lee este archivo entero, luego `CLAUDE.md`,
+`CONTRIBUTING.md`, `docs/diseno.md` y `docs/arquitectura.md`. Lo que se decidió en otras cuentas de
+Claude está copiado en [`referencia/`](referencia/); no hace falta abrir los originales.
 
 ## En una frase
 
 Duelo de hechiceros para celular, jugado en el navegador desde un enlace de WhatsApp, donde la magia
-se **teje** en tiempo real combinando cinco elementos. Hoy se juega completo contra la IA en
-[crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev). Ya se puede jugar un duelo 1v1 en
-red con un amigo (menú → Jugar con amigos).
+se **teje** en tiempo real combinando cinco elementos. Se juega completo contra la IA y en red con
+amigos (de 1v1 a todos contra todos de 6) en
+[crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev).
 
 ## Quién es Tomás y cómo trabaja
 
 - **Tomás Rojas** (GitHub `tomasrojasmurua`) es el dueño y quien decide. Escribe en español de Chile,
-  con mensajes cortos. Juega con un grupo de amigos en Chile; el juego es para ellos.
-- **Aprueba con "merge".** Cuando un PR está listo, Claude le avisa con el enlace y lo que cambió.
-  Tomás responde "merge" y Claude lo fusiona (con el CI en verde). "Si" o "Continuemos" significan
-  seguir con la propuesta hecha.
-- Le gusta conversar el diseño antes de construir: propuestas con opciones, una recomendación y
-  preguntas numeradas al final. Responde por número ("1. Me gustan 2. Si").
+  con mensajes cortos. Juega con un grupo de amigos en Chile; el juego es para ellos. Explícale
+  los cambios en lenguaje simple, sin jerga de código.
+- **Un PR por frente, y Claude lo fusiona apenas el CI está en verde.** Ya no hace falta esperar su
+  "merge" (eso era antes). Al terminar, cuéntale qué cambió con enlace al PR y en pocas líneas.
+- Le gusta conversar el diseño antes de construir: **opciones con una recomendación y preguntas
+  numeradas al final.** Responde por número ("1. Si 2. No, prefiero…"). "Si", "Me parece" o
+  "Confirmo" significan seguir con lo propuesto.
+- Lo que está claro, hazlo sin preguntar; pregunta solo lo que cambia el resultado. Si decides algo
+  por tu cuenta, díselo en una línea al final.
 - Quiere un juego "indie de nivel mundial", con identidad y lore propios, y un código muy ordenado.
-- Tiene acceso a **ChatGPT** (imágenes y texto), **Meshy** (modelos 3D), **Mixamo** (animaciones) y
-  **ElevenLabs** (efectos, música y voz). Claude le entrega los prompts exactos y él genera los archivos.
-- Prioridad declarada: **la fluidez del multijugador** por sobre todo lo demás.
+- Juega en **iPhone**. Varios amigos tienen **Android de gama media**, y uno con mala conexión suele
+  crear la sala.
+- Tiene **ChatGPT** (imágenes y texto), **Meshy** (3D), **Mixamo** (animaciones) y **ElevenLabs**
+  (efectos, música y voz). Claude le escribe los prompts exactos y él trae los archivos. En diseño de
+  interfaz deja a criterio de Claude diseñar directo o pedir mockups a ChatGPT, pero quiere que se le
+  avise cuando ChatGPT pueda ayudar.
+- Prioridad declarada: **la fluidez del multijugador**. Hoy el foco es llegar bien revisado a una
+  prueba con unos 5 amigos (ver "Lo que sigue").
 
 ## Reglas fijas del proyecto
 
@@ -39,172 +47,189 @@ red con un amigo (menú → Jugar con amigos).
    El azar viene de `SeededRng` y el tiempo de los pasos de simulación (30 por segundo).
 4. **Los datos mandan.** Todo número de balance va en `packages/content`, nunca en código.
 5. **Antes de proponer un cambio, `pnpm check`** (Biome, mapa de dependencias, tipos y Vitest).
-6. Todo entra por PR a `main`, que siempre se puede jugar. Commits convencionales (`feat:`, `fix:`…).
-   La plantilla de PR está en `.github/pull_request_template.md`.
+6. Todo entra por PR a `main`, que siempre se puede jugar. La plantilla está en
+   `.github/pull_request_template.md`.
+7. **Si cambia la forma del estado, de los eventos o de los ajustes de sala, sube
+   `PROTOCOL_VERSION`** en `packages/protocol/src/messages.ts` (va en 16). Cliente y Sala deben
+   coincidir; quien tenga el juego abierto debe recargar.
+8. **Celular en horizontal y nada tapa los botones.** Toda pieza nueva de interfaz se revisa a
+   844×390 (iPhone) y en pantallas más angostas.
 
 ## Decisiones de diseño tomadas
 
-| Tema            | Decisión                                                                                                                                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pilares         | La magia se construye, descubrir es progresar, duelos con estrategia.                                                                                                                                                  |
-| Plataforma      | Juego web sin instalar, celular solo en horizontal. Se entra por un enlace de WhatsApp.                                                                                                                                |
-| Cámara          | Tercera persona sobre el hombro (se probó la 3/4 y se descartó en el Hito 1). Se gira arrastrando el dedo. Tocar o el botón de duelo fija y la cámara lo mantiene al frente; arrastrar lo suelta. Sin modos de prueba. |
-| Controles       | Pulgar izquierdo mueve; pulgar derecho toca hasta 3 elementos y ✦ para lanzar; ✕ deshace. En PC: WASD, 1-5, espacio, X.                                                                                                |
-| Elementos       | Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: vecinos combinan, opuestos chocan.                                                                                                                              |
-| Tejido          | 1 a 3 elementos, el orden importa: 155 hechizos (5 básicos, 25 de dos, 125 Grandes hechizos). El tejido es visible para el rival. Fatiga por elemento, sin maná.                                                       |
-| Hechizos        | Cada tejido es un hechizo propio con su efecto y su visual (se abandonó la gramática forma + modificador). Ninguno sale en menos de 5 pasos (~0,17 s). Dos elementos: 0,3 s; tres: 0,6 s y cansan los tres.            |
-| Partida         | Mejor de 3 rondas de **3 minutos**: Caza, Convergencia (la zona se cierra) y Duelo final, un minuto cada una.                                                                                                          |
-| Modos           | 1v1, 2v2, 3v3 y todos contra todos hasta 6. Puestos vacíos los llenan bots con las mismas reglas.                                                                                                                      |
-| Al caer         | Quedas fuera de la ronda y la cámara sigue a quien siga en pie (aliado primero). El Espectro se eliminó (12-11-2026); las 3 Vidas siguen en el código, en pausa.                                                       |
-| PvE primero     | Primero contra la IA; el PvP reemplaza controladores, no reglas.                                                                                                                                                       |
-| Mapa            | 40 m de radio: plaza de piedra al centro, jungla en espejo con 10 campamentos de bestias (2 por elemento) que reaparecen a los 45 s, Guardián del Crisol a los 40 s de Caza.                                           |
-| Variedad        | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida.                                                                                                                  |
-| Afinidad        | Un elemento descansa 25% más rápido y sus dos opuestos 15% más lento; transforma la apariencia.                                                                                                                        |
-| Progresión      | Variedad, no poder: Grimorio, maestría, desafíos y rivalidades entre amigos.                                                                                                                                           |
-| Perfiles        | Sin cuenta: nombre y aspecto en el Vestidor, guardados en el celular. Más adelante, perfil en D1 con código de respaldo.                                                                                               |
-| Multijugador    | Solo salas privadas entre amigos en Chile. Servidor con autoridad (Durable Object "Sala"), predicción local, reconexión de 60 s con la IA a cargo.                                                                     |
-| Arte y audio    | Fantasía oscura estilizada; la magia es lo único con color intenso. Cada elemento es una nota y el tejido suena como un acorde.                                                                                        |
-| Lore            | Ysmar, sostenido por la Trama de cinco hilos; el Crisol es una arena viva y los vencedores retejen un hilo del mundo.                                                                                                  |
-| Infraestructura | GitHub + Cloudflare (Pages para el juego, Worker y Durable Objects para las salas, D1 y R2 a futuro).                                                                                                                  |
+| Tema              | Decisión                                                                                                                                                                                                                                                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pilares           | La magia se construye, descubrir es progresar, duelos con estrategia (atacar y defender).                                                                                                                                                                                                                            |
+| Plataforma        | Juego web sin instalar, **solo en horizontal**. Se entra por un enlace de WhatsApp.                                                                                                                                                                                                                                  |
+| Cámara            | Tercera persona sobre el hombro. **No gira sola.** Tocar a un rival, una bestia o una invocación rival entra en **duelo**: la cámara lo mantiene al frente y un anillo lo marca en el suelo (sin esquinas). Arrastrar para mirar suelta el duelo; un botón con símbolo pasa al siguiente rival. Sin modos de prueba. |
+| Controles         | Pulgar izquierdo mueve; pulgar derecho toca hasta 3 elementos y ✦ lanza; ✕ deshace. Arrastrar ✦ elige dirección; mantener ✦ y arrastrar elige dónde cae un hechizo de suelo. En PC: WASD, 1-5, espacio, X.                                                                                                           |
+| Elementos         | Brasa, Tormenta, Marea, Raíz y Umbra en un pentágono: vecinos combinan, opuestos chocan (Brasa ↔ Marea y Raíz; Umbra ↔ Tormenta y Marea…).                                                                                                                                                                           |
+| Tejido            | 1 a 3 elementos, el orden importa: 155 hechizos (5 básicos, 25 de dos, 125 Grandes). Visible para el rival. Fatiga por elemento (3 s), sin maná. Nada sale en menos de 0,17 s.                                                                                                                                       |
+| Partida           | Mejor de 3 rondas **sin reloj**: Caza, Convergencia y Duelo final (un minuto cada una) y después **muerte súbita** (la zona se cierra del todo en 20 s y quema cada vez más). Gana el último en pie.                                                                                                                 |
+| Al caer           | Quedas fuera de la ronda y miras a quien siga. **El Espectro se eliminó.** **Vidas** (3 por ronda) es opcional, apagada por defecto y no existe en 1v1 (el mejor de 3 ya es la segunda oportunidad).                                                                                                                 |
+| Modos             | 1v1 (en la plaza de 17 m, sin jungla), 2v2, 3v3 y todos contra todos de 4 y 6 (mapa de 40 m con jungla). Puestos vacíos los llena la IA.                                                                                                                                                                             |
+| IA                | Mismas reglas que un jugador. **Aprendiz / Duelista / Maestro.** Menú contra la IA: se elige (Duelista por defecto). Sala: se elige para los bots que llenan puestos. Entrenamiento y examen: Aprendiz.                                                                                                              |
+| Invocaciones      | Ven con ojos propios: la ceguera de su dueño no las afecta (el Velo del rival sí). Tienen vida, atajan proyectiles y se pueden fijar tocándolas.                                                                                                                                                                     |
+| Choque de tejidos | Ver `docs/diseno.md`. Solo se desarman **proyectiles**; el Meteoro se esquiva. Los desarma un hechizo tuyo de elemento opuesto que los toque, **solo a mano**. Empate se anulan; el más fuerte sigue debilitado. No es reacción.                                                                                     |
+| Combos            | Sección del Grimorio. Guía, no recompensa: sin efecto extra. 84 (6 reacciones + 78 seguidillas). Detalle en [referencia/combos-grimorio.md](referencia/combos-grimorio.md).                                                                                                                                          |
+| Tutorial          | 12 capítulos repetibles, del objetivo al examen contra el Aprendiz. Entrega 3 combos al terminar el capítulo Combos.                                                                                                                                                                                                 |
+| Diagnóstico       | FPS y datos de conexión **nunca visibles por defecto**: solo se encienden desde Pausa y vuelven a apagarse al reabrir.                                                                                                                                                                                               |
+| Grimorio          | No dice qué hechizo contrarresta cada estado, ni etiqueta combos "para varios rivales": descubrirlo es mérito del jugador.                                                                                                                                                                                           |
+| Variedad          | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida. Guardián del Crisol en pausa.                                                                                                                                                                                  |
+| Afinidad          | Un elemento descansa 25% más rápido y sus dos opuestos 15% más lento; transforma la apariencia.                                                                                                                                                                                                                      |
+| Progresión        | Variedad, no poder: Grimorio, combos, maestría, desafíos y rivalidades (estas tres últimas no existen aún).                                                                                                                                                                                                          |
+| Perfiles          | Sin cuenta: nombre y aspecto en el Vestidor, guardados en el celular. A futuro, perfil en D1 con código de respaldo.                                                                                                                                                                                                 |
+| Multijugador      | Salas privadas entre amigos en Chile. Servidor con autoridad (Durable Object "Sala", `locationHint: 'sam'`), predicción local, estado binario por diferencias, reconexión de 60 s con la IA a cargo.                                                                                                                 |
+| Arte              | Fantasía oscura estilizada; la magia es lo único con color intenso. **Dirección C: metal arcano y vidrio ahumado.** El mockup de ChatGPT (arena oscura con velas, cristales violeta, HUD de metal) es la meta.                                                                                                       |
+| Orden del arte    | Primero HUD (hecho), luego ambiente de la arena (empezado), al final personajes. Le tienta el 3D con Meshy/Mixamo solo si no afecta la fluidez en red.                                                                                                                                                               |
+| Audio             | Sintetizado en código por ahora (cada elemento es una nota, el tejido un acorde). Se reemplazará con ElevenLabs.                                                                                                                                                                                                     |
+| Lore              | Ysmar, sostenido por la Trama de cinco hilos; el Crisol es una arena viva y los vencedores retejen un hilo del mundo.                                                                                                                                                                                                |
 
 ## Estado actual
 
-| Área                                                                   | Estado                                                                                    |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Tejido, combate y estados                                              | Listo. 5 básicos y 25 hechizos de dos elementos propios.                                  |
-| Grandes hechizos                                                       | **125 de 125** (tandas 1 a 4). La cuarta: ver [tanda-4.md](tanda-4.md).                   |
-| Partida, modos, zona, Vidas                                            | Listo contra la IA.                                                                       |
-| Bestias, santuarios, Glifos, Presagios, Guardián                       | Listo. Los bots no logran vencer al Guardián.                                             |
-| Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`. Vestidor con linajes, ropas y arquetipos.              |
-| Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
-| Gráficas                                                               | Básico: geometría hecha por código, resplandor, sombras y partículas. Sin modelos reales. |
-| **Multijugador**                                                       | **En red de 2 a 6**, predicción local, estado binario por diferencias.                    |
-| Audio                                                                  | Sintetizado en código (notas, acordes, efectos, música). Ver [audio.md](../audio.md).     |
-| Familiares, rivalidades, maestría, conjuros secretos, lore en el juego | No existen.                                                                               |
+| Área                                        | Estado                                                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Tejido, combate, estados y reacciones       | Listo. 155 hechizos propios, 6 reacciones, choque de tejidos.                                            |
+| Partida y modos                             | Listo contra la IA y en red: sin reloj, muerte súbita, Vidas opcional.                                   |
+| Multijugador                                | En red de 2 a 6, predicción local, rivales ocultos, reconexión, quien llega tarde toma un mago de la IA. |
+| IA                                          | Tres dificultades; ciega no se congela; esquiva proyectiles y avisos de suelo; lee Grandes hechizos.     |
+| Combos y Grimorio                           | 84 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
+| Tutorial y Entrenamiento                    | 12 capítulos, muñeco que ataca, examen; práctica libre sin cansancio.                                    |
+| Interfaz                                    | HUD, menú, sala, Glifos, resultado, Grimorio y Pausa en metal arcano.                                    |
+| Gráficas                                    | Geometría hecha por código con resplandor, estelas y ambiente de velas y cristales. Sin modelos reales.  |
+| Audio                                       | Sintetizado en código ([docs/audio.md](../audio.md)).                                                    |
+| Guardián, familiares, maestría, rivalidades | Guardián en pausa (los bots no logran vencerlo); el resto no existe.                                     |
 
-Medidas del diagnóstico: un paso de 6 magos cuesta 0,03 ms (límite 2 ms) y el juego descarga 216 KB.
-El estado completo pesa unos 8,5 KB en JSON: enviarlo tal cual por red serían ~170 KB/s por
-celular, así que el Hito 2 debe mandar solo lo que cambia, en binario.
+Simulador (`pnpm balance`, 200 duelos de Duelistas): sur 47% / norte 53%, unos 34 s por serie al
+mejor de 3. Cruces: Maestro le gana a Duelista 76%, Duelista a Aprendiz 76% y Maestro a Aprendiz 96%.
+Hay 476 pruebas.
 
 ### Historia de PRs
 
-| PR            | Qué trajo                                                               |
-| ------------- | ----------------------------------------------------------------------- |
-| #1, #2        | Hito 0: monorepo, CI y publicación en Cloudflare.                       |
-| #3, #4        | Hito 1: duelo contra un bot; cámara sobre el hombro como la única.      |
-| #5            | Partida completa contra la IA: modos, rondas, zona.                     |
-| #6            | Bestias, santuarios, Glifos y Presagios.                                |
-| #7            | Vestidor, Afinidad visible y Grimorio.                                  |
-| #8, #9        | Mapa grande con jungla, minimapa, campamentos y Guardián.               |
-| #10           | Más luz, cámara que se gira con el dedo, aviso de conjuro más chico.    |
-| #11, #12      | Rediseño: cada tejido de 1 y 2 elementos es un hechizo propio.          |
-| #13, #14, #17 | Grandes hechizos, tandas 1 a 3 (25 + 27 + 18).                          |
-| #15           | Rondas de 3 minutos y básicos de 0,17 s.                                |
-| #16           | Piso del tejido: nada sale antes que un tejido de 1 elemento.           |
-| #19           | 1v1 en la plaza; Guardián y 3 Vidas en pausa.                           |
-| #20           | Los 55 Grandes hechizos que faltaban (ver `tanda-4.md`).                |
-| #21–#25       | 1v1 en red, predicción local, interfaz para celular, entrenamiento.     |
-| #26           | Sonido sintetizado: el tejido suena como acorde (ver `docs/audio.md`).  |
-| #27           | Tejido sobre la cabeza, siluetas de familia y reacciones entre estados. |
-| #28           | Linajes, ropas, sombreros, máscaras, capas y focos; 13 arquetipos.      |
-| #29           | Estado binario por diferencias, rivales ocultos y simulador de lag.     |
-| #30           | App de fondo, silencio, conexión colgada y volver con el pase.          |
-| Salas grandes | 2v2, 3v3 y libres de 4 y 6 en red; la IA llena los puestos libres.      |
+| PR      | Qué trajo                                                                                             |
+| ------- | ----------------------------------------------------------------------------------------------------- |
+| #1–#20  | Monorepo y publicación, duelo contra la IA, modos, bestias, Vestidor, Grimorio, los 155 hechizos.     |
+| #21–#32 | Red: 1v1, predicción, estado binario, celular robusto, salas de 2 a 6 y sus ajustes.                  |
+| #33–#45 | Interfaz y arena según el mockup (metal arcano), Pausa con ajustes, rendimiento.                      |
+| #46–#57 | Cámara de duelo, apuntado automático, prueba con amigos, `main.ts` dividido en 4, diagnóstico oculto. |
+| #58–#59 | Glifos, resultado y Grimorio de vidrio y bronce.                                                      |
+| #60–#67 | Combos: catálogo, detector, tutorial con 3 combos, Apuntar (mantener y arrastrar ✦).                  |
+| #68–#70 | Botón "Jugar con amigos", círculo rúnico, red: llegar tarde y aviso de Sala reiniciada.               |
+| #71     | Invocaciones con ojos propios (la ceguera del dueño no las toca).                                     |
+| #72     | Se elimina el Espectro.                                                                               |
+| #73     | Ronda sin reloj y muerte súbita.                                                                      |
+| #74     | Vidas opcional, fuera del 1v1.                                                                        |
+| #75     | Fijar invocaciones rivales tocándolas.                                                                |
+| #76     | IA: no se congela, esquiva avisos de suelo, tres dificultades.                                        |
+| #77     | Choque de tejidos.                                                                                    |
+| #78     | Tutorial completo de 12 capítulos; el choque intercepta lo que viene en camino.                       |
 
-## Lo que sigue
+## Lo que sigue: frente "Listo para los 5"
 
-Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendación fue la poda primero.
+Tomás quiere hacer una **prueba en red con unos 5 amigos** (2 o 3 con Android de gama media, uno con
+mala conexión que suele crear la sala) y llegar con una versión tan revisada que el feedback sea
+"acá podría ser mejor" y no "se cayó", "no se puede jugar" o "no me pude reconectar". **Aceptó
+congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar el orden con él):
 
-1. **Plan de debilidades (aprobado por Tomás).** Antes de la red:
-   - Hecho (PR #19): **1v1 en la plaza** (arena de 17 m, sin jungla, campamentos ni bestias); la
-     jungla completa queda para 2v2 en adelante. **Guardián y 3 Vidas en pausa** con interruptores
-     en `packages/content/src/features.ts`; Espectro fue la única regla de muerte hasta que se eliminó. Los familiares no
-     existían, así que no hubo nada que apagar.
-   - Hecho antes: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
-   - Hecho: tejido sobre la cabeza, siluetas por familia y reacciones entre estados (ver
-     `docs/diseno.md`, Lectura del combate). El choque de tejidos llegó en noviembre de 2026 (ver `docs/diseno.md`). Antes se propuso: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
-     familia de hechizo (proyectil, zona, movimiento, invocación); interacciones entre estados al
-     estilo sistémico (mojado + Tormenta aturde, Raíz + Brasa arde); **choque de tejidos** (un
-     tejido opuesto en el pentágono anula al del rival), a diseñar en papel e implementar con la red.
-2. **Tanda 4 de Grandes hechizos (hecha).** Los 55 que faltaban, en un solo PR como pidió Tomás.
-   Detalle, adaptaciones al 1v1 y preguntas abiertas en [tanda-4.md](tanda-4.md). Se recomendó
-   congelar otro contenido nuevo hasta el Hito 2.
-3. **Hito 2, multijugador**, en cuatro entregas (detalle en
-   [estado-y-brechas.md](referencia/estado-y-brechas.md)): sala jugable con enlace de WhatsApp;
-   fluidez (predicción, interpolación ~100 ms, mensajes binarios < 2 KB, no enviar rivales ocultos,
-   repetir las 3 últimas intenciones); robustez en celular (`locationHint` en Sudamérica, reconexión
-   de 60 s, pestaña oculta); herramientas para medir lag (150 ms y 5% de pérdida simulados).
-4. **En paralelo:** audio con ElevenLabs (unos 40 efectos, 3 pistas por fase, un narrador), luego
-   arte 3D con Meshy y Mixamo, y niveles de calidad gráfica automáticos.
+1. **Registro remoto de errores.** Hoy no existe nada: si a un amigo se le cae el juego, solo se
+   sabrá "se me cayó". Capturar `error` y `unhandledrejection` en el cliente (y desconexiones raras)
+   y mandarlos a la Sala o a un Worker que los guarde (D1 o Workers Analytics Engine), con versión,
+   modelo de celular, sala y partida. Sin datos personales. Una pantalla o un comando para leerlos.
+2. **Que el progreso no se pierda en iPhone.** Grimorio, combos desbloqueados, capítulos del
+   tutorial y Vestidor viven solo en `localStorage`. Safari puede borrarlo tras unos días sin abrir
+   el sitio si no está en la pantalla de inicio. Opciones: invitar a "Agregar a inicio" (el
+   `manifest.webmanifest` ya existe), y/o el perfil en D1 con un código de respaldo (decisión ya
+   tomada a futuro). Pedirle a Tomás que elija.
+3. **Prueba de estrés de la red con 6.** Ya existe un simulador de lag (`apps/client/src/net/LagSimulator.ts`,
+   `apps/server/red/`). Correr salas de 6 con 150-300 ms y 5% de pérdida, quien crea la sala con mala
+   conexión, reconexiones a mitad de ronda y la app en segundo plano. Arreglar lo que salga.
+4. **Rendimiento en Android de gama media.** Medir con el informe por partida (`MatchPerfLog`) y los
+   gráficos livianos de Pausa; revisar que la resolución adaptativa baje a tiempo en 3v3 y libre de 6.
+5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y
+   mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
+   intercepción de 0,2 s se sienten justos) y la muerte súbita.
+6. **Lista para la prueba:** un mensaje para los amigos con el enlace, qué probar y cómo reportar.
 
-Preguntas abiertas que dejó la cuenta anterior: qué teléfonos usan los amigos de Tomás; si los
-efectos que cambian la pantalla del rival (Ceguera, Eclipse, Mal de ojo, Ilusión de tejido) quedan;
-si 40 m de radio se sienten bien con 2 jugadores.
+Tomás también aceptó, para después de la prueba: decidir con datos si las rondas son cortas (en el
+simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
+
+## Cosas pendientes o en pausa (no olvidarlas)
+
+- **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.
+- **Familiares, maestría por elemento, desafíos, rivalidades, hechizos secretos, lore dentro del
+  juego:** no existen. Esperan a después de la prueba con amigos.
+- **Audio con ElevenLabs** (unos 40 efectos, una pista por fase, quizás un narrador): no partió.
+- **Personajes 3D** (Meshy + Mixamo): tercer paso del orden de arte, sin empezar.
+- **Apuntar:** a la guía visual de los hechizos de dirección le ha faltado cariño (lo dijo Tomás).
+- **Glifo de Brasa:** subir un poco la llama interior para despejar la base (ver
+  [referencia/ui-glifos.md](referencia/ui-glifos.md)).
+- **IA:** el Maestro todavía no hace choques de tejidos ni combos del catálogo; podría ser el
+  siguiente escalón.
+- **Golpes de cono** (Zarpa…) no apuntan a invocaciones fijadas; solo proyectiles, explosiones y
+  hechizos de suelo les pegan.
+- Preguntas abiertas de antes: si los efectos que cambian la pantalla del rival (Ceguera, Eclipse,
+  Mal de ojo, Ilusión de tejido) se quedan; si 40 m de radio se sienten bien con pocos jugadores.
 
 ## Dónde vive cada cosa
 
 ```text
 packages/core/src/       Reglas puras (no depende de nada)
-  sim/                   Bucle de pasos fijos, mundo, azar con semilla
+  sim/                   Bucle de pasos fijos, azar con semilla
   weaving/               Tejido y fatiga por elemento
-  spells/                cast.ts, catalog.ts, payload.ts (Glifos, Esencia, potenciado)
-  spells/kit/            Un archivo por familia: brasa.ts…umbra.ts (1-2 elementos),
-                         greatBrasa.ts…greatUmbra.ts, greatSummons.ts, greatSupport.ts,
-                         greatThird.ts (Grandes hechizos) y sus pruebas
-  combat/                Vida, daño y estados
-  match/                 step.ts, round.ts (fases, zona, caídas, revivir),
-                         beasts.ts, shrines.ts, obstacles.ts, series.ts, modes.ts, state.ts
-  ai/                    Bots y navigation.ts (A* sobre una grilla)
+  spells/                cast.ts, catalog.ts, payload.ts, clash.ts (choque de tejidos), update.ts
+  spells/kit/            Un archivo por familia (brasa.ts…umbra.ts, great*.ts) y sus pruebas
+  combat/                Vida, daño y estados (toda curación pasa por healWizard)
+  match/                 step.ts, round.ts (fases, zona, muerte súbita, caídas, revivir),
+                         queries.ts (visión, objetivo automático), beasts.ts, shrines.ts,
+                         obstacles.ts, series.ts, modes.ts, state.ts
+  ai/                    bot.ts (BotController, BotProfile, BotLevel), spellPlans.ts, navigation.ts
   controllers/           Intenciones y la interfaz común (dedo, IA, red)
-  mods.ts                combineMods: Glifos, Presagios y Afinidad en un WizardMods
-packages/content/src/    Números y tablas: spells.ts, rules.ts, glyphs.ts, affinity.ts, map.ts,
-                         grimoire.ts (nombres de los 155), appearance.ts, names.ts (bots)
-packages/protocol/       Mensajes celular ↔ Sala (casi vacío hasta el Hito 2)
-apps/client/src/         Vite + Three.js
-  game/LocalMatch.ts     Encadena rondas con bots, Glifos y Presagio (la red lo reemplazará)
-  (content) sight.ts     Qué rivales se ven en la jungla
-  render/                Vistas de magos, hechizos, invocaciones, bestias; arena/JungleView.ts
-  ui/                    Hud, Menu, Minimap, GlyphPicker, GrimoireBook, BlindVeil
-  input/ camera/         Controles táctiles y cámara
-apps/server/             Worker de entrada y Durable Object "Sala" (wrangler.jsonc)
-apps/balance/            Simulador bot contra bot (`pnpm balance`)
+packages/content/src/    Números y tablas: spells.ts, rules.ts, bots.ts (dificultades), combos.ts,
+                         features.ts (piezas en pausa), glyphs.ts, affinity.ts, map.ts,
+                         grimoire.ts (nombres), appearance.ts, names.ts
+packages/protocol/src/   messages.ts (PROTOCOL_VERSION), settings.ts (ajustes de sala), stateCodec.ts
+apps/client/src/
+  main.ts                Arma todo y conecta pantallas, partida y entrenamiento
+  game/                  LocalMatch, TrainingMatch (muñeco y examen), Tutorial (+ TutorialProgress),
+                         ComboDetector, ComboLog, MatchFlow, MatchRenderer, Grimoire, Profile
+  net/                   NetMatch (predicción), LagSimulator, openRoom
+  render/                Escena, magos, hechizos, invocaciones, arena/, postprocesado, calidad adaptativa
+  ui/                    Hud, Menu, Lobby, PauseMenu, GrimoireBook, TutorialCard, TrainingChooser,
+                         ComboCallouts, WorldLabels, Minimap, Wardrobe, UiObstacles…
+  input/ camera/         Controles táctiles, TapToLock, lockTargets, CameraDrag, CameraRig
+  audio/                 Sintetizador, música y banco de sonidos
+apps/server/src/         Worker de entrada y Durable Object "Sala" (duel.ts); red/ tiene la simulación
+apps/balance/            Simulador bot contra bot (`pnpm balance`), con cruces de dificultades
 scripts/check-dependencies.mjs   Hace cumplir el mapa de dependencias
-docs/                    diseno.md, arquitectura.md, publicacion.md, decisiones/, traspaso/
+docs/                    diseno.md, arquitectura.md, audio.md, publicacion.md, decisiones/, traspaso/
 ```
 
-La cuarta tanda sumó `spells/kit/greatGround.ts` (terreno, detonadores, movilidad),
-`greatMind.ts` (estados, tiempo, copias, contrahechizos), `greatFieldUpdates.ts` (lo que queda en el
-campo: la entidad `Field` con sus modos, el Relámpago guiado, Mil pasos, el Rayo de enlace) y
-`greatReactions.ts` (lo que pasa antes y después de lanzar y las reacciones a los golpes, que se
-resuelven al final de cada paso). Toda curación pasa por `healWizard` en `combat/hit.ts`, para que
-la Podredumbre funcione en todas partes.
-
-Al agregar un Gran hechizo, el patrón de las tandas fue: efecto en `spells/kit/great*.ts`, números
-en `content/spells.ts`, nombre en `content/grimoire.ts`, visual en `apps/client/src/render/Great*`,
-uso por los bots, pruebas en `great*.test.ts`, y 200 duelos de bots con `pnpm balance` buscando
-45-55% por lado.
+Al agregar o cambiar un hechizo: efecto en `spells/kit/`, números en `content/spells.ts`, nombre
+en `content/grimoire.ts`, visual en `apps/client/src/render/`, uso por los bots en
+`ai/spellPlans.ts`, pruebas junto al archivo, y `pnpm balance` buscando 45-55% por lado.
 
 ## Publicación y accesos
 
-- GitHub Actions corre `pnpm check` en cada PR y publica en Cloudflare al fusionar a `main`
-  (juego en Pages y servidor en Workers). Los secretos `CLOUDFLARE_API_TOKEN` y
-  `CLOUDFLARE_ACCOUNT_ID` ya están en el repositorio; no hay que tocarlos. Ver `docs/publicacion.md`.
-- **La cuenta nueva de Claude necesita acceso al repositorio en GitHub.** Si usa la misma cuenta de
-  GitHub (`tomasrojasmurua`), basta con conectar GitHub en la cuenta nueva. Si es otro usuario de
-  GitHub, hay que agregarlo como colaborador del repositorio y que la app de Claude esté instalada
-  en él.
-- Los documentos de Claude de la cuenta anterior son privados de esa cuenta. Sus copias están en
-  `referencia/` y no hace falta abrir los originales.
-- Las capturas de pantalla del proyecto (jungla, Guardián, luz y cámara) venían en la carpeta del
-  proyecto; Tomás las tiene aparte si hacen falta.
+- GitHub Actions corre `pnpm check` en cada PR y publica en Cloudflare al fusionar a `main` (juego
+  en Pages y servidor en Workers). Los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` ya
+  están en el repositorio. Ver `docs/publicacion.md`.
+- **La cuenta de Claude necesita acceso de escritura al repositorio en GitHub** (conectar GitHub con
+  el usuario `tomasrojasmurua` basta).
+- En las sesiones de Claude en la nube, la API GraphQL de GitHub puede estar bloqueada: abrir y
+  fusionar PRs con la API REST funciona (`gh api repos/tomasrojasmurua/crisol-de-ysmar/pulls …` y
+  `gh api -X PUT …/pulls/N/merge -f merge_method=squash`).
+- Para revisar la interfaz sin celular: `pnpm --filter @crisol/client build`, servir con
+  `vite preview` y sacar capturas a 844×390 con Chrome sin pantalla (puppeteer-core).
 
 ## Documentos de referencia
 
-| Archivo                                                                    | Qué es                                                                                     |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [referencia/diseno-original.md](referencia/diseno-original.md)             | Documento de diseño original (Hito 0). Parte quedó superada; arriba dice qué.              |
-| [referencia/arquitectura-original.md](referencia/arquitectura-original.md) | Plan de arquitectura del código e hitos.                                                   |
-| [referencia/estado-y-brechas.md](referencia/estado-y-brechas.md)           | Diagnóstico tras el PR #9: qué hay, qué falta, plan del Hito 2 y aportes con herramientas. |
-| [referencia/rediseno-hechizos.md](referencia/rediseno-hechizos.md)         | Los 155 hechizos uno por uno, combos, decisiones abiertas y plan por tandas.               |
-| [tanda-4.md](tanda-4.md)                                                   | La cuarta tanda: los 55 Grandes hechizos, sus adaptaciones y lo que queda por decidir.     |
-| [prompt-inicial.md](prompt-inicial.md)                                     | El mensaje para pegar en la cuenta nueva.                                                  |
+| Archivo                                                                    | Qué es                                                                                  |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [prompt-inicial.md](prompt-inicial.md)                                     | El mensaje para pegar al empezar en otra cuenta.                                        |
+| [referencia/combos-grimorio.md](referencia/combos-grimorio.md)             | Combos: decisiones, cómo se detectan, reglas que dan forma al catálogo, lista completa. |
+| [referencia/ui-glifos.md](referencia/ui-glifos.md)                         | Los glifos SVG aprobados de los 5 elementos (dirección C).                              |
+| [referencia/diseno-original.md](referencia/diseno-original.md)             | Documento de diseño original (Hito 0). Parte quedó superada; `docs/diseno.md` manda.    |
+| [referencia/arquitectura-original.md](referencia/arquitectura-original.md) | Plan de arquitectura del código e hitos.                                                |
+| [referencia/estado-y-brechas.md](referencia/estado-y-brechas.md)           | Diagnóstico tras el PR #9 (histórico: el multijugador ya existe).                       |
+| [referencia/rediseno-hechizos.md](referencia/rediseno-hechizos.md)         | Los 155 hechizos uno por uno y el plan por tandas.                                      |
+| [tanda-4.md](tanda-4.md)                                                   | La cuarta tanda de Grandes hechizos y sus adaptaciones.                                 |
