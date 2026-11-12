@@ -3780,6 +3780,77 @@ body {
   gap: 8px;
 }
 
+.tutorial-progress {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+}
+
+.tutorial-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Saltar es discreto: un texto, no un botón grande que compita con Siguiente. */
+#ui .tutorial-skip {
+  min-height: 32px;
+  padding: 2px 8px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+  text-decoration: underline;
+}
+
+/* Capítulos del tutorial para repetir. */
+.training-chapters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.training-chapter-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+#ui .training-chapter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: rgba(14, 12, 20, 0.9);
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  text-align: left;
+}
+
+#ui .training-chapter:active {
+  border-color: var(--gold-bright);
+}
+
+.training-chapter-number {
+  flex: none;
+  width: 20px;
+  text-align: center;
+  font-family: var(--display);
+  color: var(--gold);
+}
+
+.training-chapter.done .training-chapter-number {
+  color: #9bd27a;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tutorial-card.advance {
     animation: none;

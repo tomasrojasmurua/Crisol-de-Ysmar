@@ -86,7 +86,10 @@ Lo único que se desarma son **proyectiles** rivales en el aire (Chispa, Bola de
 Llama negra, Cometa negro, Ácido, Sifón). Lo que cae del cielo, como el Meteoro, se esquiva
 moviéndose. Los desarma cualquier hechizo tuyo cuyo **primer elemento sea opuesto** al suyo en el
 pentágono y que lo **toque**: otro proyectil, o el área de un cono o una explosión al lanzarse
-(un Salpicón hacia la Chispa que viene). Iguales o vecinos se cruzan sin chocar.
+(un Salpicón hacia la Chispa que viene). Un cono o una explosión alcanza también al proyectil
+que va a pasar por su área en los próximos 0,2 s (`clash.lookaheadTicks`): la Chispa vuela tan
+rápido que sin esto habría que acertar a una ventana de dos cuadros. Iguales o vecinos se cruzan
+sin chocar.
 
 - Mismo número de elementos: se deshacen. Con más elementos, el tuyo gana; con menos, el
   proyectil sigue debilitado, más chico, con el daño rebajado en tu proporción (1 contra 2: queda
@@ -94,6 +97,15 @@ pentágono y que lo **toque**: otro proyectil, o el área de un cono o una explo
 - Se apunta a mano (arrastrando ✦): es una mecánica avanzada. Para que sea posible en el celular,
   chocan con medio metro más de margen que el que tienen para pegarle a un mago
   (`interactions.clash.margin`). No es una reacción ni cuenta para el Grimorio.
+
+## Tutorial
+
+En Entrenamiento, por capítulos que se pueden repetir (`apps/client/src/game/Tutorial.ts`): el
+duelo (cómo se gana), moverse, la cámara, los 5 elementos, el descanso, tejer, apuntar,
+defenderse (el muñeco ataca con Chispas y Meteoros: esquivar, Muro de hielo, choque de tejidos y
+salir del círculo), estados y reacciones, combos (entrega Brasa maldita, Quiebre y Amarre), el
+Grimorio y un examen contra la IA Aprendiz. La primera vez parte del principio; después se elige
+el capítulo. Cada capítulo se puede saltar, y los terminados quedan marcados en el celular.
 
 ## Vestidor
 
