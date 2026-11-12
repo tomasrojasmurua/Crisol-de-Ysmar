@@ -2,13 +2,13 @@
  * La última sala en red de este celular. Sirve para dos cosas:
  * - si la página se recarga o el sistema la cierra en plena partida (un tirón hacia abajo, el
  *   celular sin memoria), al abrirla de nuevo vuelves solo a tu mago;
- * - en "Jugar con un amigo", el código de la última sala queda escrito para volver con un toque.
+ * - en "Jugar con amigos", el código de la última sala queda escrito para volver con un toque.
  * Salir a propósito al menú apaga lo primero, no lo segundo.
  */
 const STORAGE_KEY = 'crisol.ultimaSala';
 /** Pasado esto sin noticias, la partida ya debe haber terminado: no se vuelve solo. */
 const AUTO_REJOIN_MS = 15 * 60_000;
-/** El código se sigue ofreciendo en "Jugar con un amigo" por unas horas. */
+/** El código se sigue ofreciendo en "Jugar con amigos" por unas horas. */
 const PREFILL_MS = 3 * 60 * 60_000;
 
 interface Saved {
@@ -60,7 +60,7 @@ export function roomToRejoin(): string | null {
   return saved?.active && Date.now() - saved.at < AUTO_REJOIN_MS ? saved.code : null;
 }
 
-/** El código para dejar escrito en "Jugar con un amigo". */
+/** El código para dejar escrito en "Jugar con amigos". */
 export function recentRoomCode(): string {
   const saved = read();
   return saved && Date.now() - saved.at < PREFILL_MS ? saved.code : '';
