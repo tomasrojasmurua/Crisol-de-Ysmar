@@ -707,7 +707,8 @@ export class DuelHost {
   private startRound(): MatchState {
     this.lastSeen.clear();
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
-    const setup = modeSetup(this.settings.mode, roundSeed, 'out', this.rules);
+    const deathRule = this.settings.lives ? 'lives' : 'out';
+    const setup = modeSetup(this.settings.mode, roundSeed, deathRule, this.rules);
     const wizards = setup.wizards.map((w, index) => {
       const slot = this.slots.get(index + 1);
       const affinity = slot?.affinity ?? null;

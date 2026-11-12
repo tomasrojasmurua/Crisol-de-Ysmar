@@ -2,6 +2,7 @@ import { type GameMode, playerCount } from '@crisol/core';
 import {
   BEST_OF,
   isValidRoomCode,
+  livesAllowed,
   type PlayerInfo,
   ROOM_CODE_LENGTH,
   ROOM_MODES,
@@ -46,6 +47,8 @@ interface SettingRow {
     /** Si no se puede elegir con la gente que ya está (un modo con menos puestos). */
     readonly fits?: (people: number) => boolean;
   }[];
+  /** Si la fila se muestra con estos ajustes (las Vidas no salen en el 1v1). */
+  readonly shown?: (s: RoomSettings) => boolean;
 }
 
 const SETTING_ROWS: readonly SettingRow[] = [
@@ -53,7 +56,7 @@ const SETTING_ROWS: readonly SettingRow[] = [
     title: 'Modo',
     options: ROOM_MODES.map((mode) => ({
       label: modeChip(mode),
-      pick: (s) => ({ ...s, mode }),
+      pick: (s) => ({ ...s, mode, lives: s.lives && livesAllowed(mode) }),
       chosen: (s) => sameMode(s.mode, mode),
       fits: (people) => playerCount(mode) >= people,
     })),
@@ -90,6 +93,15 @@ const SETTING_ROWS: readonly SettingRow[] = [
       chosen: (s) => s.omen === omen,
     })),
   },
+  {
+    title: 'Al caer',
+    options: [false, true].map((lives) => ({
+      label: lives ? '3 vidas' : 'Fuera',
+      pick: (s) => ({ ...s, lives }),
+      chosen: (s) => s.lives === lives,
+    })),
+    shown: (s) => livesAllowed(s.mode),
+  },
 ];
 
 /**
@@ -109,6 +121,7 @@ export class Lobby {
   private readonly share: HTMLAnchorElement;
   private readonly copy: HTMLButtonElement;
   private readonly copyText: HTMLElement;
+  private readonly settingLines: { readonly line: HTMLElement; readonly row: SettingRow }[] = [];
   private readonly settingButtons: {
     readonly button: HTMLButtonElement;
     readonly option: SettingRow['options'][number];
@@ -196,6 +209,7 @@ export class Lobby {
       }
       line.append(chips);
       settingsBox.append(line);
+      this.settingLines.push({ line, row });
     }
 
     query(this.root, '.lobby-create').addEventListener('click', () => this.onCreate());
@@ -271,6 +285,9 @@ export class Lobby {
       // Solo quien creó la sala cambia los ajustes; los demás los ven igual.
       button.disabled = !isHost || !fits;
       button.classList.toggle('locked', !isHost);
+    }
+    for (const { line, row } of this.settingLines) {
+      line.hidden = !(row.shown?.(settings) ?? true);
     }
     this.updateShare();
     const total = playerCount(mode);

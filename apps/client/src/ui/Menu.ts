@@ -36,7 +36,7 @@ const ALL_DEATH_RULES: readonly { id: DeathRule; title: string; detail: string }
   { id: 'out', title: 'Fuera', detail: 'Miras a los que quedan' },
   { id: 'lives', title: 'Vidas', detail: '3 vidas por ronda' },
 ];
-/** Con las 3 Vidas en pausa, "fuera" es la única regla y el menú no pregunta. */
+/** Qué pasa al caer. Si solo queda "fuera" (Vidas apagadas), el menú no pregunta. */
 const DEATH_RULES = ALL_DEATH_RULES.filter((rule) => rule.id !== 'lives' || FEATURES.livesRule);
 
 const STORAGE_KEY = 'crisol.menu';
@@ -184,8 +184,6 @@ export class Menu {
     }
 
     const rules = query(this.root, '.menu-rules');
-    const askDeathRule = DEATH_RULES.length > 1;
-    rules.hidden = !askDeathRule;
     for (const rule of DEATH_RULES) {
       const button = el('button', 'menu-chip');
       button.type = 'button';
@@ -209,9 +207,11 @@ export class Menu {
 
   get options(): MatchOptions {
     const choice = MODES.find((m) => m.id === this.modeId) ?? MODES[0];
+    const mode = choice?.mode ?? { kind: 'duel' };
     return {
-      mode: choice?.mode ?? { kind: 'duel' },
-      deathRule: this.deathRule,
+      mode,
+      // En el 1v1 no hay Vidas: el mejor de 3 ya es la segunda oportunidad.
+      deathRule: mode.kind === 'duel' ? 'out' : this.deathRule,
       affinity: this.affinity,
     };
   }
@@ -264,6 +264,8 @@ export class Menu {
         return button;
       }),
     );
+    const duel = (MODES.find((m) => m.id === this.modeId)?.mode.kind ?? 'duel') === 'duel';
+    query(this.root, '.menu-rules').hidden = DEATH_RULES.length < 2 || duel;
     for (const button of this.root.querySelectorAll<HTMLElement>('.menu-rules .menu-chip')) {
       button.classList.toggle('selected', button.dataset.id === this.deathRule);
     }

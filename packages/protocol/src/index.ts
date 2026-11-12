@@ -16,6 +16,7 @@ export {
   BEST_OF,
   cleanRoomSettings,
   DEFAULT_ROOM_SETTINGS,
+  livesAllowed,
   ROOM_MODES,
   ROUND_MINUTES,
   type RoomSettings,
