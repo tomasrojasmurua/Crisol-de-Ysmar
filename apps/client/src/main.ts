@@ -24,6 +24,7 @@ import { leftRoom, recentRoomCode, roomToRejoin } from './net/lastRoom';
 import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
 import { BackGuard } from './platform/BackGuard';
+import { startErrorReports } from './platform/ErrorReporter';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
@@ -48,6 +49,8 @@ import { WorldLabels } from './ui/WorldLabels';
 // Aquí se arma el juego: se crean las piezas, se conectan entre sí y corre el bucle. Lo que
 // hace cada una vive en su archivo (escena, dibujo y curso de la partida, pantallas, sala).
 
+// Lo primero: si algo falla de aquí en adelante, queda en el registro (ver docs/errores.md).
+startErrorReports(() => ({ room: net?.code ?? '', match: describeMatch() }));
 blockBrowserGestures();
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const uiRoot = document.querySelector<HTMLElement>('#ui');
@@ -65,6 +68,8 @@ let match: MatchView | null = null;
 let net: NetMatch | null = null;
 /** Con la pausa abierta contra la IA, la partida se detiene; en red sigue corriendo. */
 let paused = false;
+/** Partidas empezadas en esta visita (para el registro de errores). */
+let matchCount = 0;
 /** El nombre y color de cada mago de la partida. */
 let badges = new Map<number, WizardBadge>();
 let profile = loadProfile();
@@ -424,6 +429,7 @@ function startNetMatch(current: NetMatch): void {
 function beginMatch(current: MatchView, other: OtherWizard): void {
   backGuard.arm();
   match = current;
+  matchCount++;
   view.effects.playerId = current.playerId;
   const cast = castOf(current, profile, other);
   badges = cast.badges;
@@ -473,6 +479,14 @@ function joinRoom(code: string): void {
       onStart: startNetMatch,
     },
   );
+}
+
+/** Qué se está jugando, para el registro de errores ("red #2 · free4 · ronda 3"). */
+function describeMatch(): string {
+  const current = match;
+  if (!current) return net ? 'sala de espera' : 'menú';
+  const where = current === net ? 'red' : current instanceof TrainingMatch ? 'entrenamiento' : 'IA';
+  return `${where} #${matchCount} · ${current.options.mode} · ronda ${current.roundNumber}`;
 }
 
 // ---------- Bucle ----------

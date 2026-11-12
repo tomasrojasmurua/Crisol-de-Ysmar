@@ -12,3 +12,8 @@ const SERVER_URL: string =
 export function roomSocketUrl(code: string): string {
   return `${SERVER_URL.replace(/^http/, 'ws')}/api/rooms/${code}/socket`;
 }
+
+/** Dónde se mandan los informes de errores (ver platform/ErrorReporter.ts). */
+export function errorReportUrl(): string {
+  return `${SERVER_URL}/api/errors`;
+}

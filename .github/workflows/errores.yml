@@ -1,0 +1,33 @@
+name: Leer errores
+
+# Muestra el registro de errores de los celulares y las Salas (ver docs/errores.md).
+# Se corre a mano: Actions → Leer errores → Run workflow. El resultado queda en el resumen.
+on:
+  workflow_dispatch:
+    inputs:
+      horas:
+        description: "Cuántas horas hacia atrás"
+        default: "48"
+      sala:
+        description: "Solo esta sala (opcional)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  leer:
+    name: Leer el registro
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Leer errores
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          HORAS: ${{ inputs.horas }}
+          SALA: ${{ inputs.sala }}
+        run: node scripts/errores.mjs --horas "$HORAS" --sala "$SALA"
