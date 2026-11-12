@@ -3,7 +3,6 @@ import {
   type Beast,
   ELEMENT_IDS,
   type GameRules,
-  isSpectre,
   type MatchState,
   TICK_RATE,
   type Vec2,
@@ -101,9 +100,7 @@ export class WorldLabels {
       const label = this.labels.get(wizard.id);
       if (!label) continue;
       const pos = positionOf(wizard.id, wizard.pos);
-      const spectre = isSpectre(state, wizard);
-      const lift = spectre ? 0.4 : 0;
-      this.projected.set(pos.x, LABEL_HEIGHT + lift, pos.z).project(camera);
+      this.projected.set(pos.x, LABEL_HEIGHT, pos.z).project(camera);
       const behind = this.projected.z > 1;
       const x = ((this.projected.x + 1) / 2) * width;
       const y = ((1 - this.projected.y) / 2) * height;
@@ -135,11 +132,7 @@ export class WorldLabels {
         const respawn = wizard.fallen?.respawnTicks;
         const badgeName = badges.get(wizard.id)?.name ?? '';
         label.name.textContent =
-          respawn != null
-            ? `${badgeName} · ${Math.ceil(respawn / TICK_RATE)}`
-            : spectre
-              ? `${badgeName} · espectro`
-              : badgeName;
+          respawn != null ? `${badgeName} · ${Math.ceil(respawn / TICK_RATE)}` : badgeName;
       }
 
       // Flecha en el borde para rivales vivos a la vista pero fuera de la pantalla.

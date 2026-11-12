@@ -14,7 +14,7 @@ export function scene(rivals: Vec2[], sceneRules: GameRules = rules): MatchState
   return createMatch(
     {
       seed: 1,
-      deathRule: 'spectre',
+      deathRule: 'out',
       wizards: [{ team: 0, spawn: { x: 0, z: 0 } }, ...rivals.map((spawn) => ({ team: 1, spawn }))],
     },
     sceneRules,

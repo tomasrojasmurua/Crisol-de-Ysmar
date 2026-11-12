@@ -55,7 +55,7 @@ red con un amigo (menú → Jugar con amigos).
 | Hechizos        | Cada tejido es un hechizo propio con su efecto y su visual (se abandonó la gramática forma + modificador). Ninguno sale en menos de 5 pasos (~0,17 s). Dos elementos: 0,3 s; tres: 0,6 s y cansan los tres.            |
 | Partida         | Mejor de 3 rondas de **3 minutos**: Caza, Convergencia (la zona se cierra) y Duelo final, un minuto cada una.                                                                                                          |
 | Modos           | 1v1, 2v2, 3v3 y todos contra todos hasta 6. Puestos vacíos los llenan bots con las mismas reglas.                                                                                                                      |
-| Al caer         | Quedas fuera de la ronda y la cámara sigue a quien siga en pie (aliado primero). El Espectro y las 3 Vidas siguen en el código, en pausa.                                                                              |
+| Al caer         | Quedas fuera de la ronda y la cámara sigue a quien siga en pie (aliado primero). El Espectro se eliminó (12-11-2026); las 3 Vidas siguen en el código, en pausa.                                                       |
 | PvE primero     | Primero contra la IA; el PvP reemplaza controladores, no reglas.                                                                                                                                                       |
 | Mapa            | 40 m de radio: plaza de piedra al centro, jungla en espejo con 10 campamentos de bestias (2 por elemento) que reaparecen a los 45 s, Guardián del Crisol a los 40 s de Caza.                                           |
 | Variedad        | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida.                                                                                                                  |
@@ -73,7 +73,7 @@ red con un amigo (menú → Jugar con amigos).
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Tejido, combate y estados                                              | Listo. 5 básicos y 25 hechizos de dos elementos propios.                                  |
 | Grandes hechizos                                                       | **125 de 125** (tandas 1 a 4). La cuarta: ver [tanda-4.md](tanda-4.md).                   |
-| Partida, modos, zona, Espectro, Vidas                                  | Listo contra la IA.                                                                       |
+| Partida, modos, zona, Vidas                                            | Listo contra la IA.                                                                       |
 | Bestias, santuarios, Glifos, Presagios, Guardián                       | Listo. Los bots no logran vencer al Guardián.                                             |
 | Vestidor, Afinidad visible, Grimorio                                   | Listo, guardado en `localStorage`. Vestidor con linajes, ropas y arquetipos.              |
 | Jungla viva (Incendio forestal, Brote de árbol)                        | Listo desde la tanda 3.                                                                   |
@@ -118,7 +118,7 @@ Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendaci�
 1. **Plan de debilidades (aprobado por Tomás).** Antes de la red:
    - Hecho (PR #19): **1v1 en la plaza** (arena de 17 m, sin jungla, campamentos ni bestias); la
      jungla completa queda para 2v2 en adelante. **Guardián y 3 Vidas en pausa** con interruptores
-     en `packages/content/src/features.ts`; Espectro es la única regla de muerte. Los familiares no
+     en `packages/content/src/features.ts`; Espectro fue la única regla de muerte hasta que se eliminó. Los familiares no
      existían, así que no hubo nada que apagar.
    - Hecho antes: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
    - Hecho: tejido sobre la cabeza, siluetas por familia y reacciones entre estados (ver
@@ -152,7 +152,7 @@ packages/core/src/       Reglas puras (no depende de nada)
                          greatBrasa.ts…greatUmbra.ts, greatSummons.ts, greatSupport.ts,
                          greatThird.ts (Grandes hechizos) y sus pruebas
   combat/                Vida, daño y estados
-  match/                 step.ts, round.ts (fases, zona, caídas, Lamento, revivir),
+  match/                 step.ts, round.ts (fases, zona, caídas, revivir),
                          beasts.ts, shrines.ts, obstacles.ts, series.ts, modes.ts, state.ts
   ai/                    Bots y navigation.ts (A* sobre una grilla)
   controllers/           Intenciones y la interfaz común (dedo, IA, red)

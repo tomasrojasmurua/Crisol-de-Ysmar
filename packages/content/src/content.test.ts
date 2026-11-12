@@ -76,8 +76,8 @@ describe('Grimorio', () => {
 });
 
 describe('mapa', () => {
-  const spawns = modeSetup({ kind: 'ffa', players: 6 }, 1, 'spectre', GAME_RULES)
-    .wizards.concat(modeSetup({ kind: 'teams', size: 3 }, 1, 'spectre', GAME_RULES).wizards)
+  const spawns = modeSetup({ kind: 'ffa', players: 6 }, 1, 'out', GAME_RULES)
+    .wizards.concat(modeSetup({ kind: 'teams', size: 3 }, 1, 'out', GAME_RULES).wizards)
     .map((w) => w.spawn);
 
   it('es simétrico respecto del centro, para que ningún equipo tenga ventaja', () => {
@@ -127,7 +127,7 @@ describe('el 1v1 en la plaza', () => {
     for (const o of PLAZA_MAP.obstacles) {
       expect(Math.hypot(o.x, o.z) + o.radius).toBeLessThan(DUEL_RULES.arenaRadius);
     }
-    for (const w of modeSetup({ kind: 'duel' }, 1, 'spectre', DUEL_RULES).wizards) {
+    for (const w of modeSetup({ kind: 'duel' }, 1, 'out', DUEL_RULES).wizards) {
       expect(obstacleAt(w.spawn, 1.5, PLAZA_MAP.obstacles)).toBeUndefined();
     }
   });

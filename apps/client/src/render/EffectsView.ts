@@ -23,7 +23,7 @@ interface Timed {
 }
 
 const HIT_HEIGHT = 1.2;
-const SPECTRE_COLOR = new THREE.Color('#a9b8ff');
+const SOUL_COLOR = new THREE.Color('#a9b8ff');
 const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
 const SHRINE_COLOR = new THREE.Color('#f0d9a0');
@@ -240,8 +240,8 @@ export class EffectsView {
         case 'defeated': {
           const fallen = byId(event.wizardId);
           if (!fallen) break;
-          this.particles.burst(fallen.pos.x, 1, fallen.pos.z, glow(SPECTRE_COLOR, 1.3), 40, 4, 0.6);
-          this.ring(fallen.pos.x, fallen.pos.z, SPECTRE_COLOR, 4, 0.7);
+          this.particles.burst(fallen.pos.x, 1, fallen.pos.z, glow(SOUL_COLOR, 1.3), 40, 4, 0.6);
+          this.ring(fallen.pos.x, fallen.pos.z, SOUL_COLOR, 4, 0.7);
           if (event.wizardId === this.playerId) this.shake = 1;
           break;
         }
@@ -251,23 +251,6 @@ export class EffectsView {
           if (!wizard) break;
           this.column(wizard.pos.x, wizard.pos.z, LIFE_COLOR, 0.9);
           this.particles.burst(wizard.pos.x, 0.3, wizard.pos.z, glow(LIFE_COLOR, 1.6), 24, 3, 0.4);
-          break;
-        }
-        case 'haunt': {
-          const spectre = byId(event.wizardId);
-          const target = byId(event.targetId);
-          if (spectre && target) {
-            this.beam(spectre.pos, target.pos, SPECTRE_COLOR, 0.5);
-            this.particles.burst(
-              target.pos.x,
-              HIT_HEIGHT,
-              target.pos.z,
-              glow(SPECTRE_COLOR, 1.5),
-              14,
-              2,
-              0.4,
-            );
-          }
           break;
         }
         case 'beastHit': {
@@ -336,8 +319,8 @@ export class EffectsView {
     }
   }
 
-  /** Partículas continuas de un mago: llamas si se quema y humo si es espectro. */
-  aura(wizard: Wizard, x: number, z: number, spectre: boolean, deltaSeconds: number): void {
+  /** Partículas continuas de un mago según sus estados: llamas si se quema, huellas si lo rastrean… */
+  aura(wizard: Wizard, x: number, z: number, deltaSeconds: number): void {
     const chance = deltaSeconds * 30;
     if (wizard.statuses.burn && Math.random() < chance) {
       this.particles.emit({
@@ -632,17 +615,6 @@ export class EffectsView {
         color: glow(elementColor('raiz'), 1.4),
         life: 1.5,
         size: 0.3,
-      });
-    }
-    if (spectre && Math.random() < chance * 0.6) {
-      this.particles.emit({
-        x: x + (Math.random() - 0.5) * 0.5,
-        y: 0.5 + Math.random() * 1.4,
-        z: z + (Math.random() - 0.5) * 0.5,
-        vy: 0.6,
-        color: SPECTRE_COLOR.clone().multiplyScalar(0.6),
-        life: 1.1,
-        size: 0.5,
       });
     }
   }

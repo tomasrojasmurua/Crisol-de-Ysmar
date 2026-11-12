@@ -12,7 +12,7 @@ function meteorAt(reach: number | undefined, rivalX = 0): { x: number; z: number
   const state: MatchState = createMatch(
     {
       seed: 3,
-      deathRule: 'spectre',
+      deathRule: 'out',
       wizards: [
         { team: 0, spawn: { x: 0, z: 0 } },
         { team: 1, spawn: { x: rivalX, z: 9 } },

@@ -3,7 +3,7 @@ import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
 import { lineBlocked } from '../match/obstacles';
 import { currentTarget, isAlive } from '../match/queries';
-import { isSpectre, roundPhase } from '../match/round';
+import { roundPhase } from '../match/round';
 import type { Beast, MatchState, Projectile, Shrine, Wizard } from '../match/state';
 import {
   add,
@@ -62,7 +62,7 @@ export class BotController implements Controller {
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
     if (!isAlive(self as Wizard)) {
       this.plan = null;
-      return this.spectreIntents(state, self);
+      return [];
     }
     const target = currentTarget(state as MatchState, self as Wizard, this.rules);
     if (!target) {
@@ -330,34 +330,6 @@ export class BotController implements Controller {
         distance(w.pos, self.pos) < 12 &&
         distance(w.pos, self.pos) > this.rules.death.revive.radius * 0.6,
     );
-  }
-
-  /** Como espectro: busca a un aliado que lo levante o persigue enemigos con su Lamento. */
-  private spectreIntents(state: Readonly<MatchState>, self: Readonly<Wizard>): Intent[] {
-    if (!isSpectre(state as MatchState, self as Wizard)) {
-      return [];
-    }
-    const ally = state.wizards.find((w) => w.team === self.team && w.id !== self.id && isAlive(w));
-    const enemy = currentTarget(state as MatchState, self as Wizard, this.rules);
-    const intents: Intent[] = [];
-    const goal = ally ?? enemy;
-    if (goal) {
-      const offset = sub(goal.pos, self.pos);
-      const stop = ally
-        ? this.rules.death.revive.radius * 0.5
-        : this.rules.death.spectre.hauntRange * 0.7;
-      const move = length(offset) > stop ? normalize(offset) : { x: 0, z: 0 };
-      intents.push({ kind: 'move', x: move.x, z: move.z });
-    }
-    if (
-      enemy &&
-      self.fallen &&
-      self.fallen.hauntCooldown === 0 &&
-      distance(enemy.pos, self.pos) <= this.rules.death.spectre.hauntRange
-    ) {
-      intents.push({ kind: 'cast', dirX: 0, dirZ: 0 });
-    }
-    return intents;
   }
 
   private aimFor(self: Readonly<Wizard>, target: Wizard, mode: AimMode): Vec2 {

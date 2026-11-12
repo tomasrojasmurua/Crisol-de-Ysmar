@@ -495,7 +495,7 @@ export interface RoundRules {
   readonly zoneDamagePerSecond: number;
 }
 
-/** Qué pasa al caer: modo Espectro o Vidas, y cómo se revive a un aliado. */
+/** Qué pasa al caer en modo Vidas y cómo se revive a un aliado. */
 export interface DeathRules {
   readonly lives: number;
   readonly respawnTicks: number;
@@ -503,11 +503,5 @@ export interface DeathRules {
     readonly radius: number;
     readonly ticks: number;
     readonly hpFraction: number;
-  };
-  readonly spectre: {
-    readonly moveMultiplier: number;
-    /** Lamento: el espectro ralentiza a un enemigo cercano. */
-    readonly hauntRange: number;
-    readonly hauntCooldownTicks: number;
   };
 }

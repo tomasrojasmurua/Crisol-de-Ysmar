@@ -33,12 +33,6 @@ const ELEMENT_PATHS: Record<ElementId, string> = {
 /** Estrella sólida de Lanzar: el botón más importante pesa más que los demás. */
 const CAST_PATH = '<path d="M16 3L20 12L29 16L20 20L16 29L12 20L3 16L12 12Z" fill="currentColor"/>';
 
-/** Espectro de ojos huecos y cola deshilachada: el Lamento no se parece a ningún elemento. */
-const LAMENT_PATH =
-  '<path d="M8 27V14A8 8 0 0 1 24 14V27L20.5 24.5L16 27.5L11.5 24.5Z"/>' +
-  '<circle cx="12.75" cy="15" r="1.6" fill="currentColor"/>' +
-  '<circle cx="19.25" cy="15" r="1.6" fill="currentColor"/>';
-
 /** Flecha que vuelve: deshace el tejido. */
 const UNDO_PATH =
   '<path d="M10 11H4L9 5M4 11L9 16"/>' +
@@ -93,6 +87,5 @@ export function glyphIcon(glyph: Glyph): string {
 }
 
 export const CAST_ICON = svg(CAST_PATH, 'icon-cast');
-export const LAMENT_ICON = svg(LAMENT_PATH, 'icon-lament');
 export const UNDO_ICON = svg(UNDO_PATH, 'icon-undo');
 export const DUEL_ICON = svg(DUEL_PATH, 'icon-duel');

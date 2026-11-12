@@ -26,7 +26,7 @@ apps/client   apps/server   apps/balance
 ## La partida en el núcleo
 
 - `match/step.ts` avanza una ronda; `match/round.ts` tiene las fases, la zona, las caídas,
-  el Lamento de los espectros, los revividos y quién gana la ronda.
+  los revividos y quién gana la ronda.
 - `match/beasts.ts` mueve a las bestias neutrales y reparte Esencia; `match/shrines.ts` maneja
   los santuarios de la Convergencia.
 - `mods.ts` combina los modificadores de Glifos y Presagios (`combineMods`) en un `WizardMods` por

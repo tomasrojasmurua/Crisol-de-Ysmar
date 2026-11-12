@@ -7,8 +7,8 @@ export const HEAD_Y = 1.74;
 
 /**
  * Los materiales y el cuerpo donde se arma un hechicero. Cada pieza del Vestidor agrega mallas
- * con `solid` (opacas, con sombra, se vuelven humo como espectro) o `glow` (ojos, gemas: brillan
- * y siguen viéndose como espectro). Al final `merge` junta las mallas por material para gastar
+ * con `solid` (opacas, con sombra, se vuelven humo con el Velo) o `glow` (ojos, gemas: brillan
+ * y siguen viéndose con el Velo). Al final `merge` junta las mallas por material para gastar
  * pocas llamadas de dibujo aunque el mago tenga muchas piezas.
  */
 export class ModelKit {
@@ -140,7 +140,7 @@ export class ModelKit {
 
   /**
    * Junta en una sola malla todas las piezas del cuerpo que comparten material (sin tocar el
-   * foco, que se mueve aparte). Devuelve las mallas opacas que quedaron, para el modo espectro.
+   * foco, que se mueve aparte). Devuelve las mallas opacas que quedaron, para el humo del Velo.
    */
   merge(): THREE.Mesh[] {
     this.body.updateMatrixWorld(true);

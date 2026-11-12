@@ -1337,21 +1337,6 @@ body {
   text-shadow: 0 1px 4px #000;
 }
 
-.hud-spectre {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-bottom) + 6px);
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(30, 34, 70, 0.6);
-  border: 1px solid rgba(169, 184, 255, 0.35);
-  color: #c9d3ff;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .hud-result {
   position: absolute;
   inset: 0;
@@ -2014,36 +1999,6 @@ body {
       0 0 0 2px rgba(243, 223, 176, 0.8),
       0 0 10px rgba(243, 223, 176, 0.5);
   }
-}
-
-#ui .weave-pad.spectre .weave-arc,
-#ui .weave-pad.spectre .element-button,
-#ui .weave-pad.spectre .cancel-button,
-#ui .weave-pad.spectre .duel-button,
-#ui .weave-pad.spectre .weave-slots {
-  opacity: 0.15;
-  pointer-events: none;
-}
-
-/* Espectro: Lanzar pasa a ser el Lamento, con su recarga en un anillo por segmentos. */
-.weave-pad.spectre .cast-button {
-  --ring-color: #7fe3f0;
-  --icon-size: 46%;
-  border-color: rgba(127, 227, 240, 0.55);
-  --icon-color: #7fe3f0;
-}
-
-.weave-pad.spectre .cast-button .icon {
-  filter: drop-shadow(0 0 4px rgba(127, 227, 240, 0.5));
-}
-
-.weave-pad.spectre .cast-button::before {
-  opacity: 1;
-  inset: -4px;
-  mask:
-    radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)),
-    repeating-conic-gradient(#000 0 40deg, transparent 40deg 45deg);
-  mask-composite: intersect;
 }
 
 /* Reflejo y Hurto: el hechizo guardado espera el próximo lanzamiento. Dorado, no violeta. */

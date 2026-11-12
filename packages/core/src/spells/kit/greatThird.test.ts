@@ -206,6 +206,6 @@ describe('Grandes hechizos: transformaciones', () => {
 });
 
 it('una ronda nueva empieza con la jungla entera', () => {
-  const state = createMatch({ seed: 1, deathRule: 'spectre', wizards: [] }, rules);
+  const state = createMatch({ seed: 1, deathRule: 'out', wizards: [] }, rules);
   expect(state.burnedTrees).toEqual([]);
 });

@@ -12,7 +12,6 @@ import {
   ELEMENT_IDS,
   type ElementId,
   type GameRules,
-  isSpectre,
   PLACED_SPELLS,
   placedShape,
   spellOf,
@@ -150,7 +149,6 @@ export class MatchRenderer {
       const wizardView = this.wizardViews.get(wizard.id);
       if (!wizardView) continue;
       const pos = current.interpolated(wizard.id, wizard.pos, alpha);
-      const spectre = isSpectre(state, wizard);
       const hidden =
         current.isHidden?.(wizard.id) === true ||
         veiledFromTeam(state, player.team, wizard.id, rules) ||
@@ -159,9 +157,9 @@ export class MatchRenderer {
       const base = current.present?.(wizard) ?? wizard;
       const shown =
         base.team !== player.team && base.statuses.disguised ? disguise(base, state.tick) : base;
-      wizardView.update(shown, pos.x, pos.z, time, delta, spectre, rules, hidden);
-      audio.watchWeave(shown, pos, hidden || spectre);
-      if (!hidden) view.effects.aura(wizard, pos.x, pos.z, spectre, delta);
+      wizardView.update(shown, pos.x, pos.z, time, delta, rules, hidden);
+      audio.watchWeave(shown, pos, hidden);
+      if (!hidden) view.effects.aura(wizard, pos.x, pos.z, delta);
     }
     const wizardOf = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
     const wizardPos = (id: number): Vec2 | undefined => {
@@ -246,7 +244,7 @@ export class MatchRenderer {
         : null,
     );
 
-    ui.controls.render(current.present?.(player) ?? player, rules, isSpectre(state, player));
+    ui.controls.render(current.present?.(player) ?? player, rules);
     ui.hud.update(state, player, current.series, current.roundNumber, badges, rules);
     ui.obstacles.refresh();
     ui.labels.updateBeasts(state, camera, beastName, elementColorHex);
