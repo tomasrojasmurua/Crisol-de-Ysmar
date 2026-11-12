@@ -92,7 +92,7 @@ describe('ComboDetector en la simulación', () => {
       !c.unverified &&
       !COMBO_UNDETECTABLE.has(c.id) &&
       !NEEDS_RIVAL.has(c.id) &&
-      c.steps.every((s) => 'spell' in s),
+      c.steps.every((s) => 'spell' in s && !s.ally),
   );
 
   it.each(simple.map((c) => [c.id, c] as const))('%s sale contra un rival quieto', (_, combo) => {
@@ -181,6 +181,38 @@ describe('ComboDetector en la simulación', () => {
       { rival: (tick) => (tick > 30 ? [{ kind: 'move', x: 0, z: -1 }] : []) },
     );
     expect(found).toContain('corona-de-fuego');
+  });
+
+  it('Caer dormido en pareja: la Catapulta del aliado, tu Pesadilla y tu Lanza', () => {
+    const state = createMatch(
+      {
+        seed: 7,
+        deathRule: 'spectre',
+        wizards: [
+          { team: 0, spawn: { x: 0, z: 0 } },
+          { team: 1, spawn: { x: 0, z: 9 } },
+          { team: 0, spawn: { x: 2, z: 0 } },
+        ],
+      },
+      rules,
+    );
+    const detector = new ComboDetector(1);
+    const found: string[] = [];
+    for (let tick = 0; tick < 200; tick++) {
+      const mine =
+        tick === 30 ? castAt(state, 'nightmare') : tick === 60 ? castAt(state, 'skySpear') : [];
+      const ally = tick === 0 ? castAt(state, 'rootCatapult', 3, 2) : [];
+      stepMatch(
+        state,
+        new Map([
+          [1, mine],
+          [3, ally],
+        ]),
+        rules,
+      );
+      for (const hit of detector.onStep(state.events, state)) found.push(hit.combo.id);
+    }
+    expect(found).toContain('caer-dormido');
   });
 
   it('la Lanza sola, sin Pesadilla antes, no es combo', () => {

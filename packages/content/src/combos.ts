@@ -39,7 +39,7 @@ const anyOf = (element: ElementId): ComboStep => ({ element });
 const ANY: ComboStep = { any: true };
 
 /**
- * El catálogo cerrado de combos: 6 reacciones y 69 seguidillas de hechizos. Solo documenta
+ * El catálogo cerrado de combos: 6 reacciones y 70 seguidillas de hechizos. Solo documenta
  * sinergias que ya existen en el juego; acertarlos no da nada extra, el premio es descubrirlos.
  * Ver `claude/crisol-combos-grimorio.md` en el proyecto para las reglas que les dan forma.
  */
@@ -171,10 +171,19 @@ export const COMBOS: readonly Combo[] = [
     id: 'caer-dormido',
     name: 'Caer dormido',
     level: 3,
-    needed: 5,
-    steps: [s('rootCatapult'), s('nightmare'), s('skySpear')],
-    detail: 'Enraizado, dormido y, con Tormenta y Brasa ya descansadas, la Lanza.',
-    unverified: true,
+    needed: 3,
+    steps: [{ spell: 'rootCatapult', ally: true }, s('nightmare'), s('skySpear')],
+    detail:
+      'Un aliado lo enraíza con la Catapulta; tú lo duermes y, con Tormenta y Brasa sin gastar, la Lanza le cae dormido.',
+    team: true,
+  },
+  {
+    id: 'sueno-tras-el-muro',
+    name: 'Sueño tras el muro',
+    level: 2,
+    needed: 3,
+    steps: [s('rootWall'), s('nightmare'), s('chainLightning')],
+    detail: 'La muralla le cierra el paso, se duerme y el Rayo en cadena lo despierta de golpe.',
   },
   {
     id: 'punalada-ignea',
@@ -746,6 +755,7 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'sueno-y-lanza': { status: 'asleep' },
   'por-los-aires': { status: 'airborne' },
   'caer-dormido': { status: 'asleep' },
+  'sueno-tras-el-muro': { status: 'asleep' },
   'punalada-ignea': { status: 'silenced' },
   'luz-en-la-pesadilla': { status: 'asleep' },
   'sueno-guiado': { status: 'asleep' },

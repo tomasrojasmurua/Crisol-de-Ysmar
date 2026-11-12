@@ -3,8 +3,8 @@ import { COMBOS } from './combos';
 import { REACTION_TEXT } from './reactions';
 
 describe('catálogo de combos', () => {
-  it('tiene los 75 combos acordados, cada uno con su id', () => {
-    expect(COMBOS).toHaveLength(75);
+  it('tiene los 76 combos acordados, cada uno con su id', () => {
+    expect(COMBOS).toHaveLength(76);
     expect(new Set(COMBOS.map((c) => c.id)).size).toBe(COMBOS.length);
     expect(new Set(COMBOS.map((c) => c.name)).size).toBe(COMBOS.length);
   });
@@ -31,6 +31,6 @@ describe('catálogo de combos', () => {
   });
 
   it('marca los que faltan por confirmar con la simulación', () => {
-    expect(COMBOS.filter((c) => c.unverified)).toHaveLength(11);
+    expect(COMBOS.filter((c) => c.unverified)).toHaveLength(10);
   });
 });
