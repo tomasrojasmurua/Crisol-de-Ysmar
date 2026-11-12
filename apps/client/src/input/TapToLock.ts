@@ -12,9 +12,10 @@ const TAP_MAX_MS = 350;
 /** Qué tan cerca del mago (o la bestia) en pantalla hay que tocar para fijarlo. */
 const WIZARD_REACH_PX = 80;
 const BEAST_REACH_PX = 70;
+const SUMMON_REACH_PX = 60;
 
 /**
- * Entrar en duelo: tocando a un rival o a una bestia en la pantalla, o con el botón de duelo,
+ * Entrar en duelo: tocando a un rival, una bestia o una invocación rival en la pantalla, o con el botón de duelo,
  * que pasa de uno a otro. Solo se fija lo que el núcleo acepta (vivo, a la vista y al alcance);
  * si no hay nada, no vibra, para que no parezca que se fijó.
  */
@@ -81,6 +82,12 @@ export class TapToLock {
     }
     for (const beast of state.beasts) {
       consider(beast.id, beast.pos.x, 0.8, beast.pos.z, BEAST_REACH_PX);
+    }
+    // Las invocaciones rivales se fijan tocándolas (el botón de duelo no pasa por ellas).
+    for (const spell of state.spells) {
+      if (spell.kind === 'summon') {
+        consider(spell.id, spell.pos.x, 0.6, spell.pos.z, SUMMON_REACH_PX);
+      }
     }
     const chosen = best as { id: number; distance: number } | null;
     if (chosen && chosen.id !== player.lockTarget) {

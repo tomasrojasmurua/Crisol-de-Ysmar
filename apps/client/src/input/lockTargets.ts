@@ -9,7 +9,7 @@ import {
 } from '@crisol/core';
 
 /**
- * Lo que se puede fijar para entrar en duelo: lo mismo que el núcleo acepta como blanco fijado
+ * Lo que se puede fijar para entrar en duelo (un mago rival, una bestia o una invocación rival): lo mismo que el núcleo acepta como blanco fijado
  * (vivo, a la vista y a `lockRange`). Si se aceptara algo más, el núcleo lo soltaría al cuadro
  * siguiente y parecería que el toque no hizo nada.
  */
@@ -30,6 +30,10 @@ export function canLock(
       !isHiddenFrom(wizard, player, rules) &&
       near(wizard.pos)
     );
+  }
+  const summon = state.spells.find((s) => s.kind === 'summon' && s.id === id);
+  if (summon?.kind === 'summon') {
+    return summon.team !== player.team && summon.hp > 0 && near(summon.pos);
   }
   const beast = state.beasts.find((b) => b.id === id);
   if (!beast || beast.hp <= 0 || !near(beast.pos)) return false;

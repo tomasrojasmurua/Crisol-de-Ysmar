@@ -1,6 +1,6 @@
 import { add, distance, dot, normalize, scale, sub, type Vec2 } from '../math/vec2';
 import type { GameRules } from '../rules';
-import type { EntityId, MatchState, Wizard } from './state';
+import type { EntityId, MatchState, Summon, Wizard } from './state';
 
 export const isAlive = (wizard: Wizard): boolean => wizard.hp > 0;
 
@@ -82,10 +82,10 @@ export function currentTarget(
   return nearestEnemy(state, wizard, rules);
 }
 
-/** A qué apunta el disparo automático: un mago rival o una bestia. */
+/** A qué apunta el disparo automático: un mago rival, una bestia o una invocación fijada. */
 export interface AimTarget {
   readonly id: EntityId;
-  readonly kind: 'wizard' | 'beast';
+  readonly kind: 'wizard' | 'beast' | 'summon';
   readonly pos: Vec2;
   readonly velocity: Vec2;
 }
@@ -124,6 +124,8 @@ export function autoTarget(state: MatchState, wizard: Wizard, rules: GameRules):
     if (beast && distance(beast.pos, wizard.pos) <= lockRange) {
       return { id: beast.id, kind: 'beast', pos: beast.pos, velocity: beast.velocity };
     }
+    const summon = lockedSummon(state, wizard, rules);
+    if (summon) return { id: summon.id, kind: 'summon', pos: summon.pos, velocity: ZERO };
   }
 
   // Cerca y delante: a la espalda cuenta como más lejos.
@@ -158,6 +160,25 @@ export function autoTarget(state: MatchState, wizard: Wizard, rules: GameRules):
     }
   }
   return bestBeast;
+}
+
+const ZERO: Vec2 = { x: 0, z: 0 };
+
+/**
+ * Una invocación rival que el mago fijó tocándola, si sigue en pie y a `lockRange`. Solo se
+ * apunta a ellas si se fijan a mano: el disparo automático sigue prefiriendo magos y bestias.
+ */
+export function lockedSummon(
+  state: MatchState,
+  wizard: Wizard,
+  rules: GameRules,
+): Summon | undefined {
+  if (wizard.lockTarget === null) return undefined;
+  const summon = state.spells.find(
+    (s): s is Summon => s.kind === 'summon' && s.id === wizard.lockTarget,
+  );
+  if (!summon || summon.team === wizard.team || summon.hp <= 0) return undefined;
+  return distance(summon.pos, wizard.pos) <= rules.aim.lockRange ? summon : undefined;
 }
 
 function tamedByAlly(state: MatchState, wizard: Wizard, tamer: EntityId | null): boolean {

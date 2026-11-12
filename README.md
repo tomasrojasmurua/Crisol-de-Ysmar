@@ -17,7 +17,8 @@ de WhatsApp, sin instalar nada.
 - **Ronda:** sin reloj; dura lo que dure el combate. Caza (abierta), Convergencia (la zona se
   cierra) y Duelo final, un minuto cada una; después, muerte súbita: la zona se cierra del todo y
   quema cada vez más. Gana el último equipo en pie.
-- **Objetivo:** el rival más cercano se fija solo; toca a otro rival o a una bestia para cambiarlo.
+- **Objetivo:** el rival más cercano se fija solo; toca a otro rival, una bestia o una invocación
+  rival para fijarla (a las invocaciones les pegan proyectiles, explosiones y golpes de suelo).
 - **Bestias:** cinco criaturas neutrales, una por elemento. Si cazas una ganas su **Esencia**:
   tus conjuros de ese elemento pegan más fuerte durante la ronda.
 - **Santuarios:** aparecen en la Convergencia. Párate encima sin rivales cerca para tomarlo:
