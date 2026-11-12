@@ -166,8 +166,6 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 - **Audio con ElevenLabs** (unos 40 efectos, una pista por fase, quizás un narrador): no partió.
 - **Personajes 3D** (Meshy + Mixamo): tercer paso del orden de arte, sin empezar.
 - **Apuntar:** a la guía visual de los hechizos de dirección le ha faltado cariño (lo dijo Tomás).
-- **Glifo de Brasa:** subir un poco la llama interior para despejar la base (ver
-  [referencia/ui-glifos.md](referencia/ui-glifos.md)).
 - **IA:** el Maestro todavía no hace choques de tejidos ni combos del catálogo; podría ser el
   siguiente escalón.
 - **Golpes de cono** (Zarpa…) no apuntan a invocaciones fijadas; solo proyectiles, explosiones y
