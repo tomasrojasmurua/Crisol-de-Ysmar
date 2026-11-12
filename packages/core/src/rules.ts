@@ -388,6 +388,12 @@ export interface GameRules {
     readonly tideExtinguishesBurn: boolean;
     /** Reacciones entre estados: un golpe de un elemento sobre un estado de otro. */
     readonly combos: readonly ElementCombo[];
+    /**
+     * Choque de tejidos: dos proyectiles rivales cuyos primeros elementos son opuestos en el
+     * pentágono chocan en el aire. `margin` se suma a sus radios para que apuntar a mano a un
+     * proyectil que viene sea posible en el celular.
+     */
+    readonly clash: { readonly margin: number };
   };
   readonly round: RoundRules;
   /** Apuntado automático: a qué se dispara cuando se toca el botón sin arrastrar. */

@@ -122,7 +122,7 @@ Hay dos frentes abiertos. Pregúntale a Tomás por cuál partir; la recomendaci�
      existían, así que no hubo nada que apagar.
    - Hecho antes: rondas de 3 minutos y aviso mínimo de 0,17 s (PR #15 y #16).
    - Hecho: tejido sobre la cabeza, siluetas por familia y reacciones entre estados (ver
-     `docs/diseno.md`, Lectura del combate). Queda el choque de tejidos. Antes se propuso: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
+     `docs/diseno.md`, Lectura del combate). El choque de tejidos llegó en noviembre de 2026 (ver `docs/diseno.md`). Antes se propuso: tejido flotando sobre la cabeza como tres orbes; cuatro siluetas por
      familia de hechizo (proyectil, zona, movimiento, invocación); interacciones entre estados al
      estilo sistémico (mojado + Tormenta aturde, Raíz + Brasa arde); **choque de tejidos** (un
      tejido opuesto en el pentágono anula al del rival), a diseñar en papel e implementar con la red.

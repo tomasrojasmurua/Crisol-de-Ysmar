@@ -18,7 +18,12 @@ const COMBO_COLORS: Readonly<Record<ComboId, string>> = {
 
 interface Callout {
   readonly root: HTMLElement;
-  readonly targetId: number;
+  /** Sobre quién flota; null si queda en un punto fijo (`at`). */
+  readonly targetId: number | null;
+  /** Un punto fijo del mundo, como el lugar de un choque de tejidos. */
+  readonly at?: Vec2;
+  /** Altura de donde nace. */
+  readonly height: number;
   age: number;
   /** Cuánto más arriba nace: el nombre de un combo va sobre el de la reacción. */
   readonly lift: number;
@@ -50,11 +55,22 @@ export class ComboCallouts {
     this.add(`¡${name}!`, '#f3dfb0', targetId, true);
   }
 
+  /**
+   * Choque de tejidos: "¡Choque!" donde se encontraron. Si uno siguió debilitado, lo dice.
+   * Nace a la altura de los proyectiles.
+   */
+  showClash(at: Vec2, weakened: boolean): void {
+    const root = el('div', 'combo-callout', weakened ? '¡Choque! · debilitado' : '¡Choque!');
+    root.style.setProperty('--combo', '#f0e6ff');
+    this.layer.append(root);
+    this.callouts.push({ root, targetId: null, at, height: 1.6, age: 0, lift: 0 });
+  }
+
   private add(text: string, color: string, targetId: number, big: boolean): void {
     const root = el('div', big ? 'combo-callout big' : 'combo-callout', text);
     root.style.setProperty('--combo', color);
     this.layer.append(root);
-    this.callouts.push({ root, targetId, age: 0, lift: big ? 0.9 : 0 });
+    this.callouts.push({ root, targetId, height: CALLOUT_Y, age: 0, lift: big ? 0.9 : 0 });
   }
 
   clear(): void {
@@ -67,14 +83,14 @@ export class ComboCallouts {
       const callout = this.callouts[i];
       if (!callout) continue;
       callout.age += delta;
-      const pos = positionOf(callout.targetId);
+      const pos = callout.targetId === null ? callout.at : positionOf(callout.targetId);
       if (callout.age >= LIFE_SECONDS || !pos) {
         callout.root.remove();
         this.callouts.splice(i, 1);
         continue;
       }
       const t = callout.age / LIFE_SECONDS;
-      this.projected.set(pos.x, CALLOUT_Y + callout.lift + t * 0.8, pos.z).project(camera);
+      this.projected.set(pos.x, callout.height + callout.lift + t * 0.8, pos.z).project(camera);
       const behind = this.projected.z > 1;
       const x = ((this.projected.x + 1) / 2) * window.innerWidth;
       const y = ((1 - this.projected.y) / 2) * window.innerHeight;

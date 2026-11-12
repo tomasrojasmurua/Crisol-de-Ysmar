@@ -467,6 +467,7 @@ function stepMatch(current: MatchView): void {
   audio.onEvents(events, current.state);
   for (const event of events) {
     if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
+    if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
   }
   if (current instanceof TrainingMatch && tutorial && !tutorial.done) {
     if (tutorial.onStep(events, current.state)) {

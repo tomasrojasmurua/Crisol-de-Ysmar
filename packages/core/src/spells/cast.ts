@@ -4,6 +4,7 @@ import type { Vec2 } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { SPELL_FORM_BY_ELEMENT, type Weave } from '../weaving/weave';
 import type { SpellId } from './catalog';
+import { dismantleInArea } from './clash';
 import {
   castComet,
   castFireball,
@@ -422,6 +423,7 @@ export function castSpell(
   state.events.push({ type: 'release', wizardId: caster.id, form, spell });
   // Con Raíces profundas, todo llega más lejos.
   const far = caster.statuses.deepRooted ? farRules(rules) : rules;
+  const before = state.events.length;
   CASTERS[spell]({
     state,
     caster,
@@ -432,7 +434,24 @@ export function castSpell(
     bonus,
     ...(reach === undefined ? {} : { reach }),
   });
+  // Choque de tejidos: el área de lo que acabas de lanzar desarma proyectiles rivales opuestos.
+  if (muted) dismantleWithCast(state, caster, weave, before, rules);
   afterCast(state, caster, spell, weave, aim, rules, fromEcho);
+}
+
+/** Revisa las explosiones y conos que salieron de este lanzamiento (eventos `burst`). */
+function dismantleWithCast(
+  state: MatchState,
+  caster: Wizard,
+  weave: Weave,
+  firstEvent: number,
+  rules: GameRules,
+): void {
+  const bursts = state.events.slice(firstEvent).filter((e) => e.type === 'burst');
+  for (const burst of bursts) {
+    if (burst.type !== 'burst') continue;
+    dismantleInArea(state, caster.team, weave, burst.pos, burst.radius, rules);
+  }
 }
 
 const FAR = new WeakMap<GameRules, GameRules>();

@@ -147,6 +147,8 @@ export const GAME_RULES: GameRules = {
   },
   interactions: {
     tideExtinguishesBurn: true,
+    // Choque de tejidos: los proyectiles opuestos chocan con medio metro de margen.
+    clash: { margin: 0.5 },
     // Reacciones entre estados. Se revisan en orden; sale solo la primera que calce.
     combos: [
       // Conducción: Tormenta sobre alguien empapado lo aturde 0,6 s y seca el agua.
