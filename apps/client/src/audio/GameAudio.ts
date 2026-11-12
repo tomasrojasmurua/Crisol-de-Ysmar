@@ -198,6 +198,11 @@ export class GameAudio {
         case 'phase':
           this.onPhase(event.phase);
           break;
+        case 'clash': {
+          const place = this.at(event.pos);
+          if (place) this.sound('combo', place, () => this.synth.combo(place));
+          break;
+        }
         case 'combo': {
           const pos = wizardPos(event.targetId);
           const mine = event.targetId === this.playerId || event.sourceId === this.playerId;

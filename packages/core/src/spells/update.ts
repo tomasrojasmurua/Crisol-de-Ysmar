@@ -13,6 +13,7 @@ import type {
 import { add, distance, distanceToSegment, length, normalize, scale, sub } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { resolveClashes } from './clash';
 import {
   attractProjectile,
   catchProjectile,
@@ -55,11 +56,15 @@ import {
 /** Avanza un paso todos los hechizos en el mundo y quita los que terminaron. */
 export function updateSpells(state: MatchState, rules: GameRules): void {
   const walls = state.spells.filter((s): s is Wall => s.kind === 'wall');
+  // Primero chocan los proyectiles opuestos que se encontraron en el aire.
+  const clashed = resolveClashes(state, rules);
   const spells = state.spells;
   const count = spells.length;
   // Lo que nace en este paso (el cráter del Meteoro, un charco de la Lluvia de fuego)
   // se agrega al final y empieza a avanzar en el paso siguiente.
-  const kept = spells.filter((spell) => updateSpell(state, spell, walls, rules));
+  const kept = spells.filter(
+    (spell) => !clashed.has(spell.id) && updateSpell(state, spell, walls, rules),
+  );
   state.spells = kept.concat(spells.slice(count));
 }
 

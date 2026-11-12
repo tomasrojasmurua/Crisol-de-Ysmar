@@ -212,6 +212,23 @@ export class EffectsView {
           this.ring(target.pos.x, target.pos.z, COMBO_COLOR, 2.2, 0.4);
           break;
         }
+        case 'clash': {
+          // Choque de tejidos: un estallido de los dos colores que se encontraron.
+          const [a, b] = event.elements;
+          for (const element of [a, b]) {
+            this.particles.burst(
+              event.pos.x,
+              1.3,
+              event.pos.z,
+              glow(elementColor(element), 2.4),
+              18,
+              5,
+              0.45,
+            );
+          }
+          this.ring(event.pos.x, event.pos.z, COMBO_COLOR, 1.6, 0.35);
+          break;
+        }
         case 'blocked':
           this.particles.burst(
             event.pos.x,

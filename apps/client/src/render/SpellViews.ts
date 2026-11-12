@@ -393,6 +393,8 @@ export class SpellViews {
     timeSeconds: number,
   ): void {
     view.position.set(pos.x, 1.3, pos.z);
+    // Debilitado por un choque de tejidos: se ve más chico.
+    view.scale.setScalar(0.45 + 0.55 * (spell.power ?? 1));
     const color = view.userData.color as THREE.Color;
     // Estela de cinta del color del conjuro; la de Tormenta tiembla como un rayo.
     const element = elementOfForm(spell.payload.form);

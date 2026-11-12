@@ -128,7 +128,10 @@ export interface Projectile {
   readonly radius: number;
   travelled: number;
   readonly maxRange: number;
-  readonly payload: SpellPayload;
+  /** El choque de tejidos le baja el daño al que sobrevive. */
+  payload: SpellPayload;
+  /** Qué parte de su fuerza le queda tras un choque (1 o nada: entero). Se ve más chico. */
+  power?: number;
   readonly trait: ProjectileTrait | null;
   /** Flotando en el Llanto del abismo: quién lo retiene y a qué velocidad saldrá. */
   held?: { readonly byId: EntityId; readonly speed: number } | null;
@@ -734,6 +737,16 @@ export type GameEvent =
   | { readonly type: 'shrinesAppear' }
   | { readonly type: 'shrineClaimed'; readonly shrineId: EntityId; readonly team: number }
   | { readonly type: 'blocked'; readonly pos: Vec2 }
+  /**
+   * Choque de tejidos: dos proyectiles opuestos se encontraron. Con `survivorId` null se
+   * deshicieron los dos; si no, ese siguió debilitado.
+   */
+  | {
+      readonly type: 'clash';
+      readonly pos: Vec2;
+      readonly elements: readonly [ElementId, ElementId];
+      readonly survivorId: EntityId | null;
+    }
   /**
    * A un mago lo alcanzó un ataque rival que no le hizo daño (lo atajó un escudo, el Ataúd, el
    * Espejo o el Pararrayos). Cuando sí hace daño, el aviso es `hit`.

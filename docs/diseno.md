@@ -80,6 +80,21 @@ es lo vigente.
 | Brasa maldita | Umbra    | Quemándose | +20% y el fuego se vuelve maldición      |
 | Lodazal       | Raíz     | Empapado   | Enraíza 1 s; seca el agua                |
 
+### Choque de tejidos
+
+Lo único que se desarma son **proyectiles** rivales en el aire (Chispa, Bola de fuego, Ceguera,
+Llama negra, Cometa negro, Ácido, Sifón). Lo que cae del cielo, como el Meteoro, se esquiva
+moviéndose. Los desarma cualquier hechizo tuyo cuyo **primer elemento sea opuesto** al suyo en el
+pentágono y que lo **toque**: otro proyectil, o el área de un cono o una explosión al lanzarse
+(un Salpicón hacia la Chispa que viene). Iguales o vecinos se cruzan sin chocar.
+
+- Mismo número de elementos: se deshacen. Con más elementos, el tuyo gana; con menos, el
+  proyectil sigue debilitado, más chico, con el daño rebajado en tu proporción (1 contra 2: queda
+  la mitad; 1 contra 3: dos tercios; 2 contra 3: un tercio).
+- Se apunta a mano (arrastrando ✦): es una mecánica avanzada. Para que sea posible en el celular,
+  chocan con medio metro más de margen que el que tienen para pegarle a un mago
+  (`interactions.clash.margin`). No es una reacción ni cuenta para el Grimorio.
+
 ## Vestidor
 
 Todo es cosmético salvo la Afinidad. Las piezas viven en `packages/content/src/appearance.ts` y se

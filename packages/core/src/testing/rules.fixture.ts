@@ -352,6 +352,7 @@ export const TEST_RULES: GameRules = {
   },
   interactions: {
     tideExtinguishesBurn: true,
+    clash: { margin: 0.5 },
     combos: [
       {
         id: 'conduction',
