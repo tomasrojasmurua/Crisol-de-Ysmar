@@ -109,6 +109,7 @@ export class Room extends DurableObject<Env> {
           roomCode: this.ctx.id.name ?? '',
           playerId: joined.playerId,
           token: joined.token,
+          lobby: this.duel.inLobby,
         });
         this.broadcastPlayers();
         // Si la partida ya iba (volvió alguien), se le presenta; si recién empieza, avisa el reloj.

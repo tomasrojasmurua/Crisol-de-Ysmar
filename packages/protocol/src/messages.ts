@@ -78,6 +78,11 @@ export type ServerMessage =
       readonly roomCode: string;
       readonly playerId: number;
       readonly token: string;
+      /**
+       * La Sala está en la sala de espera. Si ya ibas jugando, la Sala se reinició (se publicó
+       * una versión nueva o Cloudflare la movió) y la partida se perdió.
+       */
+      readonly lobby?: boolean;
     }
   /** Quiénes están en la Sala; cambia cuando alguien entra, sale o vuelve. */
   | {

@@ -121,6 +121,31 @@ describe('duelo en red: el celular', () => {
     expect(socket.sent.some((m) => JSON.parse(m).type === 'intents')).toBe(true);
   });
 
+  it('si vuelve y la Sala amaneció en la sala de espera, avisa que la partida se perdió', () => {
+    const problems: [string, boolean][] = [];
+    const net = new NetMatch('K7QF', { name: 'Tomás', look: DEFAULT_LOOK, affinity: null }, human, {
+      ...listener(),
+      problem: (reason, fatal) => problems.push([reason, fatal]),
+    });
+    let socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't', lobby: true });
+    // Antes de jugar, la sala de espera es lo normal.
+    expect(problems).toHaveLength(0);
+    socket.receive({ type: 'start', omenId: 'x', players: [], settings: DEFAULT_ROOM_SETTINGS });
+    socket.receive(stateMessage(0));
+    // Se corta y vuelve: la Sala se reinició.
+    vi.useFakeTimers();
+    socket.emit('close', { code: 1006 });
+    vi.advanceTimersByTime(2000);
+    socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 1, token: 'u', lobby: true });
+    vi.useRealTimers();
+    expect(problems.at(-1)?.[1]).toBe(true);
+    expect(net.playerId).toBe(2);
+  });
+
   it('guarda un colchón de dos pasos antes de mostrar y los muestra de a uno', () => {
     const { net, socket } = joined();
     socket.receive(stateMessage(1));
