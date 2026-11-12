@@ -21,6 +21,8 @@ export const GAME_RULES: GameRules = {
     // Ningún tejido sale en menos de 0,15 s: el rival alcanza a ver el aviso aunque haya lag.
     castTicksByLength: [5, 9, 18],
     fatigueTicks: 90,
+    // Arrastrando ✦: si el objetivo queda a 2 m del punto elegido, el hechizo cae sobre él.
+    aimSnap: 2,
   },
   spells: SPELL_RULES,
   statuses: {

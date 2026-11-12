@@ -327,7 +327,7 @@ export function castMist(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.mist;
   const pos = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   placeZone(ctx, 'mist', spell, pos);

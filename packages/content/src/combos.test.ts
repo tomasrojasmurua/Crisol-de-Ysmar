@@ -31,6 +31,6 @@ describe('catálogo de combos', () => {
   });
 
   it('marca los que faltan por confirmar con la simulación', () => {
-    expect(COMBOS.filter((c) => c.unverified)).toHaveLength(2);
+    expect(COMBOS.filter((c) => c.unverified)).toHaveLength(0);
   });
 });

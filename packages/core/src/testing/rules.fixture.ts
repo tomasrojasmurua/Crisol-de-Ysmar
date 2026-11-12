@@ -9,7 +9,7 @@ export const TEST_RULES: GameRules = {
   map: { obstacles: [], camps: [], guardianLair: null },
   wizard: { maxHp: 100, moveSpeed: 6, radius: 0.5, channelMoveMultiplier: 0.5 },
   aim: { range: 14, lockRange: 20, frontWeight: 0.6 },
-  weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90 },
+  weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90, aimSnap: 2 },
   spells: {
     spark: { damage: 10, speed: 20, range: 14, radius: 0.25 },
     step: { distance: 4, durationTicks: 4 },

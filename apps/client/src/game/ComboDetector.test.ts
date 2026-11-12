@@ -30,7 +30,7 @@ function duel(distance: number): MatchState {
 }
 
 /** Tejer y lanzar un hechizo apuntando a otro mago, como haría el dedo. */
-function castAt(state: MatchState, spell: SpellId, from = 1, to = 2): Intent[] {
+function castAt(state: MatchState, spell: SpellId, from = 1, to = 2, reach?: number): Intent[] {
   const a = state.wizards.find((w) => w.id === from);
   const b = state.wizards.find((w) => w.id === to);
   const dx = (b?.pos.x ?? 0) - (a?.pos.x ?? 0);
@@ -38,7 +38,12 @@ function castAt(state: MatchState, spell: SpellId, from = 1, to = 2): Intent[] {
   const length = Math.hypot(dx, dz) || 1;
   return [
     ...SPELL_WEAVES[spell].map((element: ElementId): Intent => ({ kind: 'weave', element })),
-    { kind: 'cast', dirX: dx / length, dirZ: dz / length },
+    {
+      kind: 'cast',
+      dirX: dx / length,
+      dirZ: dz / length,
+      ...(reach === undefined ? {} : { reach }),
+    },
   ];
 }
 
@@ -74,7 +79,7 @@ function play(
 }
 
 /**
- * Los combos que necesitan que el rival haga algo (cruzar las zarzas, pegarte, acercarse)
+ * Los combos que necesitan que el rival o un aliado haga algo, o elegir dónde cae un hechizo,
  * tienen su propia prueba más abajo; el resto se confirma con un rival quieto.
  */
 const NEEDS_RIVAL = new Set([
@@ -92,6 +97,9 @@ const NEEDS_RIVAL = new Set([
   'escudo-compartido',
   'jaula-y-respiro',
   'aliado-bomba',
+  // Piden elegir dónde cae el hechizo de suelo.
+  'cambio-de-cielo',
+  'plato-servido',
 ]);
 
 describe('ComboDetector en la simulación', () => {
@@ -253,8 +261,11 @@ interface Spawn {
   readonly z: number;
   readonly hp?: number;
 }
-/** Qué lanza cada mago (1, 2, 3…) en cada paso, y a quién apunta. */
-type Plan = Record<number, Record<number, readonly [SpellId, number]>>;
+/**
+ * Qué lanza cada mago (1, 2, 3…) en cada paso, a quién apunta y, en los hechizos de suelo,
+ * hasta dónde llega (como al mantener y arrastrar ✦).
+ */
+type Plan = Record<number, Record<number, readonly [SpellId, number, number?]>>;
 
 /** Escena con varios magos que actúan: tú eres el 1. Devuelve los combos que te salieron. */
 function scene(spawns: readonly Spawn[], plan: Plan, ticks = 300): string[] {
@@ -276,7 +287,9 @@ function scene(spawns: readonly Spawn[], plan: Plan, ticks = 300): string[] {
     const intents = new Map<number, Intent[]>();
     for (const [id, byTick] of Object.entries(plan)) {
       const action = byTick[tick];
-      if (action) intents.set(Number(id), castAt(state, action[0], Number(id), action[1]));
+      if (action) {
+        intents.set(Number(id), castAt(state, action[0], Number(id), action[1], action[2]));
+      }
     }
     stepMatch(state, intents, rules);
     for (const hit of detector.onStep(state.events, state)) found.push(hit.combo.id);
@@ -380,6 +393,22 @@ describe('ComboDetector: combos que piden algo del rival o de un aliado', () => 
       2: { 30: ['claw', 1] },
     });
     expect(found).not.toContain('aliado-bomba');
+  });
+
+  it('Cambio de cielo: el meteoro cae sobre ti y cambias de lugar antes', () => {
+    const found = scene([me, { team: 1, x: 0, z: 7 }], {
+      1: { 0: ['meteor', 2, 0], 20: ['swap', 2] },
+    });
+    expect(found).toContain('cambio-de-cielo');
+  });
+
+  it('Plato servido: dejas la planta a tu lado y él queda junto a su boca', () => {
+    const found = scene(
+      [me, { team: 1, x: 0, z: 8 }],
+      { 1: { 0: ['carnivore', 2, 0.1], 110: ['swap', 2] } },
+      400,
+    );
+    expect(found).toContain('plato-servido');
   });
 
   it('Jaula y respiro: te curas mientras él sigue encerrado en las zarzas', () => {

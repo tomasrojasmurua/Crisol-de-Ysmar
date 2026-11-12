@@ -6,7 +6,7 @@ import type { Vec2 } from '../../math/vec2';
 import { add, clampToCircle, distance, dot, length, normalize, scale, sub } from '../../math/vec2';
 import { type CastContext, nextId, payloadFor, summon } from './context';
 import { detonateOrb } from './greatFieldUpdates';
-import { groundPoint, hitArea } from './shared';
+import { groundPoint, hitArea, placedAt } from './shared';
 
 function fizzle(ctx: CastContext): void {
   ctx.state.events.push({ type: 'fizzle', wizardId: ctx.caster.id });
@@ -16,7 +16,10 @@ function fizzle(ctx: CastContext): void {
 function pointAhead(ctx: CastContext, range: number): Vec2 {
   const { state, caster, rules } = ctx;
   if (range <= 0) return caster.pos;
-  return clampToCircle(groundPoint(state, caster, ctx.aim, range, rules), rules.arenaRadius - 1);
+  return clampToCircle(
+    groundPoint(state, caster, ctx.aim, range, rules, ctx.reach),
+    rules.arenaRadius - 1,
+  );
 }
 
 /** Deja algo de la cuarta tanda en el campo. */
@@ -389,7 +392,7 @@ export function castThrownShadow(ctx: CastContext): void {
   for (const s of state.spells) {
     if (s.kind === 'field' && s.mode === 'shadowMark' && s.ownerId === caster.id) s.ticksLeft = 0;
   }
-  const to = add(caster.pos, scale(ctx.aim, spell.distance));
+  const to = placedAt(ctx, spell.distance);
   const pos = placeInArena(to, rules.wizard.radius, rules);
   field(ctx, 'shadowMark', pos, rules.wizard.radius, spell.durationTicks);
   state.events.push({ type: 'zap', from: caster.pos, to: pos });

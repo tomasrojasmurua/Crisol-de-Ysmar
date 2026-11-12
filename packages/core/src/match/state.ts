@@ -21,6 +21,8 @@ interface Channel {
   readonly weave: Weave;
   /** Dirección elegida al lanzar; cero significa apuntar solo al objetivo. */
   readonly aim: Vec2;
+  /** Hasta dónde llega un hechizo que se deja en el suelo (ver el `cast` de `Intent`). */
+  readonly reach?: number;
 }
 
 /** Un desplazamiento en varios pasos: el Paso, el Cometa, el tirón de la Liana o la Catapulta. */

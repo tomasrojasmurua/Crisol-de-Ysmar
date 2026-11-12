@@ -9,7 +9,7 @@ import type { Weave } from '../../weaving/weave';
 import { SPELL_IDS, type SpellId, spellOf } from '../catalog';
 import { launch } from './brasa';
 import { type CastContext, nextId, payloadFor } from './context';
-import { targetInCone } from './shared';
+import { placedAt, targetInCone } from './shared';
 
 function fizzle(ctx: CastContext): void {
   ctx.state.events.push({ type: 'fizzle', wizardId: ctx.caster.id });
@@ -482,7 +482,7 @@ export function castVoodooDoll(ctx: CastContext): void {
   for (const s of state.spells) {
     if (s.kind === 'summon' && s.summon === 'voodooDoll' && s.ownerId === caster.id) s.hp = 0;
   }
-  const pos = placeInArena(add(caster.pos, scale(ctx.aim, spell.distance)), spell.radius, rules);
+  const pos = placeInArena(placedAt(ctx, spell.distance), spell.radius, rules);
   // El muñeco es del equipo del rival: así tus hechizos lo golpean y los suyos no.
   const doll: Summon = {
     kind: 'summon',

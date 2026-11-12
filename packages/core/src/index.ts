@@ -113,6 +113,7 @@ export { FixedStepClock, TICK_MS, TICK_RATE } from './sim/fixedStep';
 export { SeededRng } from './sim/rng';
 export { SPELL_IDS, SPELL_WEAVES, type SpellId, spellOf } from './spells/catalog';
 export { empowerPayload } from './spells/payload';
+export { PLACED_SPELLS, placedShape } from './spells/placed';
 export type { SpellRules } from './spells/spellRules';
 export {
   addToWeave,

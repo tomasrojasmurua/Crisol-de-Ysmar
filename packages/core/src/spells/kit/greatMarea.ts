@@ -12,7 +12,7 @@ import {
 } from '../../math/vec2';
 import { type CastContext, nextId, payloadFor, placeStrike } from './context';
 import { sweeper } from './greatTormenta';
-import { groundPoint, targetInCone } from './shared';
+import { groundPoint, placedAt, targetInCone } from './shared';
 
 /** Era de hielo: tras un aviso, congela a todos los rivales alrededor de donde la lanzaste. */
 export function castIceAge(ctx: CastContext): void {
@@ -25,7 +25,7 @@ export function castCauldron(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.cauldron;
   const pos = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   placeStrike(ctx, pos, spell, null, payloadFor(ctx, spell.damage));
@@ -95,7 +95,7 @@ export function castMangrove(ctx: CastContext): void {
     id: nextId(state),
     ownerId: caster.id,
     team: caster.team,
-    center: add(caster.pos, scale(ctx.aim, spell.distance)),
+    center: placedAt(ctx, spell.distance),
     along: perpendicular(ctx.aim),
     halfLength: spell.halfLength,
     thickness: spell.thickness,

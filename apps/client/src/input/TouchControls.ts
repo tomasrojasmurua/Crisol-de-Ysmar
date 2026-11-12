@@ -9,6 +9,14 @@ const JOYSTICK_RADIUS = 56;
 /** Bajo esta fracción del radio el dedo no mueve al mago: evita que tiemble al apoyar el pulgar. */
 const DEAD_ZONE = 0.12;
 const DRAG_THRESHOLD = 22;
+/**
+ * Mantener ✦ al menos este tiempo y arrastrar elige hasta dónde llega un hechizo de suelo. Un
+ * toque o un arrastre rápido siguen como siempre (sobre el objetivo o lo más lejos), para no
+ * frenar el combate.
+ */
+const HOLD_TO_PLACE_MS = 260;
+/** Arrastre (en px) que lleva un hechizo de suelo hasta lo más lejos que alcanza. */
+const FULL_REACH_DRAG = 120;
 /** Lo que dura el destello de un botón cuando no hay un `pointerup` que lo apague. */
 const PRESS_MS = 140;
 const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
@@ -55,6 +63,7 @@ export class TouchControls {
     if (!value) {
       this.input.move = { right: 0, up: 0 };
       this.input.aimPreview = null;
+      this.input.reachPreview = null;
     }
   }
 
@@ -259,6 +268,14 @@ export class TouchControls {
     let pointerId: number | null = null;
     let startX = 0;
     let startY = 0;
+    let startTime = 0;
+    /** El alcance elegido, si se mantuvo lo suficiente y se arrastró. */
+    const reachOf = (event: PointerEvent): number | null => {
+      if (performance.now() - startTime < HOLD_TO_PLACE_MS) return null;
+      const len = Math.hypot(event.clientX - startX, event.clientY - startY);
+      if (len < DRAG_THRESHOLD) return null;
+      return Math.min(1, (len - DRAG_THRESHOLD) / (FULL_REACH_DRAG - DRAG_THRESHOLD));
+    };
     const dragOf = (event: PointerEvent) => {
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
@@ -271,17 +288,24 @@ export class TouchControls {
       button.setPointerCapture(event.pointerId);
       startX = event.clientX;
       startY = event.clientY;
+      startTime = performance.now();
       button.classList.add('pressed');
     });
     button.addEventListener('pointermove', (event) => {
-      if (event.pointerId === pointerId) this.input.aimPreview = dragOf(event);
+      if (event.pointerId !== pointerId) return;
+      this.input.aimPreview = dragOf(event);
+      this.input.reachPreview = reachOf(event);
     });
     const release = (event: PointerEvent): void => {
       if (event.pointerId !== pointerId) return;
       pointerId = null;
       button.classList.remove('pressed');
       this.input.aimPreview = null;
-      this.input.push({ type: 'cast', aim: event.type === 'pointercancel' ? null : dragOf(event) });
+      this.input.reachPreview = null;
+      const cancelled = event.type === 'pointercancel';
+      const aim = cancelled ? null : dragOf(event);
+      const reach = cancelled || !aim ? null : reachOf(event);
+      this.input.push(reach === null ? { type: 'cast', aim } : { type: 'cast', aim, reach });
       navigator.vibrate?.(15);
     };
     button.addEventListener('pointerup', release);

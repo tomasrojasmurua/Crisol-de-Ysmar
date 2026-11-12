@@ -8,7 +8,7 @@ import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
 import { type CastContext, nextId, payloadFor, summon } from './context';
 import { sweeper } from './greatTormenta';
-import { hitArea, targetInCone } from './shared';
+import { hitArea, placedAt, targetInCone } from './shared';
 import { move, nearestVisibleEnemy } from './summons';
 
 /** Ave de ceniza: va hasta el final de su vuelo y vuelve, quemando en cada pasada. */
@@ -75,7 +75,7 @@ export function castAncientTree(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.ancientTree;
   replaceOwn(state, caster, 'ancientTree');
-  const pos = placeInArena(add(caster.pos, scale(ctx.aim, spell.distance)), spell.radius, rules);
+  const pos = placeInArena(placedAt(ctx, spell.distance), spell.radius, rules);
   summon(ctx, 'ancientTree', spell, pos, payloadFor(ctx, spell.damage), spell.intervalTicks);
 }
 
@@ -94,7 +94,7 @@ export function castCarnivore(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.carnivore;
   replaceOwn(state, caster, 'carnivore');
-  const pos = placeInArena(add(caster.pos, scale(ctx.aim, spell.distance)), spell.radius, rules);
+  const pos = placeInArena(placedAt(ctx, spell.distance), spell.radius, rules);
   summon(ctx, 'carnivore', spell, pos, payloadFor(ctx, spell.damage));
 }
 

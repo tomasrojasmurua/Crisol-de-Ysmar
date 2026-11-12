@@ -33,7 +33,7 @@ export function castSowing(ctx: CastContext): void {
     (s) => !(s.kind === 'trap' && s.ownerId === caster.id && !s.friendly),
   );
   const center = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius - 1,
   );
   const payload = payloadFor(ctx, spell.damage);
@@ -71,7 +71,7 @@ export function castThornRing(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.thornRing;
   const pos = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   state.spells.push({

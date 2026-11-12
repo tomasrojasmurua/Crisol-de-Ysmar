@@ -126,7 +126,13 @@ function applyIntents(
         if (wizard.weave.length === 0 && !wizard.channel && jumpToShadow(state, wizard, rules)) {
           break;
         }
-        startChannel(state, wizard, { x: intent.dirX, z: intent.dirZ }, rules);
+        startChannel(
+          state,
+          wizard,
+          { x: intent.dirX, z: intent.dirZ },
+          rules,
+          cleanReach(intent.reach),
+        );
         break;
       case 'lockTarget':
         wizard.lockTarget = intent.targetId;
@@ -140,6 +146,7 @@ function startChannel(
   wizard: Wizard,
   aim: { x: number; z: number },
   rules: GameRules,
+  reach?: number,
 ): void {
   if (wizard.channel || wizard.leap || wizard.weave.length === 0 || !canWeave(wizard)) {
     return;
@@ -167,7 +174,10 @@ function startChannel(
   for (const element of weave) {
     wizard.fatigue[element] = Math.round(rules.weave.fatigueTicks * wizard.mods.fatigue[element]);
   }
-  wizard.channel = { ticksLeft: castTicks, weave, aim };
+  wizard.channel =
+    reach === undefined
+      ? { ticksLeft: castTicks, weave, aim }
+      : { ticksLeft: castTicks, weave, aim, reach };
   wizard.weave = [];
   state.events.push({ type: 'cast', wizardId: wizard.id, weave });
 }
@@ -208,7 +218,7 @@ function updateWizard(state: MatchState, wizard: Wizard, rules: GameRules): void
     wizard.facing = resolveAim(state, wizard, channel.aim, rules);
     if (--channel.ticksLeft <= 0) {
       wizard.channel = null;
-      release(state, wizard, channel.weave, channel.aim, rules);
+      release(state, wizard, channel.weave, channel.aim, rules, channel.reach);
     }
   }
 
@@ -236,6 +246,7 @@ function release(
   weave: Weave,
   rawAim: { x: number; z: number },
   rules: GameRules,
+  reach?: number,
 ): void {
   const held = wizard.held;
   wizard.held = null;
@@ -247,5 +258,11 @@ function release(
     wizard.lastWeave = castWeave;
     return;
   }
-  castSpell(state, wizard, spell, castWeave, rawAim, rules);
+  castSpell(state, wizard, spell, castWeave, rawAim, rules, false, reach);
+}
+
+/** El alcance elegido, entre 0 y 1; lo que no es un número se ignora (cae como siempre). */
+function cleanReach(reach: number | undefined): number | undefined {
+  if (reach === undefined || !Number.isFinite(reach)) return undefined;
+  return Math.min(1, Math.max(0, reach));
 }

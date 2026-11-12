@@ -12,7 +12,10 @@ function fizzle(ctx: CastContext): void {
 
 function pointAhead(ctx: CastContext, range: number) {
   const { state, caster, rules } = ctx;
-  return clampToCircle(groundPoint(state, caster, ctx.aim, range, rules), rules.arenaRadius - 1);
+  return clampToCircle(
+    groundPoint(state, caster, ctx.aim, range, rules, ctx.reach),
+    rules.arenaRadius - 1,
+  );
 }
 
 // Mapa vivo.

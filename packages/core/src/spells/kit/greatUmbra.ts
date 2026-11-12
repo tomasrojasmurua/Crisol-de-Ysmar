@@ -48,7 +48,7 @@ export function castPortal(ctx: CastContext): void {
   state.spells = state.spells.filter((s) => !(s.kind === 'portal' && s.ownerId === caster.id));
   const a = caster.pos;
   const far = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   const b = placeInArena(far, spell.radius, rules);
@@ -81,7 +81,7 @@ export function castAbyss(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.abyss;
   const pos = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   placeStrike(ctx, pos, spell, 'silence', payloadFor(ctx, spell.damage));
