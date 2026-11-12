@@ -3,7 +3,7 @@ import { canAct } from '../../combat/statuses';
 import { beastStats, damageBeast } from '../../match/beasts';
 import { isBurned } from '../../match/liveMap';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
-import { isHiddenFrom, wizardById } from '../../match/queries';
+import { isHiddenFromServantsOf, wizardById } from '../../match/queries';
 import type {
   Drown,
   FireRain,
@@ -189,7 +189,7 @@ function zapAround(state: MatchState, orb: Sweeper, rules: GameRules): void {
   const seen = (pos: Vec2): boolean => !lineBlocked(orb.pos, pos, rules.map.obstacles);
   for (const wizard of state.wizards) {
     if (wizard.team === orb.team || wizard.hp <= 0) continue;
-    if (owner && isHiddenFrom(wizard, owner, rules)) continue;
+    if (owner && isHiddenFromServantsOf(wizard, owner, rules)) continue;
     if (distance(wizard.pos, orb.pos) > spell.zapRange || !seen(wizard.pos)) continue;
     state.events.push({ type: 'zap', from: orb.pos, to: wizard.pos });
     applyHit(state, wizard, orb.ownerId, orb.payload, rules);

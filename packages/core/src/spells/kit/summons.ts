@@ -1,6 +1,6 @@
 import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
-import { isHiddenFrom, wizardById } from '../../match/queries';
+import { isHiddenFromServantsOf, wizardById } from '../../match/queries';
 import type { MatchState, Summon, Wizard } from '../../match/state';
 import { add, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
@@ -141,7 +141,7 @@ export function nearestVisibleEnemy(
   let bestDistance = range;
   for (const wizard of state.wizards) {
     if (wizard.team === owner.team || wizard.hp <= 0) continue;
-    if (isHiddenFrom(wizard, owner, rules)) continue;
+    if (isHiddenFromServantsOf(wizard, owner, rules)) continue;
     const d = distance(wizard.pos, from);
     if (d <= bestDistance && !lineBlocked(from, wizard.pos, rules.map.obstacles)) {
       best = wizard;

@@ -71,6 +71,25 @@ describe('Grandes hechizos: invocaciones', () => {
     expect(summons(state, 'glacier')).toHaveLength(0);
   });
 
+  it('las invocaciones ven aunque a su dueño lo cieguen', () => {
+    const state = scene([{ x: 0, z: 9 }]);
+    run(state, CHANNEL + 1, cast(['marea', 'raiz', 'raiz']));
+    expect(summons(state, 'glacier')).toHaveLength(1);
+    // Un Eclipse rival: el dueño solo ve a 3 m, pero el Glaciar sigue cazando a 9 m.
+    applyStatus(state, wizard(state, 1), 'blind', 2, rules, 600);
+    run(state, 120);
+    const rival = wizard(state, 2);
+    expect(Boolean(rival.statuses.frozen) || rival.hp < rival.maxHp).toBe(true);
+  });
+
+  it('el Velo del rival sí engaña a las invocaciones', () => {
+    const state = scene([{ x: 0, z: 9 }]);
+    run(state, CHANNEL + 1, cast(['marea', 'raiz', 'raiz']));
+    applyStatus(state, wizard(state, 2), 'veiled', 2, rules, 600);
+    run(state, 120);
+    expect(wizard(state, 2).hp).toBe(wizard(state, 2).maxHp);
+  });
+
   it('el Enjambre persigue al rival y lo deja lento y ciego', () => {
     const state = scene([{ x: 0, z: 8 }]);
     run(state, CHANNEL + 40, cast(['raiz', 'tormenta', 'tormenta']));
