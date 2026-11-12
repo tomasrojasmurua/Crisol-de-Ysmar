@@ -22,14 +22,7 @@ import { updateForms } from './forms';
 import { liveRules } from './liveMap';
 import { placeInArena } from './obstacles';
 import { isAlive, resolveAim } from './queries';
-import {
-  decideRoundWinner,
-  haunt,
-  processFalls,
-  updateFallen,
-  updateRevives,
-  updateZone,
-} from './round';
+import { decideRoundWinner, processFalls, updateFallen, updateRevives, updateZone } from './round';
 import { updateShrines } from './shrines';
 import type { EntityId, MatchState, Wizard } from './state';
 import { walkTarget } from './walk';
@@ -53,7 +46,7 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, baseRules
     if (isAlive(wizard)) {
       applyIntents(state, wizard, wizardIntents, rules);
     } else {
-      applyFallenIntents(state, wizard, wizardIntents, rules);
+      applyFallenIntents(wizard, wizardIntents);
     }
   }
   for (const wizard of state.wizards) {
@@ -77,21 +70,10 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, baseRules
   state.winnerTeam = decideRoundWinner(state, rules);
 }
 
-/** Un caído solo puede moverse (si es espectro), fijar objetivo y lanzar su Lamento. */
-function applyFallenIntents(
-  state: MatchState,
-  wizard: Wizard,
-  intents: readonly Intent[],
-  rules: GameRules,
-): void {
+/** Un caído solo puede fijar objetivo (para mirar a quien sigue en pie). */
+function applyFallenIntents(wizard: Wizard, intents: readonly Intent[]): void {
   for (const intent of intents) {
-    if (intent.kind === 'move') {
-      wizard.moveInput = clampLength({ x: intent.x, z: intent.z }, 1);
-    } else if (intent.kind === 'lockTarget') {
-      wizard.lockTarget = intent.targetId;
-    } else if (intent.kind === 'cast') {
-      haunt(state, wizard, rules);
-    }
+    if (intent.kind === 'lockTarget') wizard.lockTarget = intent.targetId;
   }
 }
 

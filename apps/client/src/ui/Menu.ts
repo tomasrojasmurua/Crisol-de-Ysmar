@@ -34,14 +34,10 @@ const MODES: readonly ModeChoice[] = [
 
 const ALL_DEATH_RULES: readonly { id: DeathRule; title: string; detail: string }[] = [
   { id: 'out', title: 'Fuera', detail: 'Miras a los que quedan' },
-  { id: 'spectre', title: 'Espectro', detail: 'Sigues como espíritu' },
   { id: 'lives', title: 'Vidas', detail: '3 vidas por ronda' },
 ];
-/** Con el Espectro y las 3 Vidas en pausa, "fuera" es la única regla y el menú no pregunta. */
-const DEATH_RULES = ALL_DEATH_RULES.filter(
-  (rule) =>
-    (rule.id !== 'lives' || FEATURES.livesRule) && (rule.id !== 'spectre' || FEATURES.spectreRule),
-);
+/** Con las 3 Vidas en pausa, "fuera" es la única regla y el menú no pregunta. */
+const DEATH_RULES = ALL_DEATH_RULES.filter((rule) => rule.id !== 'lives' || FEATURES.livesRule);
 
 const STORAGE_KEY = 'crisol.menu';
 

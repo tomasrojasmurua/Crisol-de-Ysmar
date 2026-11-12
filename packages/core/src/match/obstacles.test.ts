@@ -17,7 +17,7 @@ function duel(): MatchState {
   return createMatch(
     {
       seed: 5,
-      deathRule: 'spectre',
+      deathRule: 'out',
       wizards: [
         { team: 0, spawn: { x: 0, z: -5 } },
         { team: 1, spawn: { x: 0, z: 5 } },

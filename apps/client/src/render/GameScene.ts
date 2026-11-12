@@ -139,7 +139,7 @@ export class GameScene {
   showPreview(look: WizardLook, rules: GameRules): void {
     this.preview?.view.dispose();
     const state = createMatch(
-      { seed: 1, deathRule: 'spectre', wizards: [{ team: 0, spawn: { x: 0, z: 0 } }] },
+      { seed: 1, deathRule: 'out', wizards: [{ team: 0, spawn: { x: 0, z: 0 } }] },
       rules,
     );
     const wizard = state.wizards[0];
@@ -168,7 +168,7 @@ export class GameScene {
     const { view, wizard } = this.preview;
     const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
     wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
-    view.update(wizard, 0, 0, time, delta, false, rules);
+    view.update(wizard, 0, 0, time, delta, rules);
     this.camera.position.set(-0.8, 1.65, -3.0);
     this.camera.lookAt(-0.8, 1.25, 0);
   }

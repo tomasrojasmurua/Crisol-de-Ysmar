@@ -1,7 +1,7 @@
 import { ELEMENTS, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
 import { el } from '../ui/dom';
-import { CAST_ICON, DUEL_ICON, elementIcon, LAMENT_ICON, UNDO_ICON } from '../ui/icons';
+import { CAST_ICON, DUEL_ICON, elementIcon, UNDO_ICON } from '../ui/icons';
 import type { PlayerInput } from './PlayerInput';
 
 /** Radio del joystick si todavía no se pudo medir en pantalla. */
@@ -42,7 +42,6 @@ export class TouchControls {
   /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
   private shift = 0;
   private lastHeld = '';
-  private lastSpectre: boolean | null = null;
   /** Mientras está apagado (menú, pantalla final) no acepta teclas. */
   enabled = false;
 
@@ -75,28 +74,11 @@ export class TouchControls {
     this.duelButton.setAttribute('aria-label', value ? 'Cambiar de rival' : 'Fijar un rival');
   }
 
-  /**
-   * Refleja el estado del mago: cansancio de cada elemento y tejido actual.
-   * Como espectro solo queda el botón central, que lanza el Lamento.
-   */
-  render(wizard: Wizard, rules: GameRules, spectre: boolean): void {
-    this.pad?.classList.toggle('spectre', spectre);
+  /** Refleja el estado del mago: cansancio de cada elemento y tejido actual. */
+  render(wizard: Wizard, rules: GameRules): void {
     if (this.castButton) {
-      const cooldown =
-        spectre && wizard.fallen
-          ? wizard.fallen.hauntCooldown / rules.death.spectre.hauntCooldownTicks
-          : 0;
-      this.castButton.style.setProperty('--fatigue', cooldown.toFixed(2));
-      if (spectre !== this.lastSpectre) {
-        this.lastSpectre = spectre;
-        this.castButton.innerHTML = spectre ? LAMENT_ICON : CAST_ICON;
-        this.castButton.setAttribute(
-          'aria-label',
-          spectre ? 'Lanzar el Lamento' : 'Lanzar el conjuro',
-        );
-      }
       // Un hechizo copiado o robado sale en el próximo lanzamiento: se anuncia en el botón.
-      const held = !spectre && wizard.held ? SPELL_NAMES[wizard.held.spell] : '';
+      const held = wizard.held ? SPELL_NAMES[wizard.held.spell] : '';
       if (held !== this.lastHeld) {
         this.lastHeld = held;
         this.castButton.dataset.held = held;

@@ -417,7 +417,6 @@ export const TEST_RULES: GameRules = {
     lives: 3,
     respawnTicks: 90,
     revive: { radius: 1.5, ticks: 60, hpFraction: 0.5 },
-    spectre: { moveMultiplier: 0.7, hauntRange: 6, hauntCooldownTicks: 150 },
   },
   beasts: {
     count: 0,

@@ -42,8 +42,8 @@ describe('bots y repetición', () => {
     expect(state.winnerTeam).not.toBeNull();
   });
 
-  it('los bots terminan un todos contra todos de 6 con Espectros', () => {
-    const state = botDuel(9, modeSetup({ kind: 'ffa', players: 6 }, 9, 'spectre', TEST_RULES));
+  it('los bots terminan un todos contra todos de 6 sin Vidas', () => {
+    const state = botDuel(9, modeSetup({ kind: 'ffa', players: 6 }, 9, 'out', TEST_RULES));
     expect(state.winnerTeam).not.toBeNull();
     expect(state.tick).toBeLessThanOrEqual(TEST_RULES.round.durationTicks);
   });

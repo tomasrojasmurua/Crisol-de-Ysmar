@@ -49,7 +49,7 @@ describe('ronda', () => {
   });
 
   it('quedar fuera de la zona hace daño', () => {
-    const state = match('spectre', [
+    const state = match('out', [
       { team: 0, spawn: { x: 0, z: 0 } },
       { team: 1, spawn: { x: 15, z: 0 } },
     ]);
@@ -75,8 +75,8 @@ describe('ronda', () => {
     expect(wizard(state, 2).lives).toBe(rules.death.lives - 1);
   });
 
-  it('con Espectros, caer en un duelo termina la ronda', () => {
-    const state = match('spectre', [
+  it('sin Vidas, caer en un duelo termina la ronda', () => {
+    const state = match('out', [
       { team: 0, spawn: { x: 0, z: 0 } },
       { team: 1, spawn: { x: 0, z: 5 } },
     ]);
@@ -85,24 +85,8 @@ describe('ronda', () => {
     expect(state.winnerTeam).toBe(0);
   });
 
-  it('el espectro ralentiza a un enemigo con su Lamento', () => {
-    const state = match('spectre', [
-      { team: 0, spawn: { x: 0, z: 0 } },
-      { team: 0, spawn: { x: 0, z: -3 } },
-      { team: 1, spawn: { x: 0, z: 5 } },
-    ]);
-    knockDown(state, 1);
-    run(state, 1);
-    wizard(state, 1).pos = { x: 0, z: 2 };
-    const fallen = wizard(state, 1).fallen;
-    if (fallen) fallen.hauntCooldown = 0;
-    run(state, 1, new Map([[1, [{ kind: 'cast', dirX: 0, dirZ: 0 }]]]));
-    expect(wizard(state, 3).statuses.slow).toBeDefined();
-    expect(state.events).toContainEqual({ type: 'haunt', wizardId: 1, targetId: 3 });
-  });
-
-  it('un aliado al lado revive al caído', () => {
-    const state = match('spectre', [
+  it('con Vidas, un aliado al lado revive al caído antes de que reaparezca', () => {
+    const state = match('lives', [
       { team: 0, spawn: { x: 0, z: 0 } },
       { team: 0, spawn: { x: 1, z: 0 } },
       { team: 1, spawn: { x: 0, z: 10 } },
@@ -118,7 +102,7 @@ describe('ronda', () => {
   });
 
   it('si se acaba el tiempo gana el equipo con más vida', () => {
-    const state = match('spectre', [
+    const state = match('out', [
       { team: 0, spawn: { x: 0, z: 0 } },
       { team: 1, spawn: { x: 0, z: 2 } },
     ]);
@@ -134,7 +118,7 @@ describe('modos', () => {
     const teams = modeSetup({ kind: 'teams', size: 3 }, 1, 'lives', rules);
     expect(teams.wizards).toHaveLength(6);
     expect(teams.wizards.filter((w) => w.team === 0)).toHaveLength(3);
-    const ffa = modeSetup({ kind: 'ffa', players: 5 }, 1, 'spectre', rules);
+    const ffa = modeSetup({ kind: 'ffa', players: 5 }, 1, 'out', rules);
     expect(new Set(ffa.wizards.map((w) => w.team)).size).toBe(5);
     expect(ffa.wizards[0]?.team).toBe(0);
     expect(playerCount({ kind: 'ffa', players: 9 })).toBe(6);

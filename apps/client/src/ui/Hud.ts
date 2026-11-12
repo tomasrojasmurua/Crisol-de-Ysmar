@@ -1,7 +1,6 @@
 import { ELEMENTS } from '@crisol/content';
 import {
   type GameRules,
-  isSpectre,
   type MatchState,
   type RoundPhase,
   roundPhase,
@@ -59,7 +58,6 @@ export class Hud {
   private readonly banner: HTMLElement;
   private readonly bannerTitle: HTMLElement;
   private readonly bannerSubtitle: HTMLElement;
-  private readonly spectreHint: HTMLElement;
   private readonly result: ResultScreen;
   private bannerTimer: number | undefined;
   private discoveryTimer: number | undefined;
@@ -99,7 +97,6 @@ export class Hud {
         <div class="hud-banner-title"></div>
         <div class="hud-banner-subtitle"></div>
       </div>
-      <p class="hud-spectre" hidden>Eres un espectro · el botón central lanza tu Lamento · un aliado a tu lado te revive</p>
 `;
     parent.append(this.root);
     this.playerFill = query(this.root, '.hud-fill');
@@ -117,7 +114,6 @@ export class Hud {
     this.banner = query(this.root, '.hud-banner');
     this.bannerTitle = query(this.root, '.hud-banner-title');
     this.bannerSubtitle = query(this.root, '.hud-banner-subtitle');
-    this.spectreHint = query(this.root, '.hud-spectre');
     this.result = new ResultScreen(this.root, onRematch, onMenu);
   }
 
@@ -254,7 +250,6 @@ export class Hud {
       this.lastScoreKey = scoreKey;
       this.renderScore(series, player.team, badges, state, rules);
     }
-    this.spectreHint.hidden = !isSpectre(state, player);
   }
 
   /** Aviso grande en el centro que se va solo. */

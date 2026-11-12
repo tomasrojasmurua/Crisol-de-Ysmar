@@ -225,7 +225,6 @@ export const GAME_RULES: GameRules = {
     respawnTicks: 120,
     // Un aliado al lado durante 3 segundos te levanta con 40% de vida.
     revive: { radius: 1.6, ticks: 90, hpFraction: 0.4 },
-    spectre: { moveMultiplier: 0.8, hauntRange: 7, hauntCooldownTicks: 240 },
   },
   beasts: {
     // Solo en mapas sin campamentos: una por elemento.

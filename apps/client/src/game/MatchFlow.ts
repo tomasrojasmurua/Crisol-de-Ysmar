@@ -94,13 +94,11 @@ export class MatchFlow {
       } else if (event.type === 'defeated' && event.wizardId === me) {
         const rule = current.state.deathRule;
         const subtitle =
-          rule === 'spectre'
-            ? 'Sigues como espectro'
-            : rule === 'out'
-              ? 'Miras a quienes siguen en pie'
-              : current.player.lives > 1
-                ? 'Reapareces en unos segundos'
-                : 'Te quedaste sin vidas';
+          rule === 'out'
+            ? 'Miras a quienes siguen en pie'
+            : current.player.lives > 1
+              ? 'Reapareces en unos segundos'
+              : 'Te quedaste sin vidas';
         this.deps.hud.announce('Caíste', subtitle);
       } else if (event.type === 'revived' && event.wizardId === me) {
         this.deps.hud.announce(

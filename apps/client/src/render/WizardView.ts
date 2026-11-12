@@ -234,7 +234,6 @@ export class WizardView {
     z: number,
     timeSeconds: number,
     deltaSeconds: number,
-    spectre: boolean,
     rules: GameRules,
     /** Con Velo y lejos de tu equipo: no se dibuja. */
     hidden = false,
@@ -253,10 +252,10 @@ export class WizardView {
     // También dentro del Bosque maldito o con la Sombra prestada.
     const st = wizard.statuses;
     this.setGhostly(
-      spectre || st.veiled !== undefined || st.shrouded !== undefined || st.shadowed !== undefined,
+      st.veiled !== undefined || st.shrouded !== undefined || st.shadowed !== undefined,
     );
-    this.body.visible = alive || spectre;
-    this.grave.visible = !alive && !spectre;
+    this.body.visible = alive;
+    this.grave.visible = !alive;
     this.teamRing.visible = alive;
     if (this.grave.visible) {
       this.grave.rotation.z = timeSeconds * 0.4;
@@ -276,7 +275,7 @@ export class WizardView {
     this.capeMotion.move.value +=
       (moving - this.capeMotion.move.value) * Math.min(1, deltaSeconds * 6);
     this.stride += deltaSeconds * (4 + moving * 8);
-    let float = spectre ? 0.35 + Math.sin(timeSeconds * 2) * 0.1 : 0;
+    let float = 0;
     // Por los aires: un arco de subida y caída mientras dura el Géiser.
     const airborne = wizard.statuses.airborne;
     if (airborne) {
@@ -370,22 +369,14 @@ export class WizardView {
     // Detenido en el tiempo: la túnica queda pálida, sin color.
     if (wizard.statuses.halted) emissive.add(new THREE.Color('#9aa6c0').multiplyScalar(0.35));
 
-    this.affinityLook?.update(
-      x,
-      z,
-      facing,
-      timeSeconds,
-      deltaSeconds,
-      alive && !spectre,
-      this.particles,
-    );
+    this.affinityLook?.update(x, z, facing, timeSeconds, deltaSeconds, alive, this.particles);
   }
 
   dispose(): void {
     this.group.removeFromParent();
   }
 
-  /** El espectro se ve como humo translúcido y sin báculo. */
+  /** Con Velo y demás sigilos, los tuyos te ven como humo translúcido y sin báculo. */
   private setGhostly(ghostly: boolean): void {
     if (ghostly === this.ghostly) return;
     this.ghostly = ghostly;

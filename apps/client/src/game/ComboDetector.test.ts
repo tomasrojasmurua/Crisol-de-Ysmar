@@ -19,7 +19,7 @@ function duel(distance: number): MatchState {
   return createMatch(
     {
       seed: 7,
-      deathRule: 'spectre',
+      deathRule: 'out',
       wizards: [
         { team: 0, spawn: { x: 0, z: 0 } },
         { team: 1, spawn: { x: 0, z: distance } },
@@ -213,7 +213,7 @@ describe('ComboDetector en la simulación', () => {
     const state = createMatch(
       {
         seed: 7,
-        deathRule: 'spectre',
+        deathRule: 'out',
         wizards: [
           { team: 0, spawn: { x: 0, z: 0 } },
           { team: 1, spawn: { x: 0, z: 9 } },
@@ -281,7 +281,7 @@ function scene(spawns: readonly Spawn[], plan: Plan, ticks = 300): string[] {
   const state = createMatch(
     {
       seed: 7,
-      deathRule: 'spectre',
+      deathRule: 'out',
       wizards: spawns.map((p) => ({ team: p.team, spawn: { x: p.x, z: p.z } })),
     },
     rules,

@@ -31,7 +31,6 @@ export {
 } from './match/queries';
 export {
   decideRoundWinner,
-  isSpectre,
   isStanding,
   roundPhase,
   zoneRadiusAt,

@@ -6,13 +6,13 @@ de WhatsApp, sin instalar nada.
 
 > Estado: **versión completa contra la IA, etapa 1.** Partidas al mejor de 3 rondas contra hechiceros
 > de la IA en duelo, equipos de 2 o 3 y todos contra todos hasta 6, con zona que se cierra,
-> modo Espectro o Vidas y aliados que se reviven.
+> y la opción de 3 Vidas por ronda (en pausa) con aliados que se reviven.
 > Se juega en [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev).
 
 ## Cómo se juega
 
-- **Menú:** eliges el modo y qué pasa al caer. **Espectro:** sigues como espíritu, ralentizas
-  rivales con tu Lamento y un aliado a tu lado te revive. **Vidas:** 3 por ronda y reapareces en el borde.
+- **Menú:** eliges el modo. Al caer quedas fuera de la ronda y miras a quienes siguen en pie.
+  **Vidas** (en pausa): 3 por ronda y reapareces en el borde.
 - **Ronda:** hasta 3 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
   Gana el último equipo en pie, o el que tenga más vida si se acaba el tiempo.
 - **Objetivo:** el rival más cercano se fija solo; toca a otro rival o a una bestia para cambiarlo.

@@ -35,14 +35,12 @@ interface Leap {
   readonly landing?: SpellPayload | null;
 }
 
-/** Un mago caído. En modo Espectro sigue moviéndose; en modo Vidas espera para reaparecer. */
+/** Un mago caído. En modo Vidas espera para reaparecer; si no, queda fuera de la ronda. */
 export interface Fallen {
-  /** Pasos para reaparecer; null si ya no le quedan vidas o la sala es de Espectros. */
+  /** Pasos para reaparecer; null si ya no le quedan vidas o la sala es sin Vidas. */
   respawnTicks: number | null;
   /** Pasos que un aliado lleva reviviéndolo. */
   reviveProgress: number;
-  /** Pasos para que el espectro pueda volver a lanzar su Lamento. */
-  hauntCooldown: number;
 }
 
 export interface Wizard {
@@ -67,7 +65,7 @@ export interface Wizard {
   statuses: Partial<Record<StatusId, StatusInstance>>;
   lockTarget: EntityId | null;
   moveInput: Vec2;
-  /** Vidas que quedan en la ronda (en modo Espectro es 1). */
+  /** Vidas que quedan en la ronda (1 si la sala es sin Vidas). */
   lives: number;
   fallen: Fallen | null;
   /** Lo que absorbe la coraza de Obsidiana antes de que el daño llegue a la vida. */
@@ -752,15 +750,13 @@ export type GameEvent =
   | { readonly type: 'defeated'; readonly wizardId: EntityId }
   | { readonly type: 'respawned'; readonly wizardId: EntityId }
   | { readonly type: 'revived'; readonly wizardId: EntityId; readonly byId: EntityId }
-  | { readonly type: 'haunt'; readonly wizardId: EntityId; readonly targetId: EntityId }
   | { readonly type: 'phase'; readonly phase: RoundPhase };
 
-/** Qué pasa al caer, según cómo se creó la sala. */
 /**
- * Qué pasa al caer: `out` quedas fuera de la ronda y miras a quienes siguen; `spectre` sigues como
- * espíritu que ralentiza y puede ser revivido (en pausa); `lives` reapareces mientras tengas vidas.
+ * Qué pasa al caer, según cómo se creó la sala: `out` quedas fuera de la ronda y miras a quienes
+ * siguen; `lives` reapareces mientras tengas vidas.
  */
-export type DeathRule = 'out' | 'spectre' | 'lives';
+export type DeathRule = 'out' | 'lives';
 
 /** Caza, Convergencia y Duelo final. */
 export type RoundPhase = 'hunt' | 'convergence' | 'final';

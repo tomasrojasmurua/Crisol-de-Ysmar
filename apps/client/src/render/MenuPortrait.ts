@@ -50,7 +50,7 @@ export class MenuPortrait {
     const view = this.view;
     const wizard = this.wizard;
     if (!view || !wizard || rect.width < 2 || rect.height < 2) return;
-    view.update(wizard, 0, 0, timeSeconds, deltaSeconds, false, this.rules);
+    view.update(wizard, 0, 0, timeSeconds, deltaSeconds, this.rules);
     // Gira despacio para lucir la ropa por todos lados.
     view.group.rotation.y = Math.sin(timeSeconds * 0.35) * 0.9;
     this.camera.aspect = rect.width / rect.height;

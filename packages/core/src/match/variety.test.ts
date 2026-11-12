@@ -12,7 +12,7 @@ import { stepMatch } from './step';
 const rules = TEST_RULES;
 
 function match(wizards: WizardSetup[], withRules: GameRules = rules): MatchState {
-  return createMatch({ seed: 3, deathRule: 'spectre', wizards }, withRules);
+  return createMatch({ seed: 3, deathRule: 'out', wizards }, withRules);
 }
 
 function wizard(state: MatchState, id: number): Wizard {

@@ -313,7 +313,7 @@ describe('segunda tanda: Marea', () => {
     const state = createMatch(
       {
         seed: 1,
-        deathRule: 'spectre',
+        deathRule: 'out',
         wizards: [
           { team: 0, spawn: { x: 0, z: 0 } },
           { team: 0, spawn: { x: 1, z: 4 } },

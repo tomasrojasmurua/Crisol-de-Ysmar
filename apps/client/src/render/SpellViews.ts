@@ -383,7 +383,7 @@ export class SpellViews {
       // Las copias del Espejismo caminan solo cuando camina su mago.
       moveInput: decoy.summon === 'mirage' ? owner.moveInput : decoy.facing,
     };
-    view.update(double, pos.x, pos.z, world.time, world.delta, false, this.rules);
+    view.update(double, pos.x, pos.z, world.time, world.delta, this.rules);
   }
 
   private updateProjectile(
