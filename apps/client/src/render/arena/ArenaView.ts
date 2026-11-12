@@ -94,11 +94,18 @@ export class ArenaView {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       opacity: 0.8,
+      // Pegado a las losas: sin este empujón de profundidad, en celular el círculo y el piso se
+      // pelean cuadro a cuadro y el centro de la plaza parpadea.
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -4,
     });
     const rune = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 8.5), this.runeMaterial);
     this.rune = rune;
     rune.rotation.x = -Math.PI / 2;
-    rune.position.y = 0.02;
+    // Un pelo sobre las losas (0.02) y bajo los anillos y marcas de hechizos (desde 0.03).
+    rune.position.y = 0.025;
+    rune.renderOrder = 1;
     scene.add(rune);
 
     scene.add(this.layout);
