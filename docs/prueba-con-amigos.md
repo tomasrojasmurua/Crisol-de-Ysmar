@@ -14,42 +14,42 @@ Unos 15 minutos. Si algo falla, basta con una captura y una línea de qué pasó
 **Tutorial (Entrenamiento → tutorial)**
 
 - [ ] Capítulo "La cámara", paso "Mirar": arrastrar un dedo lejos de los botones gira la cámara y
-      el paso se cumple. Que no se confunda con mover al mago ni con tocar ✦.
+  el paso se cumple. Que no se confunda con mover al mago ni con tocar ✦.
 - [ ] Paso "Duelo": tocar al muñeco lo fija (anillo en el suelo y cámara al frente).
 - [ ] Capítulo "Apuntar", "Elegir la dirección": arrastrar desde ✦ lanza hacia donde arrastras.
 - [ ] "Hechizos de suelo": mantener ✦ un momento y arrastrar marca dónde cae el Meteoro
-      (Brasa, Brasa, Brasa). Revisar que se sienta natural y que el dedo no tape la marca.
+  (Brasa, Brasa, Brasa). Revisar que se sienta natural y que el dedo no tape la marca.
 - [ ] Capítulo "Defenderse", "Choque de tejidos": un Salpicón arrastrado hacia la Chispa la
-      desarma. ¿El margen se siente justo o hay que apuntar demasiado fino?
+  desarma. ¿El margen se siente justo o hay que apuntar demasiado fino?
 - [ ] Que ningún texto del tutorial tape los botones.
 
 **Menú**
 
 - [ ] La fila "IA" (Aprendiz, Duelista, Maestro) se ve completa, se puede tocar y la elegida
-      queda marcada al volver al menú.
+  queda marcada al volver al menú.
 - [ ] Jugar una partida contra el Aprendiz y otra contra el Maestro: ¿se nota la diferencia?
 
 **Partida contra la IA**
 
 - [ ] Choque de tejidos en partida real: desarmar un proyectil rival con su elemento opuesto.
 - [ ] Muerte súbita: si la ronda llega al final, aparece "Muerte súbita", la zona se cierra en
-      unos 20 segundos y quema cada vez más. ¿Se entiende lo que pasa?
+  unos 20 segundos y quema cada vez más. ¿Se entiende lo que pasa?
 
 **"Agregar a inicio"**
 
 - [ ] Antes, desbloquear algo en el Grimorio o cambiar el nombre en el Vestidor, para tener
-      progreso que comprobar.
+  progreso que comprobar.
 - [ ] En el menú, bajo Sonido, tocar "Guarda tu progreso" y seguir los pasos con la ventana
-      abierta: Compartir → Agregar a inicio.
+  abierta: Compartir → Agregar a inicio.
 - [ ] Abrir el juego desde el ícono nuevo: se abre a pantalla completa y conserva el mago, el
-      nombre y el Grimorio.
+  nombre y el Grimorio.
 - [ ] Tocar "Ya lo agregué": la tarjeta deja de aparecer.
 
 **Pausa**
 
 - [ ] En una partida, Pausa → "Mostrar datos de rendimiento". Al terminar la partida, la pantalla
-      de resultado muestra el informe. Hacer una captura para saber cómo se ve lo que mandarán
-      los amigos.
+  de resultado muestra el informe. Hacer una captura para saber cómo se ve lo que mandarán
+  los amigos.
 
 ## 2. Mensaje de WhatsApp para los amigos
 
