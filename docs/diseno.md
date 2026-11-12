@@ -112,7 +112,9 @@ tejer, los mismos de Quiebre), no "cualquiera", para no adelantar el resto del G
 arriba al centro y casi siempre recogida en una línea: la orden corta, los signos y la cuenta. Cada
 paso nuevo aparece desplegado con la explicación y se recoge solo al empezar a jugar o a los 6 s;
 tocar la línea la despliega. Los pasos de solo leer quedan desplegados con su botón Siguiente.
-En "Defenderse" el muñeco muestra la Brasa medio segundo antes de soltar la Chispa y la lanza a
+En "La cámara" el muñeco se acerca a tiro para poder fijarlo, y en "Saltar entre rivales" aparece
+un segundo muñeco a su lado que se va al terminar el capítulo (fuera de esa parte está caído,
+escondido y en su propio equipo, así nada lo apunta). En "Defenderse" el muñeco muestra la Brasa medio segundo antes de soltar la Chispa y la lanza a
 donde estás, sin adelantarse: así se esquiva caminando, como se enseña.
 
 ## Vestidor

@@ -11,7 +11,7 @@ import { MatchFlow } from './game/MatchFlow';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
-import { DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
+import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
 import { GIFT_CHAPTER, Tutorial } from './game/Tutorial';
 import { TutorialProgress } from './game/TutorialProgress';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
@@ -375,8 +375,8 @@ function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: bo
   useRules(rulesForMode({ kind: 'duel' }));
   const current = new TrainingMatch(rules, human, profile.affinity);
   useRules(current.rules);
-  beginMatch(current, () => ({
-    name: 'Muñeco',
+  beginMatch(current, (id) => ({
+    name: id === SECOND_DUMMY_ID ? 'Otro muñeco' : 'Muñeco',
     look: { ...DEFAULT_LOOK, robe: 'hueso', headwear: 'ninguno', face: 'automata' },
   }));
   trainingPanel.visible = true;
@@ -385,6 +385,7 @@ function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: bo
     trainingPanel.tutorial = true;
     tutorial = new Tutorial(current.playerId, DUMMY_ID, lesson.chapter, lesson.onlyOne);
     current.setDummy(tutorial.dummy);
+    current.setSecondDummy(tutorial.secondDummy);
     tutorialCard.show(tutorial);
   }
   obstacles.invalidate();
@@ -397,6 +398,7 @@ function freePlay(): void {
   if (match instanceof TrainingMatch) {
     match.restless = true;
     match.setDummy('idle');
+    match.setSecondDummy(false);
   }
 }
 
@@ -414,7 +416,10 @@ function afterTutorialAdvance(): void {
       audio.discover();
     }
   }
-  if (match instanceof TrainingMatch) match.setDummy(tutorial.dummy);
+  if (match instanceof TrainingMatch) {
+    match.setDummy(tutorial.dummy);
+    match.setSecondDummy(tutorial.secondDummy);
+  }
 }
 
 function endTutorial(): void {

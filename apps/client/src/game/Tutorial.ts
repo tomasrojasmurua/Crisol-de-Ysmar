@@ -15,6 +15,8 @@ import { ComboDetector } from './ComboDetector';
 export type DummyMode =
   /** Quieto: solo recibe. */
   | 'idle'
+  /** Se acerca a unos pasos y se queda, sin atacar: para poder fijarlo (y al segundo). */
+  | 'near'
   /** Lanza una Chispa cada tanto. */
   | 'sparks'
   /** Prepara Meteoros: Brasa, Brasa, Brasa sobre la cabeza y un círculo en el suelo. */
@@ -35,6 +37,8 @@ type Goal =
   | { readonly kind: 'lock' }
   /** Soltar al rival fijado (girando la cámara a mano). */
   | { readonly kind: 'unlock' }
+  /** Fijar a otro rival que no sea el muñeco (saltar al segundo muñeco). */
+  | { readonly kind: 'switch' }
   | { readonly kind: 'release'; readonly spell: SpellId }
   /** Lanzar cada uno de estos hechizos al menos una vez. */
   | { readonly kind: 'releaseAll'; readonly spells: readonly SpellId[] }
@@ -73,6 +77,11 @@ export interface TutorialStep {
   readonly spell?: SpellId;
   /** Qué hace el muñeco en este paso; si no se dice, sigue como en el paso anterior. */
   readonly dummy?: DummyMode;
+  /**
+   * Si aparece el segundo muñeco (para saltar entre rivales). Si no se dice, sigue como en el
+   * paso anterior del capítulo; al cambiar de capítulo se va.
+   */
+  readonly secondDummy?: boolean;
 }
 
 export interface TutorialChapter {
@@ -134,6 +143,7 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
         short: 'Arrastra en el centro para mirar',
         text: 'Arrastra un dedo por el centro de la pantalla, fuera de los botones. La mitad izquierda es para caminar.',
         goal: { kind: 'signal', signal: 'look' },
+        dummy: 'near',
       },
       {
         title: 'Duelo',
@@ -142,15 +152,17 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
         goal: { kind: 'lock' },
       },
       {
-        title: 'Soltar',
-        short: 'Gira la cámara para soltar al muñeco',
-        text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
-        goal: { kind: 'unlock' },
+        title: 'Saltar entre rivales',
+        short: 'Salta al otro muñeco',
+        text: 'Llegó otro muñeco. Con un rival fijado, el botón de las cuatro esquinas salta al siguiente. También puedes tocar directo al que quieras.',
+        goal: { kind: 'switch' },
+        secondDummy: true,
       },
       {
-        title: 'Saltar entre rivales',
-        text: 'Con más magos en la arena, toca directo al que quieras fijar. Con un rival fijado, el botón de las cuatro esquinas salta al siguiente.',
-        goal: { kind: 'read' },
+        title: 'Soltar',
+        short: 'Gira la cámara para soltar al rival',
+        text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
+        goal: { kind: 'unlock' },
       },
     ],
   },
@@ -382,6 +394,8 @@ export class Tutorial {
   readonly finished: string[] = [];
   /** El modo actual del muñeco. */
   dummy: DummyMode = 'idle';
+  /** Si el segundo muñeco está en la arena. */
+  secondDummy = false;
 
   constructor(
     private readonly playerId: EntityId,
@@ -488,6 +502,9 @@ export class Tutorial {
         break;
       case 'unlock':
         reached = me?.lockTarget === null;
+        break;
+      case 'switch':
+        reached = me !== undefined && me.lockTarget !== null && me.lockTarget !== this.dummyId;
         break;
       case 'release':
         reached = mine.some((e) => e.spell === goal.spell);
@@ -615,15 +632,21 @@ export class Tutorial {
     this.applyDummy();
   }
 
-  /** El modo del muñeco: el que diga el paso, o el último dicho hasta acá en el capítulo. */
+  /** El modo del muñeco y si está el segundo: lo que diga el paso, o lo último dicho en el capítulo. */
   private applyDummy(): void {
     const chapter = TUTORIAL_CHAPTERS[this.chapterIndex];
     if (!chapter) {
       this.dummy = 'idle';
+      this.secondDummy = false;
       return;
     }
     let mode: DummyMode = 'idle';
-    for (let i = 0; i <= this.stepIndex; i++) mode = chapter.steps[i]?.dummy ?? mode;
+    let second = false;
+    for (let i = 0; i <= this.stepIndex; i++) {
+      mode = chapter.steps[i]?.dummy ?? mode;
+      second = chapter.steps[i]?.secondDummy ?? second;
+    }
     this.dummy = mode;
+    this.secondDummy = second;
   }
 }
