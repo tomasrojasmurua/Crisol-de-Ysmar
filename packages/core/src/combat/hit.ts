@@ -14,7 +14,9 @@ export function applyHit(
   rules: GameRules,
   damageScale = 1,
 ): void {
-  if (target.hp <= 0 || target.statuses.stasis || target.statuses.halted) {
+  if (target.hp <= 0) return;
+  if (target.statuses.stasis || target.statuses.halted) {
+    state.events.push({ type: 'attacked', targetId: target.id, sourceId });
     return;
   }
   const combo = comboFor(target, payload, rules);
@@ -79,7 +81,9 @@ export function dealDamage(
 ): void {
   let amount = damage;
   const s = target.statuses;
-  if (amount <= 0 || target.hp <= 0 || s.stasis || s.halted || s.untouchable) {
+  if (amount <= 0 || target.hp <= 0) return;
+  if (s.stasis || s.halted || s.untouchable) {
+    state.events.push({ type: 'attacked', targetId: target.id, sourceId });
     return;
   }
   if (sworn(state, target, sourceId)) return;
@@ -95,7 +99,10 @@ export function dealDamage(
     const absorbed = Math.min(target.shield, amount);
     target.shield -= absorbed;
     amount -= absorbed;
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      state.events.push({ type: 'attacked', targetId: target.id, sourceId });
+      return;
+    }
   }
   target.damageTaken += amount;
   const before = target.hp;

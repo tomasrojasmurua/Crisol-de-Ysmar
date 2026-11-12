@@ -53,6 +53,8 @@ const MAX_GAP = Math.round(COMBO_TIMING.maxGap * TICK_RATE);
 const FINISH_WINDOW = Math.round(COMBO_TIMING.finishWindow * TICK_RATE);
 /** Un golpe así de grande entre pasos es el de la Venganza (45). */
 const BIG_HIT = 40;
+/** Cuánto antes del primer paso cuentan los ataques que recibiste (ver `twoAttackers`). */
+const ATTACK_LEAD = 3 * TICK_RATE;
 /** Hasta dónde se acepta que un golpe sea de los rayos del Orbe errático (dan a 4 m). */
 const ORB_REACH = 5;
 
@@ -84,6 +86,8 @@ export class ComboDetector {
   private woven = new Set<EntityId>();
   /** Cuándo hizo cada mago de tu equipo su último golpe grande (ver `priorBigHit`). */
   private bigHits = new Map<EntityId, number>();
+  /** Quién te atacó y cuándo por última vez (con daño o sin él). */
+  private attackedBy = new Map<EntityId, number>();
   private readonly sequences: readonly Combo[];
 
   /**
@@ -103,6 +107,7 @@ export class ComboDetector {
     this.before.clear();
     this.woven.clear();
     this.bigHits.clear();
+    this.attackedBy.clear();
   }
 
   /** Procesa un paso de la partida y devuelve los combos del jugador que salieron. */
@@ -137,6 +142,9 @@ export class ComboDetector {
           ) {
             continue;
           }
+          if (detect.check === 'twoAttackers' && !this.underTwoAttackers(matched.firstTick)) {
+            continue;
+          }
           const pending: Pending = {
             combo,
             detect,
@@ -151,10 +159,17 @@ export class ComboDetector {
             hits.push({ combo, targetId: event.wizardId });
           }
         }
+      } else if (event.type === 'attacked') {
+        if (event.targetId === this.playerId && teamOf.get(event.sourceId) !== myTeam) {
+          this.attackedBy.set(event.sourceId, tick);
+        }
       } else if (event.type === 'hit') {
         const sourceTeam = teamOf.get(event.sourceId);
         const targetTeam = teamOf.get(event.targetId);
         if (targetTeam === undefined) continue;
+        if (event.targetId === this.playerId && sourceTeam !== undefined && sourceTeam !== myTeam) {
+          this.attackedBy.set(event.sourceId, tick);
+        }
         if (sourceTeam === myTeam && targetTeam !== myTeam && event.amount >= BIG_HIT) {
           this.bigHits.set(event.sourceId, tick);
         }
@@ -260,11 +275,31 @@ export class ComboDetector {
     switch (pending.detect.check) {
       case 'selfGain':
         return me !== undefined && me.hp > (this.before.get(me.id)?.hp ?? me.hp);
-      case 'ringActive':
-        return state.spells.some((s) => s.kind === 'thornRing' && s.ownerId === pending.finisher);
+      case 'ringActive': {
+        // Tu anillo sigue en pie y tiene a un rival adentro.
+        const team = me?.team;
+        return state.spells.some(
+          (s) =>
+            s.kind === 'thornRing' &&
+            s.ownerId === pending.finisher &&
+            state.wizards.some(
+              (w) =>
+                w.team !== team &&
+                w.hp > 0 &&
+                Math.hypot(w.pos.x - s.pos.x, w.pos.z - s.pos.z) < s.radius,
+            ),
+        );
+      }
       default:
         return true;
     }
+  }
+
+  /** Si dos rivales distintos te atacaron desde poco antes del primer paso. */
+  private underTwoAttackers(firstTick: number): boolean {
+    let count = 0;
+    for (const tick of this.attackedBy.values()) if (tick >= firstTick - ATTACK_LEAD) count++;
+    return count >= 2;
   }
 
   /** El rival tiene tu Grillete y tu Orbe errático pasa a su lado. */

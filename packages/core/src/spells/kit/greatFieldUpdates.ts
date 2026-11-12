@@ -513,6 +513,9 @@ export function catchProjectile(
   projectile: Projectile,
   wizard: Wizard,
 ): 'absorbed' | 'returned' | null {
+  if (wizard.statuses.attracting || wizard.statuses.mirroring) {
+    state.events.push({ type: 'attacked', targetId: wizard.id, sourceId: projectile.ownerId });
+  }
   if (wizard.statuses.attracting) {
     wizard.shield += projectile.payload.damage;
     state.events.push({ type: 'burst', spell: 'humanRod', pos: wizard.pos, radius: 1 });

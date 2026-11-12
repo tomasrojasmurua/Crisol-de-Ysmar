@@ -736,6 +736,11 @@ export type GameEvent =
   | { readonly type: 'shrinesAppear' }
   | { readonly type: 'shrineClaimed'; readonly shrineId: EntityId; readonly team: number }
   | { readonly type: 'blocked'; readonly pos: Vec2 }
+  /**
+   * A un mago lo alcanzó un ataque rival que no le hizo daño (lo atajó un escudo, el Ataúd, el
+   * Espejo o el Pararrayos). Cuando sí hace daño, el aviso es `hit`.
+   */
+  | { readonly type: 'attacked'; readonly targetId: EntityId; readonly sourceId: EntityId }
   /** Una reacción entre estados: empapado + Tormenta aturde, enraizado + Brasa arde… */
   | {
       readonly type: 'combo';
