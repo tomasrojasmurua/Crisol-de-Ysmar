@@ -13,8 +13,9 @@ de WhatsApp, sin instalar nada.
 
 - **Menú:** eliges el modo. Al caer quedas fuera de la ronda y miras a quienes siguen en pie.
   **Vidas** (en pausa): 3 por ronda y reapareces en el borde.
-- **Ronda:** hasta 3 minutos. Caza (abierta), Convergencia (la zona se cierra) y Duelo final.
-  Gana el último equipo en pie, o el que tenga más vida si se acaba el tiempo.
+- **Ronda:** sin reloj; dura lo que dure el combate. Caza (abierta), Convergencia (la zona se
+  cierra) y Duelo final, un minuto cada una; después, muerte súbita: la zona se cierra del todo y
+  quema cada vez más. Gana el último equipo en pie.
 - **Objetivo:** el rival más cercano se fija solo; toca a otro rival o a una bestia para cambiarlo.
 - **Bestias:** cinco criaturas neutrales, una por elemento. Si cazas una ganas su **Esencia**:
   tus conjuros de ese elemento pegan más fuerte durante la ronda.

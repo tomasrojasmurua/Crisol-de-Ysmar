@@ -412,6 +412,7 @@ export const TEST_RULES: GameRules = {
     convergenceRadius: 10,
     finalRadius: 4,
     zoneDamagePerSecond: 10,
+    suddenDeath: { shrinkTicks: 300, damageRampPerSecond: 5 },
   },
   death: {
     lives: 3,

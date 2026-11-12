@@ -5,29 +5,24 @@ import {
   type RoundPhase,
   roundPhase,
   type SeriesState,
-  TICK_RATE,
   type Wizard,
 } from '@crisol/core';
-import { el, formatClock, query } from './dom';
+import { el, query } from './dom';
 import { CAST_ICON, elementIcon } from './icons';
 import { type RematchView, ResultScreen, type ResultSummary } from './ResultScreen';
-
-/** Reloj de arena de la cinta de ronda. */
-const HOURGLASS_ICON =
-  '<svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" ' +
-  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M9 4H23M9 28H23M10 4C10 11 22 13 22 16C22 19 10 21 10 28M22 4C22 11 10 13 10 16C10 19 22 21 22 28"/></svg>';
 
 const PHASE_NAMES: Record<RoundPhase, string> = {
   hunt: 'Caza',
   convergence: 'Convergencia',
   final: 'Duelo final',
+  sudden: 'Muerte súbita',
 };
 
 const PHASE_HINTS: Record<RoundPhase, string> = {
   hunt: 'La arena está abierta',
   convergence: 'La Trama se cierra · aparecen santuarios',
   final: 'No queda dónde esconderse',
+  sudden: 'La Trama se cierra del todo',
 };
 
 /** Lo que el HUD necesita saber de cada mago para dibujarlo. */
@@ -37,7 +32,7 @@ export interface WizardBadge {
 }
 
 /**
- * La capa de interfaz durante la partida: tu vida y tus vidas, tus aliados, el reloj de la ronda,
+ * La capa de interfaz durante la partida: tu vida y tus vidas, tus aliados, la ronda y su fase,
  * el marcador, avisos grandes en el centro y la pantalla final.
  */
 export class Hud {
@@ -52,7 +47,6 @@ export class Hud {
   private lastEssenceKey = '';
   private readonly allies: HTMLElement;
   private readonly roundLabel: HTMLElement;
-  private readonly clock: HTMLElement;
   private readonly phase: HTMLElement;
   private readonly score: HTMLElement;
   private readonly banner: HTMLElement;
@@ -83,7 +77,6 @@ export class Hud {
       </div>
       <div class="hud-round">
         <div class="hud-round-label"></div>
-        <div class="hud-clock-wrap">${HOURGLASS_ICON}<span class="hud-clock">6:00</span></div>
         <div class="hud-phase"></div>
         <div class="hud-score"></div>
       </div>
@@ -108,7 +101,6 @@ export class Hud {
     this.allies = query(this.root, '.hud-allies');
     this.discovery = query(this.root, '.hud-discovery');
     this.roundLabel = query(this.root, '.hud-round-label');
-    this.clock = query(this.root, '.hud-clock');
     this.phase = query(this.root, '.hud-phase');
     this.score = query(this.root, '.hud-score');
     this.banner = query(this.root, '.hud-banner');
@@ -143,7 +135,7 @@ export class Hud {
     }, 2600);
   }
 
-  /** El Presagio de la partida queda a la vista bajo el reloj. */
+  /** El Presagio de la partida queda a la vista bajo la cinta de ronda. */
   setOmen(name: string | null, description = ''): void {
     if (name === null) {
       this.omen.hidden = true;
@@ -163,7 +155,7 @@ export class Hud {
     return query(this.root, '.hud-player');
   }
 
-  /** En el entrenamiento no hay reloj: su lugar lo usa el panel. */
+  /** En el entrenamiento no hay cinta de ronda: su lugar lo usa el panel. */
   set training(value: boolean) {
     this.root.classList.toggle('training', value);
   }
@@ -239,10 +231,6 @@ export class Hud {
     }
 
     this.roundLabel.textContent = `Ronda ${roundNumber}`;
-    const secondsLeft = (rules.round.durationTicks - state.tick) / TICK_RATE;
-    // En el entrenamiento la ronda no se acaba.
-    this.clock.textContent = secondsLeft > 60 * 60 * 24 ? '∞' : formatClock(secondsLeft);
-    this.clock.classList.toggle('urgent', secondsLeft < 30);
     this.phase.textContent = PHASE_NAMES[roundPhase(state.tick, rules)];
 
     const scoreKey = `${series.wins.join(',')}|${player.team}`;

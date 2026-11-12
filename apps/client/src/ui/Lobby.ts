@@ -59,7 +59,7 @@ const SETTING_ROWS: readonly SettingRow[] = [
     })),
   },
   {
-    title: 'Tiempo por ronda',
+    title: 'La zona se cierra en',
     options: ROUND_MINUTES.map((minutes) => ({
       label: `${minutes} min`,
       pick: (s) => ({ ...s, minutes }),

@@ -89,7 +89,9 @@ export class ZoneView {
     const closing = radius < this.arenaRadius - 0.01;
     this.group.visible = closing;
     if (!closing) return;
-    this.veil.scale.set(radius, 1, radius);
+    // Un radio 0 (muerte súbita) daría una escala nula: se deja un punto.
+    const r = Math.max(radius, 0.05);
+    this.veil.scale.set(r, 1, r);
     const shadeRadius = this.shadeMaterial.uniforms.uRadius;
     if (shadeRadius) shadeRadius.value = radius;
     const uniforms = this.veilMaterial.uniforms;

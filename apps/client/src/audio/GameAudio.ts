@@ -5,6 +5,7 @@ import {
   isElementId,
   MAX_WEAVE_LENGTH,
   type MatchState,
+  type RoundPhase,
   SPELL_WEAVES,
   type SpellId,
   type Vec2,
@@ -226,12 +227,15 @@ export class GameAudio {
     this.sound('click', CENTER, () => this.synth.click());
   }
 
-  private onPhase(phase: 'hunt' | 'convergence' | 'final'): void {
-    this.music.set(phase);
+  private onPhase(phase: RoundPhase): void {
+    // La muerte súbita sigue con la música del Duelo final; la anuncia un gong más grave.
+    this.music.set(phase === 'sudden' ? 'final' : phase);
     if (phase === 'convergence') {
       this.sound('phase.convergence', CENTER, () => this.synth.gong(CENTER, 98, 2.5));
     } else if (phase === 'final') {
       this.sound('phase.final', CENTER, () => this.synth.gong(CENTER, 65.4, 4));
+    } else if (phase === 'sudden') {
+      this.sound('phase.final', CENTER, () => this.synth.gong(CENTER, 49, 5));
     }
   }
 

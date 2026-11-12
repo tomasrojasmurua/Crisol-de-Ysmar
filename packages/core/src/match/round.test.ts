@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Intent } from '../controllers/intent';
+import { TICK_RATE } from '../sim/fixedStep';
 import { TEST_RULES } from '../testing/rules.fixture';
 import { createMatch, type WizardSetup } from './createMatch';
 import { modeSetup, playerCount } from './modes';
-import { roundPhase, zoneRadiusAt } from './round';
+import { roundPhase, zoneDamageAt, zoneRadiusAt } from './round';
 import { createSeries, recordRound } from './series';
 import type { DeathRule, MatchState, Wizard } from './state';
 import { stepMatch } from './step';
@@ -101,7 +102,7 @@ describe('ronda', () => {
     expect(wizard(state, 1).hp).toBe(rules.wizard.maxHp * rules.death.revive.hpFraction);
   });
 
-  it('si se acaba el tiempo gana el equipo con más vida', () => {
+  it('la ronda no se acaba por tiempo: sigue en muerte súbita', () => {
     const state = match('out', [
       { team: 0, spawn: { x: 0, z: 0 } },
       { team: 1, spawn: { x: 0, z: 2 } },
@@ -109,6 +110,28 @@ describe('ronda', () => {
     wizard(state, 2).hp = 50;
     state.tick = rules.round.durationTicks - 1;
     run(state, 1);
+    expect(state.winnerTeam).toBeNull();
+    expect(roundPhase(state.tick, rules)).toBe('sudden');
+  });
+
+  it('en muerte súbita la zona se cierra del todo y su daño sube', () => {
+    const { durationTicks, finalRadius, suddenDeath, zoneDamagePerSecond } = rules.round;
+    expect(zoneRadiusAt(durationTicks, rules)).toBe(finalRadius);
+    expect(zoneRadiusAt(durationTicks + suddenDeath.shrinkTicks, rules)).toBe(0);
+    expect(zoneDamageAt(durationTicks, rules)).toBe(zoneDamagePerSecond);
+    expect(zoneDamageAt(durationTicks + 10 * TICK_RATE, rules)).toBe(
+      zoneDamagePerSecond + suddenDeath.damageRampPerSecond * 10,
+    );
+  });
+
+  it('la muerte súbita termina la ronda aunque nadie pelee', () => {
+    const state = match('out', [
+      { team: 0, spawn: { x: 0, z: 0 } },
+      { team: 1, spawn: { x: 0, z: 2 } },
+    ]);
+    wizard(state, 2).hp = 50;
+    state.tick = rules.round.durationTicks;
+    for (let i = 0; i < 60 * TICK_RATE && state.winnerTeam === null; i++) run(state, 1);
     expect(state.winnerTeam).toBe(0);
   });
 });
