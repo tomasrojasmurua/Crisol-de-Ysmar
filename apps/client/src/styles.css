@@ -3703,26 +3703,27 @@ body {
 
 /* ---------- Tutorial ---------- */
 
-/* Arriba al centro y angosta: no tapa el muñeco, el joystick ni los botones de elemento. */
+/*
+ * Arriba al centro. Recogida es una sola línea (la orden y los signos); desplegada suma la
+ * explicación y los botones. Nunca baja tanto como para tapar al muñeco o los elementos.
+ */
 .tutorial-card {
   position: absolute;
   top: calc(var(--safe-top) + 4px);
   left: 50%;
   transform: translateX(-50%);
   /* Entre la columna de vida (izquierda) y la barra de Entrenamiento (derecha). */
-  width: clamp(220px, calc(100vw - 480px), 380px);
+  width: max-content;
+  max-width: clamp(220px, calc(100vw - 480px), 380px);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px 10px;
+  align-items: stretch;
   border-radius: 10px;
   border: 1px solid rgba(216, 191, 138, 0.45);
-  background: linear-gradient(180deg, rgba(26, 22, 34, 0.94), rgba(11, 10, 16, 0.94));
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.9), rgba(11, 10, 16, 0.9));
   box-shadow:
     inset 0 0 0 3px rgba(7, 7, 12, 0.7),
-    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
-    0 10px 30px rgba(0, 0, 0, 0.5);
+    0 8px 22px rgba(0, 0, 0, 0.45);
   text-align: center;
   pointer-events: auto;
 }
@@ -3738,71 +3739,183 @@ body {
   }
 }
 
+/* La línea: siempre a la vista. */
+#ui .tutorial-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+
+.tutorial-chapter {
+  flex: none;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--trama);
+}
+
+.tutorial-goal {
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--gold-bright);
+}
+
+.tutorial-signs:empty {
+  display: none;
+}
+
+.tutorial-signs {
+  flex: none;
+  display: inline-flex;
+}
+
+.tutorial-signs .combo-steps {
+  flex-wrap: nowrap;
+  --icon-size: 17px;
+}
+
+.tutorial-progress {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(216, 191, 138, 0.16);
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+/* La flecha que dice si hay más para leer: solo en pasos que se recogen. */
+.tutorial-toggle {
+  display: none;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: 2px;
+  border-right: 1.5px solid var(--ink-quiet);
+  border-bottom: 1.5px solid var(--ink-quiet);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.tutorial-card.collapsible .tutorial-toggle {
+  display: block;
+}
+
+.tutorial-card.collapsible:not(.collapsed) .tutorial-toggle {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+#ui .tutorial-card:not(.collapsible) .tutorial-bar {
+  pointer-events: none;
+}
+
+/* Lo que se despliega: la explicación y los botones. */
+.tutorial-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 12px 8px;
+}
+
+.tutorial-card.collapsed .tutorial-more {
+  display: none;
+}
+
 .tutorial-kicker {
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--trama);
 }
 
-.tutorial-title {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 16px;
-  letter-spacing: 0.06em;
-  color: var(--gold-bright);
-}
-
-.tutorial-steps:empty {
-  display: none;
-}
-
-.tutorial-steps .combo-steps {
-  --icon-size: 19px;
-}
-
 .tutorial-text {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
   color: var(--ink);
 }
 
 #ui .tutorial-next,
 #ui .tutorial-finish button {
-  margin-top: 4px;
-  min-height: 40px;
-  min-width: 120px;
+  min-height: 34px;
+  min-width: 110px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 .tutorial-finish {
   display: flex;
   gap: 8px;
-}
-
-.tutorial-progress {
-  font-family: var(--display);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--gold-bright);
+  margin-top: 2px;
 }
 
 .tutorial-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 2px;
 }
 
 /* Saltar es discreto: un texto, no un botón grande que compita con Siguiente. */
 #ui .tutorial-skip {
-  min-height: 32px;
+  min-height: 30px;
   padding: 2px 8px;
   border: none;
   background: none;
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.08em;
   color: var(--ink-quiet);
   text-decoration: underline;
+}
+
+/* Dónde arrastrar para girar la cámara: el centro, lejos del joystick y de los botones. */
+.tutorial-look-hint {
+  position: absolute;
+  top: 50%;
+  left: 52%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px dashed rgba(216, 191, 138, 0.55);
+  background: rgba(11, 10, 16, 0.35);
+  color: var(--gold-bright);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.tutorial-look-finger {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(244, 228, 190, 0.85);
+  box-shadow: 0 0 10px rgba(244, 228, 190, 0.7);
+  animation: tutorial-look 1.6s ease-in-out infinite;
+}
+
+@keyframes tutorial-look {
+  0%,
+  100% {
+    transform: translateX(-28px);
+  }
+  50% {
+    transform: translateX(28px);
+  }
 }
 
 /* Capítulos del tutorial para repetir. */
@@ -3852,7 +3965,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-card.advance {
+  .tutorial-card.advance,
+  .tutorial-look-finger {
     animation: none;
   }
 }

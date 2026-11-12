@@ -1,5 +1,5 @@
 import { DEFAULT_LOOK, GAME_RULES, NO_OMEN, rulesForMode, WIZARD_NAMES } from '@crisol/content';
-import { FixedStepClock, type GameRules, SeededRng } from '@crisol/core';
+import { FixedStepClock, type GameRules, type Intent, SeededRng } from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
 import { ComboLog } from './game/ComboLog';
@@ -11,7 +11,7 @@ import { MatchFlow } from './game/MatchFlow';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
-import { DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
+import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
 import { GIFT_CHAPTER, Tutorial } from './game/Tutorial';
 import { TutorialProgress } from './game/TutorialProgress';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
@@ -111,7 +111,11 @@ const cameraDrag = new CameraDrag(
     if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
       input.push({ type: 'lock', targetId: null });
     }
-    if (tutorial?.signal('look')) afterTutorialAdvance();
+    tutorialCard.collapse();
+    if (tutorial?.signal('look')) {
+      afterTutorialAdvance();
+      tutorialCard.render();
+    }
   },
 );
 const screenAwake = new ScreenAwake();
@@ -371,8 +375,8 @@ function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: bo
   useRules(rulesForMode({ kind: 'duel' }));
   const current = new TrainingMatch(rules, human, profile.affinity);
   useRules(current.rules);
-  beginMatch(current, () => ({
-    name: 'Muñeco',
+  beginMatch(current, (id) => ({
+    name: id === SECOND_DUMMY_ID ? 'Otro muñeco' : 'Muñeco',
     look: { ...DEFAULT_LOOK, robe: 'hueso', headwear: 'ninguno', face: 'automata' },
   }));
   trainingPanel.visible = true;
@@ -381,6 +385,7 @@ function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: bo
     trainingPanel.tutorial = true;
     tutorial = new Tutorial(current.playerId, DUMMY_ID, lesson.chapter, lesson.onlyOne);
     current.setDummy(tutorial.dummy);
+    current.setSecondDummy(tutorial.secondDummy);
     tutorialCard.show(tutorial);
   }
   obstacles.invalidate();
@@ -393,6 +398,7 @@ function freePlay(): void {
   if (match instanceof TrainingMatch) {
     match.restless = true;
     match.setDummy('idle');
+    match.setSecondDummy(false);
   }
 }
 
@@ -410,7 +416,10 @@ function afterTutorialAdvance(): void {
       audio.discover();
     }
   }
-  if (match instanceof TrainingMatch) match.setDummy(tutorial.dummy);
+  if (match instanceof TrainingMatch) {
+    match.setDummy(tutorial.dummy);
+    match.setSecondDummy(tutorial.secondDummy);
+  }
 }
 
 function endTutorial(): void {
@@ -509,6 +518,11 @@ function renderMatch(current: MatchView, alpha: number, delta: number): void {
   });
 }
 
+/** Si lo que mandó tu dedo es jugar: moverte, tejer o lanzar (no quedarse quieto). */
+function playing(intent: Intent): boolean {
+  return intent.kind === 'move' ? intent.x !== 0 || intent.z !== 0 : intent.kind !== 'lockTarget';
+}
+
 /** Avanza la partida un paso fijo y reparte lo que pasó a quien lo muestra o lo hace sonar. */
 function stepMatch(current: MatchView): void {
   const events = current.step();
@@ -520,6 +534,8 @@ function stepMatch(current: MatchView): void {
     if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
   }
   if (current instanceof TrainingMatch && tutorial && !tutorial.done) {
+    // Al empezar a jugar, la guía se recoge a una línea para dejar ver la partida.
+    if (current.lastIntents.some(playing)) tutorialCard.collapse();
     if (tutorial.onStep(events, current.state, current.lastIntents)) {
       afterTutorialAdvance();
       tutorialCard.render();

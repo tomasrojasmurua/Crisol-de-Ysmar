@@ -9,7 +9,8 @@ import {
   type Vec2,
 } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
-import { DUMMY_ID, TrainingMatch } from './TrainingMatch';
+import { nextLockTarget } from '../input/lockTargets';
+import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './TrainingMatch';
 import { TUTORIAL_CHAPTERS, Tutorial } from './Tutorial';
 
 /** Un dedo de mentira: en cada paso hace lo que diga el guion para ese momento. */
@@ -65,27 +66,35 @@ function play(
   plan: (tick: number, state: MatchState) => Intent[],
   chapter: string,
   maxTicks: number,
-): { tutorial: Tutorial; reached: string[]; match: TrainingMatch } {
+  startStep = 0,
+): { tutorial: Tutorial; reached: string[]; match: TrainingMatch; withSecond: Set<string> } {
   const match = new TrainingMatch(DUEL_RULES, new Script(plan), null);
   match.restless = false;
-  const tutorial = new Tutorial(match.playerId, DUMMY_ID, chapterIndex(chapter), true);
-  match.setDummy(tutorial.dummy);
+  const tutorial = new Tutorial(match.playerId, DUMMY_ID, chapterIndex(chapter), true, startStep);
+  const follow = (): void => {
+    match.setDummy(tutorial.dummy);
+    match.setSecondDummy(tutorial.secondDummy);
+  };
+  follow();
   const reached: string[] = [];
+  /** Los pasos en que el segundo muñeco estuvo en la arena. */
+  const withSecond = new Set<string>();
   for (let i = 0; i < maxTicks && !tutorial.done; i++) {
+    if (match.secondDummy) withSecond.add(tutorial.step?.title ?? '');
     if (tutorial.step?.goal.kind === 'read') {
       reached.push(tutorial.step.title);
       tutorial.next();
-      match.setDummy(tutorial.dummy);
+      follow();
       continue;
     }
     const title = tutorial.step?.title ?? '';
     const events = match.step();
     if (tutorial.onStep(events, match.state, match.lastIntents)) {
       reached.push(title);
-      match.setDummy(tutorial.dummy);
+      follow();
     }
   }
-  return { tutorial, reached, match };
+  return { tutorial, reached, match, withSecond };
 }
 
 describe('Tutorial por capítulos', () => {
@@ -116,6 +125,77 @@ describe('Tutorial por capítulos', () => {
     expect(tutorial.signal('look')).toBe(true);
     expect(reached).toEqual([]);
     expect(tutorial.step?.title).toBe('Duelo');
+  });
+
+  it('la cámara: fijar, saltar al segundo muñeco (que después se va) y soltar', () => {
+    const { tutorial, reached, match, withSecond } = play(
+      (tick, state) => {
+        // El botón de duelo, como en el celular: solo fija lo que está a tiro. El muñeco se
+        // acerca solo; el segundo aparece a su lado.
+        const duelButton = (): Intent[] => {
+          const next = nextLockTarget(
+            state,
+            me(state),
+            DUEL_RULES,
+            { x: 0, z: 1 },
+            me(state).lockTarget,
+          );
+          return next === null ? [] : [{ kind: 'lockTarget', targetId: next }];
+        };
+        if (tick === 150 || tick === 160) return duelButton();
+        // Girar la cámara a mano manda soltar el duelo.
+        if (tick === 170) return [{ kind: 'lockTarget', targetId: null }];
+        return [];
+      },
+      'camara',
+      200,
+      1,
+    );
+    expect(reached).toEqual(['Duelo', 'Saltar entre rivales', 'Soltar']);
+    expect([...withSecond]).toEqual(['Saltar entre rivales', 'Soltar']);
+    expect(tutorial.done).toBe(true);
+    // Terminada la sección, el segundo muñeco se va.
+    expect(match.secondDummy).toBe(false);
+  });
+
+  it('el segundo muñeco no está fuera de esa sección: no se ve ni se puede fijar', () => {
+    const match = new TrainingMatch(DUEL_RULES, new Script(() => []), null);
+    expect(match.secondDummy).toBe(false);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(true);
+    match.setSecondDummy(true);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(false);
+    const second = match.state.wizards.find((w) => w.id === SECOND_DUMMY_ID);
+    const near = Math.hypot(
+      (second?.pos.x ?? 99) - dummy(match.state).pos.x,
+      (second?.pos.z ?? 99) - dummy(match.state).pos.z,
+    );
+    expect(near).toBeLessThan(6);
+    match.setSecondDummy(false);
+    match.step();
+    expect(second?.hp).toBe(0);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(true);
+  });
+
+  it('tejer pide hechizos justos: Rayo en cadena y Era de hielo', () => {
+    // Brasa → Tormenta es otro tejido de dos: no cuenta, el orden importa.
+    const reversed = (Object.keys(SPELL_WEAVES) as SpellId[]).find(
+      (id) => SPELL_WEAVES[id].join() === 'brasa,tormenta',
+    );
+    if (!reversed) throw new Error('falta el tejido Brasa → Tormenta');
+    const casts = new Map<number, SpellId>([
+      [5, reversed],
+      // Después de que Brasa y Tormenta descansan (3 s).
+      [110, 'chainLightning'],
+      [160, 'iceAge'],
+    ]);
+    const plan = (tick: number, state: MatchState): Intent[] => {
+      const spell = casts.get(tick);
+      return spell ? castAt(state, spell) : [];
+    };
+    expect(play(plan, 'tejer', 35).tutorial.step?.title).toBe('Dos elementos');
+    const { tutorial, reached } = play(plan, 'tejer', 300);
+    expect(reached).toEqual(['El orden importa', 'Dos elementos', 'Un Gran hechizo']);
+    expect(tutorial.finished).toEqual(['tejer']);
   });
 
   it('los cinco básicos se cuentan uno por uno', () => {
@@ -181,6 +261,33 @@ describe('Tutorial por capítulos', () => {
     );
     expect(reached.slice(0, 2)).toEqual(['Leer al rival', 'Esquivar']);
     expect(tutorial.step?.title).toBe('Muro de hielo');
+  });
+
+  it('esquivar caminando: con reflejos de persona alcanza al ver la Brasa', () => {
+    // Una persona reacciona medio segundo después de ver la Brasa sobre el muñeco y
+    // camina de lado un rato; no mira la Chispa en vuelo.
+    const REACTION = 15;
+    let seenAt = -1;
+    let side = 1;
+    const { reached } = play(
+      (tick, state) => {
+        const weaving = dummy(state).weave.length > 0;
+        if (weaving && seenAt < 0) {
+          seenAt = tick;
+          side = -side;
+        }
+        if (seenAt < 0 || tick < seenAt + REACTION) return [{ kind: 'move', x: 0, z: 0 }];
+        if (tick > seenAt + REACTION + 30) {
+          seenAt = -1;
+          return [{ kind: 'move', x: 0, z: 0 }];
+        }
+        const dir = toward(me(state).pos, dummy(state).pos);
+        return [{ kind: 'move', x: -dir.z * side, z: dir.x * side }];
+      },
+      'defensa',
+      1500,
+    );
+    expect(reached.slice(0, 2)).toEqual(['Leer al rival', 'Esquivar']);
   });
 
   it('un Salpicón hacia la Chispa que viene cuenta como choque de tejidos', () => {

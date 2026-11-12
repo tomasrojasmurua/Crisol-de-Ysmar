@@ -15,6 +15,8 @@ import { ComboDetector } from './ComboDetector';
 export type DummyMode =
   /** Quieto: solo recibe. */
   | 'idle'
+  /** Se acerca a unos pasos y se queda, sin atacar: para poder fijarlo (y al segundo). */
+  | 'near'
   /** Lanza una Chispa cada tanto. */
   | 'sparks'
   /** Prepara Meteoros: Brasa, Brasa, Brasa sobre la cabeza y un círculo en el suelo. */
@@ -33,6 +35,10 @@ type Goal =
   | { readonly kind: 'signal'; readonly signal: TutorialSignal }
   /** Fijar al muñeco (tocándolo o con el botón de duelo). */
   | { readonly kind: 'lock' }
+  /** Soltar al rival fijado (girando la cámara a mano). */
+  | { readonly kind: 'unlock' }
+  /** Fijar a otro rival que no sea el muñeco (saltar al segundo muñeco). */
+  | { readonly kind: 'switch' }
   | { readonly kind: 'release'; readonly spell: SpellId }
   /** Lanzar cada uno de estos hechizos al menos una vez. */
   | { readonly kind: 'releaseAll'; readonly spells: readonly SpellId[] }
@@ -57,12 +63,25 @@ type Goal =
 
 export interface TutorialStep {
   readonly title: string;
+  /**
+   * La orden en una línea, la que queda a la vista mientras juegas (la tarjeta recogida). Si
+   * no se dice, se muestra el título: los pasos de leer no la necesitan.
+   */
+  readonly short?: string;
+  /** La explicación completa: se ve al aparecer el paso o al tocar la línea. */
   readonly text: string;
   readonly goal: Goal;
   /** El combo que enseña: se dibuja con sus signos, igual que en el Grimorio. */
   readonly combo?: Combo;
+  /** El hechizo que pide tejer: se dibujan sus elementos junto a la orden. */
+  readonly spell?: SpellId;
   /** Qué hace el muñeco en este paso; si no se dice, sigue como en el paso anterior. */
   readonly dummy?: DummyMode;
+  /**
+   * Si aparece el segundo muñeco (para saltar entre rivales). Si no se dice, sigue como en el
+   * paso anterior del capítulo; al cambiar de capítulo se va.
+   */
+  readonly secondDummy?: boolean;
 }
 
 export interface TutorialChapter {
@@ -77,8 +96,11 @@ const combo = (id: string): Combo => {
   return found;
 };
 
-/** Un proyectil esquivado tiene que haber pasado a menos de esto (en metros). */
-const CLOSE_CALL = 3.5;
+/**
+ * Un proyectil esquivado tiene que haber pasado a menos de esto (en metros): que de verdad
+ * venía hacia ti. Holgado, porque quien camina de lado al ver la Brasa ya se alejó unos metros.
+ */
+const CLOSE_CALL = 5;
 
 /** Los cinco básicos, uno por elemento. */
 const BASICS: readonly SpellId[] = ['spark', 'step', 'splash', 'sap', 'claw'];
@@ -94,7 +116,7 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Cómo se gana',
-        text: 'Gana la ronda el último mago en pie, y la partida, quien gane 2 rondas. No hay reloj, pero la zona se va cerrando y quema: no te puedes esconder para siempre.',
+        text: 'Gana la ronda el último mago en pie, y la partida, quien gane 2 rondas. La zona se va cerrando y quema: no te puedes esconder para siempre.',
         goal: { kind: 'read' },
         dummy: 'idle',
       },
@@ -106,7 +128,8 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Caminar',
-        text: 'Arrastra el pulgar izquierdo en cualquier parte de la mitad izquierda de la pantalla.',
+        short: 'Camina con el pulgar izquierdo',
+        text: 'Toca la mitad izquierda de la pantalla y arrastra: el joystick aparece donde pones el pulgar.',
         goal: { kind: 'move', meters: 4 },
       },
     ],
@@ -117,18 +140,29 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Mirar',
-        text: 'Arrastra un dedo por la pantalla, lejos de los botones, para mirar a los lados.',
+        short: 'Arrastra en el centro para mirar',
+        text: 'Arrastra un dedo por el centro de la pantalla, fuera de los botones. La mitad izquierda es para caminar.',
         goal: { kind: 'signal', signal: 'look' },
+        dummy: 'near',
       },
       {
         title: 'Duelo',
-        text: 'Toca al muñeco (o el botón de las cuatro esquinas): la cámara lo mantiene al frente y un anillo lo marca en el suelo.',
+        short: 'Toca al muñeco para fijarlo',
+        text: 'Tocar a un rival lo fija: la cámara lo mantiene al frente, un anillo lo marca y ✦ le apunta solo. El botón de las cuatro esquinas también fija.',
         goal: { kind: 'lock' },
       },
       {
+        title: 'Saltar entre rivales',
+        short: 'Salta al otro muñeco',
+        text: 'Llegó otro muñeco. Con un rival fijado, el botón de las cuatro esquinas salta al siguiente. También puedes tocar directo al que quieras.',
+        goal: { kind: 'switch' },
+        secondDummy: true,
+      },
+      {
         title: 'Soltar',
-        text: 'Con el duelo, tocar ✦ apunta solo a quien fijaste. Arrastrar para mirar suelta el duelo; el botón pasa al siguiente rival.',
-        goal: { kind: 'read' },
+        short: 'Gira la cámara para soltar al rival',
+        text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
+        goal: { kind: 'unlock' },
       },
     ],
   },
@@ -143,7 +177,8 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       },
       {
         title: 'Los cinco básicos',
-        text: 'Lanza Chispa (Brasa), Paso (Tormenta), Salpicón (Marea), Savia (Raíz) y Zarpa (Umbra).',
+        short: 'Lanza los cinco básicos',
+        text: 'Chispa (Brasa), Paso (Tormenta), Salpicón (Marea), Savia (Raíz) y Zarpa (Umbra): toca el elemento y después ✦.',
         goal: { kind: 'releaseAll', spells: BASICS },
       },
     ],
@@ -159,7 +194,8 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       },
       {
         title: 'Alternar',
-        text: 'Lanza tres hechizos seguidos, sin repetir elemento.',
+        short: 'Lanza 3 seguidos sin repetir elemento',
+        text: 'Si repites un elemento, la cuenta vuelve a empezar.',
         goal: { kind: 'releases', count: 3 },
       },
     ],
@@ -170,18 +206,22 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'El orden importa',
-        text: 'Toca hasta tres elementos antes de ✦: cada tejido es un hechizo propio, y Brasa → Tormenta no es lo mismo que Tormenta → Brasa. ✕ deshace el tejido.',
+        text: 'Toca hasta tres elementos antes de ✦: cada tejido es un hechizo propio, y el orden cambia el hechizo. La flecha que gira deshace el tejido.',
         goal: { kind: 'read' },
       },
       {
         title: 'Dos elementos',
-        text: 'Lanza un hechizo de dos elementos. Cada uno nuevo queda en tu Grimorio.',
-        goal: { kind: 'weaveLength', length: 2 },
+        short: 'Teje Rayo en cadena',
+        text: 'Toca Tormenta, después Brasa, y ✦. Cada hechizo nuevo queda en tu Grimorio.',
+        goal: { kind: 'release', spell: 'chainLightning' },
+        spell: 'chainLightning',
       },
       {
         title: 'Un Gran hechizo',
-        text: 'Ahora uno de tres: tardan más en salir y cansan los tres elementos.',
-        goal: { kind: 'weaveLength', length: 3 },
+        short: 'Teje Era de hielo',
+        text: 'Marea, Marea, Marea y ✦. Los de tres elementos tardan más en salir y cansan los tres. Era de hielo congela: la usarás en Quiebre.',
+        goal: { kind: 'release', spell: 'iceAge' },
+        spell: 'iceAge',
       },
     ],
   },
@@ -191,13 +231,16 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Elegir la dirección',
-        text: 'Tocar ✦ apunta solo. Arrastrar desde ✦ elige hacia dónde: lanza algo arrastrando.',
+        short: 'Arrastra desde ✦ para elegir dirección',
+        text: 'Tocar ✦ apunta solo. Arrastrar desde ✦ elige hacia dónde sale el hechizo.',
         goal: { kind: 'aimed' },
       },
       {
         title: 'Hechizos de suelo',
-        text: 'Mantén ✦ un momento y arrastra para elegir dónde cae. Prueba con un Meteoro (Brasa, Brasa, Brasa).',
+        short: 'Deja un Meteoro donde quieras',
+        text: 'Teje Meteoro (Brasa, Brasa, Brasa), mantén ✦ un momento y arrastra para elegir dónde cae.',
         goal: { kind: 'placed' },
+        spell: 'meteor',
       },
     ],
   },
@@ -207,27 +250,33 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Leer al rival',
-        text: 'Ahora el muñeco ataca. Lo que teje flota sobre su cabeza: leerlo te dice qué viene.',
+        text: 'Ahora el muñeco ataca. Lo que teje flota sobre su cabeza: si ves Brasa, viene una Chispa.',
         goal: { kind: 'read' },
         dummy: 'sparks',
       },
       {
         title: 'Esquivar',
-        text: 'Camina de lado y deja que dos Chispas pasen sin tocarte.',
+        short: 'Muévete de lado al ver la Brasa',
+        text: 'La Chispa va hacia donde estabas: apenas veas la Brasa sobre el muñeco, camina de lado. Deja pasar dos.',
         goal: { kind: 'avoid', count: 2 },
       },
       {
         title: 'Muro de hielo',
-        text: 'Levanta un Muro de hielo (Marea, Marea) entre tú y el muñeco: frena sus proyectiles.',
+        short: 'Levanta un Muro de hielo',
+        text: 'Marea, Marea y ✦, con el muñeco al frente: el muro frena sus proyectiles.',
         goal: { kind: 'release', spell: 'iceWall' },
+        spell: 'iceWall',
       },
       {
         title: 'Choque de tejidos',
-        text: 'Un elemento opuesto desarma un proyectil (contra Brasa, Marea o Raíz). Arrastra ✦ con un Salpicón hacia la Chispa que viene.',
+        short: 'Arrastra ✦ con Salpicón hacia la Chispa',
+        text: 'Un elemento opuesto desarma un proyectil: contra Brasa, Marea o Raíz. Teje Marea y arrastra ✦ hacia la Chispa que viene.',
         goal: { kind: 'clash' },
+        spell: 'splash',
       },
       {
         title: 'Lo que cae del cielo',
+        short: 'Sal del círculo antes de que caiga',
         text: 'El Meteoro no se desarma. Cuando veas el círculo en el suelo, sal de él.',
         goal: { kind: 'avoidStrike' },
         dummy: 'meteor',
@@ -246,12 +295,14 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       },
       {
         title: 'Brasa maldita',
+        short: 'Brasa maldita: Chispa, luego Zarpa',
         text: 'Quema al muñeco con una Chispa y, mientras arde, golpéalo con Umbra (Zarpa).',
         goal: { kind: 'reaction', reaction: 'ashenCurse' },
         combo: combo('brasa-maldita'),
       },
       {
         title: 'Quiebre',
+        short: 'Quiebre: congela, luego Rayo',
         text: 'Lanza Era de hielo (Marea, Marea, Marea). Cuando lo congele, suéltale un Rayo en cadena (Tormenta, Brasa).',
         goal: { kind: 'reaction', reaction: 'shatter' },
         combo: combo('quiebre'),
@@ -269,6 +320,7 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       },
       {
         title: 'Amarre',
+        short: 'Amarre: Liana, luego Salpicón',
         text: 'La Liana (Raíz, Tormenta) te lleva al muñeco y lo enraíza; ahí mismo, un Salpicón (Marea).',
         goal: { kind: 'combo', comboId: 'amarre' },
         combo: combo('amarre'),
@@ -303,6 +355,7 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       },
       {
         title: 'Derrota al Aprendiz',
+        short: 'Derrota al Aprendiz',
         text: 'Gana el duelo. Si te deja mal, tu vida vuelve: aquí no se pierde.',
         goal: { kind: 'defeat' },
         dummy: 'bot',
@@ -341,6 +394,8 @@ export class Tutorial {
   readonly finished: string[] = [];
   /** El modo actual del muñeco. */
   dummy: DummyMode = 'idle';
+  /** Si el segundo muñeco está en la arena. */
+  secondDummy = false;
 
   constructor(
     private readonly playerId: EntityId,
@@ -444,6 +499,12 @@ export class Tutorial {
         break;
       case 'lock':
         reached = me?.lockTarget === this.dummyId;
+        break;
+      case 'unlock':
+        reached = me?.lockTarget === null;
+        break;
+      case 'switch':
+        reached = me !== undefined && me.lockTarget !== null && me.lockTarget !== this.dummyId;
         break;
       case 'release':
         reached = mine.some((e) => e.spell === goal.spell);
@@ -571,15 +632,21 @@ export class Tutorial {
     this.applyDummy();
   }
 
-  /** El modo del muñeco: el que diga el paso, o el último dicho hasta acá en el capítulo. */
+  /** El modo del muñeco y si está el segundo: lo que diga el paso, o lo último dicho en el capítulo. */
   private applyDummy(): void {
     const chapter = TUTORIAL_CHAPTERS[this.chapterIndex];
     if (!chapter) {
       this.dummy = 'idle';
+      this.secondDummy = false;
       return;
     }
     let mode: DummyMode = 'idle';
-    for (let i = 0; i <= this.stepIndex; i++) mode = chapter.steps[i]?.dummy ?? mode;
+    let second = false;
+    for (let i = 0; i <= this.stepIndex; i++) {
+      mode = chapter.steps[i]?.dummy ?? mode;
+      second = chapter.steps[i]?.secondDummy ?? second;
+    }
     this.dummy = mode;
+    this.secondDummy = second;
   }
 }

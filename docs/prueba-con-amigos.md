@@ -15,7 +15,11 @@ Unos 15 minutos. Si algo falla, basta con una captura y una línea de qué pasó
 
 - [ ] Capítulo "La cámara", paso "Mirar": arrastrar un dedo lejos de los botones gira la cámara y
   el paso se cumple. Que no se confunda con mover al mago ni con tocar ✦.
-- [ ] Paso "Duelo": tocar al muñeco lo fija (anillo en el suelo y cámara al frente).
+- [ ] Paso "Duelo": tocar al muñeco lo fija (anillo en el suelo y cámara al frente). "Soltar":
+  girar la cámara lo suelta. En "Saltar entre rivales" aparece un segundo muñeco y el botón de
+  duelo salta a él; al pasar al capítulo siguiente desaparece.
+- [ ] La guía del tutorial se recoge en una línea al empezar a jugar y se despliega al tocarla.
+- [ ] "Defenderse", "Esquivar": caminar de lado al ver la Brasa sobre el muñeco alcanza.
 - [ ] Capítulo "Apuntar", "Elegir la dirección": arrastrar desde ✦ lanza hacia donde arrastras.
 - [ ] "Hechizos de suelo": mantener ✦ un momento y arrastrar marca dónde cae el Meteoro
   (Brasa, Brasa, Brasa). Revisar que se sienta natural y que el dedo no tape la marca.

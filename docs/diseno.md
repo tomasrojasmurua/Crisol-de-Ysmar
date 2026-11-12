@@ -107,6 +107,16 @@ salir del círculo), estados y reacciones, combos (entrega Brasa maldita, Quiebr
 Grimorio y un examen contra la IA Aprendiz. La primera vez parte del principio; después se elige
 el capítulo. Cada capítulo se puede saltar, y los terminados quedan marcados en el celular.
 
+Los pasos que se hacen jugando piden hechizos y combos concretos (Rayo en cadena y Era de hielo al
+tejer, los mismos de Quiebre), no "cualquiera", para no adelantar el resto del Grimorio. La guía va
+arriba al centro y casi siempre recogida en una línea: la orden corta, los signos y la cuenta. Cada
+paso nuevo aparece desplegado con la explicación y se recoge solo al empezar a jugar o a los 6 s;
+tocar la línea la despliega. Los pasos de solo leer quedan desplegados con su botón Siguiente.
+En "La cámara" el muñeco se acerca a tiro para poder fijarlo, y en "Saltar entre rivales" aparece
+un segundo muñeco a su lado que se va al terminar el capítulo (fuera de esa parte está caído,
+escondido y en su propio equipo, así nada lo apunta). En "Defenderse" el muñeco muestra la Brasa medio segundo antes de soltar la Chispa y la lanza a
+donde estás, sin adelantarse: así se esquiva caminando, como se enseña.
+
 ## Vestidor
 
 Todo es cosmético salvo la Afinidad. Las piezas viven en `packages/content/src/appearance.ts` y se
