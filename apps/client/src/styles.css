@@ -3109,11 +3109,6 @@ body {
   color: var(--gold-bright);
 }
 
-.combo-editor-head .grimoire-card-close {
-  top: -6px;
-  right: -6px;
-}
-
 #ui .combo-editor-name,
 #ui .combo-editor-note {
   width: 100%;
@@ -3251,6 +3246,11 @@ body {
   font-size: 26px;
   line-height: 1;
   color: var(--ink-quiet);
+}
+
+#ui .combo-editor-head .grimoire-card-close {
+  top: -6px;
+  right: -6px;
 }
 
 /* Pantallas angostas: las pestañas se achican y la cuenta va bajo el signo. */
@@ -3752,4 +3752,186 @@ body {
 .combo-callout.big {
   font-size: 23px;
   letter-spacing: 0.06em;
+}
+
+/* ---------- Tutorial ---------- */
+
+/* Arriba al centro y angosta: no tapa el muñeco, el joystick ni los botones de elemento. */
+.tutorial-card {
+  position: absolute;
+  top: calc(var(--safe-top) + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  /* Entre la columna de vida (izquierda) y la barra de Entrenamiento (derecha). */
+  width: clamp(220px, calc(100vw - 480px), 380px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.94), rgba(11, 10, 16, 0.94));
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.tutorial-card.advance {
+  animation: tutorial-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes tutorial-in {
+  from {
+    transform: translateX(-50%) translateY(-8px) scale(0.96);
+    opacity: 0.4;
+  }
+}
+
+.tutorial-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--trama);
+}
+
+.tutorial-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+.tutorial-steps:empty {
+  display: none;
+}
+
+.tutorial-steps .combo-steps {
+  --icon-size: 19px;
+}
+
+.tutorial-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+#ui .tutorial-next,
+#ui .tutorial-finish button {
+  margin-top: 4px;
+  min-height: 40px;
+  min-width: 120px;
+}
+
+.tutorial-finish {
+  display: flex;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-card.advance {
+    animation: none;
+  }
+}
+
+/* Elegir entre tutorial y práctica libre. */
+.training-chooser {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: rgba(7, 7, 12, 0.8);
+  pointer-events: auto;
+  animation: fade-in 0.2s ease both;
+}
+
+.training-chooser-card {
+  width: min(520px, 100%);
+  padding: 12px 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.98), rgba(11, 10, 16, 0.98));
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 16px 50px rgba(0, 0, 0, 0.6);
+}
+
+.training-chooser-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  margin-bottom: 8px;
+}
+
+.training-chooser-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+}
+
+#ui .training-chooser-head .grimoire-card-close {
+  top: -4px;
+  right: -6px;
+}
+
+.training-chooser-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#ui .training-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 120px;
+  padding: 14px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(216, 191, 138, 0.35);
+  background: rgba(14, 12, 20, 0.9);
+  font: inherit;
+  color: var(--ink);
+  --icon-size: 26px;
+}
+
+#ui .training-option:active {
+  border-color: var(--gold-bright);
+  background: #30251b;
+}
+
+#ui .training-option strong {
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+.training-option > span:not(.training-option-badge) {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-quiet);
+}
+
+.training-option-badge {
+  padding: 2px 8px;
+  border: 1px solid rgba(180, 156, 255, 0.5);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--trama);
 }
