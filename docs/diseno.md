@@ -38,7 +38,8 @@ es lo vigente.
   El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga.
 - **Jungla viva:** el Incendio forestal quema árboles y el Brote de árbol los planta; los cambios
   duran hasta el fin de la ronda.
-- **Partida:** mejor de 3 rondas de 3 minutos (Caza, Convergencia y Duelo final, un minuto cada una). Modos 1v1,
+- **Partida:** mejor de 3 rondas sin reloj (Caza, Convergencia y Duelo final, un minuto cada una, y
+  luego muerte súbita: la zona se cierra del todo y su daño sube hasta que alguien cae). Modos 1v1,
   2v2, 3v3 y todos contra todos hasta 6. Al morir quedas fuera de la ronda y miras a quienes siguen
   (las 3 Vidas están en pausa; el Espectro se eliminó en noviembre de 2026). Hay un **modo entrenamiento** contra un muñeco, con un
   panel que muestra lo que estás tejiendo y qué hace. El Grimorio muestra solo lo descubierto y, al

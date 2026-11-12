@@ -758,8 +758,8 @@ export type GameEvent =
  */
 export type DeathRule = 'out' | 'lives';
 
-/** Caza, Convergencia y Duelo final. */
-export type RoundPhase = 'hunt' | 'convergence' | 'final';
+/** Caza, Convergencia, Duelo final y muerte súbita. */
+export type RoundPhase = 'hunt' | 'convergence' | 'final' | 'sudden';
 
 /**
  * El estado de una ronda. La partida al mejor de 3 encadena rondas con `series.ts`.

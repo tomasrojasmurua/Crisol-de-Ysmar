@@ -67,7 +67,7 @@ export function stepMatch(state: MatchState, intents: IntentsByWizard, baseRules
   processFalls(state, rules);
   updateRevives(state, rules);
   state.tick++;
-  state.winnerTeam = decideRoundWinner(state, rules);
+  state.winnerTeam = decideRoundWinner(state);
 }
 
 /** Un caído solo puede fijar objetivo (para mirar a quien sigue en pie). */

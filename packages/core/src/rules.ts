@@ -482,6 +482,7 @@ export interface RoundRules {
   readonly roundsToWin: number;
   /** Tope de rondas, por si hay empates. */
   readonly maxRounds: number;
+  /** Cuándo termina el Duelo final y empieza la muerte súbita (la ronda no se acaba por tiempo). */
   readonly durationTicks: number;
   /** Fin de la Caza: la zona empieza a cerrarse. */
   readonly huntEndTick: number;
@@ -489,10 +490,18 @@ export interface RoundRules {
   readonly convergenceEndTick: number;
   /** Radio de la zona al terminar la Convergencia. */
   readonly convergenceRadius: number;
-  /** Radio de la zona al terminar la ronda. */
+  /** Radio de la zona al terminar el Duelo final. */
   readonly finalRadius: number;
   /** Daño por segundo fuera de la zona. */
   readonly zoneDamagePerSecond: number;
+  /**
+   * Muerte súbita: tras el Duelo final la zona se cierra del todo en `shrinkTicks` y su daño
+   * sube `damageRampPerSecond` por cada segundo que pasa, hasta que alguien cae.
+   */
+  readonly suddenDeath: {
+    readonly shrinkTicks: number;
+    readonly damageRampPerSecond: number;
+  };
 }
 
 /** Qué pasa al caer en modo Vidas y cómo se revive a un aliado. */

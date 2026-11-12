@@ -11,7 +11,8 @@ import type { MatchState, RoundPhase, Wizard } from './state';
 export function roundPhase(tick: number, rules: GameRules): RoundPhase {
   if (tick < rules.round.huntEndTick) return 'hunt';
   if (tick < rules.round.convergenceEndTick) return 'convergence';
-  return 'final';
+  if (tick < rules.round.durationTicks) return 'final';
+  return 'sudden';
 }
 
 /** Radio de la zona: abierta en la Caza y cerrándose en línea recta después. */
@@ -25,8 +26,13 @@ export function zoneRadiusAt(tick: number, rules: GameRules): number {
     const t = (tick - huntEndTick) / (convergenceEndTick - huntEndTick);
     return lerp(rules.arenaRadius, convergenceRadius, t);
   }
-  const t = Math.min(1, (tick - convergenceEndTick) / (durationTicks - convergenceEndTick));
-  return lerp(convergenceRadius, finalRadius, t);
+  if (tick <= durationTicks) {
+    const t = (tick - convergenceEndTick) / (durationTicks - convergenceEndTick);
+    return lerp(convergenceRadius, finalRadius, t);
+  }
+  // Muerte súbita: se cierra hasta desaparecer.
+  const t = Math.min(1, (tick - durationTicks) / rules.round.suddenDeath.shrinkTicks);
+  return lerp(finalRadius, 0, t);
 }
 
 /** Achica la zona, avisa los cambios de fase y daña a quien quedó afuera. */
@@ -38,12 +44,19 @@ export function updateZone(state: MatchState, rules: GameRules): void {
     if (after === 'convergence') spawnShrines(state, rules);
   }
   state.zoneRadius = zoneRadiusAt(state.tick + 1, rules);
-  const damage = rules.round.zoneDamagePerSecond / TICK_RATE;
+  const damage = zoneDamageAt(state.tick, rules) / TICK_RATE;
   for (const wizard of state.wizards) {
     if (isAlive(wizard) && length(wizard.pos) > state.zoneRadius) {
       dealDamage(state, wizard, wizard.id, damage, 'zone');
     }
   }
+}
+
+/** Daño por segundo fuera de la zona: sube sin tope durante la muerte súbita. */
+export function zoneDamageAt(tick: number, rules: GameRules): number {
+  const { zoneDamagePerSecond, durationTicks, suddenDeath } = rules.round;
+  const seconds = Math.max(0, tick - durationTicks) / TICK_RATE;
+  return zoneDamagePerSecond + suddenDeath.damageRampPerSecond * seconds;
 }
 
 /** Convierte en caídos a los magos que quedaron sin vida en este paso. */
@@ -107,22 +120,14 @@ export function isStanding(wizard: Wizard): boolean {
 }
 
 /**
- * Gana la ronda el último equipo en pie. Si se acaba el tiempo, gana el equipo con más vida.
- * Devuelve -1 si hay empate y null si la ronda sigue.
+ * Gana la ronda el último equipo en pie; la ronda no se acaba por tiempo (la muerte súbita la
+ * cierra). Devuelve -1 si caen todos a la vez y null si la ronda sigue.
  */
-export function decideRoundWinner(state: MatchState, rules: GameRules): number | null {
+export function decideRoundWinner(state: MatchState): number | null {
   const standing = new Set(state.wizards.filter(isStanding).map((w) => w.team));
   if (standing.size === 0) return -1;
   if (standing.size === 1) return [...standing][0] ?? -1;
-  if (state.tick < rules.round.durationTicks) return null;
-
-  const hpByTeam = new Map<number, number>();
-  for (const wizard of state.wizards) {
-    hpByTeam.set(wizard.team, (hpByTeam.get(wizard.team) ?? 0) + wizard.hp);
-  }
-  const best = Math.max(...hpByTeam.values());
-  const leaders = [...hpByTeam].filter(([, hp]) => hp === best);
-  return leaders.length === 1 ? (leaders[0]?.[0] ?? -1) : -1;
+  return null;
 }
 
 /** Pone de pie a un caído con cierta vida. */

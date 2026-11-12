@@ -209,13 +209,16 @@ export const GAME_RULES: GameRules = {
     // Mejor de 3, con tope de 5 por si hay empates.
     roundsToWin: 2,
     maxRounds: 5,
-    // 3 minutos: Caza hasta el 1, Convergencia hasta el 2 y Duelo final hasta el 3.
+    // Caza hasta el minuto 1, Convergencia hasta el 2 y Duelo final hasta el 3; después,
+    // muerte súbita. La ronda no se acaba por tiempo: dura lo que dure el combate.
     durationTicks: 3 * 60 * 30,
     huntEndTick: 1 * 60 * 30,
     convergenceEndTick: 2 * 60 * 30,
     convergenceRadius: 14,
     finalRadius: 4,
     zoneDamagePerSecond: 12,
+    // Muerte súbita: la zona se cierra del todo en 20 s y quema 4 más por cada segundo.
+    suddenDeath: { shrinkTicks: 20 * 30, damageRampPerSecond: 4 },
   },
   // Los proyectiles básicos llegan a 14 m: más allá no tiene sentido apuntar solo.
   aim: { range: 14, lockRange: 20, frontWeight: 0.6 },
