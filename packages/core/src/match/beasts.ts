@@ -5,7 +5,7 @@ import { add, distance, length, normalize, scale, sub, type Vec2, ZERO } from '.
 import type { BeastStats, GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { placeInArena } from './obstacles';
-import { enemiesOf, isAlive, isHiddenFrom, wizardById } from './queries';
+import { enemiesOf, isAlive, isHiddenFromServantsOf, wizardById } from './queries';
 import { withRng } from './random';
 import type { Beast, EntityId, MatchState, Wizard } from './state';
 
@@ -232,7 +232,7 @@ function updateTamed(
   let best = 12;
   for (const enemy of enemiesOf(state, tamer)) {
     const d = distance(enemy.pos, beast.pos);
-    if (d < best && !isHiddenFrom(enemy, tamer, rules)) {
+    if (d < best && !isHiddenFromServantsOf(enemy, tamer, rules)) {
       prey = enemy;
       best = d;
     }

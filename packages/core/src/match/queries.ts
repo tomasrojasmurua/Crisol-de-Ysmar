@@ -17,6 +17,24 @@ export function enemiesOf(state: MatchState, wizard: Wizard): Wizard[] {
  * cerca, y un mago cegado no ve a ningún rival más allá de unos pocos metros.
  */
 export function isHiddenFrom(target: Wizard, viewer: Wizard, rules: GameRules): boolean {
+  if (isConcealedFrom(target, viewer, rules)) return true;
+  if (target.team === viewer.team) return false;
+  if (viewer.statuses.hunting && !target.statuses.unseen) return false;
+  const d = distance(target.pos, viewer.pos);
+  return viewer.statuses.blind !== undefined && d > rules.statuses.blind.sightRadius;
+}
+
+/**
+ * Lo que ven las invocaciones, los orbes y las bestias domadas de un mago: tienen ojos propios,
+ * así que la ceguera de su dueño no las toca, pero el Velo, la Sombra prestada y demás sigilos
+ * del rival las engañan igual que a él.
+ */
+export function isHiddenFromServantsOf(target: Wizard, owner: Wizard, rules: GameRules): boolean {
+  return isConcealedFrom(target, owner, rules);
+}
+
+/** Lo que esconde a un rival por sí mismo, sin contar la vista de quien mira. */
+function isConcealedFrom(target: Wizard, viewer: Wizard, rules: GameRules): boolean {
   if (target.team === viewer.team) return false;
   const t = target.statuses;
   // La Sombra prestada esconde de un solo rival, hasta pegado.
@@ -25,8 +43,7 @@ export function isHiddenFrom(target: Wizard, viewer: Wizard, rules: GameRules): 
   if (viewer.statuses.hunting && !t.unseen) return false;
   const d = distance(target.pos, viewer.pos);
   const close = rules.statuses.veiled.revealRadius;
-  if ((t.veiled || t.shrouded) && d > close) return true;
-  return viewer.statuses.blind !== undefined && d > rules.statuses.blind.sightRadius;
+  return Boolean((t.veiled || t.shrouded) && d > close);
 }
 
 export function nearestEnemy(
