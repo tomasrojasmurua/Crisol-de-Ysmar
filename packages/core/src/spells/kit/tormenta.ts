@@ -5,7 +5,14 @@ import type { MatchState, Wizard } from '../../match/state';
 import { add, clampToCircle, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import { type CastContext, payloadFor, placeZone, summon } from './context';
-import { groundPoint, hitTarget, type SpellTarget, targetInCone, targetPos } from './shared';
+import {
+  groundPoint,
+  hitTarget,
+  placedAt,
+  type SpellTarget,
+  targetInCone,
+  targetPos,
+} from './shared';
 
 /** Paso: un desplazamiento corto hacia donde apuntas. */
 export function castStep(ctx: CastContext): void {
@@ -87,15 +94,15 @@ function nextBounce(
 export function castBlizzard(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.blizzard;
-  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules);
+  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach);
   placeZone(ctx, 'blizzard', spell, clampToCircle(pos, rules.arenaRadius));
 }
 
 /** Pararrayos: un poste delante tuyo que da un rayo al rival más cercano cada tanto. */
 export function castLightningRod(ctx: CastContext): void {
-  const { caster, rules } = ctx;
+  const { rules } = ctx;
   const spell = rules.spells.lightningRod;
-  const pos = placeInArena(add(caster.pos, scale(ctx.aim, spell.distance)), spell.radius, rules);
+  const pos = placeInArena(placedAt(ctx, spell.distance), spell.radius, rules);
   summon(ctx, 'lightningRod', spell, pos, payloadFor(ctx, spell.damage), spell.intervalTicks / 2);
 }
 

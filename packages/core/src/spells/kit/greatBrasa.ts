@@ -9,7 +9,7 @@ export function castMeteor(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.meteor;
   const pos = clampToCircle(
-    groundPoint(state, caster, ctx.aim, spell.range, rules),
+    groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach),
     rules.arenaRadius,
   );
   placeStrike(ctx, pos, spell, 'scorch', payloadFor(ctx, spell.damage, ['burn']));

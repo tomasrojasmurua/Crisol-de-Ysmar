@@ -25,6 +25,8 @@ export interface CastContext {
   readonly rules: GameRules;
   /** Multiplicador extra de daño, como el de salir del Velo. */
   readonly bonus: number;
+  /** Hasta dónde lo dejaste en el suelo, de 0 a 1 (arrastrando ✦); sin esto, como siempre. */
+  readonly reach?: number;
 }
 
 /** Arma el paquete del hechizo con los Glifos, la Esencia y las bendiciones de quien lanza. */

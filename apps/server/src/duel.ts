@@ -715,7 +715,7 @@ function isIntent(value: unknown): value is Intent {
     case 'cancelWeave':
       return true;
     case 'cast':
-      return finite(v.dirX) && finite(v.dirZ);
+      return finite(v.dirX) && finite(v.dirZ) && (v.reach === undefined || finite(v.reach));
     case 'lockTarget':
       return v.targetId === null || finite(v.targetId);
     default:

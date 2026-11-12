@@ -12,7 +12,7 @@ import {
   sub,
 } from '../../math/vec2';
 import { type CastContext, nextId, payloadFor, placeStrike, placeZone } from './context';
-import { groundPoint } from './shared';
+import { groundPoint, placedAt } from './shared';
 
 /** Salpicón: un abanico de agua que moja y frena a todo lo que hay delante. */
 export function castSplash(ctx: CastContext): void {
@@ -45,7 +45,7 @@ export function castSplash(ctx: CastContext): void {
 export function castGeyser(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.geyser;
-  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules);
+  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach);
   placeStrike(
     ctx,
     clampToCircle(pos, rules.arenaRadius),
@@ -93,7 +93,7 @@ export function castIceWall(ctx: CastContext): void {
     id: nextId(state),
     ownerId: caster.id,
     team: caster.team,
-    center: add(caster.pos, scale(ctx.aim, spell.distance)),
+    center: placedAt(ctx, spell.distance),
     along: perpendicular(ctx.aim),
     halfLength: spell.halfLength,
     thickness: spell.thickness,
@@ -107,7 +107,7 @@ export function castIceWall(ctx: CastContext): void {
 
 /** Manantial: una fuente a tus pies que cura a ti y a tus aliados mientras estén dentro. */
 export function castSpring(ctx: CastContext): void {
-  const { caster, rules } = ctx;
+  const { rules } = ctx;
   const spell = rules.spells.spring;
-  placeZone(ctx, 'spring', spell, add(caster.pos, scale(ctx.aim, spell.range)));
+  placeZone(ctx, 'spring', spell, placedAt(ctx, spell.range));
 }

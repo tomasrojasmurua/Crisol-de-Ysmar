@@ -403,6 +403,7 @@ export function castSpell(
   rawAim: Vec2,
   rules: GameRules,
   fromEcho = false,
+  reach?: number,
 ): void {
   // Dentro del Diluvio no se salta ni se teletransporta.
   if (caster.statuses.grounded && MOBILITY.has(spell)) {
@@ -420,8 +421,17 @@ export function castSpell(
   const form = SPELL_FORM_BY_ELEMENT[weave[0] ?? 'brasa'];
   state.events.push({ type: 'release', wizardId: caster.id, form, spell });
   // Con Raíces profundas, todo llega más lejos.
-  const reach = caster.statuses.deepRooted ? farRules(rules) : rules;
-  CASTERS[spell]({ state, caster, spell, weave, aim, rules: reach, bonus });
+  const far = caster.statuses.deepRooted ? farRules(rules) : rules;
+  CASTERS[spell]({
+    state,
+    caster,
+    spell,
+    weave,
+    aim,
+    rules: far,
+    bonus,
+    ...(reach === undefined ? {} : { reach }),
+  });
   afterCast(state, caster, spell, weave, aim, rules, fromEcho);
 }
 

@@ -205,6 +205,11 @@ export interface GameRules {
     readonly castTicksByLength: readonly [number, number, number];
     /** Pasos que un elemento queda cansado después de usarlo. */
     readonly fatigueTicks: number;
+    /**
+     * Al elegir a mano dónde cae un hechizo (arrastrando ✦), si el objetivo queda a esta distancia
+     * del punto elegido, cae justo sobre él: ayuda a apuntar con el pulgar.
+     */
+    readonly aimSnap: number;
   };
   /** Los hechizos propios, cada uno con sus números. */
   readonly spells: SpellRules;

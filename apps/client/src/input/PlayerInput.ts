@@ -11,8 +11,11 @@ export type PlayerAction =
   | { readonly type: 'cancel' }
   /** Entrar en duelo con un rival o una bestia (tocándolo o con el botón); null lo suelta. */
   | { readonly type: 'lock'; readonly targetId: number | null }
-  /** `aim` nulo: tocar sin arrastrar, apunta solo al rival. */
-  | { readonly type: 'cast'; readonly aim: ScreenVector | null };
+  /**
+   * `aim` nulo: tocar sin arrastrar, apunta solo al rival. `reach` (de 0 a 1): hasta dónde
+   * llega un hechizo de suelo, si se mantuvo y arrastró ✦ a propósito.
+   */
+  | { readonly type: 'cast'; readonly aim: ScreenVector | null; readonly reach?: number };
 
 /**
  * Lo que el jugador quiere hacer, en coordenadas de pantalla.
@@ -22,6 +25,8 @@ export class PlayerInput {
   move: ScreenVector = { right: 0, up: 0 };
   /** Dirección que se está arrastrando desde el botón de lanzar, para dibujar la guía. */
   aimPreview: ScreenVector | null = null;
+  /** Hasta dónde llegaría un hechizo de suelo si se suelta ahora (null: como siempre). */
+  reachPreview: number | null = null;
   private queue: PlayerAction[] = [];
   private readonly listeners: ((action: PlayerAction) => void)[] = [];
 

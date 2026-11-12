@@ -13,7 +13,7 @@ import {
   type Vec2,
 } from '../../math/vec2';
 import { type CastContext, nextId, payloadFor, placeZone, summon } from './context';
-import { groundPoint } from './shared';
+import { groundPoint, placedAt } from './shared';
 
 /** Savia: hojas que giran a tu alrededor y te curan de a poco. */
 export function castSap(ctx: CastContext): void {
@@ -48,7 +48,7 @@ export function castRootWall(ctx: CastContext): void {
     id: nextId(state),
     ownerId: caster.id,
     team: caster.team,
-    center: add(caster.pos, scale(ctx.aim, spell.distance)),
+    center: placedAt(ctx, spell.distance),
     along: perpendicular(ctx.aim),
     halfLength: spell.halfLength,
     thickness: spell.thickness,
@@ -124,6 +124,6 @@ export function castMossGuardian(ctx: CastContext): void {
 export function castSpores(ctx: CastContext): void {
   const { state, caster, rules } = ctx;
   const spell = rules.spells.spores;
-  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules);
+  const pos = groundPoint(state, caster, ctx.aim, spell.range, rules, ctx.reach);
   placeZone(ctx, 'spores', spell, clampToCircle(pos, rules.arenaRadius));
 }

@@ -45,7 +45,11 @@ export class HumanController implements Controller {
           break;
         case 'cast': {
           const aim = action.aim ? this.aimToGround(action.aim) : { x: 0, z: 0 };
-          intents.push({ kind: 'cast', dirX: aim.x, dirZ: aim.z });
+          intents.push(
+            action.reach === undefined
+              ? { kind: 'cast', dirX: aim.x, dirZ: aim.z }
+              : { kind: 'cast', dirX: aim.x, dirZ: aim.z, reach: action.reach },
+          );
           break;
         }
       }

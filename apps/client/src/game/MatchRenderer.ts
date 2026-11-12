@@ -13,6 +13,9 @@ import {
   type ElementId,
   type GameRules,
   isSpectre,
+  PLACED_SPELLS,
+  placedShape,
+  spellOf,
   TICK_MS,
   type Vec2,
   type Wizard,
@@ -21,6 +24,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { CameraFocus } from '../camera/CameraRig';
 import type { PlayerInput } from '../input/PlayerInput';
 import type { TouchControls } from '../input/TouchControls';
+import type { AimSpot } from '../render/AimGuide';
 import type { GameScene } from '../render/GameScene';
 import { type WizardLook, WizardView } from '../render/WizardView';
 import type { BlindVeil } from '../ui/BlindVeil';
@@ -226,9 +230,20 @@ export class MatchRenderer {
       duel,
     );
     const aim = this.input.aimPreview;
+    const aimDir = aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null;
     view.aimGuide.update(
       playerPos,
-      aim && player.hp > 0 ? rig.screenToGround(aim.right, aim.up) : null,
+      aimDir,
+      aimDir
+        ? placedSpotFor(
+            player,
+            playerPos,
+            aimDir,
+            this.input.reachPreview,
+            targetPos ?? null,
+            rules,
+          )
+        : null,
     );
 
     ui.controls.render(current.present?.(player) ?? player, rules, isSpectre(state, player));
@@ -252,6 +267,31 @@ export class MatchRenderer {
     ui.comboCallouts.update(camera, wizardPos, delta);
     ui.minimap.update(state, player, forward, seen, badges, time);
   }
+}
+
+/**
+ * Dónde caería el hechizo de suelo que estás tejiendo si sueltas ✦ ahora, igual que lo calcula
+ * la simulación: al alcance elegido o, si el objetivo queda cerca de ese punto, sobre él.
+ */
+function placedSpotFor(
+  player: Wizard,
+  from: Vec2,
+  direction: Vec2,
+  reach: number | null,
+  targetPos: Vec2 | null,
+  rules: GameRules,
+): AimSpot | null {
+  if (reach === null) return null;
+  const spell = spellOf(player.weave);
+  if (!spell || !PLACED_SPELLS.has(spell)) return null;
+  const { range, radius } = placedShape(spell, rules);
+  const chosen = {
+    x: from.x + direction.x * range * reach,
+    z: from.z + direction.z * range * reach,
+  };
+  const snapped =
+    targetPos && Math.hypot(targetPos.x - chosen.x, targetPos.z - chosen.z) <= rules.weave.aimSnap;
+  return { pos: snapped ? targetPos : chosen, radius };
 }
 
 /** Un tejido falso, que cambia cada segundo y medio, igual en todas las pantallas. */

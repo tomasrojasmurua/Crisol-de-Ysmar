@@ -546,7 +546,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('meteor'), s('swap')],
     detail: 'Meteoro sobre ti y cambias de lugar justo antes de que caiga.',
-    unverified: true,
   },
   {
     id: 'doble-cielo',
@@ -674,7 +673,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('carnivore'), s('swap')],
     detail: 'Te paras junto a la planta, cambias de lugar y él queda al lado de su boca.',
-    unverified: true,
   },
 
   // ---------- En equipo (segunda tanda) ----------

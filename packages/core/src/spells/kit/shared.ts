@@ -13,6 +13,7 @@ import type {
 import { add, distance, dot, length, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import type { SpellId } from '../catalog';
+import type { CastContext } from './context';
 import { touchTriggers } from './greatFieldUpdates';
 import { damageSummon } from './summons';
 
@@ -148,9 +149,16 @@ export function groundPoint(
   aim: Vec2,
   range: number,
   rules: GameRules,
+  reach?: number,
 ): Vec2 {
   // El mismo blanco que el disparo automático: mago o bestia.
   const target = autoTarget(state, caster, rules);
+  if (reach !== undefined) {
+    // Elegido a mano: cae donde dejaste el punto, o sobre el objetivo si quedó muy cerca.
+    const chosen = add(caster.pos, scale(aim, range * reach));
+    if (target && distance(target.pos, chosen) <= rules.weave.aimSnap) return target.pos;
+    return chosen;
+  }
   if (target) {
     const offset = sub(target.pos, caster.pos);
     if (length(offset) <= range && dot(normalize(offset), aim) > 0.9) {
@@ -158,4 +166,12 @@ export function groundPoint(
     }
   }
   return add(caster.pos, scale(aim, range));
+}
+
+/**
+ * Dónde queda algo que se deja a una distancia fija delante (muros, invocaciones, la Fuente):
+ * arrastrando ✦ se puede dejar más cerca, nunca más lejos.
+ */
+export function placedAt(ctx: CastContext, distance: number): Vec2 {
+  return add(ctx.caster.pos, scale(ctx.aim, distance * (ctx.reach ?? 1)));
 }
