@@ -278,13 +278,13 @@ export const COMBOS: readonly Combo[] = [
     detail: 'Hervidero bajo tus pies e Intercambio: él queda hirviendo.',
   },
   {
-    id: 'jaula-prestada',
-    name: 'Jaula prestada',
-    level: 3,
+    id: 'jaula-y-respiro',
+    name: 'Jaula y respiro',
+    level: 2,
     needed: 3,
-    steps: [s('thornRing'), s('swap')],
-    detail: 'Anillo de zarzas a tu alrededor e Intercambio: él queda encerrado.',
-    unverified: true,
+    steps: [s('thornRing'), s('sap')],
+    detail:
+      'Encierras al rival en el Anillo de zarzas: si sale, se quema. Mientras tanto te alejas y te curas con la Savia.',
   },
   {
     id: 'abrazo-ardiente',
@@ -364,7 +364,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('shortCircuit'), s('nightmare')],
     detail: 'Si teje cerca, pierde el hechizo, queda aturdido 1 s y lo duermes.',
-    unverified: true,
   },
   {
     id: 'abrazo-del-rio',
@@ -469,9 +468,8 @@ export const COMBOS: readonly Combo[] = [
     name: 'Orbe y cadena',
     level: 2,
     needed: 3,
-    steps: [s('erraticOrb'), s('shackle')],
-    detail: 'Atado en el camino del orbe, no puede apartarse.',
-    unverified: true,
+    steps: [s('shackle'), s('erraticOrb')],
+    detail: 'Lo atas con el Grillete y le mandas el orbe encima: si se aparta, queda enraizado.',
   },
   {
     id: 'quieto-o-quemado',
@@ -593,13 +591,13 @@ export const COMBOS: readonly Combo[] = [
     detail: 'Copias su hechizo y se lo devuelves.',
   },
   {
-    id: 'iman-y-espejo',
-    name: 'Imán y espejo',
+    id: 'escudo-y-hoguera',
+    name: 'Escudo y hoguera',
     level: 3,
     needed: 3,
-    steps: [s('waterMirror'), s('humanRod')],
-    detail: 'Atraes sus proyectiles y el espejo se los devuelve.',
-    unverified: true,
+    steps: [s('humanRod'), s('immolation')],
+    detail:
+      'El Pararrayos convierte en escudo los proyectiles que te lanzan; con ese escudo te metes entre ellos ardiendo y te curas con el fuego.',
   },
   {
     id: 'tormenta-de-vuelta',
@@ -608,7 +606,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 3,
     steps: [s('abyssWail'), s('humanRod')],
     detail: 'Atraes sus proyectiles, quedan flotando y salen hacia él ya tuyos.',
-    unverified: true,
   },
 
   // ---------- Rematar y sobrevivir ----------
@@ -627,7 +624,6 @@ export const COMBOS: readonly Combo[] = [
     needed: 5,
     steps: [s('vengeance'), s('rewind')],
     detail: 'Al bajar de 20%, él recibe 45 y tú vuelves a la vida que tenías hace 3 s.',
-    unverified: true,
   },
   {
     id: 'corona-de-fuego',
@@ -700,7 +696,6 @@ export const COMBOS: readonly Combo[] = [
     steps: [s('sacrifice'), s('transfusion')],
     detail: 'Le das vida a tu aliado y luego le cambias el porcentaje al rival.',
     team: true,
-    unverified: true,
   },
   {
     id: 'escudo-compartido',
@@ -710,7 +705,6 @@ export const COMBOS: readonly Combo[] = [
     steps: [s('graft'), s('bubble')],
     detail: 'El daño se reparte y la burbuja absorbe la parte de los dos.',
     team: true,
-    unverified: true,
   },
 ];
 
@@ -723,14 +717,43 @@ export const COMBOS: readonly Combo[] = [
  * - `reaction`: sale esa reacción, tuya, después del último paso.
  * - `cast`: basta con lanzar el último paso (cuando el remate no es un golpe: invocar, cambiar
  *   de lugar, volver atrás).
+ * - `status`: un rival recibe el estado `status` después del último paso (cuando el remate es
+ *   un estado sin daño, como dormirlo).
  */
 export interface ComboDetect {
-  readonly finish?: 'hit' | 'reaction' | 'cast';
+  readonly finish?: 'hit' | 'reaction' | 'cast' | 'status';
   readonly status?: StatusId;
   readonly reaction?: ComboId;
   /** El remate es un hilo que quita de a poco (Drenaje): cuenta cualquier golpe, por chico. */
   readonly trickle?: true;
+  /** Lo que además tiene que cumplirse para que el combo cuente (ver `ComboCheck`). */
+  readonly check?: ComboCheck;
+  /** Plazo propio para el remate, en segundos, si tarda más que `finishWindow`. */
+  readonly window?: number;
 }
+
+/**
+ * Condiciones propias de algunos combos, que el detector revisa en la partida:
+ * - `shackledOrb`: el rival tiene tu Grillete y tu Orbe errático lo está alcanzando.
+ * - `sleepWhileStunned`: el rival se duerme estando aturdido (la Pesadilla no hace daño).
+ * - `priorBigHit`: entre el primer paso y el último le hiciste un golpe de 40 o más (los 45 de
+ *   la Venganza).
+ * - `selfGain`: tu vida sube con el último paso (la Transfusión de verdad te cambió el
+ *   porcentaje).
+ * - `sharedShield`: te pegan y la burbuja de tu aliado injertado absorbe su parte.
+ * - `seedOnAlly`: la Semilla de fuego que explota la llevaba un aliado, no tú.
+ * - `ringActive`: te curas mientras tu Anillo de zarzas sigue en pie.
+ * - `selfShield`: tenías escudo cuando tu fuego lo alcanzó.
+ */
+export type ComboCheck =
+  | 'shackledOrb'
+  | 'sleepWhileStunned'
+  | 'priorBigHit'
+  | 'selfGain'
+  | 'sharedShield'
+  | 'seedOnAlly'
+  | 'ringActive'
+  | 'selfShield';
 
 /** Plazos del detector, en segundos. */
 export const COMBO_TIMING = {
@@ -766,17 +789,25 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'grito-y-lanza': { status: 'silenced' },
   'lluvia-a-ciegas': { status: 'blind' },
   'caer-con-el-meteoro': { finish: 'cast' },
-  'venganza-y-regreso': { finish: 'cast' },
+  'venganza-y-regreso': { finish: 'cast', check: 'priorBigHit' },
   'puerta-propia': { finish: 'cast' },
   'gemelo-abonado': { finish: 'cast' },
   'guardian-abonado': { finish: 'cast' },
   'separar-a-los-enlazados': { finish: 'cast' },
-  'sacrificio-y-transfusion': { finish: 'cast' },
-  'escudo-compartido': { finish: 'cast' },
+  'sacrificio-y-transfusion': { finish: 'cast', check: 'selfGain' },
+  // Remata cuando te pegan y la burbuja de tu aliado absorbe su parte.
+  'escudo-compartido': { finish: 'hit', check: 'sharedShield' },
+  apagon: { finish: 'status', status: 'asleep', check: 'sleepWhileStunned' },
+  'orbe-y-cadena': { check: 'shackledOrb', trickle: true },
+  'aliado-bomba': { check: 'seedOnAlly' },
+  'jaula-y-respiro': { finish: 'cast', check: 'ringActive' },
+  'escudo-y-hoguera': { check: 'selfShield', trickle: true },
+  // El Llanto suelta los proyectiles recién al terminar (5 s).
+  'tormenta-de-vuelta': { window: 7 },
 };
 
 /**
- * Los que el detector todavía no puede distinguir de otra jugada parecida: Aliado bomba se ve
- * igual que poner la Semilla de fuego sobre ti mismo. Quedan en el catálogo, pero no cuentan.
+ * Los que el detector todavía no puede distinguir de otra jugada parecida. Quedan en el
+ * catálogo, pero no cuentan.
  */
-export const COMBO_UNDETECTABLE: ReadonlySet<string> = new Set(['aliado-bomba']);
+export const COMBO_UNDETECTABLE: ReadonlySet<string> = new Set();

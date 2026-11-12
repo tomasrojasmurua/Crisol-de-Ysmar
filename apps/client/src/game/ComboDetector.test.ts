@@ -83,6 +83,15 @@ const NEEDS_RIVAL = new Set([
   'bomba-viviente',
   'hambre-y-verdugo',
   'corona-de-fuego',
+  'apagon',
+  'orbe-y-cadena',
+  'tormenta-de-vuelta',
+  'escudo-y-hoguera',
+  'venganza-y-regreso',
+  'sacrificio-y-transfusion',
+  'escudo-compartido',
+  'jaula-y-respiro',
+  'aliado-bomba',
 ]);
 
 describe('ComboDetector en la simulación', () => {
@@ -234,6 +243,150 @@ describe('ComboDetector en la simulación', () => {
       [96, 'meteor'],
     ]);
     expect(found.filter((id) => id === 'doble-cielo')).toHaveLength(1);
+  });
+});
+
+/** Un mago en la escena: su equipo, dónde parte y, si se quiere, con menos vida. */
+interface Spawn {
+  readonly team: number;
+  readonly x: number;
+  readonly z: number;
+  readonly hp?: number;
+}
+/** Qué lanza cada mago (1, 2, 3…) en cada paso, y a quién apunta. */
+type Plan = Record<number, Record<number, readonly [SpellId, number]>>;
+
+/** Escena con varios magos que actúan: tú eres el 1. Devuelve los combos que te salieron. */
+function scene(spawns: readonly Spawn[], plan: Plan, ticks = 300): string[] {
+  const state = createMatch(
+    {
+      seed: 7,
+      deathRule: 'spectre',
+      wizards: spawns.map((p) => ({ team: p.team, spawn: { x: p.x, z: p.z } })),
+    },
+    rules,
+  );
+  spawns.forEach((p, i) => {
+    const wizard = state.wizards[i];
+    if (wizard && p.hp) wizard.hp = p.hp;
+  });
+  const detector = new ComboDetector(1);
+  const found: string[] = [];
+  for (let tick = 0; tick < ticks; tick++) {
+    const intents = new Map<number, Intent[]>();
+    for (const [id, byTick] of Object.entries(plan)) {
+      const action = byTick[tick];
+      if (action) intents.set(Number(id), castAt(state, action[0], Number(id), action[1]));
+    }
+    stepMatch(state, intents, rules);
+    for (const hit of detector.onStep(state.events, state)) found.push(hit.combo.id);
+  }
+  return found;
+}
+
+const me = { team: 0, x: 0, z: 0 };
+
+describe('ComboDetector: combos que piden algo del rival o de un aliado', () => {
+  it('Apagón: el rival teja, el Cortocircuito lo aturde y lo duermes', () => {
+    const found = scene([me, { team: 1, x: 0, z: 5 }], {
+      1: { 0: ['shortCircuit', 2], 27: ['nightmare', 2] },
+      2: { 25: ['spark', 1] },
+    });
+    expect(found).toContain('apagon');
+  });
+
+  it('dormirlo sin el aturdimiento del Cortocircuito no es Apagón', () => {
+    const found = scene([me, { team: 1, x: 0, z: 5 }], {
+      1: { 0: ['shortCircuit', 2], 27: ['nightmare', 2] },
+    });
+    expect(found).not.toContain('apagon');
+  });
+
+  it('Orbe y cadena: atado, los rayos del orbe lo alcanzan', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }], {
+      1: { 0: ['shackle', 2], 20: ['erraticOrb', 2] },
+    });
+    expect(found).toContain('orbe-y-cadena');
+  });
+
+  it('Tormenta de vuelta: dos rivales disparan y sus proyectiles vuelven tuyos', () => {
+    const found = scene(
+      [me, { team: 1, x: -3, z: 7 }, { team: 1, x: 3, z: 7 }],
+      {
+        1: { 0: ['abyssWail', 2], 25: ['humanRod', 2] },
+        2: { 50: ['spark', 1] },
+        3: { 60: ['fireball', 1] },
+      },
+      400,
+    );
+    expect(found).toContain('tormenta-de-vuelta');
+  });
+
+  it('Escudo y hoguera: el Pararrayos te da escudo y entras ardiendo', () => {
+    const found = scene([me, { team: 1, x: 0, z: 2 }], {
+      1: { 0: ['humanRod', 2], 110: ['immolation', 2] },
+      2: { 20: ['spark', 1] },
+    });
+    expect(found).toContain('escudo-y-hoguera');
+  });
+
+  it('Venganza y regreso: bajas de 20%, él recibe 45 y vuelves atrás', () => {
+    const found = scene(
+      [
+        { ...me, hp: 40 },
+        { team: 1, x: 0, z: 6 },
+      ],
+      {
+        1: { 0: ['vengeance', 2], 110: ['rewind', 2] },
+        2: { 25: ['spark', 1] },
+      },
+    );
+    expect(found).toContain('venganza-y-regreso');
+  });
+
+  it('sin los 45 de la Venganza, el Retroceso solo no es combo', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }], {
+      1: { 0: ['vengeance', 2], 110: ['rewind', 2] },
+    });
+    expect(found).not.toContain('venganza-y-regreso');
+  });
+
+  it('Sacrificio y transfusión: le das vida a tu aliado y le cambias el porcentaje al rival', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }, { team: 0, x: 3, z: 0, hp: 100 }], {
+      1: { 0: ['sacrifice', 3], 110: ['transfusion', 2] },
+    });
+    expect(found).toContain('sacrificio-y-transfusion');
+  });
+
+  it('Escudo compartido: te pegan y la burbuja de tu aliado injertado absorbe su parte', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }, { team: 0, x: 3, z: 0 }], {
+      1: { 0: ['graft', 3], 100: ['bubble', 3] },
+      2: { 130: ['spark', 1] },
+    });
+    expect(found).toContain('escudo-compartido');
+  });
+
+  it('Aliado bomba: la Semilla de tu aliado le explota al rival', () => {
+    const found = scene([me, { team: 1, x: 0, z: 5 }, { team: 0, x: 0, z: 3.5 }], {
+      1: { 0: ['emberSeed', 3] },
+      2: { 30: ['claw', 3] },
+    });
+    expect(found).toContain('aliado-bomba');
+  });
+
+  it('la Semilla puesta en ti no es Aliado bomba', () => {
+    const found = scene([me, { team: 1, x: 0, z: 2 }], {
+      1: { 0: ['emberSeed', 2] },
+      2: { 30: ['claw', 1] },
+    });
+    expect(found).not.toContain('aliado-bomba');
+  });
+
+  it('Jaula y respiro: te curas mientras él sigue encerrado en las zarzas', () => {
+    const found = scene([me, { team: 1, x: 0, z: 6 }], {
+      1: { 0: ['thornRing', 2], 110: ['sap', 1] },
+    });
+    expect(found).toContain('jaula-y-respiro');
   });
 });
 

@@ -26,6 +26,7 @@ export {
   COMBO_UNDETECTABLE,
   COMBOS,
   type Combo,
+  type ComboCheck,
   type ComboDetect,
   type ComboStep,
 } from './combos';

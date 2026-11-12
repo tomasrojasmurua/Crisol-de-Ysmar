@@ -4,6 +4,7 @@ import {
   COMBO_UNDETECTABLE,
   COMBOS,
   type Combo,
+  type ComboDetect,
   type ComboStep,
 } from '@crisol/content';
 import {
@@ -32,9 +33,17 @@ interface Release {
 /** Un combo con todos sus pasos lanzados que espera su remate. */
 interface Pending {
   readonly combo: Combo;
+  readonly detect: ComboDetect;
   readonly finisher: EntityId;
   readonly casters: ReadonlySet<EntityId>;
   readonly deadline: number;
+}
+
+/** Cómo estaba cada mago al terminar el paso anterior de la simulación. */
+interface Snapshot {
+  readonly statuses: ReadonlySet<StatusId>;
+  readonly hp: number;
+  readonly shield: number;
 }
 
 /** Los combos de hechizos que el detector sabe reconocer (las reacciones van por su evento). */
@@ -42,6 +51,10 @@ const DETECTABLE = COMBOS.filter((c) => !c.reaction && !COMBO_UNDETECTABLE.has(c
 const MAX_STEPS = Math.max(...DETECTABLE.map((c) => c.steps.length));
 const MAX_GAP = Math.round(COMBO_TIMING.maxGap * TICK_RATE);
 const FINISH_WINDOW = Math.round(COMBO_TIMING.finishWindow * TICK_RATE);
+/** Un golpe así de grande entre pasos es el de la Venganza (45). */
+const BIG_HIT = 40;
+/** Hasta dónde se acepta que un golpe sea de los rayos del Orbe errático (dan a 4 m). */
+const ORB_REACH = 5;
 
 /** Combos de equipo con un paso del aliado: los pasos los ponen dos magos distintos. */
 const isTeamPlay = (combo: Combo): boolean => combo.steps.some((s) => s.ally);
@@ -54,23 +67,23 @@ function stepMatches(step: ComboStep, spell: SpellId): boolean {
 
 /**
  * Reconoce en partida los combos de hechizos del catálogo, leyendo solo los eventos que la
- * simulación ya emite (`release`, `hit`, `combo`) y los estados de los magos: no agrega nada a
- * la red. Los pasos son los hechizos que lanza el jugador en orden, sin otro hechizo suyo entre
- * medio y sin pasar `maxGap` entre uno y otro; después tiene que llegar el remate (ver
- * `COMBO_DETECT`). En los combos con paso de aliado, ese paso lo lanza un compañero.
+ * simulación ya emite (`cast`, `release`, `hit`, `combo`) y cómo quedan los magos: no agrega
+ * nada a la red. Los pasos son los hechizos que lanza el jugador en orden, sin otro hechizo
+ * suyo entre medio y sin pasar `maxGap` entre uno y otro; después tiene que llegar el remate
+ * (ver `COMBO_DETECT`). En los combos con paso de aliado, ese paso lo lanza un compañero.
  */
 export class ComboDetector {
   /** Hechizos recientes de tu equipo, del más viejo al más nuevo. */
   private releases: Release[] = [];
   private pending: Pending[] = [];
-  /** Los estados de cada mago al terminar el paso anterior: así se ve si dormía antes del golpe. */
-  private statusesBefore = new Map<EntityId, ReadonlySet<StatusId>>();
+  private before = new Map<EntityId, Snapshot>();
   /**
    * Quiénes terminaron de tejer y todavía no sueltan el hechizo. Un `release` sin tejido antes
    * es una repetición (el segundo meteoro del Eco ardiente) y no cuenta como paso.
    */
   private woven = new Set<EntityId>();
-
+  /** Cuándo hizo cada mago de tu equipo su último golpe grande (ver `priorBigHit`). */
+  private bigHits = new Map<EntityId, number>();
   private readonly sequences: readonly Combo[];
 
   /**
@@ -87,8 +100,9 @@ export class ComboDetector {
   reset(): void {
     this.releases = [];
     this.pending = [];
-    this.statusesBefore.clear();
+    this.before.clear();
     this.woven.clear();
+    this.bigHits.clear();
   }
 
   /** Procesa un paso de la partida y devuelve los combos del jugador que salieron. */
@@ -97,6 +111,10 @@ export class ComboDetector {
     const teamOf = new Map(state.wizards.map((w) => [w.id, w.team]));
     const myTeam = teamOf.get(this.playerId);
     const hits: ComboHit[] = [];
+    const succeed = (pending: Pending, targetId: EntityId): void => {
+      this.pending = this.pending.filter((p) => p !== pending);
+      if (pending.casters.has(this.playerId)) hits.push({ combo: pending.combo, targetId });
+    };
     this.pending = this.pending.filter((p) => p.deadline >= tick);
 
     for (const event of events) {
@@ -110,58 +128,168 @@ export class ComboDetector {
         this.releases.push({ wizardId: event.wizardId, spell: event.spell, tick });
         this.releases = this.releases.slice(-MAX_STEPS * 4);
         for (const combo of this.sequences) {
-          const casters = this.matchSteps(combo);
-          if (!casters) continue;
-          if ((COMBO_DETECT[combo.id]?.finish ?? 'hit') === 'cast') {
-            if (casters.has(this.playerId)) hits.push({ combo, targetId: event.wizardId });
-          } else {
-            this.pending.push({
-              combo,
-              finisher: event.wizardId,
-              casters,
-              deadline: tick + FINISH_WINDOW,
-            });
-          }
-        }
-      } else if (event.type === 'hit' || event.type === 'combo') {
-        const targetTeam = teamOf.get(event.targetId);
-        if (targetTeam === undefined || targetTeam === myTeam) continue;
-        for (const pending of [...this.pending]) {
-          if (pending.finisher !== event.sourceId) continue;
-          const detect = COMBO_DETECT[pending.combo.id] ?? {};
-          const finish = detect.finish ?? 'hit';
-          if (event.type === 'hit' && finish !== 'hit') continue;
-          if (event.type === 'hit' && event.amount < COMBO_TIMING.minHit && !detect.trickle) {
-            continue;
-          }
+          const matched = this.matchSteps(combo);
+          if (!matched) continue;
+          const detect = COMBO_DETECT[combo.id] ?? {};
           if (
-            event.type === 'combo' &&
-            (finish !== 'reaction' || detect.reaction !== event.combo)
+            detect.check === 'priorBigHit' &&
+            (this.bigHits.get(event.wizardId) ?? -1) < matched.firstTick
           ) {
             continue;
           }
-          if (detect.status && !this.statusesBefore.get(event.targetId)?.has(detect.status)) {
-            continue;
+          const pending: Pending = {
+            combo,
+            detect,
+            finisher: event.wizardId,
+            casters: matched.casters,
+            deadline:
+              tick + (detect.window ? Math.round(detect.window * TICK_RATE) : FINISH_WINDOW),
+          };
+          if ((detect.finish ?? 'hit') !== 'cast') {
+            this.pending.push(pending);
+          } else if (this.castHolds(pending, state) && matched.casters.has(this.playerId)) {
+            hits.push({ combo, targetId: event.wizardId });
           }
-          this.pending = this.pending.filter((p) => p !== pending);
-          if (pending.casters.has(this.playerId)) {
-            hits.push({ combo: pending.combo, targetId: event.targetId });
+        }
+      } else if (event.type === 'hit') {
+        const sourceTeam = teamOf.get(event.sourceId);
+        const targetTeam = teamOf.get(event.targetId);
+        if (targetTeam === undefined) continue;
+        if (sourceTeam === myTeam && targetTeam !== myTeam && event.amount >= BIG_HIT) {
+          this.bigHits.set(event.sourceId, tick);
+        }
+        for (const pending of [...this.pending]) {
+          if (this.hitFinishes(pending, event, targetTeam === myTeam, state)) {
+            succeed(pending, event.targetId);
           }
+        }
+      } else if (event.type === 'combo') {
+        const targetTeam = teamOf.get(event.targetId);
+        if (targetTeam === undefined || targetTeam === myTeam) continue;
+        for (const pending of [...this.pending]) {
+          const { finish, reaction } = pending.detect;
+          if (pending.finisher !== event.sourceId) continue;
+          if (finish === 'reaction' && reaction === event.combo) succeed(pending, event.targetId);
         }
       }
     }
 
-    this.statusesBefore = new Map(
-      state.wizards.map((w) => [w.id, new Set(Object.keys(w.statuses) as StatusId[])]),
+    // Remates que son un estado sin daño (dormirlo): se ven comparando con el paso anterior.
+    for (const pending of [...this.pending]) {
+      const status = pending.detect.status;
+      if (pending.detect.finish !== 'status' || !status) continue;
+      const victim = state.wizards.find(
+        (w) =>
+          w.team !== myTeam &&
+          w.statuses[status] !== undefined &&
+          !this.before.get(w.id)?.statuses.has(status),
+      );
+      if (!victim) continue;
+      if (
+        pending.detect.check === 'sleepWhileStunned' &&
+        victim.statuses.stunned === undefined &&
+        !this.before.get(victim.id)?.statuses.has('stunned')
+      ) {
+        continue;
+      }
+      succeed(pending, victim.id);
+    }
+
+    this.before = new Map(
+      state.wizards.map((w) => [
+        w.id,
+        {
+          statuses: new Set(Object.keys(w.statuses) as StatusId[]),
+          hp: w.hp,
+          shield: w.shield,
+        },
+      ]),
     );
     return dedupe(hits);
   }
 
+  /** Si un golpe remata el combo que espera. `onMyTeam`: el golpeado es de tu equipo. */
+  private hitFinishes(
+    pending: Pending,
+    event: Extract<GameEvent, { type: 'hit' }>,
+    onMyTeam: boolean,
+    state: MatchState,
+  ): boolean {
+    const detect = pending.detect;
+    if ((detect.finish ?? 'hit') !== 'hit') return false;
+
+    if (detect.check === 'sharedShield') {
+      // Te pegan a ti y la burbuja de tu aliado injertado se come su parte.
+      if (event.targetId !== pending.finisher) return false;
+      const team = state.wizards.find((w) => w.id === pending.finisher)?.team;
+      return state.wizards.some(
+        (w) =>
+          w.id !== pending.finisher &&
+          w.team === team &&
+          w.statuses.grafted !== undefined &&
+          w.shield < (this.before.get(w.id)?.shield ?? 0),
+      );
+    }
+
+    if (onMyTeam || pending.finisher !== event.sourceId) return false;
+    if (event.amount < COMBO_TIMING.minHit && !detect.trickle) return false;
+    if (detect.status && !this.before.get(event.targetId)?.statuses.has(detect.status)) {
+      return false;
+    }
+    switch (detect.check) {
+      case 'shackledOrb':
+        return this.shackledOrb(pending.finisher, event.targetId, state);
+      case 'seedOnAlly':
+        // La Semilla la llevaba un aliado (no tú) y se gastó al explotar.
+        return state.wizards.some(
+          (w) =>
+            w.id !== pending.finisher &&
+            this.before.get(w.id)?.statuses.has('emberSeed') === true &&
+            w.statuses.emberSeed === undefined,
+        );
+      case 'selfShield':
+        return (this.before.get(pending.finisher)?.shield ?? 0) > 0;
+      default:
+        return true;
+    }
+  }
+
+  /** Para los remates `cast`: lo que además tiene que cumplirse al lanzar el último paso. */
+  private castHolds(pending: Pending, state: MatchState): boolean {
+    const me = state.wizards.find((w) => w.id === pending.finisher);
+    switch (pending.detect.check) {
+      case 'selfGain':
+        return me !== undefined && me.hp > (this.before.get(me.id)?.hp ?? me.hp);
+      case 'ringActive':
+        return state.spells.some((s) => s.kind === 'thornRing' && s.ownerId === pending.finisher);
+      default:
+        return true;
+    }
+  }
+
+  /** El rival tiene tu Grillete y tu Orbe errático pasa a su lado. */
+  private shackledOrb(ownerId: EntityId, targetId: EntityId, state: MatchState): boolean {
+    const target = state.wizards.find((w) => w.id === targetId);
+    if (!target) return false;
+    const shackled = state.spells.some(
+      (s) => s.kind === 'shackle' && s.ownerId === ownerId && s.targetId === targetId,
+    );
+    const orbNear = state.spells.some(
+      (s) =>
+        s.kind === 'sweeper' &&
+        s.mode === 'orb' &&
+        s.ownerId === ownerId &&
+        Math.hypot(s.pos.x - target.pos.x, s.pos.z - target.pos.z) <= ORB_REACH,
+    );
+    return shackled && orbNear;
+  }
+
   /**
    * Si los últimos hechizos del equipo completan los pasos del combo, devuelve quiénes los
-   * lanzaron. En un combo de un solo mago cuentan solo los hechizos de quien lanzó el último.
+   * lanzaron y cuándo fue el primero. En un combo de un solo mago cuentan solo los hechizos de
+   * quien lanzó el último.
    */
-  private matchSteps(combo: Combo): Set<EntityId> | null {
+  private matchSteps(combo: Combo): { casters: Set<EntityId>; firstTick: number } | null {
     const last = this.releases[this.releases.length - 1];
     if (!last) return null;
     const team = isTeamPlay(combo);
@@ -183,7 +311,7 @@ export class ComboDetector {
       const ally = window[allyIndex]?.wizardId;
       if (window.some((r, i) => i !== allyIndex && r.wizardId === ally)) return null;
     }
-    return casters;
+    return { casters, firstTick: window[0]?.tick ?? 0 };
   }
 }
 
