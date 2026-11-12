@@ -189,7 +189,10 @@ export class DuelHost {
       return { playerId: back.id, token: back.token };
     }
     if (this.stage.kind !== 'lobby') {
-      this.joinError = 'La partida ya empezó';
+      // Llegó tarde: toma el lugar de un mago de la IA, si queda alguno.
+      const seat = this.takeBotSeat(name, request);
+      if (seat) return seat;
+      this.joinError = 'La partida ya empezó y no quedan lugares';
       return null;
     }
     let id = this.seatOrder().find((n) => !this.slots.has(n));
@@ -222,6 +225,40 @@ export class DuelHost {
     // Si quien mandaba se cortó y no queda nadie más, manda el que llega.
     if (this.hostId === 0 || !this.slots.get(this.hostId)?.connected) this.hostId = id;
     return { playerId: id, token: slot.token };
+  }
+
+  /**
+   * Un amigo que abre el enlace con la partida en marcha (o terminada, esperando la revancha)
+   * toma el lugar de un mago de la IA: sigue con su vida, sus Glifos y su equipo. Antes veía
+   * "La partida ya empezó" y no podía entrar ni para la revancha.
+   */
+  private takeBotSeat(
+    name: string,
+    request: JoinRequest,
+  ): { playerId: number; token: string } | null {
+    const bot = this.seatOrder()
+      .map((id) => this.slots.get(id))
+      .find((s) => s?.bot);
+    if (!bot) return null;
+    const slot: Slot = {
+      ...bot,
+      bot: false,
+      token: this.makeToken(),
+      name: name || bot.name,
+      look: cleanLook(request.look),
+      // La afinidad ya está puesta en el mago de esta ronda: la suya entra desde la próxima.
+      affinity: request.affinity && isElementId(request.affinity) ? request.affinity : bot.affinity,
+      connected: true,
+      away: false,
+      heardAt: this.clock,
+      pending: [],
+      received: 0,
+      acked: 0,
+      rematch: false,
+      leftAt: 0,
+    };
+    this.slots.set(slot.id, slot);
+    return { playerId: slot.id, token: slot.token };
   }
 
   /**

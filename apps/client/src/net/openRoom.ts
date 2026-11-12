@@ -27,6 +27,8 @@ export function openRoom(code: string, profile: NetProfile, deps: RoomDeps): Net
   const { lobby, hud, diagnostics } = deps;
   /** Quién estaba presente la última vez, para avisar cuando alguien se va o vuelve. */
   const seen = new Map<number, boolean>();
+  /** Puestos de la IA: si un amigo llega tarde y toma uno, se avisa que entró (no que volvió). */
+  const bots = new Set<number>();
   // Presente: conectado y con la app a la vista. Si no, la IA juega por él.
   const present = (p: PlayerInfo): boolean => p.connected && !p.away;
   rememberRoom(code);
@@ -44,10 +46,20 @@ export function openRoom(code: string, profile: NetProfile, deps: RoomDeps): Net
             const why = p.connected ? 'se fue un momento' : 'se desconectó';
             hud.announce(`${p.name} ${why}`, 'La IA juega por él', 2.6);
           }
-          if (was === false && present(p)) hud.announce(`${p.name} volvió`, '', 2);
+          if (was === false && present(p)) {
+            hud.announce(
+              bots.has(p.id) ? `${p.name} entró a la partida` : `${p.name} volvió`,
+              '',
+              2,
+            );
+          }
         }
       }
-      for (const p of players) seen.set(p.id, present(p));
+      for (const p of players) {
+        seen.set(p.id, present(p));
+        if (p.bot) bots.add(p.id);
+        else if (present(p)) bots.delete(p.id);
+      }
     },
     start: (started) => {
       if (started === deps.current()) deps.onStart(started);

@@ -564,6 +564,16 @@ export class NetMatch implements MatchView {
   private receive(message: ServerMessage): void {
     switch (message.type) {
       case 'welcome':
+        if (this.started && message.lobby) {
+          // Volviste tras un corte, pero la Sala amaneció vacía: se reinició y la partida se perdió.
+          // Antes quedabas mirando una partida congelada sin saber por qué.
+          this.listener.problem(
+            'La sala se reinició y la partida se perdió. Vuelve al menú desde Pausa y creen otra sala.',
+            true,
+          );
+          this.close();
+          return;
+        }
         this.playerId = message.playerId;
         this.token = message.token;
         return;

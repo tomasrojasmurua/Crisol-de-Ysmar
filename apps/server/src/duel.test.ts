@@ -276,12 +276,34 @@ describe('Salas de más de dos y ajustes', () => {
     expect(duel.state?.tick).toBeGreaterThan(20);
   });
 
-  it('con la partida empezada no entra nadie ni cambian los ajustes', () => {
+  it('con la partida empezada no cambian los ajustes, y quien llega tarde toma un mago de la IA', () => {
     const duel = room();
     duel.begin(1);
-    expect(duel.join({ name: 'Tarde' })).toBeNull();
-    expect(duel.joinError).toBe('La partida ya empezó');
     expect(duel.configure(1, teams2)).toBeNull();
+    // En el 1 vs 1 de room() el puesto 2 es de la IA: el que llega tarde lo toma.
+    const late = duel.join({ name: 'Tarde' });
+    expect(late?.playerId).toBe(2);
+    const seat = duel.players.find((p) => p.id === 2);
+    expect(seat).toMatchObject({ name: 'Tarde', bot: false, connected: true });
+    // Ya no quedan magos de la IA: el siguiente no entra.
+    expect(duel.join({ name: 'Otro' })).toBeNull();
+    expect(duel.joinError).toBe('La partida ya empezó y no quedan lugares');
+  });
+
+  it('quien llega tarde juega con el mago que tomó y puede pedir la revancha', () => {
+    const duel = room();
+    duel.begin(1);
+    for (let i = 0; i < 10; i++) duel.tick();
+    const late = duel.join({ name: 'Tarde' });
+    expect(late).not.toBeNull();
+    // Sus toques mueven a ese mago (ya no lo maneja la IA).
+    const before = duel.state?.wizards.find((w) => w.id === 2)?.pos.x ?? 0;
+    for (let i = 0; i < 20; i++) {
+      duel.intents(2, [{ kind: 'move', x: 1, z: 0 }], i + 1);
+      duel.tick();
+    }
+    const after = duel.state?.wizards.find((w) => w.id === 2)?.pos.x ?? 0;
+    expect(after).toBeGreaterThan(before);
   });
 
   it('si se va quien creó la sala antes de empezar, manda el siguiente', () => {
