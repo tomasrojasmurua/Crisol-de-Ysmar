@@ -2,6 +2,7 @@ import { REACTION_TEXT } from '@crisol/content';
 import type { ComboId, Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 import { el } from './dom';
+import { viewportSize } from './viewport';
 
 const LIFE_SECONDS = 1.3;
 /** Altura del aviso sobre el suelo, por encima del tejido. */
@@ -92,8 +93,9 @@ export class ComboCallouts {
       const t = callout.age / LIFE_SECONDS;
       this.projected.set(pos.x, callout.height + callout.lift + t * 0.8, pos.z).project(camera);
       const behind = this.projected.z > 1;
-      const x = ((this.projected.x + 1) / 2) * window.innerWidth;
-      const y = ((1 - this.projected.y) / 2) * window.innerHeight;
+      const { width, height } = viewportSize();
+      const x = ((this.projected.x + 1) / 2) * width;
+      const y = ((1 - this.projected.y) / 2) * height;
       const scale = t < 0.12 ? 0.6 + (t / 0.12) * 0.5 : 1.1 - Math.min(0.1, (t - 0.12) * 0.3);
       callout.root.style.opacity = behind ? '0' : String(t > 0.7 ? (1 - t) / 0.3 : 1);
       callout.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%) scale(${scale})`;

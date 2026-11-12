@@ -67,6 +67,7 @@ export class AffinityLook {
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           side: THREE.DoubleSide,
+          forceSinglePass: true,
         });
         for (let i = 0; i < 3; i++) {
           const rune = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), runeMaterial);

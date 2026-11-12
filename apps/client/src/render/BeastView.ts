@@ -1,9 +1,18 @@
-import type { Beast, ElementId } from '@crisol/core';
+import type { Beast, ElementId, Vec2 } from '@crisol/core';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ELEMENT_COLORS, elementColor, glow } from './palette';
 
 /** El Guardián es la misma criatura, mucho más grande. */
 const GUARDIAN_SCALE = 2.2;
+/**
+ * Desde esta distancia de la cámara (metros) la bestia se dibuja de lejos: las patas quedan
+ * quietas y fundidas con el cuerpo, una llamada de dibujo en vez de cinco. A esa distancia
+ * mide unos pocos píxeles y entre la niebla no se nota. Vuelve a lo de cerca algo antes,
+ * para que no titile justo en el borde.
+ */
+const FAR_ENTER_M = 26;
+const FAR_LEAVE_M = 22;
 
 /**
  * Una bestia neutral: cuerpo de piedra y sombra con un núcleo que brilla del color de su elemento,
@@ -21,6 +30,10 @@ export class BeastView {
   private lastX = 0;
   private lastZ = 0;
   private readonly shards = new THREE.Group();
+  /** Lo quieto del cuerpo con las patas en reposo, para verla de lejos. */
+  private readonly farSkin: THREE.Mesh | null;
+  private readonly nearSkin: THREE.Mesh[] = [];
+  private far = false;
 
   constructor(
     readonly element: ElementId,
@@ -74,6 +87,28 @@ export class BeastView {
     }
 
     this.addFeature(element, color, glowMaterial);
+    // Cada pieza era una llamada de dibujo y una bestia tenía hasta 15: con 18 bestias en el
+    // mapa eran más de la mitad de lo que dibujaba el celular. Las piezas quietas que comparten
+    // material se funden en una sola malla; se ven idénticas.
+    const still = this.body.children.filter(
+      (child): child is THREE.Mesh => child instanceof THREE.Mesh && !this.moving(child),
+    );
+    const glowParts = still.filter((mesh) => mesh.material === glowMaterial);
+    const skinParts = still.filter((mesh) => mesh.material === this.skin);
+    const glowMesh = fuse(glowParts, glowMaterial);
+    if (glowMesh) this.body.add(glowMesh);
+    const skinMesh = fuse(skinParts, this.skin);
+    if (skinMesh) {
+      skinMesh.castShadow = true;
+      this.body.add(skinMesh);
+      this.nearSkin.push(skinMesh, ...this.legs);
+    }
+    this.farSkin = fuse([...skinParts, ...this.legs], this.skin, false);
+    if (this.farSkin) {
+      this.farSkin.castShadow = true;
+      this.farSkin.visible = false;
+      this.body.add(this.farSkin);
+    }
     this.group.add(this.body);
 
     if (guardian) {
@@ -111,9 +146,19 @@ export class BeastView {
     this.group.add(ring);
   }
 
-  update(beast: Beast, timeSeconds: number, deltaSeconds: number): void {
+  /** `viewer`: dónde está la cámara, para dibujarla con menos detalle si está lejos. */
+  update(beast: Beast, timeSeconds: number, deltaSeconds: number, viewer?: Vec2): void {
     const x = beast.pos.x;
     const z = beast.pos.z;
+    if (viewer && this.farSkin) {
+      const distance = Math.hypot(viewer.x - x, viewer.z - z);
+      const far = this.far ? distance > FAR_LEAVE_M : distance > FAR_ENTER_M;
+      if (far !== this.far) {
+        this.far = far;
+        this.farSkin.visible = far;
+        for (const mesh of this.nearSkin) mesh.visible = !far;
+      }
+    }
     const speed = deltaSeconds > 0 ? Math.hypot(x - this.lastX, z - this.lastZ) / deltaSeconds : 0;
     this.lastX = x;
     this.lastZ = z;
@@ -147,6 +192,11 @@ export class BeastView {
     this.group.removeFromParent();
   }
 
+  /** Lo que se anima por su cuenta (patas y alas) no se funde con el resto. */
+  private moving(mesh: THREE.Mesh): boolean {
+    return this.legs.includes(mesh) || this.wings.includes(mesh);
+  }
+
   private addFeature(element: ElementId, color: THREE.Color, glowMaterial: THREE.Material): void {
     switch (element) {
       case 'brasa': {
@@ -173,6 +223,7 @@ export class BeastView {
           transparent: true,
           opacity: 0.55,
           side: THREE.DoubleSide,
+          forceSinglePass: true,
           depthWrite: false,
         });
         for (const side of [-1, 1]) {
@@ -245,4 +296,30 @@ export class BeastView {
       }
     }
   }
+}
+
+/**
+ * Junta varias piezas del cuerpo en una sola malla, con su posición, giro y escala horneados.
+ * `remove`: si se sacan las originales (las patas de cerca se quedan, para animarlas).
+ */
+function fuse(
+  meshes: readonly THREE.Mesh[],
+  material: THREE.Material,
+  remove = true,
+): THREE.Mesh | null {
+  if (meshes.length === 0) return null;
+  const geometries = meshes.map((mesh) => {
+    mesh.updateMatrix();
+    const source = mesh.geometry;
+    const geometry = source.index ? source.toNonIndexed() : source.clone();
+    for (const name of Object.keys(geometry.attributes)) {
+      if (name !== 'position' && name !== 'normal' && name !== 'uv') geometry.deleteAttribute(name);
+    }
+    return geometry.applyMatrix4(mesh.matrix);
+  });
+  const merged = mergeGeometries(geometries, false);
+  for (const geometry of geometries) geometry.dispose();
+  if (!merged) return null;
+  if (remove) for (const mesh of meshes) mesh.removeFromParent();
+  return new THREE.Mesh(merged, material);
 }

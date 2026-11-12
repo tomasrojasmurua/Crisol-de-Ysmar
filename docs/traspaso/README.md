@@ -144,8 +144,14 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
 3. **Prueba de estrés de la red con 6.** Ya existe un simulador de lag (`apps/client/src/net/LagSimulator.ts`,
    `apps/server/red/`). Correr salas de 6 con 150-300 ms y 5% de pérdida, quien crea la sala con mala
    conexión, reconexiones a mitad de ronda y la app en segundo plano. Arreglar lo que salga.
-4. **Rendimiento en Android de gama media.** Medir con el informe por partida (`MatchPerfLog`) y los
-   gráficos livianos de Pausa; revisar que la resolución adaptativa baje a tiempo en 3v3 y libre de 6.
+4. **Rendimiento en Android de gama media. Hecho** (medido en Chrome sin pantalla con el
+   procesador 4 veces más lento, sin celular): las bestias eran el 60% de lo que se dibujaba y
+   ahora funden sus piezas quietas (y de lejos también las patas); las transparencias de dos caras
+   se dibujaban dos veces; las etiquetas obligaban a recalcular el diseño dos veces por cuadro; la
+   resolución adaptativa no bajaba bajo 10 fps y tardaba ~10 s en llegar a ir fluida. Resultado
+   en 3v3: de ~480 a ~300 llamadas de dibujo y 25% menos trabajo del procesador por cuadro.
+   Detalle en `docs/arquitectura.md`, "Presupuestos de rendimiento". Falta confirmarlo en un
+   Android real con el informe de la partida.
 5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.

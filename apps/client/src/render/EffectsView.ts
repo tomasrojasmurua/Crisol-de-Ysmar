@@ -746,6 +746,7 @@ export class EffectsView {
           depthWrite: false,
           blending: THREE.AdditiveBlending,
           side: THREE.DoubleSide,
+          forceSinglePass: true,
         }),
       );
       this.scene.add(mesh);

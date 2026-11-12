@@ -34,8 +34,38 @@ describe('AdaptiveResolution', () => {
 
   it('baja escalones mientras bajar ayude, hasta llegar a ir fluido', () => {
     const adaptive = new AdaptiveResolution(2);
-    expect(run(adaptive, gpuBound(40), 10)).toEqual([1.75, 1.5, 1.25]);
+    expect(run(adaptive, gpuBound(28), 10)).toEqual([1.75, 1.5]);
+    expect(adaptive.pixelRatio).toBe(1.5);
+  });
+
+  it('bajo 30 cuadros por segundo baja de a dos escalones para llegar antes', () => {
+    const adaptive = new AdaptiveResolution(2);
+    expect(run(adaptive, gpuBound(40), 10)).toEqual([1.5, 1.25]);
     expect(adaptive.pixelRatio).toBe(1.25);
+  });
+
+  it('un celular a menos de 10 cuadros por segundo también baja la resolución', () => {
+    const adaptive = new AdaptiveResolution(2);
+    expect(run(adaptive, gpuBound(160), 20)).toEqual([1.5, 1]);
+  });
+
+  it('un tirón aislado no baja la resolución', () => {
+    const adaptive = new AdaptiveResolution(2);
+    const changes = run(
+      adaptive,
+      (() => {
+        let frame = 0;
+        return () => (++frame % 120 === 0 ? 250 : 16.7);
+      })(),
+      30,
+    );
+    expect(changes).toEqual([]);
+  });
+
+  it('si bajar de a dos no sirve, vuelve a donde estaba', () => {
+    const adaptive = new AdaptiveResolution(2);
+    expect(run(adaptive, 40, 30)).toEqual([1.5, 2]);
+    expect(adaptive.pixelRatio).toBe(2);
   });
 
   it('no cambia nada a 60 cuadros por segundo', () => {

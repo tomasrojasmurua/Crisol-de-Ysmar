@@ -158,6 +158,7 @@ export class WizardView {
       new THREE.MeshBasicMaterial({
         color: glow(new THREE.Color('#9effc8'), 1.8),
         side: THREE.DoubleSide,
+        forceSinglePass: true,
       }),
     );
     this.reviveRing.rotation.x = -Math.PI / 2;

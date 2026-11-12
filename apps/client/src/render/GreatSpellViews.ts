@@ -41,6 +41,7 @@ function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial 
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
   });
 }
 
@@ -296,6 +297,7 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
         depthWrite: false,
         roughness: 0.3,
         side: THREE.DoubleSide,
+        forceSinglePass: true,
       }),
     );
     wave.rotation.z = Math.PI / 2;

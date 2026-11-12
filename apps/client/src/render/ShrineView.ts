@@ -46,6 +46,7 @@ export class ShrineView {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.25, 0.5, 12, 16, 1, true),
@@ -72,6 +73,7 @@ export class ShrineView {
       opacity: 0.85,
       depthWrite: false,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     this.progress = new THREE.Mesh(
       new THREE.RingGeometry(radius - 0.35, radius - 0.12, SEGMENTS, 1, Math.PI / 2, Math.PI * 2),

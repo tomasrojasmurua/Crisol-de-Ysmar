@@ -27,6 +27,8 @@ export class CreatureViews {
     teamColor: (team: number) => string,
     timeSeconds: number,
     deltaSeconds: number,
+    /** Dónde está la cámara: las bestias lejanas se dibujan con menos detalle. */
+    viewer?: Vec2,
   ): void {
     const alive = new Set<number>();
     for (const beast of state.beasts) {
@@ -37,7 +39,7 @@ export class CreatureViews {
         this.beasts.set(beast.id, view);
         this.scene.add(view.group);
       }
-      view.update(beast, timeSeconds, deltaSeconds);
+      view.update(beast, timeSeconds, deltaSeconds, viewer);
       this.lastPositions.set(beast.id, beast.pos);
     }
     for (const shrine of state.shrines) {

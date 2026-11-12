@@ -317,6 +317,7 @@ function createCarnivore(): THREE.Object3D {
     roughness: 0.6,
     flatShading: true,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
   });
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 1.3, 6), stemMaterial);
   stem.position.y = 0.65;

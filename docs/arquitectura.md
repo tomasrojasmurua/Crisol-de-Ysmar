@@ -109,6 +109,21 @@ efectos. Cada sonido tiene una clave que puede reemplazarse por un archivo (ver 
 | Paso de simulación (6 magos)  | < 2 ms    |
 | Memoria de texturas           | < 128 MB  |
 
+Medido en noviembre de 2026 (PR de rendimiento en Android): en 3v3 y en todos contra todos de 6
+se dibujan unas 300 llamadas por cuadro con calidad Alta (antes casi 500), así que el presupuesto
+de 150 todavía no se cumple; lo que más pesa ahora son los magos (15 a 23 piezas cada uno) y las
+sombras. Reglas que lo sostienen:
+
+- **Transparente y de dos caras lleva `forceSinglePass: true`.** Si no, three.js lo dibuja dos
+  veces y recalcula su programa en cada pasada.
+- **Las piezas quietas que comparten material se funden** en una sola malla
+  (`mergeGeometries`), como en las bestias y el bastón de los magos. Las bestias lejanas
+  (más de 26 m) además funden las patas.
+- **Nada lee `window.innerWidth` ni mide el DOM en cada cuadro**: después de mover etiquetas eso
+  obliga a recalcular el diseño. El tamaño de la ventana está en `ui/viewport.ts`.
+- La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
+  cuadros por segundo y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
+
 ## Hitos
 
 0. Cimientos: repositorio, pruebas y publicación.

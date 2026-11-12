@@ -20,6 +20,7 @@ export class CastSigil {
     opacity: 0,
     depthWrite: false,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
     blending: THREE.AdditiveBlending,
   });
   private readonly shapes: Record<SpellFamily, THREE.Object3D>;
