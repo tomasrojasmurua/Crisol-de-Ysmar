@@ -20,6 +20,7 @@ export {
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';
+export { BOT_LEVEL_NAMES, BOT_PROFILES } from './bots';
 export {
   COMBO_DETECT,
   COMBO_TIMING,

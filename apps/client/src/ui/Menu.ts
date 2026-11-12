@@ -1,5 +1,11 @@
-import { ELEMENTS, FEATURES } from '@crisol/content';
-import type { DeathRule, ElementId, GameMode } from '@crisol/core';
+import { BOT_LEVEL_NAMES, ELEMENTS, FEATURES } from '@crisol/content';
+import {
+  BOT_LEVELS,
+  type BotLevel,
+  type DeathRule,
+  type ElementId,
+  type GameMode,
+} from '@crisol/core';
 import type { AudioEngine } from '../audio/AudioEngine';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
@@ -85,6 +91,7 @@ export class Menu {
   private readonly root: HTMLElement;
   private modeId = 'duel';
   private deathRule: DeathRule = 'out';
+  private botLevel: BotLevel = 'duelist';
   private affinity: ElementId | null = null;
   private readonly wizardName: HTMLElement;
   private readonly wizardAffinity: HTMLElement;
@@ -123,6 +130,7 @@ export class Menu {
         <div class="menu-tabs" role="tablist" aria-label="Modo"></div>
         <div class="menu-sizes"></div>
         <div class="menu-rules"></div>
+        <div class="menu-level" aria-label="Dificultad de la IA"></div>
         <button type="button" class="primary menu-play">${MENU_ICONS.star}<span>Entrar al Crisol</span>${MENU_ICONS.star}</button>
         <div class="menu-extra">
           <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con amigos</span></button>
@@ -196,6 +204,18 @@ export class Menu {
       });
       rules.append(button);
     }
+    const levels = query(this.root, '.menu-level');
+    levels.append(el('span', 'menu-level-label', 'IA'));
+    for (const level of BOT_LEVELS) {
+      const button = el('button', 'menu-chip', BOT_LEVEL_NAMES[level]);
+      button.type = 'button';
+      button.dataset.level = level;
+      button.addEventListener('click', () => {
+        this.botLevel = level;
+        this.refresh();
+      });
+      levels.append(button);
+    }
     query(this.root, '.menu-friend').addEventListener('click', onFriend);
     query(this.root, '.menu-training').addEventListener('click', onTraining);
     query(this.root, '.menu-play').addEventListener('click', () => {
@@ -213,6 +233,7 @@ export class Menu {
       // En el 1v1 no hay Vidas: el mejor de 3 ya es la segunda oportunidad.
       deathRule: mode.kind === 'duel' ? 'out' : this.deathRule,
       affinity: this.affinity,
+      botLevel: this.botLevel,
     };
   }
 
@@ -266,6 +287,9 @@ export class Menu {
     );
     const duel = (MODES.find((m) => m.id === this.modeId)?.mode.kind ?? 'duel') === 'duel';
     query(this.root, '.menu-rules').hidden = DEATH_RULES.length < 2 || duel;
+    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-level .menu-chip')) {
+      button.classList.toggle('selected', button.dataset.level === this.botLevel);
+    }
     for (const button of this.root.querySelectorAll<HTMLElement>('.menu-rules .menu-chip')) {
       button.classList.toggle('selected', button.dataset.id === this.deathRule);
     }
@@ -276,10 +300,13 @@ export class Menu {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as {
         modeId?: string;
         deathRule?: string;
+        botLevel?: string;
       };
       if (MODES.some((m) => m.id === saved.modeId) && saved.modeId) this.modeId = saved.modeId;
       const rule = DEATH_RULES.find((r) => r.id === saved.deathRule);
       if (rule) this.deathRule = rule.id;
+      const level = BOT_LEVELS.find((l) => l === saved.botLevel);
+      if (level) this.botLevel = level;
     } catch {
       // Sin almacenamiento (modo privado): se usan los valores por defecto.
     }
@@ -289,7 +316,7 @@ export class Menu {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ modeId: this.modeId, deathRule: this.deathRule }),
+        JSON.stringify({ modeId: this.modeId, deathRule: this.deathRule, botLevel: this.botLevel }),
       );
     } catch {
       // No es grave: solo se pierde el recuerdo de la elección.

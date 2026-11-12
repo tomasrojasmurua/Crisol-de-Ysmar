@@ -1,7 +1,15 @@
-import { AFFINITY_RULES, GLYPHS, type Glyph, OMENS, type Omen } from '@crisol/content';
+import {
+  AFFINITY_RULES,
+  BOT_PROFILES,
+  GLYPHS,
+  type Glyph,
+  OMENS,
+  type Omen,
+} from '@crisol/content';
 import {
   affinityPatch,
   BotController,
+  type BotLevel,
   type Controller,
   combineMods,
   createMatch,
@@ -36,6 +44,8 @@ export interface MatchOptions {
   readonly deathRule: DeathRule;
   /** La Afinidad del jugador, o ninguna. */
   readonly affinity: ElementId | null;
+  /** La dificultad de los magos de la IA. */
+  readonly botLevel: BotLevel;
 }
 
 export type MatchStage =
@@ -213,7 +223,11 @@ export class LocalMatch implements MatchView {
         .filter((w) => w.id !== PLAYER_ID)
         .map((w) => [
           w.id,
-          new BotController((roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0, this.rules),
+          new BotController(
+            (roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0,
+            this.rules,
+            BOT_PROFILES[this.options.botLevel],
+          ),
         ]),
     );
     this.previous.clear();

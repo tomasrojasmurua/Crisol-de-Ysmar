@@ -10,6 +10,7 @@ describe('ajustes de la sala', () => {
       glyphs: false,
       omen: false,
       lives: true,
+      botLevel: 'master',
     };
     expect(cleanRoomSettings(settings)).toEqual(settings);
   });
@@ -25,5 +26,11 @@ describe('ajustes de la sala', () => {
     expect(DEFAULT_ROOM_SETTINGS.lives).toBe(false);
     expect(cleanRoomSettings({ mode: { kind: 'duel' }, lives: true }).lives).toBe(false);
     expect(cleanRoomSettings({ mode: { kind: 'ffa', players: 4 }, lives: true }).lives).toBe(true);
+  });
+
+  it('la dificultad de los bots es Duelista salvo que se elija otra válida', () => {
+    expect(DEFAULT_ROOM_SETTINGS.botLevel).toBe('duelist');
+    expect(cleanRoomSettings({ botLevel: 'apprentice' }).botLevel).toBe('apprentice');
+    expect(cleanRoomSettings({ botLevel: 'dios' }).botLevel).toBe('duelist');
   });
 });

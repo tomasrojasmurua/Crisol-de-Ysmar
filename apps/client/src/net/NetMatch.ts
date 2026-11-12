@@ -129,7 +129,12 @@ export interface NetProfile {
  */
 export class NetMatch implements MatchView {
   /** El modo lo elige quien creó la sala; llega con la lista de jugadores. */
-  options: MatchOptions = { mode: DEFAULT_ROOM_SETTINGS.mode, deathRule: 'out', affinity: null };
+  options: MatchOptions = {
+    mode: DEFAULT_ROOM_SETTINGS.mode,
+    deathRule: 'out',
+    affinity: null,
+    botLevel: DEFAULT_ROOM_SETTINGS.botLevel,
+  };
   /** Los ajustes de la sala (modo, tiempo por ronda, rondas, Glifos, Presagio). */
   settings: RoomSettings = DEFAULT_ROOM_SETTINGS;
   /** Quién manda en la sala de espera (cambia los ajustes y empieza). */
@@ -286,7 +291,7 @@ export class NetMatch implements MatchView {
 
   private useSettings(settings: RoomSettings): void {
     this.settings = settings;
-    this.options = { ...this.options, mode: settings.mode };
+    this.options = { ...this.options, mode: settings.mode, botLevel: settings.botLevel };
     this.rules = rulesForRoom(settings);
   }
 

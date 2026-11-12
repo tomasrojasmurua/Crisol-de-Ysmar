@@ -1,4 +1,10 @@
-export { BotController, type BotProfile, DEFAULT_BOT } from './ai/bot';
+export {
+  BOT_LEVELS,
+  BotController,
+  type BotLevel,
+  type BotProfile,
+  DEFAULT_BOT,
+} from './ai/bot';
 export { canAct } from './combat/statuses';
 export type { Controller, Intent } from './controllers/intent';
 export {

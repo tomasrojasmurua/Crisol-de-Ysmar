@@ -67,7 +67,8 @@ export class TrainingMatch implements MatchView {
         durationTicks: ENDLESS + 2,
       },
     };
-    this.options = { mode: { kind: 'duel' }, deathRule: 'out', affinity };
+    // En el entrenamiento, la IA (cuando la hay) es siempre Aprendiz.
+    this.options = { mode: { kind: 'duel' }, deathRule: 'out', affinity, botLevel: 'apprentice' };
     this.affinities = new Map([
       [PLAYER, affinity],
       [DUMMY, null],

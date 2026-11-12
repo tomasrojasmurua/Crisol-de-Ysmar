@@ -46,6 +46,10 @@ es lo vigente.
   panel que muestra lo que estás tejiendo y qué hace. El Grimorio muestra solo lo descubierto y, al
   tocar un conjuro, qué hace.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
+- **Dificultades de la IA:** Aprendiz, Duelista y Maestro (`packages/content/src/bots.ts`). Cambian
+  qué tan rápido piensan, la puntería, cuánto esquivan proyectiles y avisos en el suelo, si se
+  corren al ver un Gran hechizo, cuánto se repiten y cuánto recuerdan dónde estabas si los ciegan
+  (ninguna se queda quieta). Se eligen en el menú y en la sala; el Entrenamiento usa Aprendiz.
 - **Bestias neutrales** dan Esencia (los familiares quedan para después de probar con gente). **Glifos** entre rondas y
   **Presagios** por partida.
 - **Afinidad:** el elemento elegido se cansa 25% más lento y sus opuestos 15% más rápido; además

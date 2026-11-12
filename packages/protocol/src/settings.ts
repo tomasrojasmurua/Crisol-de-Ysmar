@@ -1,4 +1,4 @@
-import type { GameMode } from '@crisol/core';
+import { BOT_LEVELS, type BotLevel, type GameMode } from '@crisol/core';
 
 /** Lo que elige quien crea la sala, a la vista de todos antes de empezar. */
 export interface RoomSettings {
@@ -13,6 +13,8 @@ export interface RoomSettings {
   readonly omen: boolean;
   /** 3 Vidas por ronda. En el 1v1 no se ofrece: el mejor de 3 ya es la segunda oportunidad. */
   readonly lives: boolean;
+  /** Dificultad de los bots que llenan los puestos libres. */
+  readonly botLevel: BotLevel;
 }
 
 export const ROUND_MINUTES: readonly number[] = [2, 3, 4, 5];
@@ -25,6 +27,7 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   glyphs: true,
   omen: true,
   lives: false,
+  botLevel: 'duelist',
 };
 
 /** Los modos que se pueden jugar en red. */
@@ -60,6 +63,9 @@ export function cleanRoomSettings(raw: unknown): RoomSettings {
     glyphs: typeof source.glyphs === 'boolean' ? source.glyphs : DEFAULT_ROOM_SETTINGS.glyphs,
     omen: typeof source.omen === 'boolean' ? source.omen : DEFAULT_ROOM_SETTINGS.omen,
     lives: source.lives === true && livesAllowed(mode ?? DEFAULT_ROOM_SETTINGS.mode),
+    botLevel: BOT_LEVELS.includes(source.botLevel as BotLevel)
+      ? (source.botLevel as BotLevel)
+      : DEFAULT_ROOM_SETTINGS.botLevel,
   };
 }
 

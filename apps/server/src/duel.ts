@@ -1,5 +1,6 @@
 import {
   AFFINITY_RULES,
+  BOT_PROFILES,
   blindedFrom,
   cleanLook,
   GLYPHS,
@@ -728,7 +729,11 @@ export class DuelHost {
     this.bots = new Map(
       state.wizards.map((w) => [
         w.id,
-        new BotController((roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0, this.rules),
+        new BotController(
+          (roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0,
+          this.rules,
+          BOT_PROFILES[this.settings.botLevel],
+        ),
       ]),
     );
     return state;
