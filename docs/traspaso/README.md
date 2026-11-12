@@ -163,7 +163,8 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 - **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.
 - **Familiares, maestría por elemento, desafíos, rivalidades, hechizos secretos, lore dentro del
   juego:** no existen. Esperan a después de la prueba con amigos.
-- **Audio con ElevenLabs** (unos 40 efectos, una pista por fase, quizás un narrador): no partió.
+- **Audio con ElevenLabs** (37 efectos, una pista por fase y un narrador opcional): prompts listos
+  en [audio-elevenlabs.md](../audio-elevenlabs.md); falta que Tomás traiga los archivos.
 - **Personajes 3D** (Meshy + Mixamo): tercer paso del orden de arte, sin empezar.
 - **Apuntar:** a la guía visual de los hechizos de dirección le ha faltado cariño (lo dijo Tomás).
 - **Glifo de Brasa:** subir un poco la llama interior para despejar la base (ver
