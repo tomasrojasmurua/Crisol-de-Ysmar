@@ -4365,6 +4365,27 @@ body {
   display: inline-flex;
 }
 
+/* El ✦ de las guías: un botón de Lanzar en miniatura, para que se lea como algo que se aprieta. */
+.rich-cast {
+  --icon-size: 0.85em;
+  --icon-color: var(--gold-bright);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45em;
+  height: 1.45em;
+  margin: 0 1px;
+  vertical-align: -0.35em;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: radial-gradient(circle, rgba(243, 223, 176, 0.18), rgba(10, 9, 14, 0.85) 70%);
+  box-shadow: 0 0 6px rgba(243, 223, 176, 0.35);
+}
+
+.rich-cast .icon {
+  filter: drop-shadow(0 0 3px rgba(243, 223, 176, 0.6));
+}
+
 .training-chapter-group {
   grid-column: 1 / -1;
   margin: 8px 0 2px;
