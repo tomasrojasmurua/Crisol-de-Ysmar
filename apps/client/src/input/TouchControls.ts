@@ -1,5 +1,6 @@
 import { ELEMENTS, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, type GameRules, isElementId, type Wizard } from '@crisol/core';
+import type { HudPart } from '../game/Tutorial';
 import { el } from '../ui/dom';
 import { CAST_ICON, DUEL_ICON, elementIcon, UNDO_ICON } from '../ui/icons';
 import type { PlayerInput } from './PlayerInput';
@@ -35,6 +36,8 @@ export class TouchControls {
   private pad: HTMLElement | null = null;
   private castButton: HTMLButtonElement | null = null;
   private duelButton: HTMLButtonElement | null = null;
+  private cancelButton: HTMLButtonElement | null = null;
+  private slotRow: HTMLElement | null = null;
   private duelOn = false;
   /** El botón de duelo: fija al mejor puesto o pasa al siguiente rival (lo conecta main). */
   onDuelButton: () => void = () => {};
@@ -72,6 +75,39 @@ export class TouchControls {
     this.duelOn = value;
     this.duelButton.classList.toggle('active', value);
     this.duelButton.setAttribute('aria-label', value ? 'Cambiar de rival' : 'Fijar un rival');
+  }
+
+  /**
+   * El tutorial abre la barra de a poco: lo que no está en `parts` no se ve ni se puede tocar
+   * (null: todo). Lo que recién aparece destella una vez; `glow` brilla mientras la orden lo
+   * nombra.
+   */
+  reveal(parts: ReadonlySet<HudPart> | null, glow: HudPart | null = null): void {
+    const nodes: [HudPart, HTMLElement | null][] = [
+      ...[...this.elementButtons].map(([id, button]): [HudPart, HTMLElement] => [id, button]),
+      ['cast', this.castButton],
+      ['undo', this.cancelButton],
+      ['duel', this.duelButton],
+    ];
+    for (const [part, node] of nodes) {
+      if (!node) continue;
+      const visible = parts === null || parts.has(part);
+      const appeared = visible && node.classList.contains('concealed');
+      node.classList.toggle('concealed', !visible);
+      if (appeared) {
+        node.classList.remove('appear');
+        void node.offsetWidth;
+        node.classList.add('appear');
+      }
+      node.classList.toggle('glow', visible && part === glow);
+    }
+    // Sin ✦ todavía, tampoco los espacios del tejido.
+    this.slotRow?.classList.toggle('concealed', parts !== null && !parts.has('cast'));
+  }
+
+  /** Si ese elemento está a la vista (en el tutorial, los que todavía no aparecen no tejen). */
+  private usable(element: ElementId): boolean {
+    return !this.elementButtons.get(element)?.classList.contains('concealed');
   }
 
   /** Refleja el estado del mago: cansancio de cada elemento y tejido actual. */
@@ -202,6 +238,7 @@ export class TouchControls {
     });
 
     const slotRow = el('div', 'weave-slots');
+    this.slotRow = slotRow;
     for (let i = 0; i < 3; i++) {
       const slot = el('span', 'weave-slot');
       this.slots.push(slot);
@@ -219,6 +256,7 @@ export class TouchControls {
     cancel.type = 'button';
     cancel.setAttribute('aria-label', 'Deshacer el tejido');
     cancel.innerHTML = UNDO_ICON;
+    this.cancelButton = cancel;
     cancel.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       this.input.push({ type: 'cancel' });
@@ -317,6 +355,7 @@ export class TouchControls {
       const elementIndex = slot < 0 ? -1 : (slot - this.shift + count) % count;
       const element = ELEMENTS[elementIndex]?.id;
       if (elementIndex >= 0 && element && isElementId(element)) {
+        if (!this.usable(element)) return;
         this.input.push({ type: 'weave', element });
       } else if (key === ' ') {
         this.input.push({ type: 'cast', aim: null });

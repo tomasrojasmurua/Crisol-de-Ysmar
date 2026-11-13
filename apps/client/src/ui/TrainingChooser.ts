@@ -1,4 +1,4 @@
-import { TUTORIAL_CHAPTERS } from '../game/Tutorial';
+import type { TutorialChapter } from '../game/Tutorial';
 import { el, query } from './dom';
 import { MENU_ICONS } from './menuIcons';
 
@@ -24,6 +24,8 @@ export class TrainingChooser {
     private readonly onChoose: (choice: TrainingChoice) => void,
     /** Si ese capítulo ya está hecho (lleva ✓). */
     private readonly isDone: (chapterId: string) => boolean,
+    /** Los capítulos del tutorial de tu escuela. */
+    private readonly schoolChapters: () => readonly TutorialChapter[],
   ) {
     this.root = el('div', 'training-chooser');
     this.root.hidden = true;
@@ -37,7 +39,7 @@ export class TrainingChooser {
           <button type="button" class="training-option" data-kind="tutorial">
             <span class="training-option-badge">Recomendado</span>
             <strong>Tutorial</strong>
-            <span>Todo lo básico, por capítulos, y un examen al final</span>
+            <span>Lo básico y tu escuela, por capítulos, y un examen al final</span>
           </button>
           <button type="button" class="training-option" data-kind="free">
             ${MENU_ICONS.training}
@@ -88,21 +90,30 @@ export class TrainingChooser {
   }
 
   private openChapters(): void {
+    const chapters = this.schoolChapters();
+    const button = (chapter: TutorialChapter, index: number, label: string): HTMLElement => {
+      const item = el('button', 'training-chapter');
+      item.type = 'button';
+      const done = this.isDone(chapter.id);
+      item.classList.toggle('done', done);
+      item.append(
+        el('span', 'training-chapter-number', done ? '✓' : label),
+        el('span', 'training-chapter-title', chapter.title),
+      );
+      item.addEventListener('click', () =>
+        this.choose({ kind: 'tutorial', chapter: index, onlyOne: true }),
+      );
+      return item;
+    };
+    const main = chapters.flatMap((chapter, i) =>
+      chapter.extra ? [] : [button(chapter, i, String(i + 1))],
+    );
+    const extra = chapters.flatMap((chapter, i) =>
+      chapter.extra ? [button(chapter, i, '✦')] : [],
+    );
     this.chapterList.replaceChildren(
-      ...TUTORIAL_CHAPTERS.map((chapter, i) => {
-        const button = el('button', 'training-chapter');
-        button.type = 'button';
-        const done = this.isDone(chapter.id);
-        button.classList.toggle('done', done);
-        button.append(
-          el('span', 'training-chapter-number', done ? '✓' : String(i + 1)),
-          el('span', 'training-chapter-title', chapter.title),
-        );
-        button.addEventListener('click', () =>
-          this.choose({ kind: 'tutorial', chapter: i, onlyOne: true }),
-        );
-        return button;
-      }),
+      ...main,
+      ...(extra.length > 0 ? [el('h3', 'training-chapter-group', 'Más técnicas'), ...extra] : []),
     );
     this.options.hidden = true;
     this.chapters.hidden = false;

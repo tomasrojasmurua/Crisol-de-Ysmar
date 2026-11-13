@@ -5,6 +5,7 @@ import { stateHash } from '../match/hash';
 import { modeSetup } from '../match/modes';
 import type { MatchState, Strike } from '../match/state';
 import { stepMatch } from '../match/step';
+import { spellOf } from '../spells/catalog';
 import { TEST_RULES } from '../testing/rules.fixture';
 import { BotController, type BotProfile, DEFAULT_BOT } from './bot';
 
@@ -153,5 +154,28 @@ describe('IA: no se congela, esquiva y tiene dificultades', () => {
       staying += stepsInsideStrike(careless, seed);
     }
     expect(dodging).toBeLessThan(staying * 0.6);
+  });
+});
+
+describe('bot con libro de hechizos', () => {
+  it('solo teje los hechizos de su libro', () => {
+    const book = ['claw', 'drain', 'blinding', 'spores', 'step'] as const;
+    const state = createMatch(duelSetup(3, TEST_RULES), TEST_RULES);
+    const bots = new Map(
+      state.wizards.map((w) => [
+        w.id,
+        new BotController(90 + w.id, TEST_RULES, { ...DEFAULT_BOT, spellbook: book }),
+      ]),
+    );
+    const cast = new Set<string>();
+    while (state.winnerTeam === null && state.tick < MAX_TICKS) {
+      const intents = new Map(
+        state.wizards.map((w) => [w.id, bots.get(w.id)?.intentsFor(state, w) ?? []]),
+      );
+      stepMatch(state, intents, TEST_RULES);
+      for (const e of state.events) if (e.type === 'cast') cast.add(spellOf(e.weave) ?? '?');
+    }
+    expect(cast.size).toBeGreaterThan(2);
+    for (const spell of cast) expect(book as readonly string[]).toContain(spell);
   });
 });

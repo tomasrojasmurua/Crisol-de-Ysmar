@@ -19,6 +19,7 @@
     "check:deps": "node scripts/check-dependencies.mjs",
     "check": "pnpm lint && pnpm check:deps && pnpm typecheck && pnpm test",
     "balance": "pnpm --filter @crisol/balance start",
+    "escuelas": "pnpm --filter @crisol/balance schools",
     "errores": "node scripts/errores.mjs"
   },
   "devDependencies": {

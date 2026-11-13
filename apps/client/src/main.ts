@@ -1,18 +1,34 @@
-import { DEFAULT_LOOK, GAME_RULES, NO_OMEN, rulesForMode, WIZARD_NAMES } from '@crisol/content';
-import { FixedStepClock, type GameRules, type Intent, SeededRng } from '@crisol/core';
+import {
+  DEFAULT_LOOK,
+  GAME_RULES,
+  NO_OMEN,
+  rulesForMode,
+  schoolOf,
+  schoolSpellbook,
+  WIZARD_NAMES,
+} from '@crisol/content';
+import {
+  type ElementId,
+  FixedStepClock,
+  type GameRules,
+  type Intent,
+  SeededRng,
+} from '@crisol/core';
 import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
 import { ComboLog } from './game/ComboLog';
 import { castOf, type OtherWizard, ownLook } from './game/cast';
 import { Diagnostics } from './game/Diagnostics';
+import { readDamageNumbers, saveDamageNumbers } from './game/damageNumbers';
 import { Grimoire } from './game/Grimoire';
+import { HitFeedback } from './game/HitFeedback';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
 import { MatchFlow } from './game/MatchFlow';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
-import { GIFT_CHAPTER, Tutorial } from './game/Tutorial';
+import { examSchool, GIFT_CHAPTER, Tutorial, tutorialChapters } from './game/Tutorial';
 import { TutorialProgress } from './game/TutorialProgress';
 import { blockBrowserGestures } from './input/blockBrowserGestures';
 import { CameraDrag } from './input/CameraDrag';
@@ -39,6 +55,7 @@ import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { PauseMenu } from './ui/PauseMenu';
+import { SchoolPicker } from './ui/SchoolPicker';
 import { Screens } from './ui/Screens';
 import { TrainingChooser } from './ui/TrainingChooser';
 import { TrainingPanel } from './ui/TrainingPanel';
@@ -77,6 +94,8 @@ let matchCount = 0;
 let badges = new Map<number, WizardBadge>();
 let profile = loadProfile();
 let quality = readQuality();
+/** Si se ven los números de daño en las partidas (en el entrenamiento, siempre). */
+let damageNumbers = readDamageNumbers();
 /** Una invitación que llegó antes de que eligieras nombre: se usa al salir del Vestidor. */
 let pendingInvite = '';
 
@@ -103,6 +122,10 @@ const menuPortrait = new MenuPortrait(rules);
 const diagnostics = new Diagnostics(uiRoot, audio.engine, renderer);
 const blindVeil = new BlindVeil(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
+const hitFeedback = new HitFeedback({
+  damage: (amount, targetId) => comboCallouts.showDamage(amount, targetId),
+  status: (word, targetId) => comboCallouts.showStatus(word, targetId),
+});
 // Arrastrar para mirar a los lados suelta el duelo: la cámara queda libre.
 const cameraDrag = new CameraDrag(
   canvas,
@@ -161,7 +184,9 @@ const trainingChooser = new TrainingChooser(
       ? startTraining({ chapter: choice.chapter, onlyOne: choice.onlyOne })
       : startTraining(),
   (chapterId) => tutorialProgress.has(chapterId),
+  () => tutorialChapters(profile.school ?? 'brasa'),
 );
+const schoolPicker = new SchoolPicker(uiRoot, (school) => chooseSchool(school));
 const tutorialCard = new TutorialCard(
   uiRoot,
   () => freePlay(),
@@ -210,6 +235,10 @@ const pauseMenu = new PauseMenu(
     onDiagnostics: (on) => {
       diagnostics.enabled = on;
     },
+    onDamageNumbers: (on) => {
+      damageNumbers = on;
+      saveDamageNumbers(on);
+    },
     onLightGraphics: (on) => {
       quality = on ? 'liviana' : 'alta';
       saveQuality(quality);
@@ -219,6 +248,7 @@ const pauseMenu = new PauseMenu(
   },
   diagnostics.enabled,
   quality === 'liviana',
+  damageNumbers,
 );
 const screens = new Screens({
   view,
@@ -318,7 +348,7 @@ function openWardrobe(): void {
 
 function openGrimoire(): void {
   menu.visible = false;
-  grimoireBook.show(grimoire, comboLog);
+  grimoireBook.show(grimoire, comboLog, profile.school ? schoolOf(profile.school) : null);
 }
 
 function closeOverlays(): void {
@@ -326,11 +356,36 @@ function closeOverlays(): void {
   grimoireBook.hide();
   view.hidePreview();
   screens.refreshIdentity(profile, grimoire);
+  // Recién creado el hechicero (o un perfil de antes): falta elegir escuela.
+  if (profile.name && !profile.school) {
+    schoolPicker.show();
+    return;
+  }
   menu.visible = true;
   if (pendingInvite && profile.name) {
     const code = pendingInvite;
     pendingInvite = '';
     joinRoom(code);
+  }
+}
+
+/**
+ * Eligió escuela: queda para siempre y su elemento pasa a ser su Afinidad (en el Vestidor la
+ * puede cambiar). Si nunca hizo el tutorial, entra directo; si venía de una invitación, a la sala.
+ */
+function chooseSchool(school: ElementId): void {
+  profile = { ...profile, school, affinity: school };
+  saveProfile(profile);
+  screens.refreshIdentity(profile, grimoire);
+  if (pendingInvite) {
+    menu.visible = true;
+    const code = pendingInvite;
+    pendingInvite = '';
+    joinRoom(code);
+  } else if (tutorialProgress.count === 0 && !comboLog.tutorialDone) {
+    startTraining({ chapter: 0, onlyOne: false });
+  } else {
+    menu.visible = true;
   }
 }
 
@@ -383,11 +438,20 @@ function startTraining(lesson?: { readonly chapter: number; readonly onlyOne: bo
   if (lesson) {
     current.restless = false;
     trainingPanel.tutorial = true;
-    tutorial = new Tutorial(current.playerId, DUMMY_ID, lesson.chapter, lesson.onlyOne);
+    const school = profile.school ?? 'brasa';
+    tutorial = new Tutorial(
+      current.playerId,
+      DUMMY_ID,
+      tutorialChapters(school),
+      lesson.chapter,
+      lesson.onlyOne,
+    );
+    current.examSpellbook = schoolSpellbook(examSchool(school).element);
     current.setDummy(tutorial.dummy);
     current.setSecondDummy(tutorial.secondDummy);
     tutorialCard.show(tutorial);
   }
+  showTutorialHud();
   obstacles.invalidate();
 }
 
@@ -411,8 +475,9 @@ function afterTutorialAdvance(): void {
   for (const chapterId of tutorial.finished) {
     if (tutorialProgress.has(chapterId)) continue;
     tutorialProgress.add(chapterId);
-    if (chapterId === GIFT_CHAPTER && !comboLog.tutorialDone) {
-      comboLog.completeTutorial();
+    const gift = profile.school ? schoolOf(profile.school).combo : null;
+    if (chapterId === GIFT_CHAPTER && gift && !comboLog.isGifted(gift)) {
+      comboLog.gift(gift);
       audio.discover();
     }
   }
@@ -420,11 +485,18 @@ function afterTutorialAdvance(): void {
     match.setDummy(tutorial.dummy);
     match.setSecondDummy(tutorial.secondDummy);
   }
+  showTutorialHud();
+}
+
+/** La barra de botones que deja ver el tutorial y el botón que brilla (sin tutorial: todo). */
+function showTutorialHud(): void {
+  controls.reveal(tutorial?.hud ?? null, tutorial?.step?.glow ?? null);
 }
 
 function endTutorial(): void {
   tutorial = null;
   tutorialCard.hide();
+  showTutorialHud();
 }
 
 /** Empieza (o reempieza) una partida en red: los nombres y el aspecto vienen de la sala. */
@@ -450,6 +522,7 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   matchRenderer.setWizards(cast.looks, rules);
   view.clearSpells();
   labels.reset(badges, current.playerId);
+  hitFeedback.reset();
   flow.begin();
   // Una sala sin Presagio no muestra ninguno.
   if (current.omen.id === NO_OMEN.id) hud.setOmen(null);
@@ -529,6 +602,9 @@ function stepMatch(current: MatchView): void {
   view.effects.onEvents(events, current.state, (id) => view.creatures.positionOf(id));
   flow.announce(events, current, badges, rules);
   audio.onEvents(events, current.state);
+  if (damageNumbers || current instanceof TrainingMatch) {
+    hitFeedback.onStep(events, current.state, current.playerId);
+  }
   for (const event of events) {
     if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
     if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
@@ -600,10 +676,14 @@ renderer.setAnimationLoop((now) => {
 const invited =
   new URLSearchParams(location.search).get('sala')?.toUpperCase() || roomToRejoin() || '';
 showMenu();
-// La primera vez eliges nombre y personaje.
+// La primera vez eliges nombre y personaje, y después tu escuela (también los perfiles de antes).
 if (!profile.name) openWardrobe();
+else if (!profile.school) {
+  menu.visible = false;
+  schoolPicker.show();
+}
 if (isValidRoomCode(invited)) {
-  if (profile.name) joinRoom(invited);
+  if (profile.name && profile.school) joinRoom(invited);
   else pendingInvite = invited;
 }
 

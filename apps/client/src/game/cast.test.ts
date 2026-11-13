@@ -30,7 +30,7 @@ function view(mode: 'teams' | 'ffa'): MatchView {
 
 describe('castOf', () => {
   it('nombra a cada mago, te pone tu nombre y le da su aspecto con el color de su bando', () => {
-    const profile = { name: 'Tomás', look: DEFAULT_LOOK, affinity: 'brasa' as const };
+    const profile = { name: 'Tomás', look: DEFAULT_LOOK, affinity: 'brasa' as const, school: null };
     const { badges, looks } = castOf(view('teams'), profile, (id) => ({
       name: `Mago ${id}`,
       look: DEFAULT_LOOK,
@@ -45,7 +45,7 @@ describe('castOf', () => {
   });
 
   it('sin nombre propio, eres "Tú"', () => {
-    const profile = { name: '', look: DEFAULT_LOOK, affinity: null };
+    const profile = { name: '', look: DEFAULT_LOOK, affinity: null, school: null };
     const { badges } = castOf(view('ffa'), profile, () => ({ name: 'X', look: DEFAULT_LOOK }));
     expect([...badges.values()][0]?.name).toBe('Tú');
   });
