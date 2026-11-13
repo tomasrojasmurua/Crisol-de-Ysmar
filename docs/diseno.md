@@ -112,13 +112,13 @@ escuelas (`pnpm escuelas`). Hoy: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 50%,
 Hay contras duros a propósito (Raíz gana ~72% a Umbra; Umbra ~63% a Marea y Tormenta). Si se toca
 un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
 
-| Escuela  | Hechizos                                    | Combo que enseña  |
-| -------- | ------------------------------------------- | ----------------- |
-| Brasa    | Chispa, Bola ígnea, Lluvia de fuego, Meteoro | Blanco quieto     |
+| Escuela  | Hechizos                                      | Combo que enseña   |
+| -------- | --------------------------------------------- | ------------------ |
+| Brasa    | Chispa, Bola ígnea, Lluvia de fuego, Meteoro  | Blanco quieto      |
 | Tormenta | Rayo en cadena, Cometa, Pararrayos, Tempestad | Tormenta eléctrica |
-| Marea    | Salpicón, Ventisca, Pararrayos, Era de hielo | Quiebre           |
-| Raíz     | Savia, Grillete, Manantial, Jardín          | Atado y a salvo   |
-| Umbra    | Zarpa, Drenaje, Ceguera, Esporas            | Hilo a ciegas     |
+| Marea    | Salpicón, Ventisca, Pararrayos, Era de hielo  | Quiebre            |
+| Raíz     | Savia, Grillete, Manantial, Jardín            | Atado y a salvo    |
+| Umbra    | Zarpa, Drenaje, Ceguera, Esporas              | Hilo a ciegas      |
 
 ## Tutorial
 
