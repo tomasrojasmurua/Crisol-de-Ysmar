@@ -39,7 +39,7 @@ const anyOf = (element: ElementId): ComboStep => ({ element });
 const ANY: ComboStep = { any: true };
 
 /**
- * El catálogo cerrado de combos: 6 reacciones y 78 seguidillas de hechizos. Solo documenta
+ * El catálogo cerrado de combos: 6 reacciones y 82 seguidillas de hechizos. Solo documenta
  * sinergias que ya existen en el juego; acertarlos no da nada extra, el premio es descubrirlos.
  * Ver `claude/crisol-combos-grimorio.md` en el proyecto para las reglas que les dan forma.
  */
@@ -113,6 +113,44 @@ export const COMBOS: readonly Combo[] = [
     detail:
       'La Liana te lleva al rival y lo enraíza; a quemarropa, el Salpicón lo deja lento para que no escape.',
     tutorial: true,
+  },
+
+  // ---------- Combos de escuela (los enseña el tutorial de cada una) ----------
+  {
+    id: 'blanco-quieto',
+    name: 'Blanco quieto',
+    level: 1,
+    needed: 3,
+    steps: [s('fireRain'), s('fireball')],
+    detail:
+      'Bajo la Lluvia de fuego moverse quema: el rival se queda quieto y la Bola ígnea, lenta, no falla.',
+  },
+  {
+    id: 'tormenta-electrica',
+    name: 'Tormenta eléctrica',
+    level: 1,
+    needed: 3,
+    steps: [s('lightningRod'), s('tempest')],
+    detail:
+      'El Pararrayos sigue soltando rayos mientras la Tempestad te lleva de salto en salto alrededor del rival.',
+  },
+  {
+    id: 'atado-y-a-salvo',
+    name: 'Atado y a salvo',
+    level: 1,
+    needed: 3,
+    steps: [s('shackle'), s('spring')],
+    detail:
+      'Con el Grillete puesto, el rival no puede alejarse sin quedar enraizado: te curas en tu Manantial mientras él decide.',
+  },
+  {
+    id: 'hilo-a-ciegas',
+    name: 'Hilo a ciegas',
+    level: 1,
+    needed: 3,
+    steps: [s('blinding'), s('drain')],
+    detail:
+      'Ciego, el rival no ve de quién alejarse ni dónde hay un árbol: el Drenaje no se corta.',
   },
 
   // ---------- Reacciones encadenadas ----------
@@ -809,6 +847,7 @@ export interface ComboDetect {
  * - `sharedShield`: te pegan y la burbuja de tu aliado injertado absorbe su parte.
  * - `seedOnAlly`: la Semilla de fuego que explota la llevaba un aliado, no tú.
  * - `ringActive`: tu Anillo de zarzas sigue en pie y encierra a un rival.
+ * - `shackleActive`: tu Grillete sigue atando a un rival.
  * - `twoAttackers`: dos rivales distintos te atacaron (aunque no te hicieran daño) desde poco antes
  *   del primer paso hasta el último.
  * - `selfShield`: tenías escudo cuando tu fuego lo alcanzó.
@@ -821,6 +860,7 @@ export type ComboCheck =
   | 'sharedShield'
   | 'seedOnAlly'
   | 'ringActive'
+  | 'shackleActive'
   | 'twoAttackers'
   | 'selfShield';
 
@@ -857,6 +897,7 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'silencio-entre-espinas': { status: 'silenced', trickle: true },
   'grito-y-lanza': { status: 'silenced' },
   'lluvia-a-ciegas': { status: 'blind' },
+  'hilo-a-ciegas': { status: 'blind', trickle: true },
   'caer-con-el-meteoro': { finish: 'cast' },
   'venganza-y-regreso': { finish: 'cast', check: 'priorBigHit' },
   'puerta-propia': { finish: 'cast' },
@@ -870,6 +911,7 @@ export const COMBO_DETECT: Readonly<Record<string, ComboDetect>> = {
   'orbe-y-cadena': { check: 'shackledOrb', trickle: true },
   'aliado-bomba': { check: 'seedOnAlly' },
   'jaula-y-respiro': { finish: 'cast', check: 'ringActive' },
+  'atado-y-a-salvo': { finish: 'cast', check: 'shackleActive' },
   'escudo-y-hoguera': { check: 'selfShield', trickle: true },
   // Aguantar, devolver y escapar: cuentan si dos rivales distintos te estaban atacando, o si
   // tienes a uno encerrado en las zarzas.

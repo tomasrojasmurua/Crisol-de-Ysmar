@@ -1,6 +1,7 @@
-import { TUTORIAL_CHAPTERS, type Tutorial } from '../game/Tutorial';
+import type { Tutorial } from '../game/Tutorial';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
+import { richText } from './richText';
 
 /** Lo que dura desplegado un paso nuevo antes de recogerse solo. */
 const AUTO_COLLAPSE_MS = 6000;
@@ -141,8 +142,9 @@ export class TutorialCard {
       return;
     }
     const reading = step.goal.kind === 'read';
-    this.chapterBadge.textContent = `${tutorial.chapterNumber}/${TUTORIAL_CHAPTERS.length}`;
-    this.goal.textContent = step.short ?? step.title;
+    const extra = tutorial.chapter?.extra === true;
+    this.chapterBadge.textContent = extra ? '✦' : `${tutorial.chapterNumber}/${tutorial.mainCount}`;
+    this.goal.replaceChildren(richText(step.short ?? step.title));
     const signs = step.combo
       ? [comboStepsView(step.combo)]
       : step.spell
@@ -150,7 +152,7 @@ export class TutorialCard {
         : [];
     this.signs.replaceChildren(...signs);
     this.kicker.textContent = `${chapter.title} · paso ${tutorial.stepNumber} de ${chapter.steps.length}`;
-    this.text.textContent = step.text;
+    this.text.replaceChildren(richText(step.text));
     this.refreshProgress();
     this.actions.hidden = false;
     this.next.hidden = !reading;

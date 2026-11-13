@@ -98,17 +98,45 @@ sin chocar.
   chocan con medio metro más de margen que el que tienen para pegarle a un mago
   (`interactions.clash.margin`). No es una reacción ni cuenta para el Grimorio.
 
+## Escuelas
+
+Una por elemento, con nombre simple: "Escuela de Brasa", "Escuela de Tormenta", etc.
+(`packages/content/src/schools.ts`). El jugador elige una para siempre al crear su hechicero, justo
+antes del tutorial. La escuela solo destaca 4 hechizos de partida (y Paso) y fija la Afinidad
+inicial, que después se puede cambiar en el Vestidor; no bloquea nada. El Grimorio abre en la
+pestaña del elemento de la escuela con la sección "Escuela de X" arriba.
+
+Cada set es autosuficiente: daño, control, curarse o escapar. La regla de balance: Duelistas que
+solo tejen su set, con la Afinidad en su elemento, ganan entre 45% y 55% contra las otras cuatro
+escuelas (`pnpm escuelas`). Hoy: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 50%, Raíz ≈ 49%, Umbra ≈ 51%.
+Hay contras duros a propósito (Raíz gana ~72% a Umbra; Umbra ~63% a Marea y Tormenta). Si se toca
+un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
+
+| Escuela  | Hechizos                                    | Combo que enseña  |
+| -------- | ------------------------------------------- | ----------------- |
+| Brasa    | Chispa, Bola ígnea, Lluvia de fuego, Meteoro | Blanco quieto     |
+| Tormenta | Rayo en cadena, Cometa, Pararrayos, Tempestad | Tormenta eléctrica |
+| Marea    | Salpicón, Ventisca, Pararrayos, Era de hielo | Quiebre           |
+| Raíz     | Savia, Grillete, Manantial, Jardín          | Atado y a salvo   |
+| Umbra    | Zarpa, Drenaje, Ceguera, Esporas            | Hilo a ciegas     |
+
 ## Tutorial
 
-En Entrenamiento, por capítulos que se pueden repetir (`apps/client/src/game/Tutorial.ts`): el
-duelo (cómo se gana), moverse, la cámara, los 5 elementos, el descanso, tejer, apuntar,
-defenderse (el muñeco ataca con Chispas y Meteoros: esquivar, Muro de hielo, choque de tejidos y
-salir del círculo), estados y reacciones, combos (entrega Brasa maldita, Quiebre y Amarre), el
-Grimorio y un examen contra la IA Aprendiz. La primera vez parte del principio; después se elige
-el capítulo. Cada capítulo se puede saltar, y los terminados quedan marcados en el celular.
+En Entrenamiento, por capítulos que se pueden repetir (`apps/client/src/game/Tutorial.ts`), armados
+para la escuela del jugador: el duelo, moverse, la cámara (mirar, fijar, saltar entre rivales,
+soltar), tu elemento (su básico, deshacer y el descanso), tejer los hechizos de la escuela, el Gran
+hechizo (si la escuela trae uno), esquivar con Paso, apuntar, el combo de la escuela (que se
+entrega al Grimorio), el Grimorio y un examen contra un Aprendiz de la escuela siguiente que solo
+teje su set. "Más técnicas" (choque y meteoro, estados y reacciones) quedan como capítulos
+opcionales en Entrenamiento. La primera vez parte del principio; después se elige el capítulo.
 
-Los pasos que se hacen jugando piden hechizos y combos concretos (Rayo en cadena y Era de hielo al
-tejer, los mismos de Quiebre), no "cualquiera", para no adelantar el resto del Grimorio. La guía va
+La barra de botones se abre de a poco: al empezar solo hay movimiento y cámara; cada elemento,
+✦, deshacer y el botón de duelo aparecen con un destello en el paso que los usa, y el botón del
+que habla la guía brilla. Cada nombre de elemento en la guía lleva su ícono. En entrenamiento y
+tutorial siempre se ven números de daño rojos, pequeños y breves (y palabras como Atrapado o Ciego
+para los estados); en partidas son una opción de Pausa.
+
+Los pasos que se hacen jugando piden hechizos y combos concretos (los de la escuela), no "cualquiera", para no adelantar el resto del Grimorio. La guía va
 arriba al centro y casi siempre recogida en una línea: la orden corta, los signos y la cuenta. Cada
 paso nuevo aparece desplegado con la explicación y se recoge solo al empezar a jugar o a los 6 s;
 tocar la línea la despliega. Los pasos de solo leer quedan desplegados con su botón Siguiente.

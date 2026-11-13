@@ -1,10 +1,13 @@
-import { COMBOS, type Combo } from '@crisol/content';
+import { COMBOS, type Combo, SCHOOLS, type School, SPELL_NAMES, schoolOf } from '@crisol/content';
 import {
   type ComboId,
+  ELEMENT_IDS,
+  type ElementId,
   type EntityId,
   type GameEvent,
   type Intent,
   type MatchState,
+  PLACED_SPELLS,
   SPELL_WEAVES,
   type SpellId,
   type Vec2,
@@ -23,6 +26,9 @@ export type DummyMode =
   | 'meteor'
   /** El examen: un mago de la IA Aprendiz que pelea de verdad. */
   | 'bot';
+
+/** Una pieza de la barra de botones: un elemento, ✦ (lanzar), deshacer o el botón de duelo. */
+export type HudPart = ElementId | 'cast' | 'undo' | 'duel';
 
 /** Lo que el tutorial no ve en la partida y le cuenta el celular (girar la cámara). */
 export type TutorialSignal = 'look';
@@ -59,7 +65,9 @@ type Goal =
   | { readonly kind: 'reaction'; readonly reaction: ComboId }
   | { readonly kind: 'combo'; readonly comboId: string }
   /** Derrotar al mago del examen. */
-  | { readonly kind: 'defeat' };
+  | { readonly kind: 'defeat' }
+  /** Deshacer un tejido con la flecha que gira. */
+  | { readonly kind: 'undo' };
 
 export interface TutorialStep {
   readonly title: string;
@@ -82,12 +90,18 @@ export interface TutorialStep {
    * paso anterior del capítulo; al cambiar de capítulo se va.
    */
   readonly secondDummy?: boolean;
+  /** Los botones que aparecen en este paso (y quedan desde ahí en adelante). */
+  readonly reveal?: readonly HudPart[];
+  /** El botón que brilla mientras dura el paso: el que la orden nombra. */
+  readonly glow?: HudPart;
 }
 
 export interface TutorialChapter {
   readonly id: string;
   readonly title: string;
   readonly steps: readonly TutorialStep[];
+  /** Más técnicas: no es parte del recorrido, se elige suelto desde Entrenamiento. */
+  readonly extra?: true;
 }
 
 const combo = (id: string): Combo => {
@@ -102,177 +116,303 @@ const combo = (id: string): Combo => {
  */
 const CLOSE_CALL = 5;
 
-/** Los cinco básicos, uno por elemento. */
-const BASICS: readonly SpellId[] = ['spark', 'step', 'splash', 'sap', 'claw'];
+/** El básico de cada elemento: lo que sale tocándolo solo. */
+const BASICS: Readonly<Record<ElementId, SpellId>> = {
+  brasa: 'spark',
+  tormenta: 'step',
+  marea: 'splash',
+  raiz: 'sap',
+  umbra: 'claw',
+};
+
+/** Cómo se teje un hechizo, con el signo de cada elemento: "{tormenta}, {brasa}". */
+const weaveText = (spell: SpellId): string => SPELL_WEAVES[spell].map((e) => `{${e}}`).join(', ');
+
+/** Lo nuevo de la barra de botones que pide tejer este hechizo. */
+function newParts(spell: SpellId, shown: Set<HudPart>): ElementId[] {
+  const fresh = [...new Set(SPELL_WEAVES[spell])].filter((e) => !shown.has(e));
+  for (const element of fresh) shown.add(element);
+  return fresh;
+}
+
+/** Un paso que pide tejer un hechizo de la escuela; si trae un elemento nuevo, lo presenta. */
+function spellStep(school: School, spell: SpellId, shown: Set<HudPart>): TutorialStep {
+  const fresh = newParts(spell, shown);
+  const name = SPELL_NAMES[spell];
+  const intro = fresh.length > 0 ? `Llega ${fresh.map((e) => `{${e}}`).join(' y ')}. ` : '';
+  return {
+    title: name,
+    short: `Teje ${name}`,
+    text: `${intro}${weaveText(spell)} y ✦: ${name}. ${school.roles[spell] ?? ''}.`,
+    goal: { kind: 'release', spell },
+    spell,
+    ...(fresh.length > 0 ? { reveal: fresh, glow: fresh[0] } : {}),
+  };
+}
 
 /**
- * El tutorial completo, en capítulos que se pueden repetir: del objetivo del juego hasta un
- * examen contra la IA Aprendiz. Al terminar el capítulo de combos se entregan los 3 primeros.
+ * El tutorial de una escuela, en capítulos que se pueden repetir: del objetivo del juego hasta
+ * un examen contra la IA Aprendiz. La barra de botones se va abriendo: primero solo moverse y
+ * la cámara, después el elemento de tu escuela, y cada elemento nuevo aparece cuando un hechizo
+ * de tu set lo pide. Enseña los 4 hechizos de la escuela (y Paso para esquivar), no el resto.
+ * Al terminar el capítulo de combos se entrega el combo de la escuela. Los capítulos `extra`
+ * (Más técnicas) no son parte del recorrido: se eligen sueltos desde Entrenamiento.
  */
-export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
-  {
-    id: 'objetivo',
-    title: 'El duelo',
-    steps: [
-      {
-        title: 'Cómo se gana',
-        text: 'Gana la ronda el último mago en pie, y la partida, quien gane 2 rondas. La zona se va cerrando y quema: no te puedes esconder para siempre.',
-        goal: { kind: 'read' },
-        dummy: 'idle',
-      },
-    ],
-  },
-  {
-    id: 'moverse',
-    title: 'Moverse',
-    steps: [
-      {
-        title: 'Caminar',
-        short: 'Camina con el pulgar izquierdo',
-        text: 'Toca la mitad izquierda de la pantalla y arrastra: el joystick aparece donde pones el pulgar.',
-        goal: { kind: 'move', meters: 4 },
-      },
-    ],
-  },
-  {
-    id: 'camara',
-    title: 'La cámara',
-    steps: [
-      {
-        title: 'Mirar',
-        short: 'Arrastra en el centro para mirar',
-        text: 'Arrastra un dedo por el centro de la pantalla, fuera de los botones. La mitad izquierda es para caminar.',
-        goal: { kind: 'signal', signal: 'look' },
-        dummy: 'near',
-      },
-      {
-        title: 'Duelo',
-        short: 'Toca al muñeco para fijarlo',
-        text: 'Tocar a un rival lo fija: la cámara lo mantiene al frente, un anillo lo marca y ✦ le apunta solo. El botón de las cuatro esquinas también fija.',
-        goal: { kind: 'lock' },
-      },
-      {
-        title: 'Saltar entre rivales',
-        short: 'Salta al otro muñeco',
-        text: 'Llegó otro muñeco. Con un rival fijado, el botón de las cuatro esquinas salta al siguiente. También puedes tocar directo al que quieras.',
-        goal: { kind: 'switch' },
-        secondDummy: true,
-      },
-      {
-        title: 'Soltar',
-        short: 'Gira la cámara para soltar al rival',
-        text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
-        goal: { kind: 'unlock' },
-      },
-    ],
-  },
-  {
-    id: 'elementos',
-    title: 'Los 5 elementos',
-    steps: [
-      {
-        title: 'Brasa, Tormenta, Marea, Raíz y Umbra',
-        text: 'Toca un elemento y después ✦ para lanzar. Cada elemento solo ya es un hechizo.',
-        goal: { kind: 'read' },
-      },
-      {
-        title: 'Los cinco básicos',
-        short: 'Lanza los cinco básicos',
-        text: 'Chispa (Brasa), Paso (Tormenta), Salpicón (Marea), Savia (Raíz) y Zarpa (Umbra): toca el elemento y después ✦.',
-        goal: { kind: 'releaseAll', spells: BASICS },
-      },
-    ],
-  },
-  {
-    id: 'descanso',
-    title: 'El descanso',
-    steps: [
-      {
-        title: 'Cada elemento descansa',
-        text: 'El elemento que usas descansa 3 s y su botón se apaga. Alterna elementos para no quedarte sin magia.',
-        goal: { kind: 'read' },
-      },
-      {
-        title: 'Alternar',
-        short: 'Lanza 3 seguidos sin repetir elemento',
-        text: 'Si repites un elemento, la cuenta vuelve a empezar.',
-        goal: { kind: 'releases', count: 3 },
-      },
-    ],
-  },
-  {
-    id: 'tejer',
-    title: 'Tejer',
-    steps: [
-      {
-        title: 'El orden importa',
-        text: 'Toca hasta tres elementos antes de ✦: cada tejido es un hechizo propio, y el orden cambia el hechizo. La flecha que gira deshace el tejido.',
-        goal: { kind: 'read' },
-      },
-      {
-        title: 'Dos elementos',
-        short: 'Teje Rayo en cadena',
-        text: 'Toca Tormenta, después Brasa, y ✦. Cada hechizo nuevo queda en tu Grimorio.',
-        goal: { kind: 'release', spell: 'chainLightning' },
-        spell: 'chainLightning',
-      },
-      {
-        title: 'Un Gran hechizo',
-        short: 'Teje Era de hielo',
-        text: 'Marea, Marea, Marea y ✦. Los de tres elementos tardan más en salir y cansan los tres. Era de hielo congela: la usarás en Quiebre.',
-        goal: { kind: 'release', spell: 'iceAge' },
-        spell: 'iceAge',
-      },
-    ],
-  },
-  {
-    id: 'apuntar',
-    title: 'Apuntar',
-    steps: [
-      {
-        title: 'Elegir la dirección',
-        short: 'Arrastra desde ✦ para elegir dirección',
-        text: 'Tocar ✦ apunta solo. Arrastrar desde ✦ elige hacia dónde sale el hechizo.',
-        goal: { kind: 'aimed' },
-      },
-      {
-        title: 'Hechizos de suelo',
-        short: 'Deja un Meteoro donde quieras',
-        text: 'Teje Meteoro (Brasa, Brasa, Brasa), mantén ✦ un momento y arrastra para elegir dónde cae.',
-        goal: { kind: 'placed' },
-        spell: 'meteor',
-      },
-    ],
-  },
+export function tutorialChapters(element: ElementId): readonly TutorialChapter[] {
+  const school = schoolOf(element);
+  const basic = BASICS[element];
+  const shown = new Set<HudPart>([element, 'cast']);
+  const woven = school.spells.filter((s) => s !== basic && SPELL_WEAVES[s].length < 3);
+  const great = school.spells.filter((s) => SPELL_WEAVES[s].length === 3);
+  const tejer = woven.map((spell) => spellStep(school, spell, shown));
+  const grand = great.map((spell) => ({
+    ...spellStep(school, spell, shown),
+    title: `Gran hechizo: ${SPELL_NAMES[spell]}`,
+  }));
+  const dodgeFresh = newParts('step', shown);
+  const placed = [...school.spells].find((s) => PLACED_SPELLS.has(s));
+  const schoolCombo = combo(school.combo);
+  const [first, second] = schoolCombo.steps.map((step) =>
+    'spell' in step ? SPELL_NAMES[step.spell] : 'element' in step ? `{${step.element}}` : '',
+  );
+  const chapters: TutorialChapter[] = [
+    {
+      id: 'objetivo',
+      title: 'El duelo',
+      steps: [
+        {
+          title: 'Cómo se gana',
+          text: `Eres de la ${school.name}. Gana la ronda el último mago en pie, y la partida, quien gane 2 rondas. La zona se va cerrando y quema.`,
+          goal: { kind: 'read' },
+          dummy: 'idle',
+        },
+      ],
+    },
+    {
+      id: 'moverse',
+      title: 'Moverse',
+      steps: [
+        {
+          title: 'Caminar',
+          short: 'Camina con el pulgar izquierdo',
+          text: 'Toca la mitad izquierda de la pantalla y arrastra: el joystick aparece donde pones el pulgar.',
+          goal: { kind: 'move', meters: 4 },
+        },
+      ],
+    },
+    {
+      id: 'camara',
+      title: 'La cámara',
+      steps: [
+        {
+          title: 'Mirar',
+          short: 'Arrastra en el centro para mirar',
+          text: 'Arrastra un dedo por el centro de la pantalla. La mitad izquierda es para caminar.',
+          goal: { kind: 'signal', signal: 'look' },
+          dummy: 'near',
+        },
+        {
+          title: 'Fijar',
+          short: 'Toca al muñeco para fijarlo',
+          text: 'Tocar a un rival lo fija: la cámara lo mantiene al frente, un anillo lo marca y tus hechizos le apuntan solos.',
+          goal: { kind: 'lock' },
+        },
+        {
+          title: 'Saltar entre rivales',
+          short: 'Salta al otro muñeco con el botón',
+          text: 'Llegó otro muñeco. El botón de las cuatro esquinas salta al siguiente rival. También puedes tocar directo al que quieras.',
+          goal: { kind: 'switch' },
+          secondDummy: true,
+          reveal: ['duel'],
+          glow: 'duel',
+        },
+        {
+          title: 'Soltar',
+          short: 'Gira la cámara para soltar al rival',
+          text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
+          goal: { kind: 'unlock' },
+        },
+      ],
+    },
+    {
+      id: 'elemento',
+      title: 'Tu elemento',
+      steps: [
+        {
+          title: `{${element}}`,
+          short: `Toca {${element}} y después ✦`,
+          text: `{${element}} es el elemento de tu escuela. Tócalo y después ✦: sale ${SPELL_NAMES[basic]}. Los números rojos son el daño que haces.`,
+          goal: { kind: 'release', spell: basic },
+          spell: basic,
+          dummy: 'idle',
+          reveal: [element, 'cast'],
+          glow: element,
+        },
+        {
+          title: 'Deshacer',
+          short: `Toca {${element}} y deshazlo con ↺`,
+          text: 'Lo que tocas se va tejiendo arriba de ✦. Si te equivocas, la flecha que gira lo deshace sin gastar nada.',
+          goal: { kind: 'undo' },
+          reveal: ['undo'],
+          glow: 'undo',
+        },
+        {
+          title: 'El descanso',
+          text: `Al lanzar, el botón de {${element}} se apaga unos segundos: descansa. Mientras, usa otro elemento. No hay maná: solo descanso.`,
+          goal: { kind: 'read' },
+        },
+      ],
+    },
+    {
+      id: 'tejer',
+      title: 'Tejer',
+      steps: [
+        {
+          title: 'El orden importa',
+          text: 'Toca hasta tres elementos antes de ✦: cada tejido es un hechizo propio, y el orden lo cambia. Tu escuela te enseña estos.',
+          goal: { kind: 'read' },
+        },
+        ...tejer,
+      ],
+    },
+    {
+      id: 'gran',
+      title: 'Gran hechizo',
+      steps: [
+        ...grand.map((step) => ({
+          ...step,
+          text: `${step.text} Los de tres elementos tardan más en salir y cansan los tres.`,
+        })),
+      ],
+    },
+    {
+      id: 'esquivar',
+      title: 'Esquivar',
+      steps: [
+        {
+          title: 'Leer al rival',
+          text: 'Ahora el muñeco ataca. Lo que teje flota sobre su cabeza: si ves {brasa}, viene una Chispa.',
+          goal: { kind: 'read' },
+          dummy: 'sparks',
+        },
+        {
+          title: 'Paso',
+          short: 'Esquiva dos Chispas',
+          text: `${dodgeFresh.length > 0 ? 'Llega {tormenta}. ' : ''}Al ver {brasa} sobre el muñeco, camina de lado o usa Paso: {tormenta} y ✦ arrastrando hacia un lado.`,
+          goal: { kind: 'avoid', count: 2 },
+          spell: 'step',
+          ...(dodgeFresh.length > 0 ? { reveal: dodgeFresh, glow: 'tormenta' as const } : {}),
+        },
+      ],
+    },
+    {
+      id: 'apuntar',
+      title: 'Apuntar',
+      steps: [
+        {
+          title: 'Elegir la dirección',
+          short: 'Arrastra desde ✦ para elegir dirección',
+          text: 'Tocar ✦ apunta solo. Arrastrar desde ✦ elige hacia dónde sale el hechizo.',
+          goal: { kind: 'aimed' },
+          dummy: 'idle',
+          glow: 'cast',
+        },
+        ...(placed
+          ? [
+              {
+                title: 'Hechizos de suelo',
+                short: `Deja ${SPELL_NAMES[placed]} donde quieras`,
+                text: `Teje ${SPELL_NAMES[placed]} (${weaveText(placed)}), mantén ✦ un momento y arrastra para elegir dónde cae.`,
+                goal: { kind: 'placed' as const },
+                spell: placed,
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      id: 'combos',
+      title: 'Tu combo',
+      steps: [
+        {
+          title: 'Seguidillas',
+          text: 'Un combo es una seguidilla de hechizos que encaja. No da premio extra: el premio es descubrirlo.',
+          goal: { kind: 'read' },
+          dummy: 'idle',
+        },
+        {
+          title: schoolCombo.name,
+          short: school.comboTip?.short ?? `${schoolCombo.name}: ${first}, luego ${second}`,
+          text: school.comboTip?.text ?? schoolCombo.detail,
+          goal: schoolCombo.reaction
+            ? { kind: 'reaction', reaction: schoolCombo.reaction }
+            : { kind: 'combo', comboId: schoolCombo.id },
+          combo: schoolCombo,
+        },
+        {
+          title: 'Tu primer combo',
+          text: `${schoolCombo.name} queda en tu Grimorio. Los demás se descubren jugando: acierta uno 3 veces en partidas y se anota.`,
+          goal: { kind: 'read' },
+        },
+      ],
+    },
+    {
+      id: 'grimorio',
+      title: 'El Grimorio',
+      steps: [
+        {
+          title: 'Todo es tuyo',
+          text: `Los hechizos de tu escuela quedan destacados en el Grimorio. Los otros elementos también son tuyos: tejiéndolos descubres los 155 hechizos.`,
+          goal: { kind: 'read' },
+          reveal: [...ELEMENT_IDS],
+        },
+      ],
+    },
+    {
+      id: 'examen',
+      title: 'Examen',
+      steps: [
+        {
+          title: 'Un duelo de verdad',
+          text: `Ahora pelea un mago Aprendiz de la ${examSchool(element).name}: se mueve, esquiva y ataca. Usa lo que aprendiste.`,
+          goal: { kind: 'read' },
+          dummy: 'idle',
+        },
+        {
+          title: 'Derrota al Aprendiz',
+          short: 'Derrota al Aprendiz',
+          text: 'Gana el duelo. Si te deja mal, tu vida vuelve: aquí no se pierde.',
+          goal: { kind: 'defeat' },
+          dummy: 'bot',
+        },
+      ],
+    },
+    ...EXTRA_CHAPTERS,
+  ];
+  // Umbra no trae Gran hechizo: sin pasos, el capítulo no va.
+  return chapters.filter((chapter) => chapter.steps.length > 0);
+}
+
+/** El rival del examen: el Aprendiz de la escuela siguiente. */
+export function examSchool(element: ElementId): School {
+  const index = SCHOOLS.findIndex((s) => s.element === element);
+  return SCHOOLS[(index + 1) % SCHOOLS.length] ?? schoolOf(element);
+}
+
+/** Más técnicas: fuera del recorrido, para repetir desde Entrenamiento. */
+const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
   {
     id: 'defensa',
-    title: 'Defenderse',
+    title: 'Choque y Meteoro',
+    extra: true,
     steps: [
-      {
-        title: 'Leer al rival',
-        text: 'Ahora el muñeco ataca. Lo que teje flota sobre su cabeza: si ves Brasa, viene una Chispa.',
-        goal: { kind: 'read' },
-        dummy: 'sparks',
-      },
-      {
-        title: 'Esquivar',
-        short: 'Muévete de lado al ver la Brasa',
-        text: 'La Chispa va hacia donde estabas: apenas veas la Brasa sobre el muñeco, camina de lado. Deja pasar dos.',
-        goal: { kind: 'avoid', count: 2 },
-      },
-      {
-        title: 'Muro de hielo',
-        short: 'Levanta un Muro de hielo',
-        text: 'Marea, Marea y ✦, con el muñeco al frente: el muro frena sus proyectiles.',
-        goal: { kind: 'release', spell: 'iceWall' },
-        spell: 'iceWall',
-      },
       {
         title: 'Choque de tejidos',
         short: 'Arrastra ✦ con Salpicón hacia la Chispa',
-        text: 'Un elemento opuesto desarma un proyectil: contra Brasa, Marea o Raíz. Teje Marea y arrastra ✦ hacia la Chispa que viene.',
+        text: 'Un elemento opuesto desarma un proyectil: contra {brasa}, {marea} o {raiz}. Teje {marea} y arrastra ✦ hacia la Chispa que viene.',
         goal: { kind: 'clash' },
         spell: 'splash',
+        dummy: 'sparks',
       },
       {
         title: 'Lo que cae del cielo',
@@ -286,6 +426,7 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
   {
     id: 'reacciones',
     title: 'Estados y reacciones',
+    extra: true,
     steps: [
       {
         title: 'Estados',
@@ -296,75 +437,26 @@ export const TUTORIAL_CHAPTERS: readonly TutorialChapter[] = [
       {
         title: 'Brasa maldita',
         short: 'Brasa maldita: Chispa, luego Zarpa',
-        text: 'Quema al muñeco con una Chispa y, mientras arde, golpéalo con Umbra (Zarpa).',
+        text: 'Quema al muñeco con una Chispa ({brasa}) y, mientras arde, golpéalo con Zarpa ({umbra}).',
         goal: { kind: 'reaction', reaction: 'ashenCurse' },
         combo: combo('brasa-maldita'),
       },
       {
         title: 'Quiebre',
         short: 'Quiebre: congela, luego Rayo',
-        text: 'Lanza Era de hielo (Marea, Marea, Marea). Cuando lo congele, suéltale un Rayo en cadena (Tormenta, Brasa).',
+        text: 'Lanza Era de hielo ({marea}, {marea}, {marea}). Cuando lo congele, suéltale un Rayo en cadena ({tormenta}, {brasa}).',
         goal: { kind: 'reaction', reaction: 'shatter' },
         combo: combo('quiebre'),
       },
     ],
   },
-  {
-    id: 'combos',
-    title: 'Combos',
-    steps: [
-      {
-        title: 'Seguidillas',
-        text: 'Un combo es una seguidilla de hechizos que encaja. No da premio extra: el premio es descubrirlo.',
-        goal: { kind: 'read' },
-      },
-      {
-        title: 'Amarre',
-        short: 'Amarre: Liana, luego Salpicón',
-        text: 'La Liana (Raíz, Tormenta) te lleva al muñeco y lo enraíza; ahí mismo, un Salpicón (Marea).',
-        goal: { kind: 'combo', comboId: 'amarre' },
-        combo: combo('amarre'),
-      },
-      {
-        title: 'Tus primeros combos',
-        text: 'Brasa maldita, Quiebre y Amarre quedan en tu Grimorio. Los demás se descubren jugando: acierta uno 3 veces en partidas y se anota.',
-        goal: { kind: 'read' },
-      },
-    ],
-  },
-  {
-    id: 'grimorio',
-    title: 'El Grimorio',
-    steps: [
-      {
-        title: 'Tu libro',
-        text: 'En el menú, el Grimorio guarda cada hechizo que lanzas por primera vez y los combos que descubres. Toca uno para ver qué hace; en Mis combos anotas los tuyos.',
-        goal: { kind: 'read' },
-      },
-    ],
-  },
-  {
-    id: 'examen',
-    title: 'Examen',
-    steps: [
-      {
-        title: 'Un duelo de verdad',
-        text: 'Ahora pelea un mago Aprendiz: se mueve, esquiva y ataca. Usa lo que aprendiste.',
-        goal: { kind: 'read' },
-        dummy: 'idle',
-      },
-      {
-        title: 'Derrota al Aprendiz',
-        short: 'Derrota al Aprendiz',
-        text: 'Gana el duelo. Si te deja mal, tu vida vuelve: aquí no se pierde.',
-        goal: { kind: 'defeat' },
-        dummy: 'bot',
-      },
-    ],
-  },
 ];
 
-/** El capítulo que entrega los 3 primeros combos al terminarse. */
+/** Los capítulos que se recorren de corrido (sin Más técnicas). */
+export const mainChapters = (chapters: readonly TutorialChapter[]): number =>
+  chapters.filter((c) => !c.extra).length;
+
+/** El capítulo que entrega el combo de la escuela al terminarse. */
 export const GIFT_CHAPTER = 'combos';
 
 /**
@@ -400,6 +492,8 @@ export class Tutorial {
   constructor(
     private readonly playerId: EntityId,
     private readonly dummyId: EntityId,
+    /** Los capítulos de tu escuela (ver `tutorialChapters`). */
+    readonly chapters: readonly TutorialChapter[],
     startChapter = 0,
     /** Si termina al cerrar este capítulo (para repetir uno solo). */
     private readonly onlyOne = false,
@@ -407,15 +501,15 @@ export class Tutorial {
     startStep = 0,
   ) {
     this.detector = new ComboDetector(playerId);
-    this.chapterIndex = Math.max(0, Math.min(startChapter, TUTORIAL_CHAPTERS.length - 1));
-    const steps = TUTORIAL_CHAPTERS[this.chapterIndex]?.steps.length ?? 1;
+    this.chapterIndex = Math.max(0, Math.min(startChapter, this.chapters.length - 1));
+    const steps = this.chapters[this.chapterIndex]?.steps.length ?? 1;
     this.stepIndex = Math.max(0, Math.min(startStep, steps - 1));
     this.applyDummy();
   }
 
   get chapter(): TutorialChapter | null {
     if (this.done) return null;
-    return TUTORIAL_CHAPTERS[this.chapterIndex] ?? null;
+    return this.chapters[this.chapterIndex] ?? null;
   }
 
   get step(): TutorialStep | null {
@@ -431,7 +525,30 @@ export class Tutorial {
   }
 
   get done(): boolean {
-    return this.chapterIndex >= TUTORIAL_CHAPTERS.length;
+    return this.chapterIndex >= this.chapters.length;
+  }
+
+  /** Los capítulos del recorrido (sin Más técnicas), para el "3/11" de la guía. */
+  get mainCount(): number {
+    return mainChapters(this.chapters);
+  }
+
+  /**
+   * Los botones que se ven ahora: los que aparecieron en los capítulos anteriores y en los pasos
+   * de este hasta el actual. Terminado el tutorial, null: todos.
+   */
+  get hud(): ReadonlySet<HudPart> | null {
+    if (this.done) return null;
+    const parts = new Set<HudPart>();
+    this.chapters.forEach((chapter, c) => {
+      if (c > this.chapterIndex) return;
+      chapter.steps.forEach((step, i) => {
+        if (c < this.chapterIndex || i <= this.stepIndex) {
+          for (const part of step.reveal ?? []) parts.add(part);
+        }
+      });
+    });
+    return parts;
   }
 
   /** Cuánto lleva del paso actual, si se cuenta ("3 de 5"); vacío si no. */
@@ -553,6 +670,9 @@ export class Tutorial {
       case 'defeat':
         reached = events.some((e) => e.type === 'defeated' && e.wizardId === this.dummyId);
         break;
+      case 'undo':
+        reached = intents.some((i) => i.kind === 'cancelWeave');
+        break;
       case 'read':
         break;
     }
@@ -616,7 +736,7 @@ export class Tutorial {
     this.releasedCount = 0;
     this.lastElement = null;
     this.avoided = 0;
-    if (this.stepIndex >= (TUTORIAL_CHAPTERS[this.chapterIndex]?.steps.length ?? 0)) {
+    if (this.stepIndex >= (this.chapters[this.chapterIndex]?.steps.length ?? 0)) {
       this.nextChapter(true);
       return;
     }
@@ -624,17 +744,19 @@ export class Tutorial {
   }
 
   private nextChapter(completed: boolean): void {
-    const chapter = TUTORIAL_CHAPTERS[this.chapterIndex];
+    const chapter = this.chapters[this.chapterIndex];
     if (completed && chapter) this.finished.push(chapter.id);
     this.stepIndex = 0;
     this.start = null;
-    this.chapterIndex = this.onlyOne ? TUTORIAL_CHAPTERS.length : this.chapterIndex + 1;
+    const next = this.chapterIndex + 1;
+    // De corrido, el tutorial termina en el examen: Más técnicas se elige suelto.
+    this.chapterIndex = this.onlyOne || this.chapters[next]?.extra ? this.chapters.length : next;
     this.applyDummy();
   }
 
   /** El modo del muñeco y si está el segundo: lo que diga el paso, o lo último dicho en el capítulo. */
   private applyDummy(): void {
-    const chapter = TUTORIAL_CHAPTERS[this.chapterIndex];
+    const chapter = this.chapters[this.chapterIndex];
     if (!chapter) {
       this.dummy = 'idle';
       this.secondDummy = false;

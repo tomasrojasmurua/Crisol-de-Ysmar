@@ -1,7 +1,9 @@
-import { BOT_PROFILES, type Glyph, type Omen } from '@crisol/content';
+import { AFFINITY_RULES, BOT_PROFILES, type Glyph, type Omen } from '@crisol/content';
 import {
+  affinityPatch,
   BotController,
   type Controller,
+  combineMods,
   createMatch,
   createSeries,
   ELEMENT_IDS,
@@ -13,6 +15,7 @@ import {
   modeSetup,
   placeInArena,
   type SeriesState,
+  type SpellId,
   stepMatch,
   type Vec2,
   type Wizard,
@@ -135,6 +138,8 @@ export class TrainingMatch implements MatchView {
   lastIntents: readonly Intent[] = [];
   private dummyMode: DummyMode = 'idle';
   private dummyBrain: Controller | null = null;
+  /** Los hechizos del Aprendiz del examen: los de otra escuela (null: todos). */
+  examSpellbook: readonly SpellId[] | null = null;
 
   constructor(
     rules: GameRules,
@@ -159,8 +164,24 @@ export class TrainingMatch implements MatchView {
     ]);
     const setup = modeSetup({ kind: 'duel' }, 1, 'out', this.rules);
     const parked = { x: this.rules.arenaRadius * 0.85, z: 0 };
+    // Tu Afinidad cansa igual que en una partida: lo que practicas es lo que vas a jugar.
+    const wizards = setup.wizards.map((w, index) =>
+      index === 0 && affinity
+        ? {
+            ...w,
+            affinity,
+            mods: combineMods(
+              affinityPatch(
+                affinity,
+                AFFINITY_RULES.ownFatigueMultiplier,
+                AFFINITY_RULES.opposingFatigueMultiplier,
+              ),
+            ),
+          }
+        : w,
+    );
     this.state = createMatch(
-      { ...setup, wizards: [...setup.wizards, { team: 2, spawn: parked }] },
+      { ...setup, wizards: [...wizards, { team: 2, spawn: parked }] },
       this.rules,
     );
     this.setSecondDummy(false);
@@ -223,7 +244,10 @@ export class TrainingMatch implements MatchView {
       mode === 'idle'
         ? null
         : mode === 'bot'
-          ? new BotController(7, this.rules, BOT_PROFILES.apprentice)
+          ? new BotController(7, this.rules, {
+              ...BOT_PROFILES.apprentice,
+              ...(this.examSpellbook ? { spellbook: this.examSpellbook } : {}),
+            })
           : new TutorialDummy(mode);
   }
 

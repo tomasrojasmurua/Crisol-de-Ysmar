@@ -71,9 +71,10 @@ amigos (de 1v1 a todos contra todos de 6) en
 | IA                | Mismas reglas que un jugador. **Aprendiz / Duelista / Maestro.** Menú contra la IA: se elige (Duelista por defecto). Sala: se elige para los bots que llenan puestos. Entrenamiento y examen: Aprendiz.                                                                                                              |
 | Invocaciones      | Ven con ojos propios: la ceguera de su dueño no las afecta (el Velo del rival sí). Tienen vida, atajan proyectiles y se pueden fijar tocándolas.                                                                                                                                                                     |
 | Choque de tejidos | Ver `docs/diseno.md`. Solo se desarman **proyectiles**; el Meteoro se esquiva. Los desarma un hechizo tuyo de elemento opuesto que los toque, **solo a mano**. Empate se anulan; el más fuerte sigue debilitado. No es reacción.                                                                                     |
-| Combos            | Sección del Grimorio. Guía, no recompensa: sin efecto extra. 84 (6 reacciones + 78 seguidillas). Detalle en [referencia/combos-grimorio.md](referencia/combos-grimorio.md).                                                                                                                                          |
-| Tutorial          | 12 capítulos repetibles, del objetivo al examen contra el Aprendiz. Entrega 3 combos al terminar el capítulo Combos.                                                                                                                                                                                                 |
+| Combos            | Sección del Grimorio. Guía, no recompensa: sin efecto extra. 88 (6 reacciones + 82 seguidillas). Detalle en [referencia/combos-grimorio.md](referencia/combos-grimorio.md).                                                                                                                                          |
+| Tutorial          | Por escuela: 10 u 11 capítulos con la barra de botones que se abre de a poco; enseña los 4 hechizos de la escuela y su combo (que entrega). "Más técnicas" (choque, meteoro, reacciones) quedan como capítulos opcionales en Entrenamiento.                                                                                                                                                                                                 |
 | Diagnóstico       | FPS y datos de conexión **nunca visibles por defecto**: solo se encienden desde Pausa y vuelven a apagarse al reabrir.                                                                                                                                                                                               |
+| Escuelas          | Una por elemento ("Escuela de X"), elegida para siempre al crear el hechicero, antes del tutorial. Solo destaca 4 hechizos de partida y fija la Afinidad inicial; no bloquea nada. Sets medidos con `pnpm escuelas`: cada una gana 45–55% contra las otras con solo su set. Lista en `packages/content/src/schools.ts`. |
 | Grimorio          | No dice qué hechizo contrarresta cada estado, ni etiqueta combos "para varios rivales": descubrirlo es mérito del jugador.                                                                                                                                                                                           |
 | Variedad          | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida. Guardián del Crisol en pausa.                                                                                                                                                                                  |
 | Afinidad          | Un elemento descansa 25% más rápido y sus dos opuestos 15% más lento; transforma la apariencia.                                                                                                                                                                                                                      |
@@ -93,8 +94,8 @@ amigos (de 1v1 a todos contra todos de 6) en
 | Partida y modos                             | Listo contra la IA y en red: sin reloj, muerte súbita, Vidas opcional.                                   |
 | Multijugador                                | En red de 2 a 6, predicción local, rivales ocultos, reconexión, quien llega tarde toma un mago de la IA. |
 | IA                                          | Tres dificultades; ciega no se congela; esquiva proyectiles y avisos de suelo; lee Grandes hechizos.     |
-| Combos y Grimorio                           | 84 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
-| Tutorial y Entrenamiento                    | 12 capítulos, muñeco que ataca, examen; práctica libre sin cansancio.                                    |
+| Combos y Grimorio                           | 88 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
+| Tutorial y Entrenamiento                    | Escuelas, tutorial por escuela, números de daño; práctica libre sin cansancio.                                   |
 | Interfaz                                    | HUD, menú, sala, Glifos, resultado, Grimorio y Pausa en metal arcano.                                    |
 | Gráficas                                    | Geometría hecha por código con resplandor, estelas y ambiente de velas y cristales. Sin modelos reales.  |
 | Audio                                       | Sintetizado en código ([docs/audio.md](../audio.md)).                                                    |
@@ -123,6 +124,8 @@ Hay 476 pruebas.
 | #76     | IA: no se congela, esquiva avisos de suelo, tres dificultades.                                        |
 | #77     | Choque de tejidos.                                                                                    |
 | #78     | Tutorial completo de 12 capítulos; el choque intercepta lo que viene en camino.                       |
+| #87     | Tutorial: guía en una línea, segundo muñeco, arreglos de cámara, esquivar y tejidos.                  |
+| #88     | Escuelas, tutorial por escuela con barra progresiva, números de daño; la Afinidad entra al simulador. |
 
 ## Lo que sigue: frente "Listo para los 5"
 
@@ -149,7 +152,7 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    nadie podía empezar; y la revancha esperaba a quien estaba en WhatsApp.
 4. **Rendimiento en Android de gama media.** Medir con el informe por partida (`MatchPerfLog`) y los
    gráficos livianos de Pausa; revisar que la resolución adaptativa baje a tiempo en 3v3 y libre de 6.
-5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y
+5. **Revisión en celular real** de lo nuevo: la elección de escuela y el tutorial por escuela, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.
 6. **Lista para la prueba. Hecho:** la revisión del punto 5 como lista para el iPhone y el mensaje
