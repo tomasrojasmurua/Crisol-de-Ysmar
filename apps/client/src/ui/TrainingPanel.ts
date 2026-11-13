@@ -2,6 +2,7 @@ import { SPELL_NAMES } from '@crisol/content';
 import { type GameRules, SPELL_WEAVES, type SpellId } from '@crisol/core';
 import { el, query } from './dom';
 import { weaveOrbs } from './GrimoireBook';
+import { richText } from './richText';
 import { spellCard } from './spellFacts';
 
 /**
@@ -93,7 +94,9 @@ export class TrainingPanel {
 
   private showEmpty(): void {
     this.shown = null;
-    this.summary.replaceChildren(el('span', 'training-spell-empty', 'Teje y lanza con ✦'));
+    const empty = el('span', 'training-spell-empty');
+    empty.append(richText('Teje y lanza con ✦'));
+    this.summary.replaceChildren(empty);
     this.detail.replaceChildren();
     this.summary.disabled = true;
     this.setOpen(false);
