@@ -3578,6 +3578,20 @@ body {
   opacity: 1;
 }
 
+/* Si la sala no cabe (más ajustes, barras del navegador), el panel se desliza con el dedo y
+   "Empezar" queda pegado abajo: nunca se esconde. */
+.lobby-panel,
+.lobby-panel * {
+  touch-action: pan-y;
+}
+
+#ui .lobby-begin {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -8px 12px rgba(10, 9, 14, 0.9);
+}
+
 /* ---------- Pausa ---------- */
 
 /* A la izquierda del minimapa: lejos de los pulgares, no se toca sin querer. */
