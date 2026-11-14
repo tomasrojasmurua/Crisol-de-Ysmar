@@ -2,6 +2,7 @@ import { GLYPHS, type Glyph, OMENS, type Omen, omenById, rulesForRoom } from '@c
 import {
   type Controller,
   canAct,
+  canWeave,
   type ElementId,
   type GameEvent,
   type GameRules,
@@ -132,6 +133,17 @@ export class NetSummary {
 
 const MAX_SAMPLES = 1200;
 
+function sameWeave(a: readonly ElementId[], b: readonly ElementId[]): boolean {
+  return a.length === b.length && a.every((element, i) => element === b[i]);
+}
+
+/** Lo que tarda en salir un tejido, como lo calcula el núcleo (sin estados que lo apuren). */
+function castTicks(length: number, wizard: Wizard, rules: GameRules): number {
+  const floor = rules.weave.castTicksByLength[0] ?? 1;
+  const base = rules.weave.castTicksByLength[length - 1] ?? floor;
+  return Math.max(floor, Math.round(base * wizard.mods.castTime));
+}
+
 function sample(list: number[], value: number): void {
   if (list.length < MAX_SAMPLES) list.push(value);
 }
@@ -234,6 +246,8 @@ export class NetMatch implements MatchView {
   private predictedBefore: Vec2 | null = null;
   private predictedWeave: Wizard['weave'] = [];
   private predictedFacing: Vec2 | null = null;
+  /** Tu conjuro en curso como se ve aquí: empieza al tocar ✦, sin esperar a la Sala. */
+  private predictedChannel: Wizard['channel'] = null;
   /**
    * El último fijado que mandaste (un duelo o soltarlo), hasta que el estado que se muestra lo
    * refleje. Así la cámara entra en duelo al instante, sin esperar la vuelta del servidor.
@@ -439,7 +453,8 @@ export class NetMatch implements MatchView {
     return {
       ...wizard,
       weave: this.predictedWeave,
-      facing: !wizard.channel && this.predictedFacing ? this.predictedFacing : wizard.facing,
+      channel: this.predictedChannel,
+      facing: !this.predictedChannel && this.predictedFacing ? this.predictedFacing : wizard.facing,
       lockTarget,
     };
   }
@@ -481,6 +496,7 @@ export class NetMatch implements MatchView {
       !canAct(me)
     ) {
       this.predicted = null;
+      this.predictedChannel = null;
       this.sent.length = 0;
       return;
     }
@@ -489,17 +505,42 @@ export class NetMatch implements MatchView {
     let pos = me.pos;
     let weave = [...me.weave];
     let facing: Vec2 | null = null;
+    let channel: Wizard['channel'] = me.channel;
+    // Cuántos pasos lleva el conjuro que tocaste y la Sala todavía no jugó.
+    let channelSteps = 0;
     for (const input of this.sent) {
       pos = walkTarget(latest.state, { ...me, pos }, input.move, rules);
       if (input.move.x !== 0 || input.move.z !== 0) facing = normalize(input.move, me.facing);
+      if (channel && channel !== me.channel) channelSteps++;
       for (const intent of input.intents) {
         if (intent.kind === 'weave' && weave.length < 3) weave.push(intent.element);
-        else if (intent.kind === 'cancelWeave' || intent.kind === 'cast') weave = [];
+        else if (intent.kind === 'cancelWeave' && !channel) weave = [];
+        else if (intent.kind === 'cast') {
+          if (weave.length > 0 && !channel && canWeave(me)) {
+            channel = {
+              ticksLeft: castTicks(weave.length, me, rules),
+              weave,
+              aim: { x: intent.dirX, z: intent.dirZ },
+            };
+            channelSteps = 0;
+          }
+          weave = [];
+        }
       }
+    }
+    if (channel && channel !== me.channel) {
+      // Solo para verlo: la Sala decide cuándo sale. Se queda en el último paso hasta que llegue.
+      channel = { ...channel, ticksLeft: Math.max(1, channel.ticksLeft - channelSteps) };
     }
     this.predicted = pos;
     this.predictedWeave = weave;
     this.predictedFacing = facing;
+    // Cuando la Sala confirma el conjuro va algo más atrás que lo que ya se vio: no retrocede.
+    const before = this.predictedChannel;
+    if (channel && before && sameWeave(before.weave, channel.weave)) {
+      channel = { ...channel, ticksLeft: Math.min(channel.ticksLeft, before.ticksLeft) };
+    }
+    this.predictedChannel = channel;
   }
 
   /** Te vas de la sala: la IA juega por ti. */

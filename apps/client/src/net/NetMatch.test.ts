@@ -240,6 +240,41 @@ describe('duelo en red: el celular', () => {
     expect(net.present(me).weave).toEqual(['brasa', 'brasa']);
   });
 
+  it('tu conjuro empieza a verse al tocar ✦, sin esperar a la Sala, y no retrocede', () => {
+    const plan: Intent[][] = [
+      [{ kind: 'weave', element: 'brasa' }],
+      [{ kind: 'cast', dirX: 0, dirZ: 0 }],
+    ];
+    const tapping = { intentsFor: (): readonly Intent[] => plan.shift() ?? [] };
+    const net = new NetMatch(
+      'K7QF',
+      { name: 'T', look: DEFAULT_LOOK, affinity: null },
+      tapping,
+      listener(),
+    );
+    const socket = FakeSocket.last as FakeSocket;
+    socket.emit('open');
+    socket.receive({ type: 'welcome', roomCode: 'K7QF', playerId: 2, token: 't' });
+    socket.receive({ type: 'start', omenId: 'x', players: [], settings: DEFAULT_ROOM_SETTINGS });
+    socket.receive(stateMessage(0));
+    net.step();
+    net.step();
+    const me = net.state.wizards.find((w) => w.id === 2);
+    if (!me) throw new Error('sin mago');
+    expect(me.channel).toBeNull();
+    const first = net.present(me).channel;
+    expect(first?.weave).toEqual(['brasa']);
+    expect(net.present(me).weave).toEqual([]);
+    // La Sala confirma el conjuro con más pasos por delante: lo que se ve no vuelve atrás.
+    const confirmed = stateMessage(1, 2);
+    const server = confirmed.state.wizards.find((w) => w.id === 2);
+    if (!server) throw new Error('sin mago');
+    server.channel = { ticksLeft: 99, weave: ['brasa'], aim: { x: 0, z: 0 } };
+    socket.receive(confirmed);
+    net.step();
+    expect(net.present(me).channel?.ticksLeft).toBe(first?.ticksLeft);
+  });
+
   it('los estados llegan en binario y con lo que cambió; el primero, completo', () => {
     const { net, socket } = joined();
     for (const tick of [1, 2, 3]) socket.receive(stateMessage(tick));

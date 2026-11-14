@@ -1,4 +1,4 @@
-import type { GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
+import type { ElementId, GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
 import { fourthBlink } from './FourthSpellEffects';
@@ -68,6 +68,26 @@ export class EffectsView {
   private readonly columnGeometry = new THREE.CylinderGeometry(0.7, 0.7, 6, 24, 1, true);
   /** Sacudida de cámara pendiente, de 0 a 1. */
   shake = 0;
+  /**
+   * En red, tu destello de lanzar sale al tocar ✦ (`castFlash`) y no cuando llega el estado de
+   * la Sala, que va atrasado.
+   */
+  ownCastShown = false;
+
+  /** El destello de empezar un conjuro, sobre el mago. */
+  castFlash(pos: Vec2, weave: readonly ElementId[]): void {
+    const first = weave[0];
+    if (!first) return;
+    this.particles.burst(
+      pos.x,
+      1.4,
+      pos.z,
+      glow(elementColor(first), 1.6),
+      6 + weave.length * 4,
+      2,
+      0.3,
+    );
+  }
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -91,19 +111,9 @@ export class EffectsView {
     for (const event of events) {
       switch (event.type) {
         case 'cast': {
+          if (this.ownCastShown && event.wizardId === this.playerId) break;
           const caster = byId(event.wizardId);
-          const first = event.weave[0];
-          if (caster && first) {
-            this.particles.burst(
-              caster.pos.x,
-              1.4,
-              caster.pos.z,
-              glow(elementColor(first), 1.6),
-              6 + event.weave.length * 4,
-              2,
-              0.3,
-            );
-          }
+          if (caster) this.castFlash(caster.pos, event.weave);
           break;
         }
         case 'release': {

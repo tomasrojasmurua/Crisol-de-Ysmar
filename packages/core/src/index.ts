@@ -5,7 +5,7 @@ export {
   type BotProfile,
   DEFAULT_BOT,
 } from './ai/bot';
-export { canAct } from './combat/statuses';
+export { canAct, canWeave } from './combat/statuses';
 export type { Controller, Intent } from './controllers/intent';
 export {
   ELEMENT_COUNT,

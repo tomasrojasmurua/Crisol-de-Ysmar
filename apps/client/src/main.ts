@@ -300,7 +300,12 @@ controls.onTap = (x, y) => tapToLock.tapAt(x, y);
 input.onAction((action) => {
   if (!match) return;
   // Tus notas suenan al tocar, con tu tejido tal como lo ves (predicción local incluida).
-  audio.playerAction(action, match.present?.(match.player) ?? match.player);
+  const shown = match.present?.(match.player) ?? match.player;
+  audio.playerAction(action, shown);
+  // En red, el destello de lanzar sale al tocar ✦, sin esperar a la Sala.
+  if (match === net && action.type === 'cast' && !shown.channel && shown.hp > 0) {
+    view.effects.castFlash(match.interpolated(shown.id, shown.pos, lastAlpha), shown.weave);
+  }
 });
 // Un clic suave en los botones de los menús (los del combate ya suenan con su nota).
 uiRoot.addEventListener('click', (event) => {
@@ -524,6 +529,7 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   match = current;
   matchCount++;
   view.effects.playerId = current.playerId;
+  view.effects.ownCastShown = current === net;
   const cast = castOf(current, profile, other);
   badges = cast.badges;
   view.wizardLooks.clear();
