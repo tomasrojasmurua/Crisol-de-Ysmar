@@ -2,6 +2,7 @@ import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
 import type { GameEvent, GameRules } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
+import { reportProblem } from '../platform/ErrorReporter';
 import type { GameScene } from '../render/GameScene';
 import type { ComboCallouts } from '../ui/ComboCallouts';
 import { comboStepsView } from '../ui/comboSteps';
@@ -220,9 +221,21 @@ export class MatchFlow {
         roundsToWin: rules.round.roundsToWin,
       });
       this.deps.hud.showPerf(this.deps.diagnostics.report());
+      this.reportPerformance(current);
       this.deps.controls.visible = false;
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /**
+   * En red, al terminar la serie: el resumen de conexión y cuadros va al registro remoto, para
+   * saber de dónde viene el lag sin pedir capturas.
+   */
+  private reportPerformance(current: MatchView): void {
+    const network = current.networkSummary?.();
+    if (!network) return;
+    const lines = [...network, ...this.deps.diagnostics.fullReport()];
+    reportProblem('rendimiento', network[0] ?? 'Resumen de la partida', lines.join('\n'));
   }
 
   /** Los combos de hechizos del catálogo: su nombre sobre el blanco y, en partidas, el acierto. */

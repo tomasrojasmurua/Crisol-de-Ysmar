@@ -91,6 +91,47 @@ interface SentInput {
   readonly seq: number;
   readonly move: Vec2;
   readonly intents: readonly Intent[];
+  /** Cuándo salió, para medir cuánto tarda la Sala en confirmarlo. */
+  readonly sentAt: number;
+}
+
+/** Cómo anduvo la red en una partida, para el resumen que va al registro remoto. */
+export class NetSummary {
+  /** Ida y vuelta de cada ping, en ms (como mucho unos 20 minutos de partida). */
+  readonly pings: number[] = [];
+  /** De tocar a ver tu toque en un estado de la Sala, en ms. */
+  readonly acks: number[] = [];
+  stalls = 0;
+  maxTarget = 0;
+  maxKbps = 0;
+  biggest = 0;
+  cuts = 0;
+
+  lines(buffer: number): string[] {
+    if (this.pings.length === 0) return [];
+    const ping = percentiles(this.pings);
+    const ack = percentiles(this.acks);
+    return [
+      `Ping típico ${ping.p50} ms · peor 5% ${ping.p95} ms · máx ${ping.max} ms`,
+      `Toque confirmado típico ${ack.p50} ms · peor 5% ${ack.p95} ms`,
+      `Colchón final ${buffer} pasos · máx ${this.maxTarget} · vaciado ${this.stalls} veces · cortes ${this.cuts}`,
+      `Llega hasta ${this.maxKbps} KB/s · estado más grande ${this.biggest} B`,
+    ];
+  }
+}
+
+const MAX_SAMPLES = 1200;
+
+function sample(list: number[], value: number): void {
+  if (list.length < MAX_SAMPLES) list.push(value);
+}
+
+function percentiles(values: readonly number[]): { p50: number; p95: number; max: number } {
+  if (values.length === 0) return { p50: 0, p95: 0, max: 0 };
+  const sorted = [...values].sort((a, b) => a - b);
+  const at = (q: number) =>
+    Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0);
+  return { p50: at(0.5), p95: at(0.95), max: Math.round(sorted[sorted.length - 1] ?? 0) };
 }
 
 /** Lo que el juego escucha de la red. */
@@ -167,6 +208,9 @@ export class NetMatch implements MatchView {
   private target = BUFFER_MIN;
   private calmSteps = 0;
   private stalls = 0;
+  private summary = new NetSummary();
+  /** El último toque cuya confirmación ya se midió. */
+  private ackMeasured = 0;
   private ping = 0;
   /** El estado más nuevo que llegó (el que se muestra va un poco atrás, por el colchón). */
   private latest: StateMessage | null = null;
@@ -251,6 +295,7 @@ export class NetMatch implements MatchView {
           seq,
           move: move?.kind === 'move' ? { x: move.x, z: move.z } : { x: 0, z: 0 },
           intents,
+          sentAt: performance.now(),
         });
         if (this.sent.length > MAX_PENDING) this.sent.shift();
         const lock = [...intents].reverse().find((i) => i.kind === 'lockTarget');
@@ -270,7 +315,9 @@ export class NetMatch implements MatchView {
       // Se vació: se espera a juntar de nuevo y el colchón crece para la próxima.
       if (this.netStage.kind === 'playing') {
         this.stalls++;
+        this.summary.stalls++;
         this.target = Math.min(BUFFER_LIMIT, this.target + 1);
+        this.summary.maxTarget = Math.max(this.summary.maxTarget, this.target);
         this.calmSteps = 0;
       }
       this.primed = false;
@@ -510,6 +557,7 @@ export class NetMatch implements MatchView {
     const now = Date.now();
     if (this.lostAt === 0) {
       this.lostAt = now;
+      this.summary.cuts++;
       this.listener.problem('Se cortó la conexión: reconectando…', false);
       const connected =
         this.openedAt > 0 ? Math.round((performance.now() - this.openedAt) / 1000) : 0;
@@ -660,6 +708,8 @@ export class NetMatch implements MatchView {
         this.primed = false;
         this.previous.clear();
         this.rematchAsked = false;
+        this.summary = new NetSummary();
+        this.summary.maxTarget = this.target;
         this.started = true;
         this.netStage = { kind: 'lobby' };
         this.stage = { kind: 'playing' };
@@ -673,6 +723,11 @@ export class NetMatch implements MatchView {
         return;
       case 'pong':
         this.ping = Math.round(performance.now() - message.sentAt);
+        if (this.netStage.kind === 'playing') {
+          sample(this.summary.pings, this.ping);
+          this.summary.maxKbps = Math.max(this.summary.maxKbps, this.kbps);
+          this.summary.biggest = Math.max(this.summary.biggest, this.biggest);
+        }
         this.listener.stats({
           ping: this.ping,
           buffer: this.buffer.length,
@@ -710,6 +765,7 @@ export class NetMatch implements MatchView {
     if (!this.started) return;
     // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
     this.latest = frame;
+    this.measureAck(frame.ack);
     if (this.awaitingFirst) {
       this.awaitingFirst = false;
       this.apply(frame);
@@ -718,6 +774,19 @@ export class NetMatch implements MatchView {
       return;
     }
     this.buffer.push(frame);
+  }
+
+  /** Cuánto tardó en volver confirmado el toque más nuevo que la Sala ya jugó. */
+  private measureAck(ack: number): void {
+    if (ack <= this.ackMeasured) return;
+    this.ackMeasured = ack;
+    const input = this.sent.find((s) => s.seq === ack);
+    if (input) sample(this.summary.acks, performance.now() - input.sentAt);
+  }
+
+  /** Cómo anduvo la conexión en esta partida (para el registro remoto). */
+  networkSummary(): string[] {
+    return this.summary.lines(this.target);
   }
 
   private countBytes(bytes: number): void {

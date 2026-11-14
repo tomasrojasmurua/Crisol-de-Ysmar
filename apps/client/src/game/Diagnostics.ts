@@ -81,6 +81,11 @@ export class Diagnostics {
     this.perfLog.qualityChanged(quality);
   }
 
+  /** El informe de la partida aunque los datos estén apagados (para el registro remoto). */
+  fullReport(): string[] {
+    return this.perfLog.summary(this.audio.playing);
+  }
+
   /** El informe de la partida, si los datos están activados (si no, nada). */
   report(): string[] {
     return this.enabled ? this.perfLog.summary(this.audio.playing) : [];
