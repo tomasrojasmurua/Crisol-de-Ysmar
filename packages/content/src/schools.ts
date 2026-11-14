@@ -20,8 +20,11 @@ export interface School {
   readonly roles: Readonly<Partial<Record<SpellId, string>>>;
   /** El combo del catálogo que el tutorial enseña y entrega. */
   readonly combo: string;
-  /** Cómo lo cuenta el tutorial, si no basta con "primero esto, luego aquello". */
-  readonly comboTip?: { readonly short: string; readonly text: string };
+  /**
+   * Cómo lo cuenta el tutorial: por qué funciona, en una frase. La orden corta sale de los pasos
+   * del combo ("Primero esto, después aquello") salvo que se diga otra.
+   */
+  readonly comboTip: { readonly short?: string; readonly text: string };
 }
 
 export const SCHOOLS: readonly School[] = [
@@ -37,6 +40,9 @@ export const SCHOOLS: readonly School[] = [
       meteor: 'El golpe más fuerte, si no lo esquivan',
     },
     combo: 'blanco-quieto',
+    comboTip: {
+      text: 'Bajo la lluvia, moverse quema: el muñeco se queda quieto y la bola, que es lenta, no falla.',
+    },
   },
   {
     element: 'tormenta',
@@ -50,6 +56,9 @@ export const SCHOOLS: readonly School[] = [
       tempest: 'Tres saltos con descarga',
     },
     combo: 'tormenta-electrica',
+    comboTip: {
+      text: 'Deja el Pararrayos cerca del muñeco: sigue tirando rayos mientras tú saltas a su alrededor.',
+    },
   },
   {
     element: 'marea',
@@ -64,8 +73,8 @@ export const SCHOOLS: readonly School[] = [
     },
     combo: 'quiebre',
     comboTip: {
-      short: 'Quiebre: Pararrayos y Era de hielo',
-      text: 'Deja el Pararrayos junto al muñeco y congélalo con Era de hielo: el rayo que cae sobre el hielo lo quiebra con 50% más.',
+      short: 'Primero Pararrayos, después Era de hielo',
+      text: 'Deja el Pararrayos junto al muñeco y congélalo: el rayo que cae sobre el hielo hace 50% más de daño.',
     },
   },
   {
@@ -80,6 +89,9 @@ export const SCHOOLS: readonly School[] = [
       garden: 'Flores que curan al pisarlas',
     },
     combo: 'atado-y-a-salvo',
+    comboTip: {
+      text: 'Ponle el Grillete al muñeco y deja el Manantial a tus pies: atado, no puede escapar mientras te curas.',
+    },
   },
   {
     element: 'umbra',
@@ -93,6 +105,9 @@ export const SCHOOLS: readonly School[] = [
       spores: 'Nube que debilita al rival',
     },
     combo: 'hilo-a-ciegas',
+    comboTip: {
+      text: 'Ciego, el rival no ve de quién alejarse y el hilo del Drenaje no se corta.',
+    },
   },
 ];
 

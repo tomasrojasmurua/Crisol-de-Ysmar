@@ -27,6 +27,9 @@ export class TutorialCard {
   private readonly signs: HTMLElement;
   private readonly progress: HTMLElement;
   private readonly kicker: HTMLElement;
+  private readonly dots: HTMLElement;
+  /** "Botón nuevo: Tormenta", cuando el paso estrena un elemento. */
+  private readonly fresh: HTMLElement;
   private readonly text: HTMLElement;
   private readonly next: HTMLButtonElement;
   private readonly actions: HTMLElement;
@@ -56,7 +59,8 @@ export class TutorialCard {
         <span class="tutorial-toggle" aria-hidden="true"></span>
       </button>
       <div class="tutorial-more">
-        <span class="tutorial-kicker"></span>
+        <span class="tutorial-kicker"><span class="tutorial-kicker-title"></span><span class="tutorial-dots" aria-hidden="true"></span></span>
+        <span class="tutorial-fresh" hidden></span>
         <p class="tutorial-text"></p>
         <div class="tutorial-actions">
           <button type="button" class="primary tutorial-next">Siguiente</button>
@@ -78,7 +82,9 @@ export class TutorialCard {
     this.goal = query(this.root, '.tutorial-goal');
     this.signs = query(this.root, '.tutorial-signs');
     this.progress = query(this.root, '.tutorial-progress');
-    this.kicker = query(this.root, '.tutorial-kicker');
+    this.kicker = query(this.root, '.tutorial-kicker-title');
+    this.dots = query(this.root, '.tutorial-dots');
+    this.fresh = query(this.root, '.tutorial-fresh');
     this.text = query(this.root, '.tutorial-text');
     this.next = query(this.root, '.tutorial-next');
     this.actions = query(this.root, '.tutorial-actions');
@@ -132,6 +138,8 @@ export class TutorialCard {
       this.goal.textContent = '¡Tutorial terminado!';
       this.signs.replaceChildren();
       this.kicker.textContent = 'Tutorial';
+      this.dots.replaceChildren();
+      this.fresh.hidden = true;
       this.text.textContent =
         'Puedes repetir cualquier capítulo desde Entrenamiento. Los combos que faltan se descubren jugando.';
       this.progress.hidden = true;
@@ -151,7 +159,30 @@ export class TutorialCard {
         ? [spellStepsView([step.spell])]
         : [];
     this.signs.replaceChildren(...signs);
-    this.kicker.textContent = `${chapter.title} · paso ${tutorial.stepNumber} de ${chapter.steps.length}`;
+    // Un solo contador: el capítulo va en la línea ("4/11"); los pasos del capítulo, en puntitos.
+    this.kicker.textContent = chapter.title;
+    const total = chapter.steps.length;
+    this.dots.replaceChildren(
+      ...(total > 1
+        ? chapter.steps.map((_, i) =>
+            el('span', i < tutorial.stepNumber ? 'tutorial-dot done' : 'tutorial-dot'),
+          )
+        : []),
+    );
+    this.dots.parentElement?.setAttribute(
+      'aria-label',
+      total > 1 ? `${chapter.title}, paso ${tutorial.stepNumber} de ${total}` : chapter.title,
+    );
+    const fresh = step.fresh ?? [];
+    this.fresh.hidden = fresh.length === 0;
+    this.fresh.replaceChildren(
+      ...(fresh.length > 0
+        ? [
+            fresh.length > 1 ? 'Botones nuevos: ' : 'Botón nuevo: ',
+            richText(fresh.map((e) => `{${e}}`).join(' y ')),
+          ]
+        : []),
+    );
     this.text.replaceChildren(richText(step.text));
     this.refreshProgress();
     this.actions.hidden = false;
