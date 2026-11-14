@@ -36,4 +36,6 @@ export interface MatchView {
   isHidden?(id: number): boolean;
   /** En red: cómo va la revancha; `null` si la serie no terminó. */
   rematchStatus?(): RematchStatus | null;
+  /** En red: cómo anduvo la conexión en la partida (ping, colchón, cortes), en pocas líneas. */
+  networkSummary?(): string[];
 }

@@ -580,7 +580,14 @@ function describeMatch(): string {
   const current = match;
   if (!current) return net ? 'sala de espera' : 'menú';
   const where = current === net ? 'red' : current instanceof TrainingMatch ? 'entrenamiento' : 'IA';
-  return `${where} #${matchCount} · ${current.options.mode} · ronda ${current.roundNumber}`;
+  const mode = current.options.mode;
+  const label =
+    mode.kind === 'duel'
+      ? '1v1'
+      : mode.kind === 'teams'
+        ? `${mode.size}v${mode.size}`
+        : `libre ${mode.players}`;
+  return `${where} #${matchCount} · ${label} · ronda ${current.roundNumber}`;
 }
 
 // ---------- Bucle ----------

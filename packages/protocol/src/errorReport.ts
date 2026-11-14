@@ -5,7 +5,8 @@
  */
 
 /** Qué clase de problema es. */
-export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala'] as const;
+/** `rendimiento` no es un error: el resumen de red y cuadros de cada partida en red. */
+export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala', 'rendimiento'] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 export interface ErrorReport {

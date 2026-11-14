@@ -5,12 +5,13 @@ en qué celular y en qué sala y partida. Así "se me cayó" se convierte en alg
 
 ## Qué se anota
 
-| Tipo      | Cuándo                                                                                                                                                                                                                     |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `error`   | Una excepción en el celular (`window.onerror`).                                                                                                                                                                            |
-| `promesa` | Una promesa rechazada que nadie atendió (`unhandledrejection`).                                                                                                                                                            |
-| `red`     | Se cortó la conexión (código de cierre, segundos conectado, si la app estaba en segundo plano), se recuperó (tras cuántos segundos), no se pudo volver, estado ilegible, la sala se reinició o la Sala respondió un error. |
-| `sala`    | Una excepción dentro de la Sala (Durable Object), al procesar un mensaje o en un paso.                                                                                                                                     |
+| Tipo          | Cuándo                                                                                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error`       | Una excepción en el celular (`window.onerror`).                                                                                                                                                                                                         |
+| `promesa`     | Una promesa rechazada que nadie atendió (`unhandledrejection`).                                                                                                                                                                                         |
+| `red`         | Se cortó la conexión (código de cierre, segundos conectado, si la app estaba en segundo plano), se recuperó (tras cuántos segundos), no se pudo volver, estado ilegible, la sala se reinició o la Sala respondió un error.                              |
+| `sala`        | Una excepción dentro de la Sala (Durable Object), al procesar un mensaje o en un paso.                                                                                                                                                                  |
+| `rendimiento` | No es un error: al terminar cada partida en red, el ping (típico, peor 5% y máximo), cuánto tarda en volver confirmado un toque, el colchón, los cortes y el informe de cuadros por segundo. Sirve para saber de dónde viene el lag sin pedir capturas. |
 
 Cada informe lleva: versión del juego (`v79 · abc1234`), celular y navegador resumidos
 (`Android 13 · SM-A145M · Chrome 131 · 8 núcleos · 4 GB`), pantalla, código de sala, partida
