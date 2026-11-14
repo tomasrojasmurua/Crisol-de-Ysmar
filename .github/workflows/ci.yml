@@ -67,6 +67,17 @@ jobs:
         with:
           name: client-dist
           path: apps/client/dist
+      # Si el juego apunta al servidor de Santiago, tiene que responder antes de publicar.
+      - name: Revisar el servidor de salas de Santiago
+        run: |
+          URL=$(grep -o "SANTIAGO_URL = '[^']*'" apps/client/src/net/serverUrl.ts | cut -d"'" -f2)
+          if [ -z "$URL" ]; then echo "Sin servidor de Santiago: las salas van a Cloudflare."; exit 0; fi
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS -m 10 "$URL/health"; then echo; echo "Santiago responde."; exit 0; fi
+            echo "Intento $i: $URL no responde todavía"; sleep 30
+          done
+          echo "::error::El servidor de Santiago ($URL) no responde (ver docs/servidor-santiago.md)"
+          exit 1
       - name: Revisar acceso al registro de errores (D1)
         if: steps.creds.outputs.ready == 'true'
         run: node scripts/errores.mjs --revisar
