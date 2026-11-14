@@ -1,0 +1,191 @@
+/**
+ * El servidor de salas de Santiago: las mismas Salas que en Cloudflare (`RoomHost`), en un
+ * servidor Node con centro de datos en Chile. Cloudflare no crea sus Salas en Sudamérica y las
+ * manda al este de Norteamérica (150 a 250 ms de ida y vuelta desde Chile); aquí son ~10–40 ms.
+ * Ver docs/servidor-santiago.md.
+ *
+ * Rutas: `GET /health` y el socket `/api/rooms/K7QF/socket`, iguales que el Worker. Los errores se
+ * mandan al registro de Cloudflare (D1) por `POST /api/errors`.
+ */
+import { randomFillSync } from 'node:crypto';
+import { createServer, type IncomingMessage } from 'node:http';
+import { isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
+import { WebSocket, WebSocketServer } from 'ws';
+import { generateRoomCode } from '../src/roomCode';
+import { type Peer, RoomHost } from '../src/roomHost';
+
+const PORT = Number(process.env.PORT ?? 8080);
+/** Dónde se anotan los errores (el Worker de Cloudflare guarda en D1). */
+const ERRORS_URL =
+  process.env.ERRORS_URL ?? 'https://crisol-server.tomasrojasmurua.workers.dev/api/errors';
+/** Una sala sin nadie se borra después de esto (igual se puede volver con el código antes). */
+const EMPTY_ROOM_MS = 10 * 60_000;
+/** Cada cuánto se mandan pings del protocolo WebSocket para notar sockets muertos. */
+const HEARTBEAT_MS = 20_000;
+const ROOM_SOCKET_PATH = /^\/api\/rooms\/([A-Z0-9]+)\/socket$/;
+
+/** Un socket de `ws` visto como conexión de la Sala. */
+class WsPeer implements Peer {
+  playerId: number | undefined = undefined;
+  alive = true;
+  constructor(readonly socket: WebSocket) {}
+
+  send(data: string | Uint8Array): void {
+    if (this.socket.readyState === WebSocket.OPEN) this.socket.send(data);
+  }
+
+  close(code: number, reason: string): void {
+    this.socket.close(code, reason);
+  }
+}
+
+interface Room {
+  readonly host: RoomHost;
+  readonly peers: Set<WsPeer>;
+  emptySince: number;
+}
+
+const rooms = new Map<string, Room>();
+
+function roomFor(code: string): Room {
+  let room = rooms.get(code);
+  if (!room) {
+    const peers = new Set<WsPeer>();
+    room = {
+      peers,
+      emptySince: 0,
+      host: new RoomHost({
+        code,
+        peers: () => [...peers],
+        report: (where, error) => reportError(code, where, error),
+      }),
+    };
+    rooms.set(code, room);
+  }
+  return room;
+}
+
+/** Igual que la Sala de Cloudflare: el error va al registro con la sala y dónde pasó. */
+function reportError(room: string, where: string, error: unknown): void {
+  console.error(`Error en la Sala ${room} (${where})`, error);
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  const detail = error instanceof Error ? (error.stack ?? '') : '';
+  const report = {
+    kind: 'sala',
+    message: `${where}: ${message}`.slice(0, REPORT_LIMITS.message),
+    detail: detail.slice(0, REPORT_LIMITS.detail),
+    version: `protocolo ${PROTOCOL_VERSION}`,
+    device: 'servidor Santiago',
+    screen: '',
+    room,
+    match: '',
+    session: '',
+    uptime: Math.round(process.uptime()),
+  };
+  fetch(ERRORS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([report]),
+  }).catch(() => {});
+}
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+const server = createServer((request, response) => {
+  const path = new URL(request.url ?? '/', 'http://sala').pathname;
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, CORS).end();
+    return;
+  }
+  if (path === '/health') {
+    response.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    // `players`: conexiones abiertas. El actualizador solo reinicia el servidor si es 0.
+    let players = 0;
+    for (const room of rooms.values()) players += room.peers.size;
+    response.end(
+      JSON.stringify({ ok: true, rooms: rooms.size, players, protocol: PROTOCOL_VERSION }),
+    );
+    return;
+  }
+  if (path === '/api/rooms' && request.method === 'POST') {
+    const roomCode = generateRoomCode((array) => randomFillSync(array));
+    response.writeHead(201, { ...CORS, 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ roomCode }));
+    return;
+  }
+  response.writeHead(404, CORS).end('No encontrado');
+});
+
+const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+
+server.on('upgrade', (request: IncomingMessage, socket, head) => {
+  const path = new URL(request.url ?? '/', 'http://sala').pathname;
+  const code = ROOM_SOCKET_PATH.exec(path)?.[1];
+  if (!code || !isValidRoomCode(code)) {
+    socket.destroy();
+    return;
+  }
+  sockets.handleUpgrade(request, socket, head, (ws) => connect(code, ws));
+});
+
+function connect(code: string, ws: WebSocket): void {
+  // Los estados salen apenas se arman: sin esperar a juntar más (algoritmo de Nagle).
+  (ws as unknown as { _socket?: { setNoDelay?: (on: boolean) => void } })._socket?.setNoDelay?.(
+    true,
+  );
+  const room = roomFor(code);
+  const peer = new WsPeer(ws);
+  room.peers.add(peer);
+  room.emptySince = 0;
+  ws.on('pong', () => {
+    peer.alive = true;
+  });
+  ws.on('message', (data, isBinary) => {
+    peer.alive = true;
+    const raw = isBinary ? new Uint8Array(data as Buffer) : data.toString();
+    room.host.message(peer, raw);
+  });
+  ws.on('close', () => {
+    room.peers.delete(peer);
+    if (room.peers.size === 0) room.emptySince = Date.now();
+    room.host.closed(peer);
+  });
+  ws.on('error', () => ws.terminate());
+}
+
+// Sockets muertos sin aviso (el celular perdió la señal): se cierran para que la IA tome su mago.
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of rooms) {
+    for (const peer of room.peers) {
+      if (!peer.alive) {
+        peer.socket.terminate();
+        continue;
+      }
+      peer.alive = false;
+      peer.socket.ping();
+    }
+    if (room.peers.size === 0 && room.emptySince > 0 && now - room.emptySince > EMPTY_ROOM_MS) {
+      room.host.stop();
+      rooms.delete(code);
+    }
+  }
+}, HEARTBEAT_MS);
+
+server.listen(PORT, () => {
+  console.log(`Salas de Santiago escuchando en el puerto ${PORT} (protocolo ${PROTOCOL_VERSION})`);
+});
+
+// Al apagar (publicación nueva), se avisa a los celulares con un cierre normal: reconectan solos.
+process.on('SIGTERM', () => {
+  for (const room of rooms.values()) {
+    room.host.stop();
+    for (const peer of room.peers) peer.socket.close(1012, 'Servidor reiniciando');
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000).unref();
+});

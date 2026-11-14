@@ -37,7 +37,7 @@ import type { MatchOptions, MatchStage } from '../game/LocalMatch';
 import type { MatchView, RematchStatus } from '../game/MatchView';
 import { reportProblem } from '../platform/ErrorReporter';
 import { LagSimulator } from './LagSimulator';
-import { roomSocketUrl } from './serverUrl';
+import { roomSocketUrl, roomsServerName } from './serverUrl';
 
 type StateMessage = StateFrame;
 
@@ -855,7 +855,8 @@ export class NetMatch implements MatchView {
 
   /** Cómo anduvo la conexión en esta partida (para el registro remoto). */
   networkSummary(): string[] {
-    return this.summary.lines(this.target);
+    const lines = this.summary.lines(this.target);
+    return lines.length > 0 ? [...lines, `Servidor de salas: ${roomsServerName()}`] : lines;
   }
 
   private countBytes(bytes: number): void {
