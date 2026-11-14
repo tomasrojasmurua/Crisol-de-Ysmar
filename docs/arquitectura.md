@@ -45,13 +45,17 @@ apps/client   apps/server   apps/balance
 
 ## Red (desde el Hito 2)
 
-La Sala (Durable Object, creada en Sudamérica) corre el núcleo y es la única verdad. Los celulares
+La Sala corre el núcleo y es la única verdad. Corre en el servidor de salas de Santiago (Node) o,
+si no está configurado, en un Durable Object de Cloudflare, que Cloudflare crea en el este de
+Norteamérica aunque se le pida Sudamérica (ver `docs/servidor-santiago.md`). Los celulares
 envían intenciones numeradas cada 33 ms y reciben el estado en cada paso (30 por segundo): en
-binario y solo con lo que cambió. El celular guarda dos pasos de colchón y dibuja interpolando entre
-ellos.
+binario y solo con lo que cambió. El celular guarda dos pasos de colchón (crece con los tirones y se
+achica cuando sobra) y dibuja interpolando entre ellos. Tu conjuro en curso se predice desde que
+tocas ✦.
 
 - `apps/server/src/duel.ts` (`DuelHost`, puro y con pruebas) lleva la partida de cualquier modo
-  con Glifos; `room.ts` conecta los sockets y el reloj. En el cliente,
+  con Glifos; `roomHost.ts` (`RoomHost`) conecta los sockets y el reloj sin saber dónde corre;
+  `room.ts` (Cloudflare) y `node/main.ts` (Santiago) solo le pasan sus sockets. En el cliente,
   `net/NetMatch.ts` cumple la misma interfaz que `LocalMatch` (`game/MatchView.ts`), así que el
   dibujo y el HUD no cambian. Si alguien se corta, la IA juega por él y puede volver en 60 s con su
   token (guardado en la pestaña).

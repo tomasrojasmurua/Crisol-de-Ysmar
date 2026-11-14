@@ -2,20 +2,26 @@
   "name": "@crisol/server",
   "version": "0.0.0",
   "private": true,
-  "description": "Worker de entrada y Durable Object Sala en Cloudflare.",
+  "description": "Worker de entrada y Sala en Cloudflare, y el servidor de salas de Santiago (node/).",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc -p tsconfig.json"
+    "build:sala": "esbuild node/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-sala/sala.mjs --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
+    "sala": "pnpm build:sala && node dist-sala/sala.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json"
   },
   "dependencies": {
     "@crisol/content": "workspace:*",
     "@crisol/core": "workspace:*",
-    "@crisol/protocol": "workspace:*"
+    "@crisol/protocol": "workspace:*",
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261109.1",
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
+    "esbuild": "0.28.2",
     "wrangler": "4.158.0"
   }
 }
