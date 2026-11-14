@@ -292,7 +292,7 @@ body {
   font-size: 13px;
 }
 
-/* Título al centro: "Crisol de" chico sobre "Ysmar" grande. */
+/* Logotipo al centro; la niebla de arriba se recorta un poco para no robar alto al menú. */
 .menu-title {
   grid-area: title;
   position: relative;
@@ -301,27 +301,21 @@ body {
 
 .menu-title h1 {
   margin: 0;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: clamp(34px, 11vh, 52px);
-  line-height: 0.95;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--gold-bright);
-  text-shadow:
-    0 2px 0 #5b4626,
-    0 0 18px rgba(243, 223, 176, 0.4),
-    0 0 50px rgba(180, 156, 255, 0.35);
+  line-height: 0;
 }
 
-.menu-title-small {
-  display: block;
-  font-size: 0.42em;
-  letter-spacing: 0.2em;
+.menu-logo {
+  display: inline-block;
+  height: clamp(76px, 22vh, 112px);
+  width: auto;
+  margin: -6px 0 -4px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .menu-tagline {
-  margin: 4px 0 0;
+  position: relative;
+  margin: 0;
   font-size: 12.5px;
   color: var(--ink);
   opacity: 0.85;
@@ -619,8 +613,8 @@ body {
 
 /* Celulares bajos: se achica el título para que nada se encime. */
 @media (max-height: 360px) {
-  .menu-title h1 {
-    font-size: 30px;
+  .menu-logo {
+    height: 72px;
   }
 
   .menu-tagline {
@@ -3366,6 +3360,14 @@ body {
     text-align: center;
     pointer-events: auto;
   }
+}
+
+/* En vertical el logotipo va arriba del aviso, y entra en cualquier ancho. */
+.rotate-logo {
+  width: min(78vw, 340px);
+  height: auto;
+  margin-bottom: 12px;
+  user-select: none;
 }
 
 .rotate-phone {

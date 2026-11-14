@@ -124,7 +124,7 @@ export class Menu {
         <button type="button" class="secondary menu-wizard">${MENU_ICONS.wardrobe}<span>Vestidor</span></button>
       </aside>
       <header class="menu-title">
-        <h1><span class="menu-title-small">Crisol de</span> Ysmar</h1>
+        <h1><img class="menu-logo" src="/logo.webp" alt="Crisol de Ysmar" width="658" height="288" decoding="async" /></h1>
         <p class="menu-tagline">Teje la magia. Lee al rival. Sobrevive al Crisol.</p>
       </header>
       <section class="menu-center">
