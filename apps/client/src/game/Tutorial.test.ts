@@ -55,11 +55,11 @@ function castAt(state: MatchState, spell: SpellId, at: Vec2 = dummy(state).pos):
   ];
 }
 
-/** Camina hacia el muñeco hasta quedar a unos 5 m. */
-function approach(state: MatchState): Intent[] {
+/** Camina hacia el muñeco hasta quedar a unos metros (5 si no se dice). */
+function approach(state: MatchState, meters = 5): Intent[] {
   const dir = toward(me(state).pos, dummy(state).pos);
   const d = Math.hypot(dummy(state).pos.x - me(state).pos.x, dummy(state).pos.z - me(state).pos.z);
-  return d > 5 ? [{ kind: 'move', x: dir.x, z: dir.z }] : [];
+  return d > meters ? [{ kind: 'move', x: dir.x, z: dir.z }] : [];
 }
 
 /**
@@ -242,18 +242,52 @@ describe('Tutorial por escuela', () => {
   });
 
   it('tu elemento: el básico, deshacer y el descanso', () => {
+    // El Salpicón llega a 3,2 m: hay que acercarse antes de lanzarlo.
     const { tutorial, reached } = play(
       (tick, state) => {
-        if (tick === 5) return castAt(state, 'splash');
-        if (tick === 120) return [{ kind: 'weave', element: 'marea' }];
-        if (tick === 125) return [{ kind: 'cancelWeave' }];
-        return [];
+        if (tick === 170) return castAt(state, 'splash');
+        if (tick === 290) return [{ kind: 'weave', element: 'marea' }];
+        if (tick === 295) return [{ kind: 'cancelWeave' }];
+        return tick < 170 ? approach(state, 2.5) : [];
       },
       'elemento',
-      200,
+      400,
     );
     expect(reached).toEqual(['{marea}', 'Deshacer', 'El descanso']);
     expect(tutorial.finished).toEqual(['elemento']);
+  });
+
+  it('un hechizo que no alcanza al muñeco no cuenta y avisa que no le diste', () => {
+    // Desde donde empiezas, el Salpicón no llega al muñeco.
+    const { tutorial, reached } = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'splash') : []),
+      'elemento',
+      150,
+    );
+    expect(reached).toEqual([]);
+    expect(tutorial.step?.title).toBe('{marea}');
+    expect(tutorial.progress).toBe('Fallaste, acércate');
+  });
+
+  it('la Zarpa de Umbra cuenta solo si alcanza al muñeco', () => {
+    const umbra = tutorialChapters('umbra');
+    const far = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'claw') : []),
+      'elemento',
+      150,
+      0,
+      umbra,
+    );
+    expect(far.reached).toEqual([]);
+    const near = play(
+      (tick, state) =>
+        tick === 170 ? castAt(state, 'claw') : tick < 170 ? approach(state, 3) : [],
+      'elemento',
+      200,
+      0,
+      umbra,
+    );
+    expect(near.reached).toEqual(['{umbra}']);
   });
 
   it('tejer pide los hechizos justos de la escuela: el orden importa', () => {
@@ -261,15 +295,15 @@ describe('Tutorial por escuela', () => {
     // descansan (3 s).
     const casts = new Map<number, SpellId>([
       [5, 'obsidian'],
-      [110, 'blizzard'],
-      [215, 'lightningRod'],
+      [170, 'blizzard'],
+      [275, 'lightningRod'],
     ]);
     const plan = (tick: number, state: MatchState): Intent[] => {
       const spell = casts.get(tick);
-      return spell ? castAt(state, spell) : [];
+      return spell ? castAt(state, spell) : approach(state, 3);
     };
     expect(play(plan, 'tejer', 60).tutorial.step?.title).toBe('Ventisca');
-    const { tutorial, reached } = play(plan, 'tejer', 300);
+    const { tutorial, reached } = play(plan, 'tejer', 400);
     expect(reached).toEqual(['Combinar elementos', 'Ventisca', 'Pararrayos']);
     expect(tutorial.finished).toEqual(['tejer']);
   });
