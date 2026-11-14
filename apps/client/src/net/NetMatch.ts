@@ -44,14 +44,24 @@ type StateMessage = StateFrame;
 const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
 /**
  * El colchón: pasos guardados antes de mostrar, contra los saltos de la red. Empieza chico y crece
- * si la red se corta; vuelve a achicarse de a poco si pasa un rato sin cortes.
+ * si la red se corta; se achica apenas se ve que sobra (cada paso del colchón es atraso).
  */
 const BUFFER_MIN = 2;
 const BUFFER_LIMIT = 8;
-/** Pasos sin cortes para achicar el colchón en uno (10 s). */
-const SHRINK_AFTER = 300;
+/**
+ * Cada cuánto se revisa si el colchón sobra (3 s). Si en todo ese rato nunca bajó de un paso
+ * guardado de más, se achica en uno. Antes se esperaban 10 s fijos: tras un tirón el atraso
+ * extra duraba casi un minuto.
+ */
+const SHRINK_AFTER = 90;
 /** Si el colchón se pasa de su tamaño por más que esto, se muestran dos pasos por cuadro. */
 const CATCH_UP_SLACK = 2;
+/**
+ * Si hay apenas uno o dos pasos de más, se adelanta uno cada tantos pasos (un 12% más rápido, no
+ * se nota). Sin esto el sobrante se quedaba para siempre como atraso, aunque el colchón buscado
+ * fuera menor.
+ */
+const DRIFT_EVERY = 8;
 /** Si se juntan muchísimos (la pestaña estuvo en segundo plano), se salta directo. */
 const HARD_SKIP = 30;
 /**
@@ -207,6 +217,10 @@ export class NetMatch implements MatchView {
   private primed = false;
   private target = BUFFER_MIN;
   private calmSteps = 0;
+  /** Lo menos que tuvo el colchón (además del paso que se muestra) desde la última revisión. */
+  private calmLow = Number.POSITIVE_INFINITY;
+  /** Pasos seguidos con algo de sobra en el colchón. */
+  private driftSteps = 0;
   private stalls = 0;
   private summary = new NetSummary();
   /** El último toque cuya confirmación ya se midió. */
@@ -319,17 +333,31 @@ export class NetMatch implements MatchView {
         this.target = Math.min(BUFFER_LIMIT, this.target + 1);
         this.summary.maxTarget = Math.max(this.summary.maxTarget, this.target);
         this.calmSteps = 0;
+        this.calmLow = Number.POSITIVE_INFINITY;
       }
       this.primed = false;
       return events;
     }
     // Atrasado: se muestran dos pasos en este cuadro, un poco más rápido, hasta alcanzar.
-    if (this.buffer.length > this.target + CATCH_UP_SLACK) this.consume(events);
+    if (this.buffer.length > this.target + CATCH_UP_SLACK) {
+      this.consume(events);
+      this.driftSteps = 0;
+    } else if (this.buffer.length > this.target) {
+      // Un poco de sobra: se adelanta de a poco hasta volver al colchón buscado.
+      if (++this.driftSteps >= DRIFT_EVERY) {
+        this.consume(events);
+        this.driftSteps = 0;
+      }
+    } else {
+      this.driftSteps = 0;
+    }
     this.rememberPositions();
     this.consume(events);
-    if (++this.calmSteps >= SHRINK_AFTER && this.target > BUFFER_MIN) {
-      this.target--;
+    this.calmLow = Math.min(this.calmLow, this.buffer.length);
+    if (++this.calmSteps >= SHRINK_AFTER) {
+      if (this.target > BUFFER_MIN && this.calmLow >= 1) this.target--;
       this.calmSteps = 0;
+      this.calmLow = Number.POSITIVE_INFINITY;
     }
     return events;
   }
