@@ -3835,10 +3835,47 @@ body {
 }
 
 .tutorial-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--trama);
+}
+
+.tutorial-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.tutorial-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--trama);
+}
+
+.tutorial-dot.done {
+  background: var(--trama);
+}
+
+/* "Botón nuevo: Tormenta": una pastilla dorada sobre la explicación. */
+.tutorial-fresh {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: rgba(216, 191, 138, 0.14);
+  font-size: 11px;
+  color: var(--gold-bright);
+}
+
+.tutorial-fresh[hidden] {
+  display: none;
+}
+
+.rich-nowrap {
+  white-space: nowrap;
 }
 
 .tutorial-text {

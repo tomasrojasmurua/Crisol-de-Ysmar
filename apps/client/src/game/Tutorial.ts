@@ -83,6 +83,8 @@ export interface TutorialStep {
   readonly combo?: Combo;
   /** El hechizo que pide tejer: se dibujan sus elementos junto a la orden. */
   readonly spell?: SpellId;
+  /** Los elementos que estrena este paso: la guía los anuncia en una etiqueta aparte. */
+  readonly fresh?: readonly ElementId[];
   /** Qué hace el muñeco en este paso; si no se dice, sigue como en el paso anterior. */
   readonly dummy?: DummyMode;
   /**
@@ -125,8 +127,20 @@ const BASICS: Readonly<Record<ElementId, SpellId>> = {
   umbra: 'claw',
 };
 
+/** Qué sale con el básico de cada elemento, para el primer paso de tu escuela. */
+const BASIC_NOTES: Readonly<Record<ElementId, string>> = {
+  brasa: 'sale una Chispa. Los números rojos son el daño que haces.',
+  tormenta: 'sale un Paso: te mueve rápido unos metros y sirve para esquivar.',
+  marea: 'sale un Salpicón. Los números rojos son el daño que haces.',
+  raiz: 'sale Savia: te cura un poco.',
+  umbra: 'sale una Zarpa. Los números rojos son el daño que haces.',
+};
+
 /** Cómo se teje un hechizo, con el signo de cada elemento: "{tormenta}, {brasa}". */
 const weaveText = (spell: SpellId): string => SPELL_WEAVES[spell].map((e) => `{${e}}`).join(', ');
+
+/** "Explosión fuerte" → "explosión fuerte", para seguir la frase después de dos puntos. */
+const lowerFirst = (text: string): string => text.charAt(0).toLowerCase() + text.slice(1);
 
 /** Lo nuevo de la barra de botones que pide tejer este hechizo. */
 function newParts(spell: SpellId, shown: Set<HudPart>): ElementId[] {
@@ -139,14 +153,14 @@ function newParts(spell: SpellId, shown: Set<HudPart>): ElementId[] {
 function spellStep(school: School, spell: SpellId, shown: Set<HudPart>): TutorialStep {
   const fresh = newParts(spell, shown);
   const name = SPELL_NAMES[spell];
-  const intro = fresh.length > 0 ? `Llega ${fresh.map((e) => `{${e}}`).join(' y ')}. ` : '';
+  const role = school.roles[spell];
   return {
     title: name,
-    short: `Teje ${name}`,
-    text: `${intro}${weaveText(spell)} y ✦: ${name}. ${school.roles[spell] ?? ''}.`,
+    short: `Lanza ${name}`,
+    text: `Toca ${weaveText(spell)} y después ✦.${role ? ` ${name}: ${lowerFirst(role)}.` : ''}`,
     goal: { kind: 'release', spell },
     spell,
-    ...(fresh.length > 0 ? { reveal: fresh, glow: fresh[0] } : {}),
+    ...(fresh.length > 0 ? { reveal: fresh, glow: fresh[0], fresh } : {}),
   };
 }
 
@@ -182,7 +196,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Cómo se gana',
-          text: `Eres de la ${school.name}. Gana la ronda el último mago en pie, y la partida, quien gane 2 rondas. La zona se va cerrando y quema.`,
+          text: `Eres de la ${school.name}. Deja al rival sin vida y ganas la ronda. Gana 2 rondas y ganas el duelo.`,
           goal: { kind: 'read' },
           dummy: 'idle',
         },
@@ -194,8 +208,8 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Caminar',
-          short: 'Camina con el pulgar izquierdo',
-          text: 'Toca la mitad izquierda de la pantalla y arrastra: el joystick aparece donde pones el pulgar.',
+          short: 'Arrastra el pulgar izquierdo para caminar',
+          text: 'Ponlo en cualquier parte de la mitad izquierda: ahí aparece el control.',
           goal: { kind: 'move', meters: 4 },
         },
       ],
@@ -206,21 +220,21 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Mirar',
-          short: 'Arrastra en el centro para mirar',
-          text: 'Arrastra un dedo por el centro de la pantalla. La mitad izquierda es para caminar.',
+          short: 'Arrastra en el centro para girar la cámara',
+          text: 'Usa el otro dedo: la mitad izquierda es solo para caminar.',
           goal: { kind: 'signal', signal: 'look' },
           dummy: 'near',
         },
         {
           title: 'Fijar',
-          short: 'Toca al muñeco para fijarlo',
-          text: 'Tocar a un rival lo fija: la cámara lo mantiene al frente, un anillo lo marca y tus hechizos le apuntan solos.',
+          short: 'Toca al muñeco',
+          text: 'Queda marcado con un anillo y tus hechizos van solos hacia él.',
           goal: { kind: 'lock' },
         },
         {
           title: 'Saltar entre rivales',
-          short: 'Salta al otro muñeco con el botón',
-          text: 'Llegó otro muñeco. El botón de las cuatro esquinas salta al siguiente rival. También puedes tocar directo al que quieras.',
+          short: 'Toca {duel} para cambiar de muñeco',
+          text: 'Apareció otro. Ese botón pasa al siguiente rival; también puedes tocar al que quieras.',
           goal: { kind: 'switch' },
           secondDummy: true,
           reveal: ['duel'],
@@ -228,8 +242,8 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
         },
         {
           title: 'Soltar',
-          short: 'Gira la cámara para soltar al rival',
-          text: 'Arrastrar para mirar suelta al rival fijado. Para volver a fijarlo, tócalo otra vez.',
+          short: 'Arrastra en el centro para soltar al muñeco',
+          text: 'Mover la cámara a mano lo suelta. Para marcarlo de nuevo, tócalo.',
           goal: { kind: 'unlock' },
         },
       ],
@@ -241,7 +255,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
         {
           title: `{${element}}`,
           short: `Toca {${element}} y después ✦`,
-          text: `{${element}} es el elemento de tu escuela. Tócalo y después ✦: sale ${SPELL_NAMES[basic]}. Los números rojos son el daño que haces.`,
+          text: `{${element}} es tu elemento. ✦ lanza: ${BASIC_NOTES[element]}`,
           goal: { kind: 'release', spell: basic },
           spell: basic,
           dummy: 'idle',
@@ -250,15 +264,15 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
         },
         {
           title: 'Deshacer',
-          short: `Toca {${element}} y deshazlo con ↺`,
-          text: 'Lo que tocas se va tejiendo arriba de ✦. Si te equivocas, la flecha que gira lo deshace sin gastar nada.',
+          short: `Toca {${element}} y después {undo}, sin lanzar`,
+          text: 'Lo que tocas se junta arriba de ✦ antes de lanzarlo: a eso le llamamos tejer. {undo} lo borra si te equivocaste y no gasta nada.',
           goal: { kind: 'undo' },
           reveal: ['undo'],
           glow: 'undo',
         },
         {
           title: 'El descanso',
-          text: `Al lanzar, el botón de {${element}} se apaga unos segundos: descansa. Mientras, usa otro elemento. No hay maná: solo descanso.`,
+          text: 'Cada vez que lanzas, el botón que usaste se apaga unos segundos para recargarse. Mientras, usa otro elemento.',
           goal: { kind: 'read' },
         },
       ],
@@ -268,8 +282,8 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       title: 'Tejer',
       steps: [
         {
-          title: 'El orden importa',
-          text: 'Toca hasta tres elementos antes de ✦: cada tejido es un hechizo propio, y el orden lo cambia. Tu escuela te enseña estos.',
+          title: 'Combinar elementos',
+          text: 'Si tocas 2 o 3 elementos antes de ✦, sale otro hechizo. El orden cuenta: {tormenta} y {brasa} no es lo mismo que {brasa} y {tormenta}. Ahora vienen los de tu escuela.',
           goal: { kind: 'read' },
         },
         ...tejer,
@@ -281,7 +295,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         ...grand.map((step) => ({
           ...step,
-          text: `${step.text} Los de tres elementos tardan más en salir y cansan los tres.`,
+          text: `${step.text} Los hechizos de 3 elementos tardan más en salir y apagan los 3 botones un rato.`,
         })),
       ],
     },
@@ -291,17 +305,19 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Leer al rival',
-          text: 'Ahora el muñeco ataca. Lo que teje flota sobre su cabeza: si ves {brasa}, viene una Chispa.',
+          text: 'Ahora el muñeco te ataca. Mira sobre su cabeza: ahí aparece lo que va a lanzar. Si ves {brasa}, viene una Chispa.',
           goal: { kind: 'read' },
           dummy: 'sparks',
         },
         {
           title: 'Paso',
-          short: 'Esquiva dos Chispas',
-          text: `${dodgeFresh.length > 0 ? 'Llega {tormenta}. ' : ''}Al ver {brasa} sobre el muñeco, camina de lado o usa Paso: {tormenta} y ✦ arrastrando hacia un lado.`,
+          short: 'Esquiva 2 Chispas',
+          text: 'Cuando veas {brasa} sobre el muñeco, camina hacia un lado. Truco: toca {tormenta} y arrastra ✦ hacia un lado para dar un Paso rápido.',
           goal: { kind: 'avoid', count: 2 },
           spell: 'step',
-          ...(dodgeFresh.length > 0 ? { reveal: dodgeFresh, glow: 'tormenta' as const } : {}),
+          ...(dodgeFresh.length > 0
+            ? { reveal: dodgeFresh, glow: 'tormenta' as const, fresh: dodgeFresh }
+            : {}),
         },
       ],
     },
@@ -311,8 +327,8 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Elegir la dirección',
-          short: 'Arrastra desde ✦ para elegir dirección',
-          text: 'Tocar ✦ apunta solo. Arrastrar desde ✦ elige hacia dónde sale el hechizo.',
+          short: `Toca {${element}} y arrastra ✦ hacia un lado`,
+          text: 'Si solo tocas ✦, el hechizo va al muñeco. Si lo arrastras, sale hacia donde arrastraste.',
           goal: { kind: 'aimed' },
           dummy: 'idle',
           glow: 'cast',
@@ -322,7 +338,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
               {
                 title: 'Hechizos de suelo',
                 short: `Deja ${SPELL_NAMES[placed]} donde quieras`,
-                text: `Teje ${SPELL_NAMES[placed]} (${weaveText(placed)}), mantén ✦ un momento y arrastra para elegir dónde cae.`,
+                text: `Toca ${weaveText(placed)}. Luego mantén apretado ✦, arrastra hasta el lugar y suelta.`,
                 goal: { kind: 'placed' as const },
                 spell: placed,
               },
@@ -335,15 +351,15 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       title: 'Tu combo',
       steps: [
         {
-          title: 'Seguidillas',
-          text: 'Un combo es una seguidilla de hechizos que encaja. No da premio extra: el premio es descubrirlo.',
+          title: 'Combos',
+          text: 'Un combo son dos hechizos seguidos que se ayudan. Ahora aprendes el de tu escuela.',
           goal: { kind: 'read' },
           dummy: 'idle',
         },
         {
           title: schoolCombo.name,
-          short: school.comboTip?.short ?? `${schoolCombo.name}: ${first}, luego ${second}`,
-          text: school.comboTip?.text ?? schoolCombo.detail,
+          short: school.comboTip.short ?? `Primero ${first}, después ${second}`,
+          text: school.comboTip.text,
           goal: schoolCombo.reaction
             ? { kind: 'reaction', reaction: schoolCombo.reaction }
             : { kind: 'combo', comboId: schoolCombo.id },
@@ -351,7 +367,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
         },
         {
           title: 'Tu primer combo',
-          text: `${schoolCombo.name} queda en tu Grimorio. Los demás se descubren jugando: acierta uno 3 veces en partidas y se anota.`,
+          text: `${schoolCombo.name} quedó guardado en tu Grimorio. Hay más combos escondidos: cuando hagas uno 3 veces en partidas, se guarda solo.`,
           goal: { kind: 'read' },
         },
       ],
@@ -362,7 +378,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Todo es tuyo',
-          text: `Los hechizos de tu escuela quedan destacados en el Grimorio. Los otros elementos también son tuyos: tejiéndolos descubres los 155 hechizos.`,
+          text: 'Ya tienes los 5 elementos. Los hechizos de tu escuela salen destacados en el Grimorio, pero puedes combinar cualquier elemento: hay 155 hechizos por descubrir.',
           goal: { kind: 'read' },
           reveal: [...ELEMENT_IDS],
         },
@@ -374,14 +390,14 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Un duelo de verdad',
-          text: `Ahora pelea un mago Aprendiz de la ${examSchool(element).name}: se mueve, esquiva y ataca. Usa lo que aprendiste.`,
+          text: `Último paso: un duelo contra un mago Aprendiz de la ${examSchool(element).name}. Se mueve, esquiva y ataca como un jugador. Ojo: el borde de la arena se cierra y quema.`,
           goal: { kind: 'read' },
           dummy: 'idle',
         },
         {
           title: 'Derrota al Aprendiz',
           short: 'Derrota al Aprendiz',
-          text: 'Gana el duelo. Si te deja mal, tu vida vuelve: aquí no se pierde.',
+          text: 'Déjalo sin vida. Si te quedas sin vida, se vuelve a llenar: aquí no puedes perder.',
           goal: { kind: 'defeat' },
           dummy: 'bot',
         },
@@ -408,8 +424,8 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Choque de tejidos',
-        short: 'Arrastra ✦ con Salpicón hacia la Chispa',
-        text: 'Un elemento opuesto desarma un proyectil: contra {brasa}, {marea} o {raiz}. Teje {marea} y arrastra ✦ hacia la Chispa que viene.',
+        short: 'Toca {marea} y arrastra ✦ hacia la Chispa',
+        text: 'El agua apaga el fuego: un Salpicón contra una Chispa la deshace. Contra {brasa} sirven {marea} o {raiz}.',
         goal: { kind: 'clash' },
         spell: 'splash',
         dummy: 'sparks',
@@ -417,7 +433,7 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
       {
         title: 'Lo que cae del cielo',
         short: 'Sal del círculo antes de que caiga',
-        text: 'El Meteoro no se desarma. Cuando veas el círculo en el suelo, sal de él.',
+        text: 'Ahí va a caer un Meteoro y no se puede frenar.',
         goal: { kind: 'avoidStrike' },
         dummy: 'meteor',
       },
@@ -430,7 +446,7 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
     steps: [
       {
         title: 'Estados',
-        text: 'Muchos hechizos dejan un estado: quemado, congelado, empapado, enraizado… Golpear un estado con el elemento justo provoca una reacción.',
+        text: 'Muchos hechizos dejan al rival quemado, congelado, empapado o enraizado. Si le pegas con el elemento justo mientras le dura, hay una reacción con efecto extra.',
         goal: { kind: 'read' },
         dummy: 'idle',
       },
@@ -444,7 +460,7 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
       {
         title: 'Quiebre',
         short: 'Quiebre: congela, luego Rayo',
-        text: 'Lanza Era de hielo ({marea}, {marea}, {marea}). Cuando lo congele, suéltale un Rayo en cadena ({tormenta}, {brasa}).',
+        text: 'Lanza Era de hielo ({marea}, {marea}, {marea}). Cuando lo congele, lanza un Rayo en cadena ({tormenta}, {brasa}).',
         goal: { kind: 'reaction', reaction: 'shatter' },
         combo: combo('quiebre'),
       },

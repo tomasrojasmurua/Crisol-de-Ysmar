@@ -270,7 +270,7 @@ describe('Tutorial por escuela', () => {
     };
     expect(play(plan, 'tejer', 60).tutorial.step?.title).toBe('Ventisca');
     const { tutorial, reached } = play(plan, 'tejer', 300);
-    expect(reached).toEqual(['El orden importa', 'Ventisca', 'Pararrayos']);
+    expect(reached).toEqual(['Combinar elementos', 'Ventisca', 'Pararrayos']);
     expect(tutorial.finished).toEqual(['tejer']);
   });
 
