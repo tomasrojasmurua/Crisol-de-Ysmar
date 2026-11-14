@@ -148,8 +148,33 @@ const releaseGoal = (spell: SpellId): Goal =>
  * una Bola ígnea lenta, algo más de 1 s en cruzar la arena.
  */
 const LAND_WINDOW = Math.round(3 * TICK_RATE);
-/** Cuánto queda a la vista el aviso de que no le diste. */
-const MISS_NOTICE = Math.round(3 * TICK_RATE);
+/** Cuánto queda a la vista un aviso de la línea («Fallaste, acércate», «Ese fue Cometa»). */
+const NOTICE_TICKS = Math.round(3 * TICK_RATE);
+
+/** Pasado este tiempo en un paso sin cumplirlo, la guía da una pista y hace brillar un botón. */
+export const STUCK_TICKS = Math.round(20 * TICK_RATE);
+
+/** La pista de cada tipo de paso, para quien lleva rato sin lograrlo. */
+const HINTS: Readonly<Record<Exclude<Goal['kind'], 'read'>, string>> = {
+  move: 'Pon el pulgar en la mitad izquierda y arrástralo hacia arriba.',
+  signal: 'Arrastra un dedo por el centro de la pantalla, de lado a lado.',
+  lock: 'Toca justo encima del muñeco, con un toque corto.',
+  unlock: 'Arrastra un dedo por el centro de la pantalla, sin tocar al muñeco.',
+  switch: 'Toca el botón que brilla, abajo a la derecha.',
+  release: 'Toca los botones en el orden de la línea de arriba y termina con ✦.',
+  releaseAll: 'Toca los botones en el orden de la línea de arriba y termina con ✦.',
+  releases: 'Lanza con un elemento distinto cada vez.',
+  weaveLength: 'Toca tres elementos seguidos y termina con ✦.',
+  aimed: 'Toca un elemento, pon el dedo en ✦ y deslízalo hacia un lado antes de soltar.',
+  placed: 'Teje el hechizo, deja el dedo quieto en ✦ un momento y después arrástralo.',
+  avoid: 'Mira sobre la cabeza del muñeco: cuando aparezca {brasa}, camina hacia un lado.',
+  avoidStrike: 'Camina hasta salir del círculo del suelo.',
+  clash: 'Espera la Chispa del muñeco y arrastra ✦ con {marea} hacia ella.',
+  reaction: 'Lanza el primero y, apenas le dé, el segundo.',
+  combo: 'Lanza el primero y, apenas le dé, el segundo.',
+  defeat: 'Muévete sin parar y lanza cuando tus botones estén encendidos.',
+  undo: 'Toca un elemento: aparece arriba de ✦. Después toca {undo}.',
+};
 
 /** El básico de cada elemento: lo que sale tocándolo solo. */
 const BASICS: Readonly<Record<ElementId, SpellId>> = {
@@ -530,8 +555,11 @@ export class Tutorial {
   private ticks = 0;
   /** Hasta qué paso se espera que el hechizo lanzado alcance al rival; null si no se espera. */
   private landBy: number | null = null;
-  /** Hasta qué paso se muestra el aviso de que no le diste. */
-  private missUntil = -1;
+  /** El aviso de la línea («Fallaste, acércate») y hasta qué paso se muestra. */
+  private notice = '';
+  private noticeUntil = -1;
+  /** Pasos de partida que lleva el paso actual, para saber si te trabaste. */
+  private stepTicks = 0;
   /** Cuánto le queda a cada estado que le pusiste a un rival, para ver si le pusiste uno nuevo. */
   private readonly statusTicks = new Map<string, number>();
   /** Proyectiles y golpes del muñeco en el aire: qué son y qué tan cerca te pasaron. */
@@ -614,8 +642,44 @@ export class Tutorial {
     if (goal?.kind === 'releaseAll') return `${this.released.size} de ${goal.spells.length}`;
     if (goal?.kind === 'releases') return `${this.releasedCount} de ${goal.count}`;
     if (goal?.kind === 'avoid') return `${this.avoided} de ${goal.count}`;
-    if (this.ticks < this.missUntil) return 'Fallaste, acércate';
+    if (this.ticks < this.noticeUntil) return this.notice;
     return '';
+  }
+
+  /** Si llevas rato en un paso que se hace jugando sin lograrlo. */
+  get stuck(): boolean {
+    const goal = this.step?.goal;
+    return goal !== undefined && goal.kind !== 'read' && this.stepTicks >= STUCK_TICKS;
+  }
+
+  /** La pista para quien se trabó en este paso; vacía si no se trabó. */
+  get hint(): string {
+    const goal = this.step?.goal;
+    if (!this.stuck || !goal || goal.kind === 'read') return '';
+    if (goal.kind === 'release' && goal.land) return `${HINTS.release} Si fallas, acércate más.`;
+    return HINTS[goal.kind];
+  }
+
+  /**
+   * El botón que brilla: el que nombra el paso; si te trabaste y el paso no nombra ninguno, el
+   * primero que hay que tocar.
+   */
+  get glow(): HudPart | null {
+    const step = this.step;
+    if (!step) return null;
+    if (step.glow || !this.stuck) return step.glow ?? null;
+    const goal = step.goal;
+    if (goal.kind === 'switch') return 'duel';
+    if (goal.kind === 'undo') return 'undo';
+    if (goal.kind === 'aimed' || goal.kind === 'placed') return 'cast';
+    const spell = step.spell ?? (goal.kind === 'release' ? goal.spell : undefined);
+    const first = spell ? SPELL_WEAVES[spell][0] : undefined;
+    return first ?? null;
+  }
+
+  private say(text: string): void {
+    this.notice = text;
+    this.noticeUntil = this.ticks + NOTICE_TICKS;
   }
 
   /** «Siguiente» en un paso que solo se lee. */
@@ -652,6 +716,7 @@ export class Tutorial {
     const combos = this.detector.onStep(events, state).map((h) => h.combo.id);
     const avoided = this.trackDummyAttacks(events, state);
     this.ticks++;
+    this.stepTicks++;
     const landed = this.trackLanded(events, state);
     const goal = this.step?.goal;
     if (!goal) return false;
@@ -684,19 +749,22 @@ export class Tutorial {
         reached = me !== undefined && me.lockTarget !== null && me.lockTarget !== this.dummyId;
         break;
       case 'release':
+        // Otro hechizo: se avisa cuál salió, para comparar con la receta.
+        for (const e of mine)
+          if (e.spell !== goal.spell) this.say(`Ese fue ${SPELL_NAMES[e.spell]}`);
         if (!goal.land) {
           reached = mine.some((e) => e.spell === goal.spell);
           break;
         }
         if (mine.some((e) => e.spell === goal.spell)) {
           this.landBy = this.ticks + LAND_WINDOW;
-          this.missUntil = -1;
+          this.noticeUntil = -1;
         }
         if (this.landBy === null) break;
         reached = landed;
         if (!reached && this.ticks > this.landBy) {
           this.landBy = null;
-          this.missUntil = this.ticks + MISS_NOTICE;
+          this.say('Fallaste, acércate');
         }
         break;
       case 'releaseAll':
@@ -846,7 +914,8 @@ export class Tutorial {
     this.lastElement = null;
     this.avoided = 0;
     this.landBy = null;
-    this.missUntil = -1;
+    this.noticeUntil = -1;
+    this.stepTicks = 0;
     if (this.stepIndex >= (this.chapters[this.chapterIndex]?.steps.length ?? 0)) {
       this.nextChapter(true);
       return;
@@ -859,6 +928,8 @@ export class Tutorial {
     if (completed && chapter) this.finished.push(chapter.id);
     this.stepIndex = 0;
     this.start = null;
+    this.stepTicks = 0;
+    this.noticeUntil = -1;
     const next = this.chapterIndex + 1;
     // De corrido, el tutorial termina en el examen: Más técnicas se elige suelto.
     this.chapterIndex = this.onlyOne || this.chapters[next]?.extra ? this.chapters.length : next;

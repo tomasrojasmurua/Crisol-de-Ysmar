@@ -136,6 +136,7 @@ const cameraDrag = new CameraDrag(
     }
     tutorialCard.collapse();
     if (tutorial?.signal('look')) {
+      stepDone();
       afterTutorialAdvance();
       tutorialCard.render();
     }
@@ -491,7 +492,13 @@ function afterTutorialAdvance(): void {
 
 /** La barra de botones que deja ver el tutorial y el botón que brilla (sin tutorial: todo). */
 function showTutorialHud(): void {
-  controls.reveal(tutorial?.hud ?? null, tutorial?.step?.glow ?? null);
+  controls.reveal(tutorial?.hud ?? null, tutorial?.glow ?? null);
+}
+
+/** Cumpliste un paso del tutorial jugando: un ✓ y una campanita. */
+function stepDone(): void {
+  tutorialCard.celebrate();
+  audio.stepDone();
 }
 
 function endTutorial(): void {
@@ -614,10 +621,12 @@ function stepMatch(current: MatchView): void {
     // Al empezar a jugar, la guía se recoge a una línea para dejar ver la partida.
     if (current.lastIntents.some(playing)) tutorialCard.collapse();
     if (tutorial.onStep(events, current.state, current.lastIntents)) {
+      stepDone();
       afterTutorialAdvance();
       tutorialCard.render();
-    } else {
-      tutorialCard.refreshProgress();
+    } else if (tutorialCard.refreshProgress()) {
+      // Te trabaste: brilla el botón que toca.
+      showTutorialHud();
     }
   }
   if (current instanceof TrainingMatch) {

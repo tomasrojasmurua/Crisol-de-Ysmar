@@ -3,8 +3,6 @@ import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
 import { richText } from './richText';
 
-/** Lo que dura desplegado un paso nuevo antes de recogerse solo. */
-const AUTO_COLLAPSE_MS = 6000;
 /** Recién aparecido un paso, jugar todavía no lo recoge: alcanza a leerse. */
 const READ_GRACE_MS = 1500;
 
@@ -15,9 +13,10 @@ const READ_GRACE_MS = 1500;
  *   cuánto llevas. Es lo que queda mientras juegas, para no tapar el muñeco ni los botones.
  * - Desplegada: además, la explicación completa y los botones (Siguiente, Saltar capítulo).
  *
- * Cada paso nuevo aparece desplegado y se recoge solo al empezar a jugar (moverte, tejer o
- * girar la cámara) o a los pocos segundos. Tocar la línea la despliega o la recoge. Los pasos
- * que solo se leen quedan desplegados: ahí no hay nada que hacer en la partida.
+ * Cada paso nuevo aparece desplegado y se recoge al empezar a jugar (moverte, tejer o girar la
+ * cámara), nunca por tiempo: así alcanza a leerse con calma. Tocar la línea la despliega o la
+ * recoge. Los pasos que solo se leen quedan desplegados: ahí no hay nada que hacer en la partida.
+ * Si llevas rato sin lograr un paso, se despliega con una pista y ya no se recoge sola.
  */
 export class TutorialCard {
   private readonly root: HTMLElement;
@@ -39,7 +38,12 @@ export class TutorialCard {
   private tutorial: Tutorial | null = null;
   private expanded = true;
   private shownAt = 0;
-  private collapseTimer = 0;
+  /** La pista para quien se trabó (ver `Tutorial.hint`). */
+  private readonly hint: HTMLElement;
+  /** El ✓ que salta al cumplir un paso. */
+  private readonly check: HTMLElement;
+  /** Ya se mostró la pista de este paso: la guía queda abierta hasta que lo logres. */
+  private hinted = false;
 
   constructor(
     parent: HTMLElement,
@@ -61,6 +65,7 @@ export class TutorialCard {
       <div class="tutorial-more">
         <span class="tutorial-kicker"><span class="tutorial-kicker-title"></span><span class="tutorial-dots" aria-hidden="true"></span></span>
         <span class="tutorial-fresh" hidden></span>
+        <p class="tutorial-hint" hidden></p>
         <p class="tutorial-text"></p>
         <div class="tutorial-actions">
           <button type="button" class="primary tutorial-next">Siguiente</button>
@@ -71,6 +76,9 @@ export class TutorialCard {
           <button type="button" class="primary tutorial-menu">Menú</button>
         </div>
       </div>`;
+    this.check = el('span', 'tutorial-check', '✓');
+    this.check.setAttribute('aria-hidden', 'true');
+    this.root.append(this.check);
     this.lookHint = el('div', 'tutorial-look-hint');
     this.lookHint.hidden = true;
     this.lookHint.setAttribute('aria-hidden', 'true');
@@ -85,6 +93,7 @@ export class TutorialCard {
     this.kicker = query(this.root, '.tutorial-kicker-title');
     this.dots = query(this.root, '.tutorial-dots');
     this.fresh = query(this.root, '.tutorial-fresh');
+    this.hint = query(this.root, '.tutorial-hint');
     this.text = query(this.root, '.tutorial-text');
     this.next = query(this.root, '.tutorial-next');
     this.actions = query(this.root, '.tutorial-actions');
@@ -94,7 +103,6 @@ export class TutorialCard {
       this.setExpanded(!this.expanded);
       // Abierta a mano, no se cierra sola enseguida: se lee con calma.
       this.shownAt = performance.now();
-      this.clearTimer();
     });
     this.next.addEventListener('click', () => {
       this.tutorial?.next();
@@ -120,7 +128,6 @@ export class TutorialCard {
     this.tutorial = null;
     this.root.hidden = true;
     this.lookHint.hidden = true;
-    this.clearTimer();
   }
 
   /** Vuelve a dibujar el paso actual (al avanzar): aparece desplegado. */
@@ -132,7 +139,8 @@ export class TutorialCard {
     void this.root.offsetWidth;
     this.root.classList.add('advance');
     const chapter = tutorial.chapter;
-    this.clearTimer();
+    this.hinted = false;
+    this.hint.hidden = true;
     if (!step || !chapter) {
       this.chapterBadge.textContent = '✦';
       this.goal.textContent = '¡Tutorial terminado!';
@@ -192,9 +200,13 @@ export class TutorialCard {
     this.root.classList.toggle('reading', reading);
     this.setExpanded(true);
     this.shownAt = performance.now();
-    if (!reading) {
-      this.collapseTimer = window.setTimeout(() => this.setExpanded(false), AUTO_COLLAPSE_MS);
-    }
+  }
+
+  /** Cumpliste un paso que se hace jugando: salta un ✓ junto a la guía. */
+  celebrate(): void {
+    this.check.classList.remove('pop');
+    void this.check.offsetWidth;
+    this.check.classList.add('pop');
   }
 
   /**
@@ -203,16 +215,26 @@ export class TutorialCard {
    */
   collapse(): void {
     if (!this.expanded || !this.collapsible) return;
+    if (this.hinted) return;
     if (performance.now() - this.shownAt < READ_GRACE_MS) return;
-    this.clearTimer();
     this.setExpanded(false);
   }
 
-  /** La cuenta del paso ("3 de 5"), sin volver a animar la tarjeta. */
-  refreshProgress(): void {
+  /**
+   * La cuenta del paso ("3 de 5") y los avisos, sin volver a animar la tarjeta. Si te trabaste,
+   * despliega la pista; devuelve true en ese momento, para que brille el botón que toca.
+   */
+  refreshProgress(): boolean {
     const progress = this.tutorial?.progress ?? '';
     if (this.progress.textContent !== progress) this.progress.textContent = progress;
     this.progress.hidden = progress === '';
+    const hint = this.tutorial?.hint ?? '';
+    if (hint === '' || this.hinted) return false;
+    this.hinted = true;
+    this.hint.replaceChildren(el('strong', '', 'Pista: '), richText(hint));
+    this.hint.hidden = false;
+    this.setExpanded(true);
+    return true;
   }
 
   /** Si la guía se puede recoger: solo en pasos que se hacen jugando. */
@@ -226,10 +248,5 @@ export class TutorialCard {
     this.root.classList.toggle('collapsed', !value);
     this.root.classList.toggle('collapsible', this.collapsible);
     this.bar.setAttribute('aria-expanded', String(value));
-  }
-
-  private clearTimer(): void {
-    if (this.collapseTimer) window.clearTimeout(this.collapseTimer);
-    this.collapseTimer = 0;
   }
 }
