@@ -33,6 +33,7 @@ export class TargetMarker {
       opacity: 0.9,
       depthWrite: false,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     const shape = new THREE.Shape();
     shape.moveTo(0, 0.95);

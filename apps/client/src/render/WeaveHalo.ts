@@ -27,6 +27,7 @@ export class WeaveHalo {
       opacity: 0.35,
       depthWrite: false,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     for (let i = 0; i < MAX_WEAVE_LENGTH; i++) {
       const socket = new THREE.Mesh(socketGeometry, socketMaterial);

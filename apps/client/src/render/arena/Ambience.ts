@@ -274,6 +274,7 @@ function createBanners(arenaRadius: number, bases: THREE.Matrix4[]): THREE.Insta
   const material = new THREE.MeshStandardMaterial({
     map: createBannerTexture(),
     side: THREE.DoubleSide,
+    forceSinglePass: true,
     alphaTest: 0.5,
     roughness: 0.95,
     emissive: '#ffffff',

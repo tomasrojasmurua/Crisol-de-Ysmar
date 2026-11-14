@@ -62,6 +62,7 @@ export class Trails {
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide,
+        forceSinglePass: true,
         fog: false,
       }),
     );

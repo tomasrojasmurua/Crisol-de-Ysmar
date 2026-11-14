@@ -4519,14 +4519,20 @@ body {
   box-shadow:
     0 0 0 2px var(--color, var(--gold-bright)),
     0 0 18px 4px color-mix(in srgb, var(--color, var(--gold-bright)) 70%, transparent);
+  /* Late con la escala, no con la sombra: animar una sombra difusa repinta la pantalla en
+     cada cuadro y calentaba el celular durante todo el tutorial. */
   animation: hud-glow 1.2s ease-in-out infinite;
+  will-change: scale;
+}
+
+/* Al tocarlo manda el hundido de `.pressed`. */
+#ui .controls .glow.pressed {
+  animation: none;
 }
 
 @keyframes hud-glow {
   50% {
-    box-shadow:
-      0 0 0 3px var(--color, var(--gold-bright)),
-      0 0 28px 8px color-mix(in srgb, var(--color, var(--gold-bright)) 85%, transparent);
+    scale: 1.08;
   }
 }
 

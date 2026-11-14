@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { el } from './dom';
 import type { WizardBadge } from './Hud';
 import type { UiObstacles } from './UiObstacles';
+import { viewportSize } from './viewport';
 
 const elementHex = (id: string): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
@@ -94,8 +95,7 @@ export class WorldLabels {
     /** Con el Barómetro se ve el cansancio de los rivales. */
     insight = false,
   ): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const { width, height } = viewportSize();
     for (const wizard of state.wizards) {
       const label = this.labels.get(wizard.id);
       if (!label) continue;
@@ -167,8 +167,7 @@ export class WorldLabels {
     beastName: (beast: Beast) => string,
     beastColor: (element: string) => string,
   ): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const { width, height } = viewportSize();
     const present = new Set<number>();
     for (const beast of state.beasts) {
       present.add(beast.id);

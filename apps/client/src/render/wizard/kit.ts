@@ -57,6 +57,7 @@ export class ModelKit {
       color: robe.clone().multiplyScalar(0.7),
       roughness: 0.9,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     this.bone = new THREE.MeshStandardMaterial({ color: '#d6cdb6', roughness: 0.7 });
     this.horn = new THREE.MeshStandardMaterial({ color: '#3a322a', roughness: 0.6 });

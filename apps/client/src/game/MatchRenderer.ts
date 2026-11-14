@@ -186,7 +186,7 @@ export class MatchRenderer {
     const sightless = player.statuses.blind && !player.statuses.hunting;
     ui.minimap.show(!sightless && !(current instanceof TrainingMatch));
     view.zone.update(state.zoneRadius, time);
-    view.creatures.sync(state, teamColor, time, delta);
+    view.creatures.sync(state, teamColor, time, delta, view.camera.position);
 
     // La marca muestra a quién irá el disparo automático (lo mismo que calcula el núcleo).
     // Tu mago como se ve en este celular: en red, lo que fijaste cuenta antes de que el

@@ -19,6 +19,7 @@ export class ZoneView {
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
       blending: THREE.AdditiveBlending,
       uniforms: {
         uTime: { value: 0 },

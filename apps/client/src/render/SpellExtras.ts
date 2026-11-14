@@ -21,6 +21,7 @@ function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial 
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
   });
 }
 

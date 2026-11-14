@@ -188,6 +188,7 @@ export class ArenaView {
       roughness: 0.6,
       metalness: 0.5,
       side: THREE.DoubleSide,
+      forceSinglePass: true,
     });
     const pedestalGeometry = new THREE.CylinderGeometry(0.32, 0.5, 1.2, 8);
     pedestalGeometry.translate(0, 0.6, 0);

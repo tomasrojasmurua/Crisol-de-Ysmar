@@ -150,8 +150,14 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    celular podía quedar colgado más de un minuto sin volver; al empezar cada ronda la IA tomaba
    a todos un instante (con avisos falsos de "se fue"); si quien creó la sala quedaba colgado
    nadie podía empezar; y la revancha esperaba a quien estaba en WhatsApp.
-4. **Rendimiento en Android de gama media.** Medir con el informe por partida (`MatchPerfLog`) y los
-   gráficos livianos de Pausa; revisar que la resolución adaptativa baje a tiempo en 3v3 y libre de 6.
+4. **Rendimiento en Android de gama media. Hecho** (medido en Chrome sin pantalla con el
+   procesador 4 veces más lento, sin celular): las bestias eran el 60% de lo que se dibujaba y
+   ahora funden sus piezas quietas (y de lejos también las patas); las transparencias de dos caras
+   se dibujaban dos veces; las etiquetas obligaban a recalcular el diseño dos veces por cuadro; la
+   resolución adaptativa no bajaba bajo 10 fps y tardaba ~10 s en llegar a ir fluida. Resultado
+   en 3v3: de ~480 a ~300 llamadas de dibujo y 25% menos trabajo del procesador por cuadro.
+   Detalle en `docs/arquitectura.md`, "Presupuestos de rendimiento". Falta confirmarlo en un
+   Android real con el informe de la partida.
 5. **Revisión en celular real** de lo nuevo: la elección de escuela y el tutorial por escuela, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.
