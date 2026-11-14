@@ -10,6 +10,7 @@ import {
   PLACED_SPELLS,
   SPELL_WEAVES,
   type SpellId,
+  TICK_RATE,
   type Vec2,
 } from '@crisol/core';
 import { ComboDetector } from './ComboDetector';
@@ -45,7 +46,11 @@ type Goal =
   | { readonly kind: 'unlock' }
   /** Fijar a otro rival que no sea el muñeco (saltar al segundo muñeco). */
   | { readonly kind: 'switch' }
-  | { readonly kind: 'release'; readonly spell: SpellId }
+  /**
+   * Lanzar este hechizo. Con `land`, solo cuenta si alcanza a un rival: un golpe, un estado o un
+   * hechizo que lo ata. Si no, se avisa que no le diste.
+   */
+  | { readonly kind: 'release'; readonly spell: SpellId; readonly land?: true }
   /** Lanzar cada uno de estos hechizos al menos una vez. */
   | { readonly kind: 'releaseAll'; readonly spells: readonly SpellId[] }
   /** Lanzar tantos hechizos, con elementos distintos seguidos. */
@@ -118,6 +123,34 @@ const combo = (id: string): Combo => {
  */
 const CLOSE_CALL = 5;
 
+/**
+ * Los hechizos que no se lanzan contra el rival: te mueven, te curan o dejan una zona que solo
+ * castiga al que se mueve (y el muñeco está quieto). Para estos basta con lanzarlos; los demás
+ * tienen que alcanzar al muñeco.
+ */
+const NOT_AIMED_AT_RIVAL: ReadonlySet<SpellId> = new Set<SpellId>([
+  'step',
+  'sap',
+  'comet',
+  'spring',
+  'garden',
+  'fireRain',
+]);
+
+/** El objetivo de lanzar un hechizo: si va contra el rival, tiene que alcanzarlo. */
+const releaseGoal = (spell: SpellId): Goal =>
+  NOT_AIMED_AT_RIVAL.has(spell)
+    ? { kind: 'release', spell }
+    : { kind: 'release', spell, land: true };
+
+/**
+ * Cuánto se espera a que un hechizo lanzado alcance al muñeco: el Meteoro tarda 1,5 s en caer y
+ * una Bola ígnea lenta, algo más de 1 s en cruzar la arena.
+ */
+const LAND_WINDOW = Math.round(3 * TICK_RATE);
+/** Cuánto queda a la vista el aviso de que no le diste. */
+const MISS_NOTICE = Math.round(3 * TICK_RATE);
+
 /** El básico de cada elemento: lo que sale tocándolo solo. */
 const BASICS: Readonly<Record<ElementId, SpellId>> = {
   brasa: 'spark',
@@ -158,7 +191,7 @@ function spellStep(school: School, spell: SpellId, shown: Set<HudPart>): Tutoria
     title: name,
     short: `Lanza ${name}`,
     text: `Toca ${weaveText(spell)} y después ✦.${role ? ` ${name}: ${lowerFirst(role)}.` : ''}`,
-    goal: { kind: 'release', spell },
+    goal: releaseGoal(spell),
     spell,
     ...(fresh.length > 0 ? { reveal: fresh, glow: fresh[0], fresh } : {}),
   };
@@ -256,7 +289,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
           title: `{${element}}`,
           short: `Toca {${element}} y después ✦`,
           text: `{${element}} es tu elemento. ✦ lanza: ${BASIC_NOTES[element]}`,
-          goal: { kind: 'release', spell: basic },
+          goal: releaseGoal(basic),
           spell: basic,
           dummy: 'idle',
           reveal: [element, 'cast'],
@@ -493,6 +526,14 @@ export class Tutorial {
   /** El último lanzamiento que mandó tu dedo: el hechizo sale unos pasos después. */
   private lastCast: Extract<Intent, { kind: 'cast' }> | null = null;
   private signals = new Set<TutorialSignal>();
+  /** Pasos de partida vistos: el reloj para esperar a que un hechizo alcance. */
+  private ticks = 0;
+  /** Hasta qué paso se espera que el hechizo lanzado alcance al rival; null si no se espera. */
+  private landBy: number | null = null;
+  /** Hasta qué paso se muestra el aviso de que no le diste. */
+  private missUntil = -1;
+  /** Cuánto le queda a cada estado que le pusiste a un rival, para ver si le pusiste uno nuevo. */
+  private readonly statusTicks = new Map<string, number>();
   /** Proyectiles y golpes del muñeco en el aire: qué son y qué tan cerca te pasaron. */
   private readonly watched = new Map<
     EntityId,
@@ -573,6 +614,7 @@ export class Tutorial {
     if (goal?.kind === 'releaseAll') return `${this.released.size} de ${goal.spells.length}`;
     if (goal?.kind === 'releases') return `${this.releasedCount} de ${goal.count}`;
     if (goal?.kind === 'avoid') return `${this.avoided} de ${goal.count}`;
+    if (this.ticks < this.missUntil) return 'Fallaste, acércate';
     return '';
   }
 
@@ -609,6 +651,8 @@ export class Tutorial {
   ): boolean {
     const combos = this.detector.onStep(events, state).map((h) => h.combo.id);
     const avoided = this.trackDummyAttacks(events, state);
+    this.ticks++;
+    const landed = this.trackLanded(events, state);
     const goal = this.step?.goal;
     if (!goal) return false;
     const me = state.wizards.find((w) => w.id === this.playerId);
@@ -640,7 +684,20 @@ export class Tutorial {
         reached = me !== undefined && me.lockTarget !== null && me.lockTarget !== this.dummyId;
         break;
       case 'release':
-        reached = mine.some((e) => e.spell === goal.spell);
+        if (!goal.land) {
+          reached = mine.some((e) => e.spell === goal.spell);
+          break;
+        }
+        if (mine.some((e) => e.spell === goal.spell)) {
+          this.landBy = this.ticks + LAND_WINDOW;
+          this.missUntil = -1;
+        }
+        if (this.landBy === null) break;
+        reached = landed;
+        if (!reached && this.ticks > this.landBy) {
+          this.landBy = null;
+          this.missUntil = this.ticks + MISS_NOTICE;
+        }
         break;
       case 'releaseAll':
         for (const e of mine) if (goal.spells.includes(e.spell)) this.released.add(e.spell);
@@ -694,6 +751,42 @@ export class Tutorial {
     }
     if (reached) this.advance();
     return reached;
+  }
+
+  /**
+   * Si en este paso alcanzaste a un rival: un golpe (aunque lo ataje un escudo), una reacción,
+   * un estado nuevo o renovado que viene de ti, o un hechizo tuyo que lo tiene atado (Grillete).
+   */
+  private trackLanded(events: readonly GameEvent[], state: MatchState): boolean {
+    const rival = (id: EntityId): boolean => id !== this.playerId;
+    let landed = events.some(
+      (e) =>
+        (e.type === 'hit' || e.type === 'attacked' || e.type === 'combo') &&
+        e.sourceId === this.playerId &&
+        rival(e.targetId),
+    );
+    for (const wizard of state.wizards) {
+      if (!rival(wizard.id)) continue;
+      for (const [status, instance] of Object.entries(wizard.statuses)) {
+        if (!instance) continue;
+        const key = `${wizard.id}:${status}`;
+        const before = this.statusTicks.get(key) ?? 0;
+        if (instance.sourceId === this.playerId && instance.ticks > before) landed = true;
+        this.statusTicks.set(key, instance.ticks);
+      }
+    }
+    if (
+      state.spells.some(
+        (s) =>
+          'targetId' in s &&
+          s.ownerId === this.playerId &&
+          s.targetId !== null &&
+          rival(s.targetId),
+      )
+    ) {
+      landed ||= this.landBy !== null;
+    }
+    return landed;
   }
 
   /**
@@ -752,6 +845,8 @@ export class Tutorial {
     this.releasedCount = 0;
     this.lastElement = null;
     this.avoided = 0;
+    this.landBy = null;
+    this.missUntil = -1;
     if (this.stepIndex >= (this.chapters[this.chapterIndex]?.steps.length ?? 0)) {
       this.nextChapter(true);
       return;
