@@ -8,7 +8,7 @@ import type { PlayerInput } from './PlayerInput';
  * Es el mismo margen con que `CameraDrag` empieza a girar, así un toque nunca mueve la cámara.
  */
 export const TAP_SLOP_PX = 14;
-const TAP_MAX_MS = 350;
+export const TAP_MAX_MS = 350;
 /** Qué tan cerca del mago (o la bestia) en pantalla hay que tocar para fijarlo. */
 const WIZARD_REACH_PX = 80;
 const BEAST_REACH_PX = 70;
@@ -42,7 +42,7 @@ export class TapToLock {
       if (!start) return;
       const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
       if (moved > TAP_SLOP_PX || event.timeStamp - start.at > TAP_MAX_MS) return;
-      this.lockAt(start.x, start.y);
+      this.tapAt(start.x, start.y);
     });
   }
 
@@ -62,7 +62,11 @@ export class TapToLock {
     navigator.vibrate?.(10);
   }
 
-  private lockAt(screenX: number, screenY: number): void {
+  /**
+   * Un toque en la pantalla: fija lo que haya cerca de ese punto. Lo usa el lienzo y también la
+   * zona del joystick, que tapa la mitad izquierda de la arena.
+   */
+  tapAt(screenX: number, screenY: number): void {
     const match = this.current();
     if (!match || match.player.hp <= 0) return;
     const { state, player, rules } = match;

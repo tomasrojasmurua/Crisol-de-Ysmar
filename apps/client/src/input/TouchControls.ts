@@ -4,6 +4,7 @@ import type { HudPart } from '../game/Tutorial';
 import { el } from '../ui/dom';
 import { CAST_ICON, DUEL_ICON, elementIcon, UNDO_ICON } from '../ui/icons';
 import type { PlayerInput } from './PlayerInput';
+import { TAP_MAX_MS, TAP_SLOP_PX } from './TapToLock';
 
 /** Radio del joystick si todavía no se pudo medir en pantalla. */
 const JOYSTICK_RADIUS = 56;
@@ -41,6 +42,11 @@ export class TouchControls {
   private duelOn = false;
   /** El botón de duelo: fija al mejor puesto o pasa al siguiente rival (lo conecta main). */
   onDuelButton: () => void = () => {};
+  /**
+   * Un toque corto en la zona del joystick (sin arrastrar): la zona tapa la mitad izquierda de
+   * la arena, así que el toque se pasa para fijar al rival que esté ahí (lo conecta main).
+   */
+  onTap: (screenX: number, screenY: number) => void = () => {};
   private lastWeaveKey = '';
   /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
   private shift = 0;
@@ -163,6 +169,11 @@ export class TouchControls {
     let radius = JOYSTICK_RADIUS;
     let zoneLeft = 0;
     let zoneTop = 0;
+    // Dónde y cuándo empezó el toque, y si el dedo ya se alejó: así se distingue un toque de caminar.
+    let startX = 0;
+    let startY = 0;
+    let startAt = 0;
+    let dragged = false;
     const placeBase = (): void => {
       base.style.left = `${originX - zoneLeft}px`;
       base.style.top = `${originY - zoneTop}px`;
@@ -180,11 +191,16 @@ export class TouchControls {
       radius = base.offsetWidth / 2 || JOYSTICK_RADIUS;
       originX = event.clientX;
       originY = event.clientY;
+      startX = event.clientX;
+      startY = event.clientY;
+      startAt = event.timeStamp;
+      dragged = false;
       placeBase();
       base.classList.add('active');
     });
     zone.addEventListener('pointermove', (event) => {
       if (event.pointerId !== pointerId) return;
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) > TAP_SLOP_PX) dragged = true;
       let dx = event.clientX - originX;
       let dy = event.clientY - originY;
       const len = Math.hypot(dx, dy);
@@ -210,6 +226,12 @@ export class TouchControls {
       base.style.left = '';
       base.style.top = '';
       this.input.move = { right: 0, up: 0 };
+      const tap =
+        event.type === 'pointerup' &&
+        !dragged &&
+        Math.hypot(event.clientX - startX, event.clientY - startY) <= TAP_SLOP_PX &&
+        event.timeStamp - startAt <= TAP_MAX_MS;
+      if (tap) this.onTap(startX, startY);
     };
     zone.addEventListener('pointerup', release);
     zone.addEventListener('pointercancel', release);
