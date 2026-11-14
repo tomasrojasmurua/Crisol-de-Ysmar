@@ -48,7 +48,7 @@ máquina se actualice.
 
 3. La última línea muestra la IP (por ejemplo `34.176.10.20`). A los 3 o 4 minutos,
    `https://34-176-10-20.sslip.io/health` debe responder `{"ok":true,…}`.
-4. Poner esa dirección en `SANTIAGO_URL` (`apps/client/src/net/serverUrl.ts`) y publicar.
+4. Poner esa dirección en `SANTIAGO_URL` (hoy: `https://34-176-182-249.sslip.io`) (`apps/client/src/net/serverUrl.ts`) y publicar.
 
 Costo aproximado: unos US$12 al mes (máquina e2-micro, disco e IP fija); el tráfico de una prueba
 con 6 amigos son centavos.

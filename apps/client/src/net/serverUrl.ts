@@ -16,8 +16,8 @@ const SERVER_URL: string =
   (env.VITE_SERVER_URL as string | undefined) ??
   (env.DEV ? 'http://localhost:8787' : 'https://crisol-server.tomasrojasmurua.workers.dev');
 
-/** El servidor de salas de Santiago (vacío mientras no exista). */
-const SANTIAGO_URL = '';
+/** El servidor de salas de Santiago (vacío: todas las salas van a Cloudflare). */
+const SANTIAGO_URL = 'https://34-176-182-249.sslip.io';
 
 /** Se lee al cargar la página, antes de que el menú limpie la dirección. */
 const FORCE_CLOUDFLARE = /[?&]sala=cloudflare\b/.test(globalThis.location?.search ?? '');
