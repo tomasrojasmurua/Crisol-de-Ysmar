@@ -174,6 +174,22 @@ describe('duelo en red: el celular', () => {
     expect(net.state.tick).toBe(3);
   });
 
+  it('tras un tirón, el colchón vuelve a achicarse a los 3 s si sobra', () => {
+    const { net, socket } = joined();
+    for (const tick of [1, 2]) socket.receive(stateMessage(tick));
+    net.step();
+    net.step();
+    net.step(); // vacío: el colchón pasa a 3
+    let tick = 2;
+    // Llega uno por paso con 3 guardados: siempre sobra al menos uno.
+    for (let i = 0; i < 3; i++) socket.receive(stateMessage(++tick));
+    for (let i = 0; i < 91; i++) {
+      socket.receive(stateMessage(++tick));
+      net.step();
+    }
+    expect(tick - net.state.tick).toBe(2);
+  });
+
   it('si llegan muchos de golpe, muestra dos por paso hasta alcanzar', () => {
     const { net, socket } = joined();
     for (let tick = 1; tick <= 8; tick++) socket.receive(stateMessage(tick));
