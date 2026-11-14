@@ -135,6 +135,10 @@ sombras. Reglas que lo sostienen:
   (más de 26 m) además funden las patas.
 - **Nada lee `window.innerWidth` ni mide el DOM en cada cuadro**: después de mover etiquetas eso
   obliga a recalcular el diseño. El tamaño de la ventana está en `ui/viewport.ts`.
+- **Calor y batería:** tope de 60 cuadros por segundo en partida y 30 en menús, pausa y
+  resultado (`render/FrameLimiter.ts`); en celulares la nitidez llega hasta 1,5 píxeles por punto,
+  no 2. Las animaciones de interfaz que corren sin parar mueven `scale`, `opacity` o `transform`,
+  nunca una sombra difusa (eso repinta la pantalla en cada cuadro).
 - La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
   cuadros por segundo y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
 

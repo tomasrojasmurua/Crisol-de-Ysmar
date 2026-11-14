@@ -15,6 +15,12 @@ import { SpellViews, type SpellWorld } from './SpellViews';
 import { TargetMarker } from './TargetMarker';
 import { type WizardLook, WizardView } from './WizardView';
 
+/**
+ * Tope de nitidez en celulares (pantallas táctiles). A 2 se dibujaban 1,8 veces más píxeles que
+ * a 1,5 y el celular se calentaba; en una pantalla de 6 pulgadas la diferencia casi no se ve.
+ */
+const PHONE_MAX_PIXEL_RATIO = 1.5;
+
 /** Un mundo de hechizos vacío, para limpiar la escena fuera de partida. */
 const NO_SPELL_WORLD: SpellWorld = {
   positionOf: () => ({ x: 0, z: 0 }),
@@ -45,7 +51,10 @@ export class GameScene {
   readonly aimGuide = new AimGuide();
   readonly targetMarker = new TargetMarker('#f3dfb0');
   /** Baja la resolución si el celular no alcanza los cuadros por segundo, y la sube si sobra. */
-  readonly resolution = new AdaptiveResolution(window.devicePixelRatio);
+  readonly resolution = new AdaptiveResolution(
+    window.devicePixelRatio,
+    window.matchMedia?.('(pointer: coarse)').matches ? PHONE_MAX_PIXEL_RATIO : undefined,
+  );
   /** El aspecto de cada mago de la partida, para que su Señuelo se vea igual que él. */
   readonly wizardLooks = new Map<number, WizardLook>();
   /** Una luz suave sobre tu mago: en la jungla siempre se ve dónde estás. */

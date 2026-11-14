@@ -43,6 +43,7 @@ import { BackGuard } from './platform/BackGuard';
 import { startErrorReports } from './platform/ErrorReporter';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
+import { CALM_FPS, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
 import { readQuality, saveQuality } from './render/Quality';
@@ -586,6 +587,8 @@ function describeMatch(): string {
 
 // La simulación avanza en pasos fijos; el dibujo interpola entre ellos.
 const clock = new FixedStepClock();
+/** Tope de cuadros por segundo: menos calor y batería sin que se note. */
+const limiter = new FrameLimiter();
 let lastFrame = performance.now();
 let elapsed = 0;
 let lastAlpha = 1;
@@ -639,11 +642,15 @@ function stepMatch(current: MatchView): void {
 }
 
 renderer.setAnimationLoop((now) => {
+  // Fuera de la partida en vivo (menús, pausa contra la IA, resultado) basta la mitad.
+  const live = match !== null && !(paused && match !== net) && !flow.finished;
+  if (!limiter.ready(now, live ? PLAY_FPS : CALM_FPS)) return;
   let simMs = 0;
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
   diagnostics.beginFrame(frameMs);
-  const newRatio = resolution.sample(frameMs);
+  // Con el tope de los menús los cuadros son largos a propósito: no cuentan como lentitud.
+  const newRatio = live ? resolution.sample(frameMs) : null;
   if (newRatio !== null) {
     view.resize();
     diagnostics.resolutionChanged(newRatio);

@@ -32,6 +32,12 @@ describe('AdaptiveResolution', () => {
     expect(new AdaptiveResolution(1).pixelRatio).toBe(1);
   });
 
+  it('con tope de celular parte en 1,5 y puede bajar a 1', () => {
+    const adaptive = new AdaptiveResolution(3, 1.5);
+    expect(adaptive.pixelRatio).toBe(1.5);
+    expect(run(adaptive, (ratio) => (ratio > 1.25 ? 28 : 16), 10)).toEqual([1.25]);
+  });
+
   it('baja escalones mientras bajar ayude, hasta llegar a ir fluido', () => {
     const adaptive = new AdaptiveResolution(2);
     expect(run(adaptive, gpuBound(28), 10)).toEqual([1.75, 1.5]);

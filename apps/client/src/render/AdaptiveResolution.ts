@@ -66,8 +66,9 @@ export class AdaptiveResolution {
   private checkSum = 0;
   private checkCount = 0;
 
-  constructor(devicePixelRatio: number) {
-    const max = Math.max(1, Math.min(devicePixelRatio, STEPS[0]));
+  /** `maxRatio`: el tope de nitidez (en celulares se usa uno más bajo, ver `GameScene`). */
+  constructor(devicePixelRatio: number, maxRatio: number = STEPS[0]) {
+    const max = Math.max(1, Math.min(devicePixelRatio, maxRatio, STEPS[0]));
     this.steps = [max, ...STEPS.filter((step) => step < max)];
     this.floor = this.steps.length - 1;
   }
