@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHOOSE_TICKS,
   DuelHost,
+  HOST_SILENT_TICKS,
   INTERMISSION_TICKS,
   LOBBY_GRACE_TICKS,
   SILENT_TICKS,
@@ -313,6 +314,57 @@ describe('Salas de más de dos y ajustes', () => {
     duel.leave(1);
     expect(duel.hostId).toBe(4);
     expect(duel.begin(4)).toBe(true);
+  });
+
+  it('si quien manda en la sala de espera no responde, manda el siguiente hasta que vuelva', () => {
+    const duel = room();
+    duel.join({ name: 'Beto' });
+    // Ana se fue a WhatsApp a mandar el enlace: no llega ni su ping. Beto sigue ahí.
+    for (let i = 0; i <= HOST_SILENT_TICKS; i++) {
+      duel.heard(2);
+      duel.tick();
+    }
+    expect(duel.hostId).toBe(2);
+    // Vuelve: recupera el mando.
+    duel.heard(1);
+    duel.tick();
+    expect(duel.hostId).toBe(1);
+    expect(duel.begin(1)).toBe(true);
+  });
+
+  it('al empezar cada ronda nadie parece callado (la IA no toma a nadie por error)', () => {
+    const duel = room();
+    duel.join({ name: 'Beto' });
+    duel.configure(1, { minutes: 1, glyphs: false });
+    duel.begin(1);
+    // Primera ronda: nadie toca nada, así la IA juega y la ronda termina sola.
+    until(duel, () => duel.stageFor(1).kind === 'intermission', 30 * 60 * 5);
+    until(duel, () => duel.stageFor(1).kind === 'playing', INTERMISSION_TICKS + 1);
+    expect(duel.players.map((p) => p.away)).toEqual([false, false]);
+  });
+
+  it('la revancha no espera a quien está fuera de la app', () => {
+    const duel = room();
+    duel.join({ name: 'Beto' });
+    duel.configure(1, { minutes: 1, bestOf: 1, glyphs: false });
+    duel.begin(1);
+    until(duel, () => duel.stageFor(1).kind === 'finished', 30 * 60 * 5);
+    duel.setAway(2, true);
+    duel.rematch(1);
+    expect(duel.stageFor(1).kind).toBe('playing');
+  });
+
+  it('si quien faltaba sale de la app después, la revancha empieza sola', () => {
+    const duel = room();
+    duel.join({ name: 'Beto' });
+    duel.configure(1, { minutes: 1, bestOf: 1, glyphs: false });
+    duel.begin(1);
+    until(duel, () => duel.stageFor(1).kind === 'finished', 30 * 60 * 5);
+    duel.rematch(1);
+    expect(duel.stageFor(1).kind).toBe('finished');
+    duel.setAway(2, true);
+    duel.tick();
+    expect(duel.stageFor(1).kind).toBe('playing');
   });
 
   it('sin Presagio ni Glifos, a 1 ronda corta: se juega hasta el final', () => {

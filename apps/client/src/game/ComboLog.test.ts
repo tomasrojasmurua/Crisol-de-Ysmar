@@ -26,15 +26,24 @@ describe('ComboLog', () => {
   beforeEach(() => vi.stubGlobal('localStorage', memoryStorage()));
   afterEach(() => vi.unstubAllGlobals());
 
-  it('empieza sin combos y el tutorial entrega sus 3', () => {
+  it('empieza sin combos y el tutorial entrega el de tu escuela', () => {
     const log = new ComboLog();
     expect(log.unlockedCount).toBe(0);
-    log.completeTutorial();
-    expect(log.unlockedCount).toBe(3);
+    expect(log.tutorialDone).toBe(false);
+    log.gift('hilo-a-ciegas');
+    expect(log.unlockedCount).toBe(1);
     const again = new ComboLog();
     expect(again.tutorialDone).toBe(true);
-    expect(again.isUnlocked(byId('amarre'))).toBe(true);
-    expect(again.isUnlocked(byId('lena'))).toBe(false);
+    expect(again.isUnlocked(byId('hilo-a-ciegas'))).toBe(true);
+    expect(again.isUnlocked(byId('amarre'))).toBe(false);
+  });
+
+  it('quien hizo el tutorial de antes conserva sus 3 combos', () => {
+    localStorage.setItem('crisol.tutorial', 'true');
+    const log = new ComboLog();
+    expect(log.tutorialDone).toBe(true);
+    expect(log.isUnlocked(byId('amarre'))).toBe(true);
+    expect(log.unlockedCount).toBe(3);
   });
 
   it('un combo del tutorial también aparece si se acierta 3 veces en partidas', () => {

@@ -57,33 +57,34 @@ amigos (de 1v1 a todos contra todos de 6) en
 
 ## Decisiones de diseño tomadas
 
-| Tema              | Decisión                                                                                                                                                                                                                                                                                                             |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pilares           | La magia se construye, descubrir es progresar, duelos con estrategia (atacar y defender).                                                                                                                                                                                                                            |
-| Plataforma        | Juego web sin instalar, **solo en horizontal**. Se entra por un enlace de WhatsApp.                                                                                                                                                                                                                                  |
-| Cámara            | Tercera persona sobre el hombro. **No gira sola.** Tocar a un rival, una bestia o una invocación rival entra en **duelo**: la cámara lo mantiene al frente y un anillo lo marca en el suelo (sin esquinas). Arrastrar para mirar suelta el duelo; un botón con símbolo pasa al siguiente rival. Sin modos de prueba. |
-| Controles         | Pulgar izquierdo mueve; pulgar derecho toca hasta 3 elementos y ✦ lanza; ✕ deshace. Arrastrar ✦ elige dirección; mantener ✦ y arrastrar elige dónde cae un hechizo de suelo. En PC: WASD, 1-5, espacio, X.                                                                                                           |
-| Elementos         | Brasa, Tormenta, Marea, Raíz y Umbra en un pentágono: vecinos combinan, opuestos chocan (Brasa ↔ Marea y Raíz; Umbra ↔ Tormenta y Marea…).                                                                                                                                                                           |
-| Tejido            | 1 a 3 elementos, el orden importa: 155 hechizos (5 básicos, 25 de dos, 125 Grandes). Visible para el rival. Fatiga por elemento (3 s), sin maná. Nada sale en menos de 0,17 s.                                                                                                                                       |
-| Partida           | Mejor de 3 rondas **sin reloj**: Caza, Convergencia y Duelo final (un minuto cada una) y después **muerte súbita** (la zona se cierra del todo en 20 s y quema cada vez más). Gana el último en pie.                                                                                                                 |
-| Al caer           | Quedas fuera de la ronda y miras a quien siga. **El Espectro se eliminó.** **Vidas** (3 por ronda) es opcional, apagada por defecto y no existe en 1v1 (el mejor de 3 ya es la segunda oportunidad).                                                                                                                 |
-| Modos             | 1v1 (en la plaza de 17 m, sin jungla), 2v2, 3v3 y todos contra todos de 4 y 6 (mapa de 40 m con jungla). Puestos vacíos los llena la IA.                                                                                                                                                                             |
-| IA                | Mismas reglas que un jugador. **Aprendiz / Duelista / Maestro.** Menú contra la IA: se elige (Duelista por defecto). Sala: se elige para los bots que llenan puestos. Entrenamiento y examen: Aprendiz.                                                                                                              |
-| Invocaciones      | Ven con ojos propios: la ceguera de su dueño no las afecta (el Velo del rival sí). Tienen vida, atajan proyectiles y se pueden fijar tocándolas.                                                                                                                                                                     |
-| Choque de tejidos | Ver `docs/diseno.md`. Solo se desarman **proyectiles**; el Meteoro se esquiva. Los desarma un hechizo tuyo de elemento opuesto que los toque, **solo a mano**. Empate se anulan; el más fuerte sigue debilitado. No es reacción.                                                                                     |
-| Combos            | Sección del Grimorio. Guía, no recompensa: sin efecto extra. 84 (6 reacciones + 78 seguidillas). Detalle en [referencia/combos-grimorio.md](referencia/combos-grimorio.md).                                                                                                                                          |
-| Tutorial          | 12 capítulos repetibles, del objetivo al examen contra el Aprendiz. Entrega 3 combos al terminar el capítulo Combos.                                                                                                                                                                                                 |
-| Diagnóstico       | FPS y datos de conexión **nunca visibles por defecto**: solo se encienden desde Pausa y vuelven a apagarse al reabrir.                                                                                                                                                                                               |
-| Grimorio          | No dice qué hechizo contrarresta cada estado, ni etiqueta combos "para varios rivales": descubrirlo es mérito del jugador.                                                                                                                                                                                           |
-| Variedad          | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida. Guardián del Crisol en pausa.                                                                                                                                                                                  |
-| Afinidad          | Un elemento descansa 25% más rápido y sus dos opuestos 15% más lento; transforma la apariencia.                                                                                                                                                                                                                      |
-| Progresión        | Variedad, no poder: Grimorio, combos, maestría, desafíos y rivalidades (estas tres últimas no existen aún).                                                                                                                                                                                                          |
-| Perfiles          | Sin cuenta: nombre y aspecto en el Vestidor, guardados en el celular. A futuro, perfil en D1 con código de respaldo.                                                                                                                                                                                                 |
-| Multijugador      | Salas privadas entre amigos en Chile. Servidor con autoridad (Durable Object "Sala", `locationHint: 'sam'`), predicción local, estado binario por diferencias, reconexión de 60 s con la IA a cargo.                                                                                                                 |
-| Arte              | Fantasía oscura estilizada; la magia es lo único con color intenso. **Dirección C: metal arcano y vidrio ahumado.** El mockup de ChatGPT (arena oscura con velas, cristales violeta, HUD de metal) es la meta.                                                                                                       |
-| Orden del arte    | Primero HUD (hecho), luego ambiente de la arena (empezado), al final personajes. Le tienta el 3D con Meshy/Mixamo solo si no afecta la fluidez en red.                                                                                                                                                               |
-| Audio             | Sintetizado en código por ahora (cada elemento es una nota, el tejido un acorde). Se reemplazará con ElevenLabs.                                                                                                                                                                                                     |
-| Lore              | Ysmar, sostenido por la Trama de cinco hilos; el Crisol es una arena viva y los vencedores retejen un hilo del mundo.                                                                                                                                                                                                |
+| Tema              | Decisión                                                                                                                                                                                                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pilares           | La magia se construye, descubrir es progresar, duelos con estrategia (atacar y defender).                                                                                                                                                                                                                               |
+| Plataforma        | Juego web sin instalar, **solo en horizontal**. Se entra por un enlace de WhatsApp.                                                                                                                                                                                                                                     |
+| Cámara            | Tercera persona sobre el hombro. **No gira sola.** Tocar a un rival, una bestia o una invocación rival entra en **duelo**: la cámara lo mantiene al frente y un anillo lo marca en el suelo (sin esquinas). Arrastrar para mirar suelta el duelo; un botón con símbolo pasa al siguiente rival. Sin modos de prueba.    |
+| Controles         | Pulgar izquierdo mueve; pulgar derecho toca hasta 3 elementos y ✦ lanza; ✕ deshace. Arrastrar ✦ elige dirección; mantener ✦ y arrastrar elige dónde cae un hechizo de suelo. En PC: WASD, 1-5, espacio, X.                                                                                                              |
+| Elementos         | Brasa, Tormenta, Marea, Raíz y Umbra en un pentágono: vecinos combinan, opuestos chocan (Brasa ↔ Marea y Raíz; Umbra ↔ Tormenta y Marea…).                                                                                                                                                                              |
+| Tejido            | 1 a 3 elementos, el orden importa: 155 hechizos (5 básicos, 25 de dos, 125 Grandes). Visible para el rival. Fatiga por elemento (3 s), sin maná. Nada sale en menos de 0,17 s.                                                                                                                                          |
+| Partida           | Mejor de 3 rondas **sin reloj**: Caza, Convergencia y Duelo final (un minuto cada una) y después **muerte súbita** (la zona se cierra del todo en 20 s y quema cada vez más). Gana el último en pie.                                                                                                                    |
+| Al caer           | Quedas fuera de la ronda y miras a quien siga. **El Espectro se eliminó.** **Vidas** (3 por ronda) es opcional, apagada por defecto y no existe en 1v1 (el mejor de 3 ya es la segunda oportunidad).                                                                                                                    |
+| Modos             | 1v1 (en la plaza de 17 m, sin jungla), 2v2, 3v3 y todos contra todos de 4 y 6 (mapa de 40 m con jungla). Puestos vacíos los llena la IA.                                                                                                                                                                                |
+| IA                | Mismas reglas que un jugador. **Aprendiz / Duelista / Maestro.** Menú contra la IA: se elige (Duelista por defecto). Sala: se elige para los bots que llenan puestos. Entrenamiento y examen: Aprendiz.                                                                                                                 |
+| Invocaciones      | Ven con ojos propios: la ceguera de su dueño no las afecta (el Velo del rival sí). Tienen vida, atajan proyectiles y se pueden fijar tocándolas.                                                                                                                                                                        |
+| Choque de tejidos | Ver `docs/diseno.md`. Solo se desarman **proyectiles**; el Meteoro se esquiva. Los desarma un hechizo tuyo de elemento opuesto que los toque, **solo a mano**. Empate se anulan; el más fuerte sigue debilitado. No es reacción.                                                                                        |
+| Combos            | Sección del Grimorio. Guía, no recompensa: sin efecto extra. 88 (6 reacciones + 82 seguidillas). Detalle en [referencia/combos-grimorio.md](referencia/combos-grimorio.md).                                                                                                                                             |
+| Tutorial          | Por escuela: 10 u 11 capítulos con la barra de botones que se abre de a poco; enseña los 4 hechizos de la escuela y su combo (que entrega). "Más técnicas" (choque, meteoro, reacciones) quedan como capítulos opcionales en Entrenamiento.                                                                             |
+| Diagnóstico       | FPS y datos de conexión **nunca visibles por defecto**: solo se encienden desde Pausa y vuelven a apagarse al reabrir.                                                                                                                                                                                                  |
+| Escuelas          | Una por elemento ("Escuela de X"), elegida para siempre al crear el hechicero, antes del tutorial. Solo destaca 4 hechizos de partida y fija la Afinidad inicial; no bloquea nada. Sets medidos con `pnpm escuelas`: cada una gana 45–55% contra las otras con solo su set. Lista en `packages/content/src/schools.ts`. |
+| Grimorio          | No dice qué hechizo contrarresta cada estado, ni etiqueta combos "para varios rivales": descubrirlo es mérito del jugador.                                                                                                                                                                                              |
+| Variedad          | Esencia de bestias, santuarios, Glifos entre rondas (1 de 3, 4 si perdiste), un Presagio por partida. Guardián del Crisol en pausa.                                                                                                                                                                                     |
+| Afinidad          | Un elemento descansa 25% más rápido y sus dos opuestos 15% más lento; transforma la apariencia.                                                                                                                                                                                                                         |
+| Progresión        | Variedad, no poder: Grimorio, combos, maestría, desafíos y rivalidades (estas tres últimas no existen aún).                                                                                                                                                                                                             |
+| Perfiles          | Sin cuenta: nombre y aspecto en el Vestidor, guardados en el celular. A futuro, perfil en D1 con código de respaldo.                                                                                                                                                                                                    |
+| Multijugador      | Salas privadas entre amigos en Chile. Servidor con autoridad (Durable Object "Sala", `locationHint: 'sam'`), predicción local, estado binario por diferencias, reconexión de 60 s con la IA a cargo.                                                                                                                    |
+| Arte              | Fantasía oscura estilizada; la magia es lo único con color intenso. **Dirección C: metal arcano y vidrio ahumado.** El mockup de ChatGPT (arena oscura con velas, cristales violeta, HUD de metal) es la meta.                                                                                                          |
+| Orden del arte    | Primero HUD (hecho), luego ambiente de la arena (empezado), al final personajes. Le tienta el 3D con Meshy/Mixamo solo si no afecta la fluidez en red.                                                                                                                                                                  |
+| Audio             | Sintetizado en código por ahora (cada elemento es una nota, el tejido un acorde). Se reemplazará con ElevenLabs.                                                                                                                                                                                                        |
+| Lore              | Ysmar, sostenido por la Trama de cinco hilos; el Crisol es una arena viva y los vencedores retejen un hilo del mundo.                                                                                                                                                                                                   |
 
 ## Estado actual
 
@@ -93,8 +94,8 @@ amigos (de 1v1 a todos contra todos de 6) en
 | Partida y modos                             | Listo contra la IA y en red: sin reloj, muerte súbita, Vidas opcional.                                   |
 | Multijugador                                | En red de 2 a 6, predicción local, rivales ocultos, reconexión, quien llega tarde toma un mago de la IA. |
 | IA                                          | Tres dificultades; ciega no se congela; esquiva proyectiles y avisos de suelo; lee Grandes hechizos.     |
-| Combos y Grimorio                           | 84 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
-| Tutorial y Entrenamiento                    | 12 capítulos, muñeco que ataca, examen; práctica libre sin cansancio.                                    |
+| Combos y Grimorio                           | 88 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
+| Tutorial y Entrenamiento                    | Escuelas, tutorial por escuela, números de daño; práctica libre sin cansancio.                           |
 | Interfaz                                    | HUD, menú, sala, Glifos, resultado, Grimorio y Pausa en metal arcano.                                    |
 | Gráficas                                    | Geometría hecha por código con resplandor, estelas y ambiente de velas y cristales. Sin modelos reales.  |
 | Audio                                       | Sintetizado en código ([docs/audio.md](../audio.md)).                                                    |
@@ -123,6 +124,8 @@ Hay 476 pruebas.
 | #76     | IA: no se congela, esquiva avisos de suelo, tres dificultades.                                        |
 | #77     | Choque de tejidos.                                                                                    |
 | #78     | Tutorial completo de 12 capítulos; el choque intercepta lo que viene en camino.                       |
+| #87     | Tutorial: guía en una línea, segundo muñeco, arreglos de cámara, esquivar y tejidos.                  |
+| #88     | Escuelas, tutorial por escuela con barra progresiva, números de daño; la Afinidad entra al simulador. |
 
 ## Lo que sigue: frente "Listo para los 5"
 
@@ -141,9 +144,12 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    abrirse (`platform/homeScreen.ts`), porque Safari y el ícono no comparten almacenamiento. Por eso
    el manifiesto no tiene `start_url`. Falta probarlo en un iPhone real. Pendiente para después de
    la prueba (b): el perfil en D1 con código de respaldo.
-3. **Prueba de estrés de la red con 6.** Ya existe un simulador de lag (`apps/client/src/net/LagSimulator.ts`,
-   `apps/server/red/`). Correr salas de 6 con 150-300 ms y 5% de pérdida, quien crea la sala con mala
-   conexión, reconexiones a mitad de ronda y la app en segundo plano. Arreglar lo que salga.
+3. **Prueba de estrés de la red con 6.** Hecho: `apps/client/red/celulares.test.ts` corre 6
+   celulares sin pantalla con el código de red real contra `pnpm dev:server` (ver
+   `docs/arquitectura.md`, "Prueba de estrés"). Encontró y se arregló: tras perder la señal un
+   celular podía quedar colgado más de un minuto sin volver; al empezar cada ronda la IA tomaba
+   a todos un instante (con avisos falsos de "se fue"); si quien creó la sala quedaba colgado
+   nadie podía empezar; y la revancha esperaba a quien estaba en WhatsApp.
 4. **Rendimiento en Android de gama media. Hecho** (medido en Chrome sin pantalla con el
    procesador 4 veces más lento, sin celular): las bestias eran el 60% de lo que se dibujaba y
    ahora funden sus piezas quietas (y de lejos también las patas); las transparencias de dos caras
@@ -152,10 +158,11 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    en 3v3: de ~480 a ~300 llamadas de dibujo y 25% menos trabajo del procesador por cuadro.
    Detalle en `docs/arquitectura.md`, "Presupuestos de rendimiento". Falta confirmarlo en un
    Android real con el informe de la partida.
-5. **Revisión en celular real** de lo nuevo: el tutorial (sobre todo "Mirar" con la cámara y
+5. **Revisión en celular real** de lo nuevo: la elección de escuela y el tutorial por escuela, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.
-6. **Lista para la prueba:** un mensaje para los amigos con el enlace, qué probar y cómo reportar.
+6. **Lista para la prueba. Hecho:** la revisión del punto 5 como lista para el iPhone y el mensaje
+   de WhatsApp para los amigos están en [docs/prueba-con-amigos.md](../prueba-con-amigos.md).
 
 Tomás también aceptó, para después de la prueba: decidir con datos si las rondas son cortas (en el
 simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
@@ -165,11 +172,10 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 - **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.
 - **Familiares, maestría por elemento, desafíos, rivalidades, hechizos secretos, lore dentro del
   juego:** no existen. Esperan a después de la prueba con amigos.
-- **Audio con ElevenLabs** (unos 40 efectos, una pista por fase, quizás un narrador): no partió.
+- **Audio con ElevenLabs** (37 efectos, una pista por fase y un narrador opcional): prompts listos
+  en [audio-elevenlabs.md](../audio-elevenlabs.md); falta que Tomás traiga los archivos.
 - **Personajes 3D** (Meshy + Mixamo): tercer paso del orden de arte, sin empezar.
 - **Apuntar:** a la guía visual de los hechizos de dirección le ha faltado cariño (lo dijo Tomás).
-- **Glifo de Brasa:** subir un poco la llama interior para despejar la base (ver
-  [referencia/ui-glifos.md](referencia/ui-glifos.md)).
 - **IA:** el Maestro todavía no hace choques de tejidos ni combos del catálogo; podría ser el
   siguiente escalón.
 - **Golpes de cono** (Zarpa…) no apuntan a invocaciones fijadas; solo proyectiles, explosiones y

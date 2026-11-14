@@ -275,6 +275,9 @@ export class ComboDetector {
     switch (pending.detect.check) {
       case 'selfGain':
         return me !== undefined && me.hp > (this.before.get(me.id)?.hp ?? me.hp);
+      case 'shackleActive':
+        // Tu Grillete sigue atando a un rival.
+        return state.spells.some((s) => s.kind === 'shackle' && s.ownerId === pending.finisher);
       case 'ringActive': {
         // Tu anillo sigue en pie y tiene a un rival adentro.
         const team = me?.team;

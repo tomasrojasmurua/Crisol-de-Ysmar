@@ -227,6 +227,11 @@ export class GameAudio {
     this.sound('discover', CENTER, () => this.synth.bell(CENTER, 523.25, 0.16, 2.2));
   }
 
+  /** Cumpliste un paso del tutorial: una campanita corta y aguda. */
+  stepDone(): void {
+    this.sound('stepDone', CENTER, () => this.synth.bell(CENTER, 783.99, 0.12, 0.9));
+  }
+
   /** Un botón de la interfaz. */
   click(): void {
     this.sound('click', CENTER, () => this.synth.click());

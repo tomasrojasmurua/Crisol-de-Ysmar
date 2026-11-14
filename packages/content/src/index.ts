@@ -57,4 +57,5 @@ export {
   elementDataSchema,
   elementIdSchema,
 } from './schema';
+export { SCHOOLS, type School, schoolOf, schoolSpellbook } from './schools';
 export { blindedFrom, veiledFromTeam, visibleEnemies } from './sight';

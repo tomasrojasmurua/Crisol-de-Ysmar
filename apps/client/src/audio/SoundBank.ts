@@ -43,6 +43,7 @@ const SOUND_KEYS = [
   'victory',
   'defeat',
   'discover',
+  'stepDone',
   'click',
   'music.menu',
   'music.hunt',

@@ -1,5 +1,5 @@
-import { ALL_WEAVES, COMBOS, type Combo, ELEMENTS, spellName } from '@crisol/content';
-import { type ElementId, type GameRules, spellOf, type Weave } from '@crisol/core';
+import { ALL_WEAVES, COMBOS, type Combo, ELEMENTS, type School, spellName } from '@crisol/content';
+import { type ElementId, type GameRules, SPELL_WEAVES, spellOf, type Weave } from '@crisol/core';
 import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
 import { comboStepsView, spellStepsView } from './comboSteps';
@@ -73,6 +73,8 @@ export class GrimoireBook {
   private tab: Tab = 'brasa';
   private grimoire: Grimoire | null = null;
   private comboLog: ComboLog | null = null;
+  /** Tu escuela: sus hechizos van destacados y arriba en la pestaña de su elemento. */
+  private school: School | null = null;
   private readonly editor: OwnComboEditor;
 
   constructor(
@@ -117,9 +119,11 @@ export class GrimoireBook {
     this.editor = new OwnComboEditor(this.root, () => this.render());
   }
 
-  show(grimoire: Grimoire, comboLog: ComboLog): void {
+  show(grimoire: Grimoire, comboLog: ComboLog, school: School | null = null): void {
     this.grimoire = grimoire;
     this.comboLog = comboLog;
+    if (school && school !== this.school) this.tab = school.element;
+    this.school = school;
     this.render();
     this.root.hidden = false;
   }
@@ -203,6 +207,8 @@ export class GrimoireBook {
           : 'Conjuros que empiezan con este elemento',
       ),
     );
+    if (this.school?.element === element) this.renderSchool(this.school);
+    const highlighted = new Set(this.school?.spells ?? []);
     for (const group of GROUPS) {
       const inGroup = weaves.filter((w) => w.length === group.length);
       const found = inGroup.filter((w) => grimoire.has(w));
@@ -213,6 +219,8 @@ export class GrimoireBook {
       for (const weave of found) {
         const card = el('button', 'grimoire-spell');
         card.type = 'button';
+        const id = spellOf(weave);
+        card.classList.toggle('school', id !== null && highlighted.has(id));
         card.append(weaveGlyphs(weave), el('span', 'grimoire-spell-name', spellName(weave)));
         card.addEventListener('click', () => this.openDetail(weave));
         grid.append(card);
@@ -233,6 +241,34 @@ export class GrimoireBook {
   }
 
   /**
+   * Tu escuela, arriba de todo: sus 4 hechizos y Paso, con para qué sirve cada uno. Se ven
+   * aunque todavía no los lances: son los que el tutorial te enseña.
+   */
+  private renderSchool(school: School): void {
+    const section = el('section', 'grimoire-group grimoire-school');
+    section.append(el('h3', 'grimoire-group-title', school.name));
+    const grid = el('div', 'grimoire-grid');
+    for (const spell of [
+      ...school.spells,
+      ...(school.spells.includes('step') ? [] : ['step' as const]),
+    ]) {
+      const weave = SPELL_WEAVES[spell];
+      const card = el('button', 'grimoire-spell school');
+      card.type = 'button';
+      const text = el('span', 'grimoire-school-text');
+      text.append(
+        el('span', 'grimoire-spell-name', spellName(weave)),
+        el('span', 'grimoire-school-role', school.roles[spell] ?? 'Para esquivar'),
+      );
+      card.append(weaveGlyphs(weave), text);
+      card.addEventListener('click', () => this.openDetail(weave));
+      grid.append(card);
+    }
+    section.append(grid);
+    this.list.append(section);
+  }
+
+  /**
    * Los combos del catálogo que ya aparecieron (reacciones y seguidillas), cuántos faltan sin
    * decir cuáles, y la hoja de Mis combos.
    */
@@ -247,7 +283,7 @@ export class GrimoireBook {
         'Combos',
         `${log.unlockedCount} de ${log.total}`,
         !log.tutorialDone
-          ? 'El tutorial de Entrenamiento te entrega los primeros 3'
+          ? 'El tutorial de Entrenamiento te entrega el de tu escuela'
           : left > 0
             ? `Te faltan ${left} por descubrir`
             : 'Los descubriste todos',

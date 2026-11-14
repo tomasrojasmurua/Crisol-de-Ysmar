@@ -15,6 +15,12 @@ export interface Profile {
   readonly name: string;
   readonly look: Appearance;
   readonly affinity: ElementId | null;
+  /**
+   * La escuela que eligió al crear su hechicero, para siempre: destaca su set de principiante en
+   * el Grimorio y decide qué enseña el tutorial. Null en los perfiles de antes (se elige al
+   * abrir el juego).
+   */
+  readonly school: ElementId | null;
 }
 
 const STORAGE_KEY = 'crisol.perfil';
@@ -24,6 +30,7 @@ const DEFAULT_PROFILE: Profile = {
   name: '',
   look: DEFAULT_LOOK,
   affinity: null,
+  school: null,
 };
 
 /** Limpia un nombre: sin espacios de más y con largo máximo. */
@@ -37,6 +44,7 @@ export function loadProfile(): Profile {
       name: unknown;
       look: unknown;
       affinity: unknown;
+      school: unknown;
     }>;
     return {
       name: typeof saved.name === 'string' ? cleanName(saved.name) : '',
@@ -44,6 +52,7 @@ export function loadProfile(): Profile {
       look: cleanLook(saved.look),
       affinity:
         typeof saved.affinity === 'string' && isElementId(saved.affinity) ? saved.affinity : null,
+      school: typeof saved.school === 'string' && isElementId(saved.school) ? saved.school : null,
     };
   } catch {
     return DEFAULT_PROFILE;

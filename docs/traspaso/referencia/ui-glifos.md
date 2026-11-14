@@ -3,14 +3,14 @@
 Copia del documento del Project de Claude. Dirección C (metal arcano y vidrio ahumado). Formato:
 viewBox 0 0 32 32, trazo 2.5, extremos redondeados, `currentColor`. Set final aprobado el
 2026-11-10 (segunda tanda de ChatGPT); ya está en el juego (`apps/client/src/ui/icons.ts`).
-Pendiente: subir un poco la llama interior de Brasa para despejar la base.
+Ajuste del 2026-11-12: la llama interior de Brasa subió y se acortó para despejar la base.
 
 ## brasa
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
   <path d="M18 3.5C20 8 17 11 18 15C20 18 22 16 23 13C28 19 27 25 22 28C19 29 13 29 10 27C4 23 5 17 9 13C9 17 12 19 14 20C12 14 17 11 18 3.5Z"/>
-  <path d="M15 28C12 25 14 21 17 19C17 23 21 25 19 28"/>
+  <path d="M15 24.5C13.2 22.8 14.6 20.8 17 19.5C17 22 19.8 23 18.5 24.5"/>
 </svg>
 ```
 

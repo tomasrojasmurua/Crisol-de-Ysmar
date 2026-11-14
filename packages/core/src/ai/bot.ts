@@ -26,6 +26,7 @@ import {
 } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { SeededRng } from '../sim/rng';
+import { SPELL_WEAVES, type SpellId, spellOf } from '../spells/catalog';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { Navigator } from './navigation';
 import { type AimMode, type Plan, spellOptions } from './spellPlans';
@@ -54,6 +55,11 @@ export interface BotProfile {
   readonly improvise: number;
   /** Cuánto recuerda dónde vio al rival si lo pierde de vista (ceguera, Velo), en pasos. */
   readonly memoryTicks: number;
+  /**
+   * Si está, solo teje estos hechizos (los de una escuela) y nunca improvisa. Sirve para medir
+   * el balance de los sets de principiante.
+   */
+  readonly spellbook?: readonly SpellId[];
 }
 
 /** Un bot de nivel medio, para pruebas y para quien no elige dificultad. */
@@ -232,6 +238,8 @@ export class BotController implements Controller {
 
     // Casi siempre elige un hechizo propio según la situación; a veces improvisa un tejido.
     const spells = spellOptions({ state, self, target, available, threatened });
+    const book = this.profile.spellbook;
+    if (book) return this.chooseFromBook(book, spells, available);
     if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
       return this.remember(this.pickWeighted(spells));
     }
@@ -460,6 +468,24 @@ export class BotController implements Controller {
     const cos = Math.cos(error);
     const sin = Math.sin(error);
     return { x: aim.x * cos - aim.z * sin, z: aim.x * sin + aim.z * cos };
+  }
+
+  /** Con un set cerrado: lo pensado que esté en el set, o cualquiera del set que se pueda. */
+  private chooseFromBook(
+    book: readonly SpellId[],
+    spells: readonly (Plan & { readonly weight: number })[],
+    available: readonly ElementId[],
+  ): Plan | null {
+    const inBook = spells.filter((o) => {
+      const id = spellOf(o.elements);
+      return id !== null && book.includes(id);
+    });
+    if (inBook.length > 0) return this.remember(this.pickWeighted(inBook));
+    const ready = book
+      .map((id) => SPELL_WEAVES[id])
+      .filter((weave) => weave.every((e) => available.includes(e)));
+    const weave = ready.length > 0 ? ready[this.rng.int(0, ready.length - 1)] : undefined;
+    return weave ? this.remember({ elements: [...weave], aimMode: 'target' }) : null;
   }
 
   private pickWeighted(options: readonly (Plan & { readonly weight: number })[]): Plan {

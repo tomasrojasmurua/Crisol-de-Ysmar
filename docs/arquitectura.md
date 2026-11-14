@@ -73,6 +73,12 @@ ellos.
 - Medir: `?lag=150&perdida=5` en la dirección simula 150 ms de ida y vuelta y un 5% de mensajes
   atrasados (`net/LagSimulator.ts`). El indicador de red muestra ping, colchón, cortes, kB/s y el
   estado más grande del último rato.
+- Prueba de estrés (no corre en CI; necesita `pnpm dev:server`):
+  - `apps/server/red/simulacion.test.ts`: 6 clientes simples contra la Sala, con lag y cortes.
+  - `apps/client/red/celulares.test.ts`: 6 celulares sin pantalla, cada uno en su proceso con el
+    código de red real (`NetMatch`), simulan una noche con amigos: quien crea la sala con 750 ms y
+    15% de pérdida, túneles, WhatsApp con la conexión cortada por iOS, recargas y señal
+    intermitente. Falla si alguno no vuelve a jugar su mago en 12 s tras cada problema.
 - Celular robusto:
   - **App de fondo:** al ocultarse la pestaña el celular manda `away`; la IA juega por ti y la Sala
     deja de mandarte el estado (ahorra batería y datos). Al volver, se descarta lo viejo y llega
@@ -80,7 +86,15 @@ ellos.
   - **Silencio:** jugando, si un jugador conectado no manda nada en 2 s (túnel, cambio de wifi a
     4G), la IA lo cubre hasta que vuelva a hablar. Los demás ven el aviso.
   - **Conexión colgada:** si con la app a la vista no llega nada en 6 s, el celular corta y
-    reconecta. Con el evento `online` reintenta en el acto.
+    reconecta. Un intento de conexión que no contesta en 8 s se abandona y se repite (sin señal,
+    el celular puede dejarlo colgado más de un minuto). Con el evento `online` reintenta en el
+    acto, también si había un intento colgado.
+  - **Sala de espera:** manda quien llegó primero entre los que siguen respondiendo (cualquier
+    mensaje, también el ping). Si de quien manda no llega nada en 20 s, manda el siguiente; al
+    volver recupera el mando.
+  - **Rondas y revancha:** al empezar cada ronda se cuenta el silencio desde cero (antes todos
+    parecían callados y la IA los tomaba un instante). Quien está fuera de la app no frena la
+    revancha.
   - **Volver:** el pase para recuperar tu mago dura 3 horas en `localStorage`, así sirve aunque
     el sistema cierre la pestaña o entres de nuevo por el enlace. Al volver a la misma partida
     (`start` con `resume`), se sigue sin rearmar la escena. Se reintenta por 5 minutos.

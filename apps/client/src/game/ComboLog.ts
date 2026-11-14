@@ -3,7 +3,10 @@ import { type ComboId, SPELL_IDS, type SpellId } from '@crisol/core';
 
 const HITS_KEY = 'crisol.combos';
 const OWN_KEY = 'crisol.misCombos';
+/** Quien terminó el tutorial de antes (el de los 3 combos) los conserva. */
 const TUTORIAL_KEY = 'crisol.tutorial';
+/** Los combos que entregó el tutorial de la escuela. */
+const GIFTS_KEY = 'crisol.regalos';
 
 /** Hasta cuántos hechizos lleva un combo propio. */
 export const OWN_COMBO_MAX_STEPS = 4;
@@ -21,29 +24,40 @@ export interface OwnCombo {
 /**
  * Los combos del catálogo que el jugador acertó en partidas y los que anotó él mismo, guardados
  * en este celular. Un combo aparece en el Grimorio al juntar sus aciertos (3, o 5 los más
- * poderosos); antes no se muestra nada de él. Los 3 del tutorial los entrega el tutorial (o
- * aparecen igual si se aciertan 3 veces en partidas).
+ * poderosos); antes no se muestra nada de él. El tutorial entrega el combo de tu escuela (y
+ * quien hizo el tutorial de antes conserva sus 3).
  */
 export class ComboLog {
   private readonly hits: Map<string, number>;
   private own: OwnCombo[];
-  private tutorial: boolean;
+  private readonly legacyTutorial: boolean;
+  private readonly gifts: Set<string>;
 
   constructor() {
     this.hits = loadHits();
     this.own = loadOwn();
-    this.tutorial = load(TUTORIAL_KEY) === true;
+    this.legacyTutorial = load(TUTORIAL_KEY) === true;
+    const gifts = load(GIFTS_KEY);
+    this.gifts = new Set(
+      Array.isArray(gifts) ? gifts.filter((g): g is string => typeof g === 'string') : [],
+    );
   }
 
-  /** Si ya terminó el tutorial de Entrenamiento. */
+  /** Si ya recibió algún combo del tutorial (el de su escuela, o los 3 del de antes). */
   get tutorialDone(): boolean {
-    return this.tutorial;
+    return this.legacyTutorial || this.gifts.size > 0;
   }
 
-  /** Termina el tutorial: sus 3 combos quedan en el Grimorio. */
-  completeTutorial(): void {
-    this.tutorial = true;
-    save(TUTORIAL_KEY, true);
+  /** El tutorial entrega un combo: queda en el Grimorio sin tener que acertarlo. */
+  gift(comboId: string): void {
+    if (this.gifts.has(comboId)) return;
+    this.gifts.add(comboId);
+    save(GIFTS_KEY, [...this.gifts]);
+  }
+
+  /** Si ya lo entregó el tutorial. */
+  isGifted(comboId: string): boolean {
+    return this.gifts.has(comboId);
   }
 
   get total(): number {
@@ -55,7 +69,8 @@ export class ComboLog {
   }
 
   isUnlocked(combo: Combo): boolean {
-    if (combo.tutorial && this.tutorial) return true;
+    if (combo.tutorial && this.legacyTutorial) return true;
+    if (this.gifts.has(combo.id)) return true;
     return (this.hits.get(combo.id) ?? 0) >= combo.needed;
   }
 

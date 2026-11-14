@@ -3,8 +3,8 @@ import { COMBOS } from './combos';
 import { REACTION_TEXT } from './reactions';
 
 describe('catálogo de combos', () => {
-  it('tiene los 84 combos acordados, cada uno con su id', () => {
-    expect(COMBOS).toHaveLength(84);
+  it('tiene los 88 combos acordados, cada uno con su id', () => {
+    expect(COMBOS).toHaveLength(88);
     expect(new Set(COMBOS.map((c) => c.id)).size).toBe(COMBOS.length);
     expect(new Set(COMBOS.map((c) => c.name)).size).toBe(COMBOS.length);
   });

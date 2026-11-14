@@ -3703,26 +3703,27 @@ body {
 
 /* ---------- Tutorial ---------- */
 
-/* Arriba al centro y angosta: no tapa el muñeco, el joystick ni los botones de elemento. */
+/*
+ * Arriba al centro. Recogida es una sola línea (la orden y los signos); desplegada suma la
+ * explicación y los botones. Nunca baja tanto como para tapar al muñeco o los elementos.
+ */
 .tutorial-card {
   position: absolute;
   top: calc(var(--safe-top) + 4px);
   left: 50%;
   transform: translateX(-50%);
   /* Entre la columna de vida (izquierda) y la barra de Entrenamiento (derecha). */
-  width: clamp(220px, calc(100vw - 480px), 380px);
+  width: max-content;
+  max-width: clamp(220px, calc(100vw - 480px), 380px);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px 10px;
+  align-items: stretch;
   border-radius: 10px;
   border: 1px solid rgba(216, 191, 138, 0.45);
-  background: linear-gradient(180deg, rgba(26, 22, 34, 0.94), rgba(11, 10, 16, 0.94));
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.9), rgba(11, 10, 16, 0.9));
   box-shadow:
     inset 0 0 0 3px rgba(7, 7, 12, 0.7),
-    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
-    0 10px 30px rgba(0, 0, 0, 0.5);
+    0 8px 22px rgba(0, 0, 0, 0.45);
   text-align: center;
   pointer-events: auto;
 }
@@ -3738,71 +3739,273 @@ body {
   }
 }
 
+/* La línea: siempre a la vista. */
+#ui .tutorial-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+
+.tutorial-chapter {
+  flex: none;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--trama);
+}
+
+.tutorial-goal {
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--gold-bright);
+}
+
+.tutorial-signs:empty {
+  display: none;
+}
+
+.tutorial-signs {
+  flex: none;
+  display: inline-flex;
+}
+
+.tutorial-signs .combo-steps {
+  flex-wrap: nowrap;
+  --icon-size: 17px;
+}
+
+.tutorial-progress {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(216, 191, 138, 0.16);
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+/* La flecha que dice si hay más para leer: solo en pasos que se recogen. */
+.tutorial-toggle {
+  display: none;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: 2px;
+  border-right: 1.5px solid var(--ink-quiet);
+  border-bottom: 1.5px solid var(--ink-quiet);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.tutorial-card.collapsible .tutorial-toggle {
+  display: block;
+}
+
+.tutorial-card.collapsible:not(.collapsed) .tutorial-toggle {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+#ui .tutorial-card:not(.collapsible) .tutorial-bar {
+  pointer-events: none;
+}
+
+/* Lo que se despliega: la explicación y los botones. */
+.tutorial-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 12px 8px;
+}
+
+.tutorial-card.collapsed .tutorial-more {
+  display: none;
+}
+
 .tutorial-kicker {
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--trama);
 }
 
-.tutorial-title {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 16px;
-  letter-spacing: 0.06em;
+.tutorial-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.tutorial-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--trama);
+}
+
+.tutorial-dot.done {
+  background: var(--trama);
+}
+
+/* "Botón nuevo: Tormenta": una pastilla dorada sobre la explicación. */
+.tutorial-fresh {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: rgba(216, 191, 138, 0.14);
+  font-size: 11px;
   color: var(--gold-bright);
 }
 
-.tutorial-steps:empty {
+.tutorial-fresh[hidden] {
   display: none;
 }
 
-.tutorial-steps .combo-steps {
-  --icon-size: 19px;
+/* La pista para quien se trabó: dorada, sobre la explicación. */
+.tutorial-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--gold-bright);
+}
+
+.tutorial-hint[hidden] {
+  display: none;
+}
+
+/* El ✓ que salta al cumplir un paso, a la izquierda de la guía. */
+.tutorial-check {
+  position: absolute;
+  left: -14px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #3f9d5a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tutorial-check.pop {
+  animation: tutorial-check-pop 0.9s ease-out;
+}
+
+@keyframes tutorial-check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.rich-nowrap {
+  white-space: nowrap;
 }
 
 .tutorial-text {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
   color: var(--ink);
 }
 
 #ui .tutorial-next,
 #ui .tutorial-finish button {
-  margin-top: 4px;
-  min-height: 40px;
-  min-width: 120px;
+  min-height: 34px;
+  min-width: 110px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 .tutorial-finish {
   display: flex;
   gap: 8px;
-}
-
-.tutorial-progress {
-  font-family: var(--display);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--gold-bright);
+  margin-top: 2px;
 }
 
 .tutorial-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 2px;
 }
 
 /* Saltar es discreto: un texto, no un botón grande que compita con Siguiente. */
 #ui .tutorial-skip {
-  min-height: 32px;
+  min-height: 30px;
   padding: 2px 8px;
   border: none;
   background: none;
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.08em;
   color: var(--ink-quiet);
   text-decoration: underline;
+}
+
+/* Dónde arrastrar para girar la cámara: el centro, lejos del joystick y de los botones. */
+.tutorial-look-hint {
+  position: absolute;
+  top: 50%;
+  left: 52%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px dashed rgba(216, 191, 138, 0.55);
+  background: rgba(11, 10, 16, 0.35);
+  color: var(--gold-bright);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.tutorial-look-finger {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(244, 228, 190, 0.85);
+  box-shadow: 0 0 10px rgba(244, 228, 190, 0.7);
+  animation: tutorial-look 1.6s ease-in-out infinite;
+}
+
+@keyframes tutorial-look {
+  0%,
+  100% {
+    transform: translateX(-28px);
+  }
+  50% {
+    transform: translateX(28px);
+  }
 }
 
 /* Capítulos del tutorial para repetir. */
@@ -3852,7 +4055,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-card.advance {
+  .tutorial-card.advance,
+  .tutorial-look-finger {
     animation: none;
   }
 }
@@ -4090,4 +4294,277 @@ body {
   display: flex;
   justify-content: center;
   gap: 10px;
+}
+
+/* ---------- Elegir escuela (al crear el hechicero) ---------- */
+
+.school-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: rgba(7, 7, 12, 0.86);
+  pointer-events: auto;
+  overflow-y: auto;
+  animation: fade-in 0.2s ease both;
+}
+
+.school-picker-card {
+  width: min(860px, 100%);
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 191, 138, 0.45);
+  background: linear-gradient(180deg, rgba(26, 22, 34, 0.98), rgba(11, 10, 16, 0.98));
+  box-shadow:
+    inset 0 0 0 3px rgba(7, 7, 12, 0.7),
+    inset 0 0 0 4px rgba(216, 191, 138, 0.14),
+    0 16px 50px rgba(0, 0, 0, 0.6);
+}
+
+.school-picker-head {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.school-picker-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+}
+
+.school-picker-head p {
+  margin: 2px auto 0;
+  max-width: 600px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-quiet);
+}
+
+.school-cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+#ui .school-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(216, 191, 138, 0.25);
+  background: rgba(14, 12, 20, 0.9);
+  font: inherit;
+  color: var(--ink);
+  text-align: center;
+}
+
+#ui .school-card.selected {
+  border-color: var(--element);
+  background: color-mix(in srgb, var(--element) 16%, rgba(14, 12, 20, 0.95));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--element) 45%, transparent);
+}
+
+.school-card-icon {
+  color: var(--element);
+  --icon-size: 30px;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--element) 60%, transparent));
+}
+
+.school-card-name {
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--element);
+}
+
+.school-card-style {
+  font-size: 11px;
+  color: var(--ink-quiet);
+  margin-bottom: 4px;
+}
+
+.school-card-spells {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.school-card-spell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.school-card-spell-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weave-glyphs.tiny {
+  flex: none;
+  --icon-size: 12px;
+}
+
+.school-picker-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.school-picker-hint {
+  font-size: 12px;
+  color: var(--ink-quiet);
+}
+
+#ui .school-confirm:disabled {
+  opacity: 0.45;
+}
+
+/* Elementos dentro de un texto: el mismo signo que el botón, en su color. */
+.rich-element {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  color: var(--element);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rich-element-icon {
+  --icon-size: 1.05em;
+  align-self: center;
+  display: inline-flex;
+}
+
+/* El ✦ de las guías: un botón de Lanzar en miniatura, para que se lea como algo que se aprieta. */
+.rich-cast {
+  --icon-size: 0.85em;
+  --icon-color: var(--gold-bright);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45em;
+  height: 1.45em;
+  margin: 0 1px;
+  vertical-align: -0.35em;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: radial-gradient(circle, rgba(243, 223, 176, 0.18), rgba(10, 9, 14, 0.85) 70%);
+  box-shadow: 0 0 6px rgba(243, 223, 176, 0.35);
+}
+
+.rich-cast .icon {
+  filter: drop-shadow(0 0 3px rgba(243, 223, 176, 0.6));
+}
+
+.training-chapter-group {
+  grid-column: 1 / -1;
+  margin: 8px 0 2px;
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--ink-quiet);
+}
+
+/* ---------- Tutorial: la barra de botones se va abriendo ---------- */
+
+#ui .controls .concealed {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#ui .controls .appear {
+  animation: hud-appear 0.9s ease-out both;
+}
+
+@keyframes hud-appear {
+  0% {
+    /* `scale` se suma al `transform` que ubica cada botón en su arco, sin moverlo. */
+    scale: 0.4;
+    opacity: 0;
+    filter: brightness(2.4);
+  }
+  55% {
+    scale: 1.15;
+    opacity: 1;
+    filter: brightness(1.8) drop-shadow(0 0 14px #fff6d8);
+  }
+  100% {
+    scale: 1;
+    filter: none;
+  }
+}
+
+/* El botón que nombra la orden del tutorial: un halo que late. */
+#ui .controls .glow {
+  box-shadow:
+    0 0 0 2px var(--color, var(--gold-bright)),
+    0 0 18px 4px color-mix(in srgb, var(--color, var(--gold-bright)) 70%, transparent);
+  animation: hud-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes hud-glow {
+  50% {
+    box-shadow:
+      0 0 0 3px var(--color, var(--gold-bright)),
+      0 0 28px 8px color-mix(in srgb, var(--color, var(--gold-bright)) 85%, transparent);
+  }
+}
+
+/* Números de daño: chicos, rojos y efímeros. Las palabras de estado, claras y algo menores. */
+.combo-callout.damage {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.combo-callout.status {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- Grimorio: tu escuela ---------- */
+
+#ui .grimoire-spell.school {
+  border-color: color-mix(in srgb, var(--element) 70%, transparent);
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--element) 22%, transparent);
+}
+
+.grimoire-school .grimoire-group-title {
+  color: var(--element);
+}
+
+.grimoire-school-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.grimoire-school-role {
+  font-size: 11px;
+  color: var(--ink-quiet);
 }

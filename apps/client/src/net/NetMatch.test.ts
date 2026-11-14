@@ -13,6 +13,7 @@ import { type NetListener, NetMatch } from './NetMatch';
 /** Un WebSocket de mentira: guarda lo enviado y deja simular lo que llega. */
 class FakeSocket {
   static last: FakeSocket | null = null;
+  static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   readyState = 1;
   sent: string[] = [];
@@ -287,6 +288,33 @@ describe('duelo en red: el celular', () => {
     socket.receive(stateMessage(90));
     expect(starts).toBe(1);
     expect(net.state.tick).toBe(90);
+  });
+
+  it('si un intento de conexión queda colgado sin señal, lo abandona y vuelve a intentar', () => {
+    vi.useFakeTimers();
+    const { socket } = joined();
+    socket.emit('close', { code: 1006 });
+    vi.advanceTimersByTime(2000);
+    // El intento nuevo no contesta (túnel): ni abre ni se cierra.
+    const hung = FakeSocket.last as FakeSocket;
+    hung.readyState = 0;
+    vi.advanceTimersByTime(8000);
+    expect(hung.closedWith).toBe(4005);
+    vi.advanceTimersByTime(2000);
+    expect(FakeSocket.last).not.toBe(hung);
+    vi.useRealTimers();
+  });
+
+  it('si vuelve la señal con un intento colgado, intenta de nuevo en el acto', () => {
+    vi.useFakeTimers();
+    const { socket } = joined();
+    socket.emit('close', { code: 1006 });
+    vi.advanceTimersByTime(2000);
+    const hung = FakeSocket.last as FakeSocket;
+    hung.readyState = 0;
+    window.dispatchEvent(new Event('online'));
+    expect(FakeSocket.last).not.toBe(hung);
+    vi.useRealTimers();
   });
 
   it('guarda el pase para volver aunque se cierre la pestaña', () => {

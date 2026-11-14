@@ -1,4 +1,4 @@
-import { DUEL_RULES } from '@crisol/content';
+import { DUEL_RULES, schoolSpellbook } from '@crisol/content';
 import {
   type Controller,
   type ElementId,
@@ -9,8 +9,15 @@ import {
   type Vec2,
 } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
-import { DUMMY_ID, TrainingMatch } from './TrainingMatch';
-import { TUTORIAL_CHAPTERS, Tutorial } from './Tutorial';
+import { nextLockTarget } from '../input/lockTargets';
+import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './TrainingMatch';
+import {
+  type HudPart,
+  STUCK_TICKS,
+  Tutorial,
+  type TutorialChapter,
+  tutorialChapters,
+} from './Tutorial';
 
 /** Un dedo de mentira: en cada paso hace lo que diga el guion para ese momento. */
 class Script implements Controller {
@@ -21,7 +28,11 @@ class Script implements Controller {
   }
 }
 
-const chapterIndex = (id: string): number => TUTORIAL_CHAPTERS.findIndex((c) => c.id === id);
+/** La escuela de casi todas las pruebas: Marea (Salpicón, Géiser, Rayo en cadena, Era de hielo). */
+const MAREA = tutorialChapters('marea');
+
+const chapterIndex = (id: string, chapters: readonly TutorialChapter[] = MAREA): number =>
+  chapters.findIndex((c) => c.id === id);
 
 function me(state: MatchState) {
   const found = state.wizards.find((w) => w.id === 1);
@@ -50,11 +61,11 @@ function castAt(state: MatchState, spell: SpellId, at: Vec2 = dummy(state).pos):
   ];
 }
 
-/** Camina hacia el muñeco hasta quedar a unos 5 m. */
-function approach(state: MatchState): Intent[] {
+/** Camina hacia el muñeco hasta quedar a unos metros (5 si no se dice). */
+function approach(state: MatchState, meters = 5): Intent[] {
   const dir = toward(me(state).pos, dummy(state).pos);
   const d = Math.hypot(dummy(state).pos.x - me(state).pos.x, dummy(state).pos.z - me(state).pos.z);
-  return d > 5 ? [{ kind: 'move', x: dir.x, z: dir.z }] : [];
+  return d > meters ? [{ kind: 'move', x: dir.x, z: dir.z }] : [];
 }
 
 /**
@@ -65,45 +76,114 @@ function play(
   plan: (tick: number, state: MatchState) => Intent[],
   chapter: string,
   maxTicks: number,
-): { tutorial: Tutorial; reached: string[]; match: TrainingMatch } {
-  const match = new TrainingMatch(DUEL_RULES, new Script(plan), null);
+  startStep = 0,
+  chapters: readonly TutorialChapter[] = MAREA,
+  /** Tu Afinidad: la de tu escuela, como al crear el hechicero. */
+  affinity: ElementId | null = null,
+): { tutorial: Tutorial; reached: string[]; match: TrainingMatch; withSecond: Set<string> } {
+  const match = new TrainingMatch(DUEL_RULES, new Script(plan), affinity);
   match.restless = false;
-  const tutorial = new Tutorial(match.playerId, DUMMY_ID, chapterIndex(chapter), true);
-  match.setDummy(tutorial.dummy);
+  const tutorial = new Tutorial(
+    match.playerId,
+    DUMMY_ID,
+    chapters,
+    chapterIndex(chapter, chapters),
+    true,
+    startStep,
+  );
+  const follow = (): void => {
+    match.setDummy(tutorial.dummy);
+    match.setSecondDummy(tutorial.secondDummy);
+  };
+  follow();
   const reached: string[] = [];
+  /** Los pasos en que el segundo muñeco estuvo en la arena. */
+  const withSecond = new Set<string>();
   for (let i = 0; i < maxTicks && !tutorial.done; i++) {
+    if (match.secondDummy) withSecond.add(tutorial.step?.title ?? '');
     if (tutorial.step?.goal.kind === 'read') {
       reached.push(tutorial.step.title);
       tutorial.next();
-      match.setDummy(tutorial.dummy);
+      follow();
       continue;
     }
     const title = tutorial.step?.title ?? '';
     const events = match.step();
     if (tutorial.onStep(events, match.state, match.lastIntents)) {
       reached.push(title);
-      match.setDummy(tutorial.dummy);
+      follow();
     }
   }
-  return { tutorial, reached, match };
+  return { tutorial, reached, match, withSecond };
 }
 
-describe('Tutorial por capítulos', () => {
-  it('tiene los 12 capítulos, del objetivo al examen', () => {
-    expect(TUTORIAL_CHAPTERS.map((c) => c.id)).toEqual([
+/** Un guion que lanza estos hechizos al muñeco en esos pasos y, entre medio, se le acerca. */
+const castsAt =
+  (casts: ReadonlyMap<number, SpellId>) =>
+  (tick: number, state: MatchState): Intent[] => {
+    const spell = casts.get(tick);
+    return spell ? castAt(state, spell) : approach(state);
+  };
+
+describe('Tutorial por escuela', () => {
+  it('recorre lo básico y la escuela, del objetivo al examen; Más técnicas va aparte', () => {
+    expect(MAREA.map((c) => c.id)).toEqual([
       'objetivo',
       'moverse',
       'camara',
-      'elementos',
-      'descanso',
+      'elemento',
       'tejer',
+      'gran',
+      'esquivar',
       'apuntar',
-      'defensa',
-      'reacciones',
       'combos',
       'grimorio',
       'examen',
+      'defensa',
+      'reacciones',
     ]);
+    expect(MAREA.filter((c) => c.extra).map((c) => c.id)).toEqual(['defensa', 'reacciones']);
+  });
+
+  it('cada escuela enseña sus 4 hechizos y Paso, y ningún otro', () => {
+    for (const element of ['brasa', 'tormenta', 'marea', 'raiz', 'umbra'] as const) {
+      const chapters = tutorialChapters(element);
+      const taught = new Set(
+        chapters
+          .filter((c) => !c.extra)
+          .flatMap((c) => c.steps)
+          .flatMap((s) => (s.spell ? [s.spell] : [])),
+      );
+      const school = schoolSpellbook(element);
+      for (const spell of taught) expect(school).toContain(spell);
+      for (const spell of school) expect(taught.has(spell)).toBe(true);
+    }
+  });
+
+  it('la barra de botones se abre de a poco y al final se ve entera', () => {
+    const tutorial = new Tutorial(1, DUMMY_ID, MAREA);
+    const at = (id: string): ReadonlySet<HudPart> | null => {
+      while (tutorial.chapter && tutorial.chapter.id !== id) tutorial.skipChapter();
+      return tutorial.hud;
+    };
+    expect([...(at('moverse') ?? [])]).toEqual([]);
+    expect([...(at('elemento') ?? [])].sort()).toEqual(['cast', 'duel', 'marea'].sort());
+    // Ventisca trae Tormenta y Pararrayos trae Raíz: al terminar Tejer ya están.
+    expect([...(at('gran') ?? [])].sort()).toEqual(
+      ['cast', 'duel', 'marea', 'raiz', 'tormenta', 'undo'].sort(),
+    );
+    expect(at('examen')?.has('raiz')).toBe(true);
+    expect(at('examen')?.has('umbra')).toBe(true);
+    while (!tutorial.done) tutorial.skipChapter();
+    expect(tutorial.hud).toBeNull();
+  });
+
+  it('el elemento nuevo brilla en el paso que lo trae', () => {
+    const tejer = MAREA[chapterIndex('tejer')];
+    const blizzard = tejer?.steps.find((s) => s.spell === 'blizzard');
+    expect(blizzard?.reveal).toEqual(['tormenta']);
+    expect(blizzard?.glow).toBe('tormenta');
+    expect(blizzard?.text).toContain('{tormenta}');
   });
 
   it('la cámara: mirar llega del celular y el duelo se ve en la partida', () => {
@@ -115,60 +195,181 @@ describe('Tutorial por capítulos', () => {
     expect(tutorial.step?.title).toBe('Mirar');
     expect(tutorial.signal('look')).toBe(true);
     expect(reached).toEqual([]);
-    expect(tutorial.step?.title).toBe('Duelo');
+    expect(tutorial.step?.title).toBe('Fijar');
   });
 
-  it('los cinco básicos se cuentan uno por uno', () => {
-    const casts = new Map<number, SpellId>([
-      [5, 'spark'],
-      [20, 'step'],
-      [40, 'splash'],
-      [60, 'sap'],
-      [80, 'claw'],
-    ]);
-    const { tutorial, reached } = play(
+  it('la cámara: fijar, saltar al segundo muñeco (que después se va) y soltar', () => {
+    const { tutorial, reached, match, withSecond } = play(
       (tick, state) => {
-        const spell = casts.get(tick);
-        return spell ? castAt(state, spell) : [];
+        // El botón de duelo, como en el celular: solo fija lo que está a tiro. El muñeco se
+        // acerca solo; el segundo aparece a su lado.
+        const duelButton = (): Intent[] => {
+          const next = nextLockTarget(
+            state,
+            me(state),
+            DUEL_RULES,
+            { x: 0, z: 1 },
+            me(state).lockTarget,
+          );
+          return next === null ? [] : [{ kind: 'lockTarget', targetId: next }];
+        };
+        if (tick === 150 || tick === 160) return duelButton();
+        // Girar la cámara a mano manda soltar el duelo.
+        if (tick === 170) return [{ kind: 'lockTarget', targetId: null }];
+        return [];
       },
-      'elementos',
+      'camara',
       200,
+      1,
     );
-    expect(reached).toEqual(['Brasa, Tormenta, Marea, Raíz y Umbra', 'Los cinco básicos']);
+    expect(reached).toEqual(['Fijar', 'Saltar entre rivales', 'Soltar']);
+    expect([...withSecond]).toEqual(['Saltar entre rivales', 'Soltar']);
     expect(tutorial.done).toBe(true);
-    expect(tutorial.finished).toEqual(['elementos']);
+    // Terminada la sección, el segundo muñeco se va.
+    expect(match.secondDummy).toBe(false);
   });
 
-  it('apuntar distingue arrastrar ✦ y dejar un hechizo de suelo', () => {
+  it('el segundo muñeco no está fuera de esa sección: no se ve ni se puede fijar', () => {
+    const match = new TrainingMatch(DUEL_RULES, new Script(() => []), null);
+    expect(match.secondDummy).toBe(false);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(true);
+    match.setSecondDummy(true);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(false);
+    const second = match.state.wizards.find((w) => w.id === SECOND_DUMMY_ID);
+    const near = Math.hypot(
+      (second?.pos.x ?? 99) - dummy(match.state).pos.x,
+      (second?.pos.z ?? 99) - dummy(match.state).pos.z,
+    );
+    expect(near).toBeLessThan(6);
+    match.setSecondDummy(false);
+    match.step();
+    expect(second?.hp).toBe(0);
+    expect(match.isHidden(SECOND_DUMMY_ID)).toBe(true);
+  });
+
+  it('tu elemento: el básico, deshacer y el descanso', () => {
+    // El Salpicón llega a 3,2 m: hay que acercarse antes de lanzarlo.
     const { tutorial, reached } = play(
       (tick, state) => {
-        if (tick === 5)
+        if (tick === 170) return castAt(state, 'splash');
+        if (tick === 290) return [{ kind: 'weave', element: 'marea' }];
+        if (tick === 295) return [{ kind: 'cancelWeave' }];
+        return tick < 170 ? approach(state, 2.5) : [];
+      },
+      'elemento',
+      400,
+    );
+    expect(reached).toEqual(['{marea}', 'Deshacer', 'El descanso']);
+    expect(tutorial.finished).toEqual(['elemento']);
+  });
+
+  it('un hechizo que no alcanza al muñeco no cuenta y avisa que no le diste', () => {
+    // Desde donde empiezas, el Salpicón no llega al muñeco.
+    const { tutorial, reached } = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'splash') : []),
+      'elemento',
+      150,
+    );
+    expect(reached).toEqual([]);
+    expect(tutorial.step?.title).toBe('{marea}');
+    expect(tutorial.progress).toBe('Fallaste, acércate');
+  });
+
+  it('quien se traba recibe una pista y ve brillar el botón que toca', () => {
+    const { tutorial } = play(() => [], 'elemento', STUCK_TICKS - 1);
+    expect(tutorial.stuck).toBe(false);
+    expect(tutorial.hint).toBe('');
+    const later = play(() => [], 'elemento', STUCK_TICKS + 1);
+    expect(later.tutorial.stuck).toBe(true);
+    expect(later.tutorial.hint).toContain('termina con ✦');
+    expect(later.tutorial.glow).toBe('marea');
+  });
+
+  it('un paso que no nombra botón hace brillar el primero de la receta al trabarse', () => {
+    // Era de hielo no estrena botón: sin trabarse no brilla nada; trabado, Marea.
+    const fresh = play(() => [], 'gran', 10);
+    expect(fresh.tutorial.step?.title).toBe('Gran hechizo: Era de hielo');
+    expect(fresh.tutorial.glow).toBeNull();
+    const { tutorial } = play(() => [], 'gran', STUCK_TICKS + 1);
+    expect(tutorial.glow).toBe('marea');
+  });
+
+  it('lanzar otro hechizo avisa cuál salió', () => {
+    const { tutorial } = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'obsidian') : []),
+      'tejer',
+      40,
+      1,
+    );
+    expect(tutorial.step?.title).toBe('Ventisca');
+    expect(tutorial.progress).toBe('Ese fue Obsidiana');
+  });
+
+  it('la Zarpa de Umbra cuenta solo si alcanza al muñeco', () => {
+    const umbra = tutorialChapters('umbra');
+    const far = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'claw') : []),
+      'elemento',
+      150,
+      0,
+      umbra,
+    );
+    expect(far.reached).toEqual([]);
+    const near = play(
+      (tick, state) =>
+        tick === 170 ? castAt(state, 'claw') : tick < 170 ? approach(state, 3) : [],
+      'elemento',
+      200,
+      0,
+      umbra,
+    );
+    expect(near.reached).toEqual(['{umbra}']);
+  });
+
+  it('tejer pide los hechizos justos de la escuela: el orden importa', () => {
+    // Brasa → Marea (Obsidiana) es otro tejido: no cuenta. Entre uno y otro, los elementos
+    // descansan (3 s).
+    const casts = new Map<number, SpellId>([
+      [5, 'obsidian'],
+      [170, 'blizzard'],
+      [275, 'lightningRod'],
+    ]);
+    const plan = (tick: number, state: MatchState): Intent[] => {
+      const spell = casts.get(tick);
+      return spell ? castAt(state, spell) : approach(state, 3);
+    };
+    expect(play(plan, 'tejer', 60).tutorial.step?.title).toBe('Ventisca');
+    const { tutorial, reached } = play(plan, 'tejer', 400);
+    expect(reached).toEqual(['Combinar elementos', 'Ventisca', 'Pararrayos']);
+    expect(tutorial.finished).toEqual(['tejer']);
+  });
+
+  it('apuntar: arrastrar ✦ y dejar el hechizo de suelo de tu escuela', () => {
+    const { tutorial, reached } = play(
+      (tick, state) => {
+        if (tick === 5) return castAt(state, 'splash');
+        if (tick === 10) return [{ kind: 'cast', dirX: 1, dirZ: 0 }];
+        // Después de que Marea descansa del Salpicón.
+        if (tick === 110) {
           return [
-            { kind: 'weave', element: 'brasa' },
-            { kind: 'cast', dirX: 1, dirZ: 0 },
-          ];
-        if (tick === 30) {
-          return [
-            { kind: 'weave', element: 'brasa' },
-            { kind: 'weave', element: 'brasa' },
-            { kind: 'weave', element: 'brasa' },
+            { kind: 'weave', element: 'tormenta' },
+            { kind: 'weave', element: 'marea' },
           ];
         }
-        if (tick > 30 && me(state).weave.length === 3) {
+        if (tick > 110 && me(state).weave.length === 2) {
           return [{ kind: 'cast', dirX: 0, dirZ: 1, reach: 0.5 }];
         }
         return [];
       },
       'apuntar',
-      200,
+      300,
     );
-    // Brasa descansa entre la Chispa y el Meteoro: si no alcanza, igual se probó el primero.
-    expect(reached[0]).toBe('Elegir la dirección');
-    expect(tutorial.step?.title ?? 'fin').not.toBe('Elegir la dirección');
+    expect(reached).toEqual(['Elegir la dirección', 'Hechizos de suelo']);
+    expect(tutorial.done).toBe(true);
   });
 
-  it('defenderse: el muñeco ataca y las Chispas esquivadas se cuentan', () => {
-    const { reached, tutorial } = play(
+  it('esquivar: el muñeco ataca y las Chispas esquivadas se cuentan', () => {
+    const { reached } = play(
       (_tick, state) => {
         // Esquiva de verdad: con una Chispa en el aire, corre de lado respecto de su vuelo.
         const spark = state.spells.find((s) => s.kind === 'projectile' && s.ownerId === DUMMY_ID);
@@ -176,16 +377,40 @@ describe('Tutorial por capítulos', () => {
         const v = Math.hypot(spark.velocity.x, spark.velocity.z) || 1;
         return [{ kind: 'move', x: -spark.velocity.z / v, z: spark.velocity.x / v }];
       },
-      'defensa',
+      'esquivar',
       1500,
     );
-    expect(reached.slice(0, 2)).toEqual(['Leer al rival', 'Esquivar']);
-    expect(tutorial.step?.title).toBe('Muro de hielo');
+    expect(reached).toEqual(['Leer al rival', 'Paso']);
   });
 
-  it('un Salpicón hacia la Chispa que viene cuenta como choque de tejidos', () => {
-    const defense = TUTORIAL_CHAPTERS[chapterIndex('defensa')];
-    const clashStep = defense?.steps.findIndex((s) => s.goal.kind === 'clash') ?? -1;
+  it('esquivar caminando: con reflejos de persona alcanza al ver la Brasa', () => {
+    // Una persona reacciona medio segundo después de ver la Brasa sobre el muñeco y
+    // camina de lado un rato; no mira la Chispa en vuelo.
+    const REACTION = 15;
+    let seenAt = -1;
+    let side = 1;
+    const { reached } = play(
+      (tick, state) => {
+        const weaving = dummy(state).weave.length > 0;
+        if (weaving && seenAt < 0) {
+          seenAt = tick;
+          side = -side;
+        }
+        if (seenAt < 0 || tick < seenAt + REACTION) return [{ kind: 'move', x: 0, z: 0 }];
+        if (tick > seenAt + REACTION + 30) {
+          seenAt = -1;
+          return [{ kind: 'move', x: 0, z: 0 }];
+        }
+        const dir = toward(me(state).pos, dummy(state).pos);
+        return [{ kind: 'move', x: -dir.z * side, z: dir.x * side }];
+      },
+      'esquivar',
+      1500,
+    );
+    expect(reached).toEqual(['Leer al rival', 'Paso']);
+  });
+
+  it('Más técnicas: un Salpicón hacia la Chispa que viene cuenta como choque de tejidos', () => {
     const finger = new Script((_tick, state) => {
       // Espera la Chispa del muñeco y le suelta un Salpicón hacia donde va a estar.
       const spark = state.spells.find((s) => s.kind === 'projectile' && s.ownerId === DUMMY_ID);
@@ -201,13 +426,7 @@ describe('Tutorial por capítulos', () => {
     });
     const match = new TrainingMatch(DUEL_RULES, finger, null);
     match.restless = false;
-    const tutorial = new Tutorial(
-      match.playerId,
-      DUMMY_ID,
-      chapterIndex('defensa'),
-      true,
-      clashStep,
-    );
+    const tutorial = new Tutorial(match.playerId, DUMMY_ID, MAREA, chapterIndex('defensa'), true);
     expect(tutorial.step?.title).toBe('Choque de tejidos');
     match.setDummy(tutorial.dummy);
     expect(tutorial.dummy).toBe('sparks');
@@ -220,19 +439,17 @@ describe('Tutorial por capítulos', () => {
     expect(tutorial.dummy).toBe('meteor');
   });
 
-  it('las reacciones: Brasa maldita y Quiebre', () => {
-    const casts = new Map<number, SpellId>([
-      [170, 'spark'],
-      [195, 'claw'],
-      [290, 'iceAge'],
-      // El Rayo, recién cuando el hielo ya cayó y lo congeló.
-      [325, 'chainLightning'],
-    ]);
+  it('Más técnicas: las reacciones Brasa maldita y Quiebre', () => {
     const { reached, tutorial } = play(
-      (tick, state) => {
-        const spell = casts.get(tick);
-        return spell ? castAt(state, spell) : approach(state);
-      },
+      castsAt(
+        new Map<number, SpellId>([
+          [170, 'spark'],
+          [195, 'claw'],
+          [290, 'iceAge'],
+          // El Rayo, recién cuando el hielo ya cayó y lo congeló.
+          [325, 'chainLightning'],
+        ]),
+      ),
       'reacciones',
       600,
     );
@@ -240,20 +457,34 @@ describe('Tutorial por capítulos', () => {
     expect(tutorial.done).toBe(true);
   });
 
-  it('el capítulo de combos termina con Amarre', () => {
-    const casts = new Map<number, SpellId>([
-      [170, 'vine'],
-      [195, 'splash'],
-    ]);
+  /**
+   * El combo de cada escuela, como lo haría el jugador: primer paso y el segundo apenas
+   * descansa el elemento que comparten (3 s, o 2,25 s el de tu Afinidad).
+   */
+  const SCHOOL_COMBOS: readonly [ElementId, SpellId, SpellId, number][] = [
+    ['brasa', 'fireRain', 'fireball', 95],
+    ['tormenta', 'lightningRod', 'tempest', 95],
+    ['marea', 'lightningRod', 'iceAge', 35],
+    ['raiz', 'shackle', 'spring', 70],
+    ['umbra', 'blinding', 'drain', 70],
+  ];
+
+  it.each(SCHOOL_COMBOS)('el capítulo de combos de %s se completa', (school, a, b, gap) => {
+    const chapters = tutorialChapters(school);
     const { reached, tutorial } = play(
-      (tick, state) => {
-        const spell = casts.get(tick);
-        return spell ? castAt(state, spell) : approach(state);
-      },
+      castsAt(
+        new Map<number, SpellId>([
+          [170, a],
+          [170 + gap, b],
+        ]),
+      ),
       'combos',
-      300,
+      600,
+      0,
+      chapters,
+      school,
     );
-    expect(reached).toEqual(['Seguidillas', 'Amarre', 'Tus primeros combos']);
+    expect(reached).toHaveLength(3);
     expect(tutorial.finished).toEqual(['combos']);
   });
 
@@ -284,21 +515,37 @@ describe('Tutorial por capítulos', () => {
     expect(dummy(match.state).hp).toBe(dummy(match.state).maxHp);
   });
 
+  it('el Aprendiz del examen teje solo los hechizos de su escuela', () => {
+    const match = new TrainingMatch(DUEL_RULES, new Script(() => []), null);
+    match.restless = false;
+    match.examSpellbook = schoolSpellbook('raiz');
+    match.setDummy('bot');
+    const released = new Set<SpellId>();
+    for (let i = 0; i < 900; i++) {
+      for (const e of match.step()) {
+        if (e.type === 'release' && e.wizardId === DUMMY_ID) released.add(e.spell);
+      }
+    }
+    expect(released.size).toBeGreaterThan(0);
+    for (const spell of released) expect(schoolSpellbook('raiz')).toContain(spell);
+  });
+
   it('saltar un capítulo no lo cuenta como hecho', () => {
-    const tutorial = new Tutorial(1, DUMMY_ID, 0);
+    const tutorial = new Tutorial(1, DUMMY_ID, MAREA, 0);
     tutorial.skipChapter();
     expect(tutorial.chapter?.id).toBe('moverse');
     expect(tutorial.finished).toEqual([]);
   });
 
-  it('el tutorial entero pasa por todos los capítulos en orden', () => {
-    const tutorial = new Tutorial(1, DUMMY_ID, 0);
+  it('el tutorial entero pasa por los capítulos del recorrido y termina en el examen', () => {
+    const tutorial = new Tutorial(1, DUMMY_ID, MAREA, 0);
     const seen: string[] = [];
     while (!tutorial.done) {
       const id = tutorial.chapter?.id;
       if (id && !seen.includes(id)) seen.push(id);
       tutorial.skipChapter();
     }
-    expect(seen).toEqual(TUTORIAL_CHAPTERS.map((c) => c.id));
+    expect(seen).toEqual(MAREA.filter((c) => !c.extra).map((c) => c.id));
+    expect(tutorial.mainCount).toBe(11);
   });
 });
