@@ -11,7 +11,13 @@ import {
 import { describe, expect, it } from 'vitest';
 import { nextLockTarget } from '../input/lockTargets';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './TrainingMatch';
-import { type HudPart, Tutorial, type TutorialChapter, tutorialChapters } from './Tutorial';
+import {
+  type HudPart,
+  STUCK_TICKS,
+  Tutorial,
+  type TutorialChapter,
+  tutorialChapters,
+} from './Tutorial';
 
 /** Un dedo de mentira: en cada paso hace lo que diga el guion para ese momento. */
 class Script implements Controller {
@@ -267,6 +273,36 @@ describe('Tutorial por escuela', () => {
     expect(reached).toEqual([]);
     expect(tutorial.step?.title).toBe('{marea}');
     expect(tutorial.progress).toBe('Fallaste, acércate');
+  });
+
+  it('quien se traba recibe una pista y ve brillar el botón que toca', () => {
+    const { tutorial } = play(() => [], 'elemento', STUCK_TICKS - 1);
+    expect(tutorial.stuck).toBe(false);
+    expect(tutorial.hint).toBe('');
+    const later = play(() => [], 'elemento', STUCK_TICKS + 1);
+    expect(later.tutorial.stuck).toBe(true);
+    expect(later.tutorial.hint).toContain('termina con ✦');
+    expect(later.tutorial.glow).toBe('marea');
+  });
+
+  it('un paso que no nombra botón hace brillar el primero de la receta al trabarse', () => {
+    // Era de hielo no estrena botón: sin trabarse no brilla nada; trabado, Marea.
+    const fresh = play(() => [], 'gran', 10);
+    expect(fresh.tutorial.step?.title).toBe('Gran hechizo: Era de hielo');
+    expect(fresh.tutorial.glow).toBeNull();
+    const { tutorial } = play(() => [], 'gran', STUCK_TICKS + 1);
+    expect(tutorial.glow).toBe('marea');
+  });
+
+  it('lanzar otro hechizo avisa cuál salió', () => {
+    const { tutorial } = play(
+      (tick, state) => (tick === 5 ? castAt(state, 'obsidian') : []),
+      'tejer',
+      40,
+      1,
+    );
+    expect(tutorial.step?.title).toBe('Ventisca');
+    expect(tutorial.progress).toBe('Ese fue Obsidiana');
   });
 
   it('la Zarpa de Umbra cuenta solo si alcanza al muñeco', () => {
