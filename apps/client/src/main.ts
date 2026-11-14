@@ -291,6 +291,7 @@ const tapToLock = new TapToLock(
   () => rig.forward(),
 );
 controls.onDuelButton = () => tapToLock.cycle();
+controls.onTap = (x, y) => tapToLock.tapAt(x, y);
 
 // ---------- Reacciones a lo que toca el jugador ----------
 
