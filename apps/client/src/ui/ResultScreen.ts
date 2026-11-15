@@ -19,6 +19,10 @@ export interface ResultSummary {
   readonly detail: string;
   readonly teams: readonly ResultTeam[];
   readonly roundsToWin: number;
+  /** Lo que dice tu maestro (sin Linaje elegido, nada). */
+  readonly master?:
+    | { readonly name: string; readonly line: string; readonly color: string }
+    | undefined;
 }
 
 /** En red, cómo va la revancha (la empiezan todos los conectados). */
@@ -72,6 +76,7 @@ export class ResultScreen {
   private readonly title: HTMLElement;
   private readonly detail: HTMLElement;
   private readonly score: HTMLElement;
+  private readonly master: HTMLElement;
   private readonly rematchNote: HTMLElement;
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
@@ -94,6 +99,10 @@ export class ResultScreen {
         <h2></h2>
         <p class="hud-result-detail"></p>
         <div class="hud-result-score"></div>
+        <figure class="hud-result-master" hidden>
+          <blockquote></blockquote>
+          <figcaption></figcaption>
+        </figure>
         <p class="hud-result-rematch" hidden></p>
         <div class="hud-result-actions">
           <button type="button" class="primary rematch">${MENU_ICONS.rematch}<span>Revancha</span></button>
@@ -116,6 +125,7 @@ export class ResultScreen {
     this.title = query(this.root, 'h2');
     this.detail = query(this.root, '.hud-result-detail');
     this.score = query(this.root, '.hud-result-score');
+    this.master = query(this.root, '.hud-result-master');
     this.rematchNote = query(this.root, '.hud-result-rematch');
     this.rematchButton = query(this.root, '.rematch');
     this.rematchLabel = query(this.rematchButton, 'span');
@@ -177,6 +187,13 @@ export class ResultScreen {
     this.score.replaceChildren(
       ...summary.teams.map((team) => this.teamScore(team, summary.roundsToWin)),
     );
+    const master = summary.master;
+    this.master.hidden = !master;
+    if (master) {
+      query(this.master, 'blockquote').textContent = master.line;
+      query(this.master, 'figcaption').textContent = master.name;
+      this.master.style.setProperty('--master', master.color);
+    }
     this.setRematch(null);
     this.root.hidden = false;
   }

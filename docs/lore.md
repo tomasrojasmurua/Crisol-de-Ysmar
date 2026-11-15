@@ -63,12 +63,30 @@ desprecia lo que Umbra hace en secreto, y Raíz no perdona que Brasa queme sus b
 En el juego se dicen "Linaje de Brasa", "Linaje de Tormenta"… En el código siguen siendo `School`
 (`packages/content/src/schools.ts`).
 
-## Cómo se vive en el juego (planeado, después de la prueba con amigos)
+## Los maestros
 
-Nada de esto existe todavía; es la dirección acordada.
+Cada Linaje tiene un maestro que recibe al aprendiz y le comenta cada partida. Su cara es un
+arquetipo del Vestidor. Sus frases viven en `packages/content/src/masters.ts`.
 
-- **Tu maestro.** Cada Linaje tiene uno, salido de los arquetipos del Vestidor. Te recibe al
-  elegir Linaje, te guía en el tutorial y comenta el resultado de cada partida.
+| Linaje   | Maestro                         | Arquetipo           | Cómo es                                                             |
+| -------- | ------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| Brasa    | Vesk, la Salamandra             | Mago lagarto        | Impaciente y brutalmente honesta; solo respeta los resultados.      |
+| Tormenta | Hermano Iskel                   | Monje de la cumbre  | Tranquilo, se ríe de todo y nunca está donde lo dejaste.            |
+| Marea    | Dorn, el que guarda los nombres | Nigromante          | Melancólico; habla de los caídos como de viejos amigos.             |
+| Raíz     | Madre Musgo                     | Bruja del pantano   | Cálida y protectora; te reta como una abuela ("mijo").              |
+| Umbra    | El Velado                       | Sectario del abismo | Nunca dice su nombre; susurra con ironía y sabe más de lo que dice. |
+
+**La tejedora de la Trama** queda reservada para el misterio: la única que sabe algo de por qué
+se aflojan los hilos.
+
+Hoy el maestro te recibe al tocar su Linaje en la elección y dice una línea en la pantalla de
+resultado (victoria, derrota, reñida o empate).
+
+## Cómo se vive en el juego (planeado)
+
+La dirección acordada; lo que no dice "hecho" no existe todavía.
+
+- **Tu maestro** (hecho: elección y resultado). Falta que te guíe en el tutorial.
 - **La voz del Crisol.** Solo en momentos clave: al empezar, en muerte súbita y en la victoria.
   Puede ser el narrador de ElevenLabs que ya estaba planeado.
 - **Una línea de lore por hechizo** en el Grimorio, escrita como nota de tu maestro. Descubrir un
@@ -79,5 +97,4 @@ Nada de esto existe todavía; es la dirección acordada.
 
 ## Por decidir
 
-- Los nombres y la personalidad de cada maestro.
 - Si las aldeas tienen más lugares con nombre (para mapas o menús).

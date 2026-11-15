@@ -1,5 +1,5 @@
 import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
-import { type GameEvent, type GameRules, spellOf } from '@crisol/core';
+import { type ElementId, type GameEvent, type GameRules, spellOf } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import { reportProblem } from '../platform/ErrorReporter';
@@ -18,6 +18,7 @@ import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
+import { masterQuote } from './masterLine';
 import { TrainingMatch } from './TrainingMatch';
 
 /** El anuncio de quién ganó la ronda sale al empezar el entreacto. */
@@ -38,6 +39,8 @@ export interface MatchFlowDeps {
   readonly comboCallouts: ComboCallouts;
   readonly renderer: MatchRenderer;
   readonly diagnostics: Diagnostics;
+  /** Tu Linaje, para que tu maestro comente el resultado (null: aún no eliges). */
+  readonly school: () => ElementId | null;
 }
 
 /**
@@ -215,14 +218,25 @@ export class MatchFlow {
       const winner = current.series.winnerTeam ?? -1;
       this.deps.audio.finish(winner === playerTeam);
       const ffa = current.options.mode.kind === 'ffa';
+      const outcome = winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss';
+      const school = this.deps.school();
       this.deps.hud.showResult({
-        outcome: winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss',
+        outcome,
         detail:
           winner >= 0 && winner !== playerTeam
             ? `Ganó ${ffa ? this.teamName(current, winner, badges) : 'el equipo rival'}`
             : '',
         teams: this.resultTeams(current, badges, winner),
         roundsToWin: rules.round.roundsToWin,
+        master: school
+          ? masterQuote(
+              school,
+              outcome,
+              current.series.wins,
+              rules.round.roundsToWin,
+              Math.random(),
+            )
+          : undefined,
       });
       this.deps.hud.showPerf(this.deps.diagnostics.report());
       this.reportPerformance(current);
