@@ -16,6 +16,7 @@ import { AudioEngine } from './AudioEngine';
 import { Music, type MusicMood } from './Music';
 import { SoundBank, type SoundKey } from './SoundBank';
 import { CENTER, type Placement, Synth } from './Synth';
+import { VoiceBank } from './VoiceBank';
 
 /** A esta distancia (m) un sonido ya baja a la mitad. */
 const HALF_DISTANCE = 9;
@@ -35,6 +36,7 @@ export class GameAudio {
   private readonly synth = new Synth(this.engine);
   private readonly bank = new SoundBank(this.engine);
   private readonly music = new Music(this.engine, this.bank);
+  private readonly voices = new VoiceBank(this.engine);
   private listener: Vec2 = { x: 0, z: 0 };
   private right: Vec2 = { x: 1, z: 0 };
   private playerId: EntityId = -1;
@@ -220,6 +222,14 @@ export class GameAudio {
   finish(win: boolean): void {
     this.music.set('silent');
     this.sound(win ? 'victory' : 'defeat', CENTER, () => this.synth.fanfare(win));
+  }
+
+  /**
+   * Una frase del Crisol o de un maestro (`voice.…`), si existe su archivo. Con `after` espera a
+   * que termine la que suena.
+   */
+  say(key: string, after = false): boolean {
+    return this.voices.say(key, after);
   }
 
   /** Descubriste un hechizo nuevo del Grimorio. */

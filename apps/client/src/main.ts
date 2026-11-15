@@ -170,6 +170,7 @@ const menu = new Menu(
   () => openLobby(),
   () => trainingChooser.show(!comboLog.tutorialDone && tutorialProgress.count === 0),
   audio.engine,
+  (key) => audio.say(key),
 );
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -206,7 +207,11 @@ const trainingChooser = new TrainingChooser(
   (chapterId) => tutorialProgress.has(chapterId),
   () => tutorialChapters(profile.school ?? 'brasa'),
 );
-const schoolPicker = new SchoolPicker(uiRoot, (school) => chooseSchool(school));
+const schoolPicker = new SchoolPicker(
+  uiRoot,
+  (school) => chooseSchool(school),
+  (key) => audio.say(key),
+);
 const tutorialCard = new TutorialCard(
   uiRoot,
   () => freePlay(),

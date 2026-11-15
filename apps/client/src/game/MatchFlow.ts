@@ -53,6 +53,8 @@ export class MatchFlow {
   private detector: ComboDetector | null = null;
   private resultShown = false;
   private pickerShown = false;
+  /** La ronda en que ya cayó alguien: el Crisol lo dice solo la primera vez. */
+  private firstFallRound = 0;
   /** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
   private lastWinner = -1;
 
@@ -69,6 +71,7 @@ export class MatchFlow {
     this.shownRound = 0;
     this.resultShown = false;
     this.pickerShown = false;
+    this.firstFallRound = 0;
   }
 
   /** Avisos de la partida según lo que pasó en el paso. */
@@ -84,6 +87,7 @@ export class MatchFlow {
       if (event.type === 'cast' && event.wizardId === me) {
         if (this.deps.grimoire.discover(event.weave)) {
           this.deps.audio.discover();
+          this.deps.audio.say('voice.crisol.discover');
           const spell = spellOf(event.weave);
           this.deps.hud.celebrateDiscovery(
             spellName(event.weave),
@@ -99,7 +103,17 @@ export class MatchFlow {
         if (combo) this.countCombo(combo, current);
       } else if (event.type === 'phase') {
         this.deps.hud.announcePhase(event.phase);
-      } else if (event.type === 'defeated' && event.wizardId === me) {
+        if (event.phase !== 'hunt') this.deps.audio.say(`voice.crisol.${event.phase}`);
+      }
+      if (
+        event.type === 'defeated' &&
+        !(current instanceof TrainingMatch) &&
+        this.firstFallRound !== current.roundNumber
+      ) {
+        this.firstFallRound = current.roundNumber;
+        this.deps.audio.say('voice.crisol.firstFall');
+      }
+      if (event.type === 'defeated' && event.wizardId === me) {
         const rule = current.state.deathRule;
         const subtitle =
           rule === 'out'
@@ -114,6 +128,7 @@ export class MatchFlow {
           `${badges.get(event.byId)?.name ?? 'Un aliado'} te levantó`,
         );
       } else if (event.type === 'guardianAwake') {
+        this.deps.audio.say('voice.crisol.guardian');
         this.deps.hud.announce(
           'El Guardián despertó',
           'Está en la plaza: vencerlo da Esencia de todo',
@@ -168,6 +183,7 @@ export class MatchFlow {
       if (current instanceof TrainingMatch) {
         this.deps.hud.announce('Entrenamiento', 'Teje y mira qué sale', 3);
       } else {
+        this.deps.audio.say(`voice.crisol.round${Math.min(3, this.shownRound)}`);
         this.deps.hud.announce(
           `Ronda ${this.shownRound}`,
           this.shownRound === 1 && current.omen.id !== NO_OMEN.id
@@ -204,6 +220,7 @@ export class MatchFlow {
     if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
       const winner = stage.roundWinner;
       this.lastWinner = winner;
+      if (winner >= 0) this.deps.audio.say('voice.crisol.roundWon');
       if (winner < 0) this.deps.hud.announce('Ronda empatada', 'Nadie suma', 3.5);
       else if (winner === playerTeam) this.deps.hud.announce('Ganaste la ronda', '', 3.5);
       else
@@ -220,6 +237,14 @@ export class MatchFlow {
       const ffa = current.options.mode.kind === 'ffa';
       const outcome = winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss';
       const school = this.deps.school();
+      const master = school
+        ? masterQuote(school, outcome, current.series.wins, rules.round.roundsToWin, Math.random())
+        : undefined;
+      // El Crisol dice el resultado y, cuando termina, tu maestro lo comenta.
+      this.deps.audio.say(
+        `voice.crisol.${outcome === 'win' ? 'victory' : outcome === 'loss' ? 'defeat' : 'draw'}`,
+      );
+      if (master) this.deps.audio.say(master.voice, true);
       this.deps.hud.showResult({
         outcome,
         detail:
@@ -228,15 +253,7 @@ export class MatchFlow {
             : '',
         teams: this.resultTeams(current, badges, winner),
         roundsToWin: rules.round.roundsToWin,
-        master: school
-          ? masterQuote(
-              school,
-              outcome,
-              current.series.wins,
-              rules.round.roundsToWin,
-              Math.random(),
-            )
-          : undefined,
+        master,
       });
       this.deps.hud.showPerf(this.deps.diagnostics.report());
       this.reportPerformance(current);

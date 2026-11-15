@@ -14,6 +14,7 @@ respaldo. No hay que tocar código para cambiar un sonido.
 | `SoundBank.ts`   | Las claves y los archivos de `public/audio/manifest.json`                       |
 | `Music.ts`       | Música generada en vivo según el momento (portada, Caza, Convergencia, Final)   |
 | `GameAudio.ts`   | Traduce los eventos del núcleo a sonidos, con distancia y lado                  |
+| `VoiceBank.ts`   | Las voces del Crisol y de los maestros, una a la vez                            |
 
 - **Cada elemento es una nota** del círculo de quintas en el orden del pentágono: Brasa Do,
   Tormenta Sol, Marea Re, Raíz La, Umbra Mi. Vecinos suenan a quinta (se funden) y opuestos a un
@@ -33,6 +34,13 @@ respaldo. No hay que tocar código para cambiar un sonido.
 3. Anótalo en `apps/client/public/audio/manifest.json`: `{ "note.brasa": "note.brasa.mp3" }`.
 
 Los efectos conviene recortarlos sin silencio al inicio: cualquier retraso se siente al tejer.
+
+## Voces
+
+El Crisol y los maestros hablan con archivos de clave `voice.…` en el mismo manifiesto
+(`VoiceBank.ts`). Sin archivo no suena nada. Suena una frase a la vez; las del Crisol se cargan
+al primer toque y las de los maestros cuando hacen falta. La lista está en
+[audio-voces.md](audio-voces.md).
 
 ## Prompts para ElevenLabs
 

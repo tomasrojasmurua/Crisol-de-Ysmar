@@ -137,6 +137,8 @@ export class Menu {
     onFriend: () => void,
     onTraining: () => void,
     private readonly audio: AudioEngine,
+    /** Dice una frase de tu maestro si existe su voz (`voice.…`). */
+    private readonly onVoice: (key: string) => void = () => {},
   ) {
     this.restore();
     this.root = el('div', 'menu');
@@ -187,7 +189,7 @@ export class Menu {
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
     this.tagline = query(this.root, '.menu-tagline');
     // Tocar a tu maestro le saca otra frase.
-    this.tagline.addEventListener('click', () => this.speak());
+    this.tagline.addEventListener('click', () => this.speak(true));
     new HomeScreenInvite(query(this.root, '.menu-side'), this.root);
     query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
     this.portrait.addEventListener('click', onWardrobe);
@@ -311,7 +313,7 @@ export class Menu {
    * El campamento de tu Linaje: bajo el logo, tu maestro dice algo distinto cada vez que vuelves
    * al menú (o lo tocas). Sin Linaje queda el lema del juego.
    */
-  private speak(): void {
+  private speak(aloud = false): void {
     this.tagline.classList.toggle('master', this.school !== null);
     if (!this.school) {
       this.tagline.textContent = TAGLINE;
@@ -322,6 +324,8 @@ export class Menu {
     let next = Math.floor(Math.random() * lines.length);
     if (lines.length > 1 && next === this.campLine) next = (next + 1) % lines.length;
     this.campLine = next;
+    // En voz alta solo si lo tocaste: volver al menú no debería hablarte cada vez.
+    if (aloud) this.onVoice(`voice.${this.school}.camp.${next}`);
     const quote = el('q', 'menu-tagline-quote', lines[next] ?? '');
     const name = el('span', 'menu-tagline-master', master.name.split(',')[0] ?? master.name);
     this.tagline.replaceChildren(quote, name);

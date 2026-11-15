@@ -22,6 +22,8 @@ export class SchoolPicker {
   constructor(
     parent: HTMLElement,
     private readonly onChoose: (school: ElementId) => void,
+    /** Dice la bienvenida del maestro si existe su voz. */
+    private readonly onVoice: (key: string) => void = () => {},
   ) {
     this.root = el('div', 'school-picker');
     this.root.hidden = true;
@@ -91,6 +93,7 @@ export class SchoolPicker {
       list,
     );
     card.addEventListener('click', () => {
+      if (this.chosen !== school.element) this.onVoice(`voice.${school.element}.welcome`);
       this.chosen = school.element;
       this.refresh();
     });

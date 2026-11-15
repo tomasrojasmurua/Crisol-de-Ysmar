@@ -8,6 +8,8 @@ export interface MasterQuote {
   readonly line: string;
   /** El color de su elemento. */
   readonly color: string;
+  /** La clave de su voz (`voice.raiz.closeWin.1`), por si existe el archivo. */
+  readonly voice: string;
 }
 
 /**
@@ -26,20 +28,22 @@ export function masterQuote(
   const sorted = [...wins].sort((a, b) => b - a);
   const close = roundsToWin > 1 && (sorted[1] ?? 0) >= roundsToWin - 1;
   const { lines } = master;
-  const pool =
+  const group =
     outcome === 'draw'
-      ? lines.draw
+      ? 'draw'
       : outcome === 'win'
         ? close
-          ? lines.closeWin
-          : lines.win
+          ? 'closeWin'
+          : 'win'
         : close
-          ? lines.closeLoss
-          : lines.loss;
+          ? 'closeLoss'
+          : 'loss';
+  const pool = lines[group];
   const index = Math.min(pool.length - 1, Math.floor(Math.max(0, roll) * pool.length));
   return {
     name: master.name,
     line: pool[index] ?? '',
     color: ELEMENTS.find((e) => e.id === element)?.color ?? '#fff',
+    voice: `voice.${element}.${group}.${index}`,
   };
 }
