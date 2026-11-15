@@ -55,17 +55,13 @@ solo, y por eso existe el Crisol.
 | Tormenta | Las cumbres de Velgar  | "Somos libres porque nunca nos quedamos." | Nadie vuelve a gobernar a nadie.                                 | Brasa y Marea    | Raíz y Umbra     |
 | Marea    | Hondamar, costa helada | "El agua no olvida su cauce."             | Ysmar vuelve a ser lo que fue antes de que la Trama se aflojara. | Tormenta y Raíz  | Umbra y Brasa    |
 | Raíz     | El bosque de Anvel     | "Lo que crece junto no se arranca."       | Todas las aldeas tienen un lugar, aunque sea a la fuerza.        | Marea y Umbra    | Brasa y Tormenta |
-| Umbra    | La grieta de Ossel     | Por elegir (ver abajo)                    | Nadie sabe que gobiernan, y así nadie los derriba.               | Raíz y Brasa     | Tormenta y Marea |
+| Umbra    | La grieta de Ossel     | "Nadie ve la mano que mueve el hilo."     | Nadie sabe que gobiernan, y así nadie los derriba.               | Raíz y Brasa     | Tormenta y Marea |
 
 Las rivalidades tienen razón: Brasa quiere destruir lo que Marea quiere conservar, Tormenta
 desprecia lo que Umbra hace en secreto, y Raíz no perdona que Brasa queme sus bosques.
 
 En el juego se dicen "Linaje de Brasa", "Linaje de Tormenta"… En el código siguen siendo `School`
 (`packages/content/src/schools.ts`).
-
-**Lema de Umbra, candidatos:** "Quien de verdad gobierna no se deja ver.", "La luz decide qué ves.
-Nosotros, qué pasa.", "Nadie ve la mano que mueve el hilo.", "Que otros brillen; nosotros
-decidimos.".
 
 ## Cómo se vive en el juego (planeado, después de la prueba con amigos)
 
@@ -83,6 +79,5 @@ Nada de esto existe todavía; es la dirección acordada.
 
 ## Por decidir
 
-- El lema de Umbra.
 - Los nombres y la personalidad de cada maestro.
 - Si las aldeas tienen más lugares con nombre (para mapas o menús).
