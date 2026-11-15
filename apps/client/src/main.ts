@@ -105,7 +105,6 @@ let pendingInvite = '';
 // ---------- Piezas ----------
 
 const view = new GameScene(canvas, rules, PLAYER_ID);
-// Solo en desarrollo: la escena a mano para medir qué cuesta dibujar (scripts de rendimiento).
 view.applyQuality(quality);
 const { renderer, rig, resolution } = view;
 /** Pasa solo a Gráficos livianos si el celular sigue lento con la resolución al mínimo. */
