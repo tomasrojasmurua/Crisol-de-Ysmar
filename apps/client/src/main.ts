@@ -672,17 +672,22 @@ renderer.setAnimationLoop((now) => {
   elapsed += delta;
 
   const current = match;
+  // En red, entre el aviso de partida nueva (una revancha) y su primer estado no hay magos:
+  // no hay nada que anunciar ni dibujar todavía. Un Samsung se caía justo ahí.
+  const ready = current !== null && current.state.wizards.length > 0;
   const pausedHere = paused && current !== null && current !== net;
   if (current && pausedHere) {
-    renderMatch(current, lastAlpha, 0);
+    if (ready) renderMatch(current, lastAlpha, 0);
   } else if (current) {
     const { steps, alpha } = clock.advance(frameMs);
     const simStart = performance.now();
     lastAlpha = alpha;
     for (let i = 0; i < steps; i++) stepMatch(current);
     simMs = performance.now() - simStart;
-    flow.update(current, badges, rules);
-    renderMatch(current, alpha, delta);
+    if (current.state.wizards.length > 0) {
+      flow.update(current, badges, rules);
+      renderMatch(current, alpha, delta);
+    }
   } else if (view.previewing) {
     view.updatePreview(elapsed, delta, rules);
     view.zone.update(rules.arenaRadius, elapsed);
@@ -691,7 +696,12 @@ renderer.setAnimationLoop((now) => {
     view.zone.update(rules.arenaRadius, elapsed);
   }
 
-  view.render(elapsed, delta, pausedHere ? 0 : delta, current ? current.player.pos : null);
+  view.render(
+    elapsed,
+    delta,
+    pausedHere ? 0 : delta,
+    current && current.state.wizards.length > 0 ? current.player.pos : null,
+  );
   if (current && !pausedHere && !flow.finished) diagnostics.matchFrame(frameMs, simMs);
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
