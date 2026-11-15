@@ -84,6 +84,8 @@ export class Wardrobe {
     private readonly onChange: (profile: Profile) => void,
     private readonly onDone: (profile: Profile) => void,
     initial: Profile,
+    /** "¿Ya tienes un hechicero?": abre la ventana para traerlo con su código de respaldo. */
+    onRestore: () => void = () => {},
   ) {
     this.profile = initial;
     this.root = el('div', 'wardrobe');
@@ -105,6 +107,7 @@ export class Wardrobe {
             <div class="wardrobe-line wardrobe-archetype-line">
               <span class="wardrobe-line-title">Arquetipo</span>
             </div>
+            <button type="button" class="wardrobe-restore" hidden>¿Ya tienes un hechicero? Tráelo con tu código</button>
           </div>
         </div>
         <div class="wardrobe-actions">
@@ -126,6 +129,7 @@ export class Wardrobe {
       if (event.key === 'Enter') this.nameInput.blur();
     });
     query(this.root, '.wardrobe-done').addEventListener('click', () => this.finish());
+    query(this.root, '.wardrobe-restore').addEventListener('click', onRestore);
     query(this.root, '.wardrobe-random').addEventListener('click', () => {
       const rng = new SeededRng((Math.random() * 2 ** 32) >>> 0);
       this.update({ ...this.profile, look: randomAppearance(rng) });
@@ -182,6 +186,8 @@ export class Wardrobe {
   show(profile: Profile): void {
     this.profile = profile;
     this.nameInput.value = profile.name;
+    // Solo la primera vez (sin nombre): quien viene de otro celular trae su hechicero.
+    query(this.root, '.wardrobe-restore').hidden = profile.name !== '';
     // La primera vez se parte por el nombre; después, por los arquetipos y el resto.
     this.tab = 'mago';
     this.refresh();

@@ -1,6 +1,7 @@
 import { isValidRoomCode } from '@crisol/protocol';
 import type { Env } from './env';
 import { receiveReports } from './errorLog';
+import { handleProfile } from './profiles';
 import { generateRoomCode } from './roomCode';
 
 export { Room } from './room';
@@ -21,6 +22,10 @@ export default {
       (request.method === 'POST' || request.method === 'OPTIONS')
     ) {
       return receiveReports(request, env.ERRORS, (task) => ctx.waitUntil(task));
+    }
+
+    if (url.pathname === '/api/perfil' || url.pathname === '/api/perfil/leer') {
+      return handleProfile(request, env.PROFILES, url.pathname.endsWith('/leer'));
     }
 
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
