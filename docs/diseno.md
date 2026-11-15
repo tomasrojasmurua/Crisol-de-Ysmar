@@ -158,6 +158,13 @@ Todo es cosmético salvo la Afinidad. Las piezas viven en `packages/content/src/
 arman en `apps/client/src/render/wizard/` (una función por tipo de pieza; al final las mallas se
 juntan por material para gastar pocas llamadas de dibujo).
 
+En pantalla hay tres pestañas (Mago, Aspecto y Ropa) y cada ajuste es **una sola fila con un
+desplegable** (`ui/Dropdown.ts`) y flechas ‹ › para probar alternativas una por una; la lista abierta
+cubre el panel, nunca al mago. El panel ocupa la altura completa a la derecha y no cambia de tamaño,
+y la cámara encuadra al mago entero en la franja libre de la izquierda según la proporción de la
+pantalla. La sala de amigos usa los mismos desplegables para sus ajustes (un solo "Modo" con los
+siete modos), así ningún menú obliga a deslizar en un celular horizontal.
+
 | Pieza   | Opciones                                                                                                                                       |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Linaje  | Humano, orejas largas, lagarto, lobo, zorro, cuervo, carnero, sapo, calavera, autómata                                                         |
