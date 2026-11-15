@@ -865,7 +865,9 @@ export class NetMatch implements MatchView {
   /** Cómo anduvo la conexión en esta partida (para el registro remoto). */
   networkSummary(): string[] {
     const lines = this.summary.lines(this.target);
-    return lines.length > 0 ? [...lines, `Servidor de salas: ${roomsServerName()}`] : lines;
+    return lines.length > 0
+      ? [...lines, `Servidor de salas: ${roomsServerName(this.code)}`]
+      : lines;
   }
 
   private countBytes(bytes: number): void {

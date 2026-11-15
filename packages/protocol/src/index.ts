@@ -28,7 +28,9 @@ export {
   PROTOCOL_VERSION,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
+  type RoomServer,
   randomRoomCode,
+  roomServerOf,
   type ServerMessage,
   type StateFrame,
 } from './messages';

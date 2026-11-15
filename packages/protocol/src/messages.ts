@@ -144,10 +144,34 @@ export function isValidRoomCode(code: string): boolean {
   return [...code].every((char) => ROOM_CODE_ALPHABET.includes(char));
 }
 
-/** Un código de sala al azar, con la fuente de azar que se le pase. */
-export function randomRoomCode(random: () => number): string {
-  let code = '';
-  for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
+/**
+ * En qué servidor vive una sala, escrito en su código: con letra al comienzo, en el servidor
+ * principal (Santiago); con número, en el de respaldo (Cloudflare). Así quien entra con el código
+ * o el enlace llega siempre a la misma sala, aunque el principal se haya caído o llenado cuando
+ * se creó (ver docs/carga.md).
+ */
+export type RoomServer = 'main' | 'fallback';
+
+const FALLBACK_FIRST = '23456789';
+
+export function roomServerOf(code: string): RoomServer {
+  const first = code.charAt(0);
+  return first !== '' && FALLBACK_FIRST.includes(first) ? 'fallback' : 'main';
+}
+
+/** Las letras con que puede empezar un código de ese servidor. */
+function firstCharsFor(server: RoomServer): string {
+  return server === 'fallback' ? FALLBACK_FIRST : ROOM_CODE_ALPHABET.replace(/[2-9]/g, '');
+}
+
+/**
+ * Un código de sala de ese servidor, con la fuente de azar que se le pase (un número de 0 a 1
+ * por letra).
+ */
+export function randomRoomCode(random: () => number, server: RoomServer = 'main'): string {
+  const first = firstCharsFor(server);
+  let code = first[Math.floor(random() * first.length)] ?? 'A';
+  for (let i = 1; i < ROOM_CODE_LENGTH; i++) {
     code += ROOM_CODE_ALPHABET[Math.floor(random() * ROOM_CODE_ALPHABET.length)] ?? 'A';
   }
   return code;
