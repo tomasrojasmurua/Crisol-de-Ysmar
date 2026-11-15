@@ -49,10 +49,13 @@ import {
 } from './SpellScenery';
 import { createSummon, updateSummon } from './SummonViews';
 import { createAura, createBubble, updateAura, updateBubble } from './SupportViews';
+import { TeamRings } from './TeamRings';
 import { Trails } from './Trails';
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
+
+const ORIGIN: Position = { x: 0, z: 0 };
 
 /** El Señuelo, el Gemelo sombrío y las copias del Espejismo se dibujan como su mago. */
 function isDouble(summon: Summon): boolean {
@@ -86,6 +89,7 @@ export class SpellViews {
   private readonly glowTexture = createGlowTexture();
   private readonly decoys = new Map<number, WizardView>();
   private readonly trails: Trails;
+  private readonly teamRings: TeamRings;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -94,6 +98,7 @@ export class SpellViews {
     private readonly makeDecoy: DecoyFactory = () => null,
   ) {
     this.trails = new Trails(scene);
+    this.teamRings = new TeamRings(scene);
   }
 
   set trailsEnabled(value: boolean) {
@@ -102,6 +107,8 @@ export class SpellViews {
 
   sync(spells: readonly SpellEntity[], world: SpellWorld): void {
     const alive = new Set<number>();
+    const viewerTeam = world.viewerTeam;
+    this.teamRings.begin(world.time);
     for (const spell of spells) {
       alive.add(spell.id);
       let view = this.views.get(spell.id);
@@ -111,7 +118,13 @@ export class SpellViews {
         this.scene.add(view);
       }
       this.update(view, spell, world);
+      if (viewerTeam !== undefined) {
+        const moves = spell.kind === 'sweeper' || spell.kind === 'summon';
+        const place = moves ? world.positionOf(spell) : ORIGIN;
+        this.teamRings.mark(spell, place, viewerTeam, view.visible);
+      }
     }
+    this.teamRings.end();
     for (const [id, view] of this.views) {
       if (!alive.has(id)) {
         view.removeFromParent();

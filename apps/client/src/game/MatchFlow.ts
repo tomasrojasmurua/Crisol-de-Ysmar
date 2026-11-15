@@ -1,5 +1,5 @@
 import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
-import type { GameEvent, GameRules } from '@crisol/core';
+import { type GameEvent, type GameRules, spellOf } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import { reportProblem } from '../platform/ErrorReporter';
@@ -9,6 +9,7 @@ import { comboStepsView } from '../ui/comboSteps';
 import type { GlyphPicker } from '../ui/GlyphPicker';
 import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
+import { intentTag } from '../ui/intentTag';
 import type { Minimap } from '../ui/Minimap';
 import type { ResultTeam } from '../ui/ResultScreen';
 import { ComboDetector } from './ComboDetector';
@@ -80,11 +81,14 @@ export class MatchFlow {
       if (event.type === 'cast' && event.wizardId === me) {
         if (this.deps.grimoire.discover(event.weave)) {
           this.deps.audio.discover();
+          const spell = spellOf(event.weave);
           this.deps.hud.celebrateDiscovery(
             spellName(event.weave),
             weaveOrbs(event.weave),
             this.deps.grimoire.count,
             this.deps.grimoire.total,
+            undefined,
+            spell ? intentTag(spell) : null,
           );
         }
       } else if (event.type === 'combo' && event.sourceId === me) {

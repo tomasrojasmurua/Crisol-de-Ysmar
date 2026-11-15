@@ -45,6 +45,15 @@ export function teamColorHex(
   return FFA_COLORS[(team - 1 + FFA_COLORS.length) % FFA_COLORS.length] ?? ENEMY_COLOR;
 }
 
+/** El color de tu bando y el de los rivales, para marcar de quién es un conjuro en el suelo. */
+export function allyColor(): THREE.Color {
+  return new THREE.Color(ALLY_COLOR);
+}
+
+export function enemyColor(): THREE.Color {
+  return new THREE.Color(ENEMY_COLOR);
+}
+
 /** Color "más brillante que el blanco" para que el resplandor (bloom) lo tome. */
 export function glow(color: THREE.Color, intensity: number): THREE.Color {
   return color.clone().multiplyScalar(intensity);

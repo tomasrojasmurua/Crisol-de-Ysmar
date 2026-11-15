@@ -7,6 +7,7 @@ import {
 } from '@crisol/content';
 import { type GameRules, SPELL_WEAVES, type SpellId, TICK_RATE, type Weave } from '@crisol/core';
 import { el } from './dom';
+import { intentTag } from './intentTag';
 
 const seconds = (ticks: number): string =>
   `${(ticks / TICK_RATE).toLocaleString('es-CL', { maximumFractionDigits: 1 })} s`;
@@ -41,11 +42,13 @@ function weaveText(weave: Weave): string {
   return weave.map((e) => ELEMENTS.find((x) => x.id === e)?.name ?? e).join(' → ');
 }
 
-/** Una ficha de hechizo: nombre, tejido, qué hace y sus datos. */
+/** Una ficha de hechizo: nombre con para qué sirve, tejido, qué hace y sus datos. */
 export function spellCard(spell: SpellId, rules: GameRules): HTMLElement {
   const card = el('div', 'spell-card');
+  const name = el('strong', 'spell-card-name', SPELL_NAMES[spell]);
+  name.append(intentTag(spell));
   card.append(
-    el('strong', 'spell-card-name', SPELL_NAMES[spell]),
+    name,
     el(
       'span',
       'spell-card-weave',
