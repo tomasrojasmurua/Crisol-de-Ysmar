@@ -684,6 +684,48 @@ body {
   color: #e8d7a8;
 }
 
+/* Para qué sirve un hechizo: ícono y palabra de su color, junto al nombre. Cada ícono tiene su
+   silueta propia, así se lee también sin distinguir colores. */
+.intent-tag {
+  --intent: #e8d7a8;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--intent);
+}
+
+.intent-tag .icon-intent {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
+.intent-damage {
+  --intent: #ff8a70;
+}
+
+.intent-control {
+  --intent: #c3a2ff;
+}
+
+.intent-heal {
+  --intent: #86e8a6;
+}
+
+.intent-support {
+  --intent: #f0cf72;
+}
+
+.intent-movement {
+  --intent: #86d2f5;
+}
+
 /* ---------- Entrenamiento ---------- */
 
 .menu-extra {
@@ -3299,6 +3341,15 @@ body {
   font-size: 14px;
   color: var(--gold-bright);
   text-shadow: 0 0 14px rgba(243, 223, 176, 0.6);
+}
+
+.hud-discovery-intent:empty {
+  display: none;
+}
+
+.hud-discovery-intent .intent-tag {
+  margin-left: 0;
+  font-size: 10px;
 }
 
 .hud-discovery-count {

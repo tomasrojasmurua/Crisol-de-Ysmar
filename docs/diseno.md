@@ -67,6 +67,13 @@ es lo vigente.
 - **Silueta de familia en el suelo** mientras se canaliza (y medio segundo después), con el color
   del primer elemento: cuña (ataque), anillos (zona), flechas (movimiento), pentágono (invocación)
   y columna (aura). Las familias viven en `packages/content/src/families.ts`.
+- **Para qué sirve cada hechizo**, en un ícono y una palabra junto al nombre: Daño (espada),
+  Control (cadena), Cura (cruz), Apoyo (escudo) y Movimiento (doble flecha). Sale al descubrirlo,
+  en el Grimorio y en la ficha del entrenamiento. Viven en `packages/content/src/intents.ts`.
+- **Anillo de bando en el suelo** bajo todo conjuro que queda en el campo (zonas, avisos redondos,
+  tornados, campos e invocaciones): verde agua si es tuyo o de tu equipo, carmesí y latiendo si
+  es de un rival (en todos contra todos, todo lo ajeno es rival). El Señuelo, el Gemelo y el
+  Espejismo no llevan, para no delatarse. Es una malla fina por conjuro, sin luces ni partículas.
 - **Reacciones entre estados** (`packages/content/src/rules.ts`, `interactions.combos`): un golpe
   cuyo tejido empieza con un elemento, sobre un estado de otro, provoca algo extra. Sale una por
   golpe y su nombre flota sobre el blanco. También están en el Grimorio, pestaña Reacciones.

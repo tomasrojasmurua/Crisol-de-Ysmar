@@ -84,6 +84,7 @@ export class Hud {
         <span class="hud-discovery-kicker">Nuevo conjuro</span>
         <span class="hud-discovery-orbs"></span>
         <strong class="hud-discovery-name"></strong>
+        <span class="hud-discovery-intent"></span>
         <span class="hud-discovery-count"></span>
       </div>
       <div class="hud-banner" hidden>
@@ -113,17 +114,22 @@ export class Hud {
     query(this.root, '.hud-player-name').textContent = name || 'Tú';
   }
 
-  /** Celebra un conjuro que el jugador lanzó por primera vez. */
+  /** Celebra un conjuro que el jugador lanzó por primera vez (o un combo nuevo). */
   celebrateDiscovery(
     name: string,
     orbs: HTMLElement,
     known: number,
     total: number,
     kicker = 'Nuevo conjuro',
+    intent: HTMLElement | null = null,
   ): void {
     query(this.discovery, '.hud-discovery-kicker').textContent = kicker;
     query(this.discovery, '.hud-discovery-orbs').replaceChildren(orbs);
     query(this.discovery, '.hud-discovery-name').textContent = name;
+    // Para qué sirve, en un ícono y una palabra: se sabe al tiro si pega, cura o ayuda.
+    const intentSlot = query(this.discovery, '.hud-discovery-intent');
+    if (intent) intentSlot.replaceChildren(intent);
+    else intentSlot.replaceChildren();
     query(this.discovery, '.hud-discovery-count').textContent = `${known}/${total}`;
     this.discovery.hidden = false;
     this.discovery.classList.remove('show');

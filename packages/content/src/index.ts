@@ -46,6 +46,7 @@ export {
   omenById,
 } from './glyphs';
 export { ALL_WEAVES, SPELL_NAMES, spellName, weaveKey } from './grimoire';
+export { INTENT_HINTS, INTENT_NAMES, SPELL_INTENTS, type SpellIntent } from './intents';
 export { MAP, MAP_DECOR, MAP_RADIUS, PLAZA_ARENA_RADIUS, PLAZA_MAP } from './map';
 export { WIZARD_NAMES } from './names';
 export { REACTION_TEXT } from './reactions';
