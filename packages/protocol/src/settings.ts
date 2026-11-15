@@ -30,6 +30,15 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   botLevel: 'duelist',
 };
 
+/**
+ * La Partida rápida (sala pública con desconocidos): todos contra todos de 4 con IA Duelista,
+ * porque funciona igual de bien con 1, 2, 3 o 4 personas. Nadie la cambia.
+ */
+export const QUICK_ROOM_SETTINGS: RoomSettings = {
+  ...DEFAULT_ROOM_SETTINGS,
+  mode: { kind: 'ffa', players: 4 },
+};
+
 /** Los modos que se pueden jugar en red. */
 export const ROOM_MODES: readonly GameMode[] = [
   { kind: 'duel' },

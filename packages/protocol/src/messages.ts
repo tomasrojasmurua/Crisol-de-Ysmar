@@ -2,7 +2,7 @@ import type { ElementId, Intent, MatchState } from '@crisol/core';
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -59,6 +59,8 @@ export type ClientMessage =
       readonly affinity?: ElementId | null;
       /** Para volver a tu mago si se cortó la conexión. */
       readonly token?: string;
+      /** Entra por Partida rápida: una sala vacía queda pública, con ajustes fijos. */
+      readonly quick?: boolean;
     }
   /** Quien manda en la sala cambia los ajustes (modo, tiempo, rondas…) antes de empezar. */
   | { readonly type: 'settings'; readonly settings: RoomSettings }
@@ -91,6 +93,10 @@ export type ServerMessage =
       /** Los ajustes de la sala y el puesto de quien manda en la sala de espera. */
       readonly settings: RoomSettings;
       readonly hostId: number;
+      /** Es una Partida rápida (sala pública: nadie cambia los ajustes). */
+      readonly quick?: boolean;
+      /** Partida rápida: cuántos ms faltan para que empiece sola (si ya corre la cuenta). */
+      readonly startsIn?: number;
     }
   /**
    * Empieza una partida nueva: el Presagio y quién es quién. Con `resume`, es la misma partida

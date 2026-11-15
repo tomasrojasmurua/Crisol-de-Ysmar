@@ -191,6 +191,8 @@ export interface NetProfile {
   readonly name: string;
   readonly look: PlayerLook;
   readonly affinity: ElementId | null;
+  /** Entra por Partida rápida (sala pública que empieza sola). */
+  readonly quick?: boolean;
 }
 
 /**
@@ -210,6 +212,9 @@ export class NetMatch implements MatchView {
   settings: RoomSettings = DEFAULT_ROOM_SETTINGS;
   /** Quién manda en la sala de espera (cambia los ajustes y empieza). */
   hostId = 0;
+  /** Es una Partida rápida y, si corre la cuenta, cuándo empieza sola (`performance.now()`). */
+  quick = false;
+  quickStartsAt: number | null = null;
   /** Las reglas de la partida: las del modo con el tiempo y las rondas de la sala. */
   rules: GameRules = rulesForRoom(DEFAULT_ROOM_SETTINGS);
   state: MatchState = emptyState();
@@ -589,6 +594,7 @@ export class NetMatch implements MatchView {
         look: this.profile.look,
         affinity: this.profile.affinity,
         ...(this.token ? { token: this.token } : {}),
+        ...(this.profile.quick ? { quick: true } : {}),
       });
       if (document.hidden) this.send({ type: 'away', away: true });
       if (!this.pingTimer) this.pingTimer = setInterval(() => this.heartbeat(), PING_EVERY_MS);
@@ -760,6 +766,9 @@ export class NetMatch implements MatchView {
       case 'players':
         this.roster = message.players;
         this.hostId = message.hostId;
+        this.quick = message.quick === true;
+        this.quickStartsAt =
+          message.startsIn === undefined ? null : performance.now() + message.startsIn;
         if (!this.started) this.useSettings(message.settings);
         this.listener.players(message.players, this.playerId);
         return;

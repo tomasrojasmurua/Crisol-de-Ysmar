@@ -37,6 +37,7 @@ export {
   cleanRoomSettings,
   DEFAULT_ROOM_SETTINGS,
   livesAllowed,
+  QUICK_ROOM_SETTINGS,
   ROOM_MODES,
   ROUND_MINUTES,
   type RoomSettings,

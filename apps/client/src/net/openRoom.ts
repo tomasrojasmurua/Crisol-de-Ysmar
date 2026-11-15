@@ -34,7 +34,7 @@ export function openRoom(code: string, profile: NetProfile, deps: RoomDeps): Net
   rememberRoom(code);
   const room: NetMatch = new NetMatch(code, profile, deps.human, {
     players: (players, me) => {
-      lobby.setPlayers(players, me, room.settings, room.hostId);
+      lobby.setPlayers(players, me, room.settings, room.hostId, room.quick, room.quickStartsAt);
       if (room !== deps.current()) return;
       if (room.started) {
         // Avisos de quien se fue o volvió durante la partida.

@@ -141,6 +141,7 @@ export class Menu {
     onGrimoire: () => void,
     onFriend: () => void,
     onTraining: () => void,
+    onQuick: () => void,
     private readonly audio: AudioEngine,
     /** Dice una frase de tu maestro si existe su voz (`voice.…`). */
     private readonly onVoice: (key: string) => void = () => {},
@@ -170,7 +171,8 @@ export class Menu {
         </div>
         <button type="button" class="primary menu-play">${MENU_ICONS.star}<span>Entrar al Crisol</span>${MENU_ICONS.star}</button>
         <div class="menu-extra">
-          <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con amigos</span></button>
+          <button type="button" class="secondary menu-quick">${MENU_ICONS.quick}<span>Partida rápida</span></button>
+          <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Con amigos</span></button>
           <button type="button" class="secondary menu-training">${MENU_ICONS.training}<span>Entrenamiento</span></button>
         </div>
       </section>
@@ -278,6 +280,7 @@ export class Menu {
     });
     query(this.root, '.menu-level').append(this.levelPicker.root);
     query(this.root, '.menu-friend').addEventListener('click', onFriend);
+    query(this.root, '.menu-quick').addEventListener('click', onQuick);
     query(this.root, '.menu-training').addEventListener('click', onTraining);
     query(this.root, '.menu-play').addEventListener('click', () => {
       this.save();

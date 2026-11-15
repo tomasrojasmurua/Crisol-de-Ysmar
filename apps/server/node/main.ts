@@ -4,8 +4,9 @@
  * manda al este de Norteamérica (150 a 250 ms de ida y vuelta desde Chile); aquí son ~10–40 ms.
  * Ver docs/servidor-santiago.md.
  *
- * Rutas: `GET /health` y el socket `/api/rooms/K7QF/socket`, iguales que el Worker. Los errores se
- * mandan al registro de Cloudflare (D1) por `POST /api/errors`.
+ * Rutas: `GET /health`, `POST /api/quick` (Partida rápida) y el socket `/api/rooms/K7QF/socket`,
+ * iguales que el Worker. Los errores se mandan al registro de Cloudflare (D1) por
+ * `POST /api/errors`.
  */
 import { randomFillSync } from 'node:crypto';
 import { createServer, type IncomingMessage } from 'node:http';
@@ -111,6 +112,11 @@ const server = createServer((request, response) => {
     );
     return;
   }
+  if (path === '/api/quick' && request.method === 'POST') {
+    response.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ roomCode: quickRoom() }));
+    return;
+  }
   if (path === '/api/rooms' && request.method === 'POST') {
     const roomCode = generateRoomCode((array) => randomFillSync(array));
     response.writeHead(201, { ...CORS, 'Content-Type': 'application/json' });
@@ -119,6 +125,28 @@ const server = createServer((request, response) => {
   }
   response.writeHead(404, CORS).end('No encontrado');
 });
+
+/**
+ * Partida rápida: la sala pública a la que va quien la pide. Primero una que esté esperando
+ * gente; si no, una que vaya en la primera ronda con un mago de la IA que tomar; si no, una nueva
+ * (que se marca pública antes de que llegue nadie, para que dos que piden a la vez caigan juntos).
+ */
+function quickRoom(): string {
+  let late: string | null = null;
+  for (const [code, room] of rooms) {
+    const opening = room.host.quickOpening;
+    if (opening === 'lobby') return code;
+    if (opening === 'late') late ??= code;
+  }
+  if (late) return late;
+  let code = generateRoomCode((array) => randomFillSync(array));
+  while (rooms.has(code)) code = generateRoomCode((array) => randomFillSync(array));
+  const room = roomFor(code);
+  room.host.makeQuick();
+  // Si nadie llega a conectarse, se borra como cualquier sala vacía.
+  room.emptySince = Date.now();
+  return code;
+}
 
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 

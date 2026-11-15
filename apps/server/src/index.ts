@@ -28,6 +28,22 @@ export default {
       return handleProfile(request, env.PROFILES, url.pathname.endsWith('/leer'));
     }
 
+    if (
+      url.pathname === '/api/quick' &&
+      (request.method === 'POST' || request.method === 'OPTIONS')
+    ) {
+      // Respaldo de Cloudflare: sin un lugar común donde ver las salas abiertas, cada Partida
+      // rápida es una sala nueva (la vuelve pública el primero que entra, ver DuelHost.makeQuick).
+      // La de verdad, que junta desconocidos, es la del servidor de Santiago.
+      const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      };
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+      const roomCode = generateRoomCode((array) => crypto.getRandomValues(array));
+      return Response.json({ roomCode }, { headers });
+    }
+
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
       const roomCode = generateRoomCode((array) => crypto.getRandomValues(array));
       return Response.json({ roomCode }, { status: 201 });
