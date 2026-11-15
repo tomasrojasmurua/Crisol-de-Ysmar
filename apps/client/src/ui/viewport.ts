@@ -7,8 +7,11 @@ let width = 0;
 let height = 0;
 
 function measure(): void {
-  width = window.innerWidth;
-  height = window.innerHeight;
+  // El tamaño del diseño (lo que de verdad ocupa la interfaz): Safari en iPhone puede tener
+  // `innerWidth` viejo justo después de girar.
+  const root = document.documentElement;
+  width = root.clientWidth || window.innerWidth;
+  height = root.clientHeight || window.innerHeight;
 }
 
 let listening = false;

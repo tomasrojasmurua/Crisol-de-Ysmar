@@ -71,6 +71,8 @@ export class GameScene {
   private readonly previewRim = new THREE.PointLight('#9fb6ff', 0, 12, 1.4);
   /** El mago del Vestidor: quieto en el centro de la arena, girando despacio. */
   private preview: { view: WizardView; wizard: Wizard } | null = null;
+  /** El último tamaño aplicado al dibujo, en píxeles CSS. */
+  private size = { width: 0, height: 0 };
 
   constructor(canvas: HTMLCanvasElement, rules: GameRules, playerId: number) {
     this.renderer = new THREE.WebGLRenderer({
@@ -84,6 +86,16 @@ export class GameScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Las llamadas de dibujo se cuentan por cuadro completo (sombras y resplandor incluidos).
     this.renderer.info.autoReset = false;
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => {
+        const { clientWidth, clientHeight } = canvas;
+        if (clientWidth === this.size.width && clientHeight === this.size.height) return;
+        this.resize();
+        // El resto de la interfaz (el Vestidor, las etiquetas) mide al oír "resize": se le
+        // avisa, porque Safari pudo haberlo mandado antes de tener las medidas nuevas.
+        window.dispatchEvent(new Event('resize'));
+      }).observe(canvas);
+    }
 
     this.arena = new ArenaView(rules.arenaRadius, this.particles);
     this.scene = this.arena.scene;
@@ -209,9 +221,19 @@ export class GameScene {
     this.camera.lookAt(sideways, PREVIEW_MIDDLE, 0);
   }
 
+  /**
+   * Ajusta el dibujo al tamaño con que el lienzo se ve de verdad. Safari en iPhone avisa el
+   * cambio de tamaño (al girar, al cerrar el teclado, al volver de otra app) a veces antes de
+   * actualizar `innerWidth` e `innerHeight`: con esas medidas viejas el dibujo quedaba con la
+   * forma del celular en vertical, estirado y corrido (el mago gigante y la tarjeta del menú
+   * vacía). Por eso se mide el lienzo mismo, y un observador lo vuelve a medir cuando cambia.
+   */
   resize(): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const canvas = this.renderer.domElement;
+    const width = canvas.clientWidth || window.innerWidth;
+    const height = canvas.clientHeight || window.innerHeight;
+    if (width <= 0 || height <= 0) return;
+    this.size = { width, height };
     const pixelRatio = this.resolution.pixelRatio;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
