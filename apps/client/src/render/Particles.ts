@@ -57,6 +57,8 @@ export class Particles {
   private readonly baseSizes: Float32Array;
   private readonly gravities: Float32Array;
   private next = 0;
+  /** Partículas vivas en el último cuadro (para el informe de rendimiento). */
+  alive = 0;
   private readonly material: THREE.ShaderMaterial;
 
   constructor(private readonly capacity = 1500) {
@@ -135,9 +137,11 @@ export class Particles {
   }
 
   update(deltaSeconds: number): void {
+    let alive = 0;
     for (let i = 0; i < this.capacity; i++) {
       const life = this.lives[i] ?? 0;
       if (life <= 0) continue;
+      alive += 1;
       const age = (this.ages[i] ?? 0) + deltaSeconds;
       this.ages[i] = age;
       const t = age / life;
@@ -157,6 +161,7 @@ export class Particles {
       this.alphas[i] = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
       this.sizes[i] = (this.baseSizes[i] ?? 0) * (1 - t * 0.5);
     }
+    this.alive = alive;
     const geometry = this.points.geometry;
     for (const name of ['position', 'aColor', 'aSize', 'aAlpha']) {
       const attribute = geometry.getAttribute(name);

@@ -1,6 +1,7 @@
 import type { Beast, ElementId, Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { disposeTree } from './dispose';
 import { ELEMENT_COLORS, elementColor, glow } from './palette';
 
 /** El Guardián es la misma criatura, mucho más grande. */
@@ -190,6 +191,7 @@ export class BeastView {
 
   dispose(): void {
     this.group.removeFromParent();
+    disposeTree(this.group);
   }
 
   /** Lo que se anima por su cuenta (patas y alas) no se funde con el resto. */

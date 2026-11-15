@@ -1,6 +1,7 @@
 import type { GameRules, SpellEntity, Summon, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { disposeTree, shared } from './dispose';
 import { createField, createGuidedBolt, updateField, updateGuidedBolt } from './FourthSpellViews';
 import {
   createDrown,
@@ -84,9 +85,9 @@ export type DecoyFactory = (ownerId: number) => WizardView | null;
  */
 export class SpellViews {
   private readonly views = new Map<number, THREE.Object3D>();
-  private readonly coreGeometry = new THREE.IcosahedronGeometry(1, 2);
-  private readonly sparkGeometry = new THREE.SphereGeometry(0.08, 8, 6);
-  private readonly glowTexture = createGlowTexture();
+  private readonly coreGeometry = shared(new THREE.IcosahedronGeometry(1, 2));
+  private readonly sparkGeometry = shared(new THREE.SphereGeometry(0.08, 8, 6));
+  private readonly glowTexture = shared(createGlowTexture());
   private readonly decoys = new Map<number, WizardView>();
   private readonly trails: Trails;
   private readonly teamRings: TeamRings;
@@ -99,6 +100,11 @@ export class SpellViews {
   ) {
     this.trails = new Trails(scene);
     this.teamRings = new TeamRings(scene);
+  }
+
+  /** Conjuros dibujados ahora (para el informe de rendimiento). */
+  get count(): number {
+    return this.views.size;
   }
 
   set trailsEnabled(value: boolean) {
@@ -128,8 +134,8 @@ export class SpellViews {
     for (const [id, view] of this.views) {
       if (!alive.has(id)) {
         view.removeFromParent();
+        disposeTree(view);
         this.views.delete(id);
-        this.decoys.get(id)?.dispose();
         this.decoys.delete(id);
       }
     }

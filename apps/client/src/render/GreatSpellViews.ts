@@ -12,6 +12,7 @@ import type {
 } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -751,3 +752,7 @@ export function updateMangrove(view: THREE.Object3D, wall: Wall): void {
     if (height) trunk.scale.y = Math.max(0.01, height * grow);
   }
 }
+
+// Compartidas por todas las vistas de este archivo: no se liberan al quitar una.
+for (const resource of [discGeometry, ringGeometry, planeGeometry, spikeGeometry, glowTexture])
+  shared(resource);

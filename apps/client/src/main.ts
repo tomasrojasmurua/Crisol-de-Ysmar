@@ -24,6 +24,7 @@ import { Grimoire } from './game/Grimoire';
 import { HitFeedback } from './game/HitFeedback';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
 import { MatchFlow } from './game/MatchFlow';
+import type { QualityName } from './game/MatchPerfLog';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
@@ -43,6 +44,7 @@ import { BackGuard } from './platform/BackGuard';
 import { startErrorReports } from './platform/ErrorReporter';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
+import { AutoQuality } from './render/AutoQuality';
 import { CALM_FPS, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
@@ -103,8 +105,18 @@ let pendingInvite = '';
 // ---------- Piezas ----------
 
 const view = new GameScene(canvas, rules, PLAYER_ID);
+// Solo en desarrollo: la escena a mano para medir qué cuesta dibujar (scripts de rendimiento).
 view.applyQuality(quality);
 const { renderer, rig, resolution } = view;
+/** Pasa solo a Gráficos livianos si el celular sigue lento con la resolución al mínimo. */
+const autoQuality = new AutoQuality();
+
+function setQuality(next: QualityName): void {
+  quality = next;
+  saveQuality(quality);
+  view.applyQuality(quality);
+  if (match) diagnostics.qualityChanged(quality);
+}
 const input = new PlayerInput();
 const human = new HumanController(
   input,
@@ -242,10 +254,9 @@ const pauseMenu = new PauseMenu(
       saveDamageNumbers(on);
     },
     onLightGraphics: (on) => {
-      quality = on ? 'liviana' : 'alta';
-      saveQuality(quality);
-      view.applyQuality(quality);
-      if (match) diagnostics.qualityChanged(quality);
+      // Lo que elige el jugador manda: no se vuelve a cambiar solo.
+      autoQuality.stop();
+      setQuality(on ? 'liviana' : 'alta');
     },
   },
   diagnostics.enabled,
@@ -545,6 +556,7 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   hud.setPlayerName(profile.name);
   screens.match(current instanceof TrainingMatch, current === net);
   resolution.restart();
+  autoQuality.restart();
   diagnostics.matchStarted(resolution.pixelRatio, quality);
 }
 
@@ -668,6 +680,11 @@ renderer.setAnimationLoop((now) => {
     view.resize();
     diagnostics.resolutionChanged(newRatio);
   }
+  if (live && quality === 'alta' && autoQuality.sample(frameMs, resolution.canLower)) {
+    setQuality('liviana');
+    pauseMenu.setLightGraphics(true);
+    hud.announce('Gráficos livianos', 'Tu celular iba lento: se cambia en Pausa', 2.6);
+  }
   const delta = frameMs / 1000;
   elapsed += delta;
 
@@ -702,7 +719,7 @@ renderer.setAnimationLoop((now) => {
     pausedHere ? 0 : delta,
     current && current.state.wizards.length > 0 ? current.player.pos : null,
   );
-  if (current && !pausedHere && !flow.finished) diagnostics.matchFrame(frameMs, simMs);
+  if (current && !pausedHere && !flow.finished) diagnostics.matchFrame(frameMs, simMs, view.load);
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);

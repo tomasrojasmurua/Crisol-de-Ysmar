@@ -2,6 +2,7 @@ import type { ElementId, GameRules, StatusId, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { AffinityLook } from './AffinityLook';
 import { CastSigil } from './CastSigil';
+import { disposeTree } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 import { WeaveHalo } from './WeaveHalo';
@@ -375,6 +376,7 @@ export class WizardView {
 
   dispose(): void {
     this.group.removeFromParent();
+    disposeTree(this.group);
   }
 
   /** Con Velo y demás sigilos, los tuyos te ven como humo translúcido y sin báculo. */

@@ -1,5 +1,6 @@
 import type { Current, GameRules, Ignite, Shackle, Wall, Wizard, Zone } from '@crisol/core';
 import * as THREE from 'three';
+import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -540,3 +541,14 @@ export function updateShackle(
   (chain.material as THREE.MeshBasicMaterial).opacity = 0.4 + tension * 0.6;
   (ring.material as THREE.MeshBasicMaterial).opacity = 0.2 + tension * 0.5;
 }
+
+// Compartidas por todas las vistas de este archivo: no se liberan al quitar una.
+for (const resource of [
+  discGeometry,
+  ringGeometry,
+  iceBlockGeometry,
+  shellGeometry,
+  chainGeometry,
+  stakeGeometry,
+])
+  shared(resource);

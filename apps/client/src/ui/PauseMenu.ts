@@ -114,6 +114,11 @@ export class PauseMenu {
   }
 
   /** Visible durante una partida; `online` dice si la pausa detiene o no el juego. */
+  /** Refleja un cambio de calidad que no hizo el jugador (el paso solo a Gráficos livianos). */
+  setLightGraphics(on: boolean): void {
+    this.lightToggle.checked = on;
+  }
+
   setAvailable(available: boolean, online: boolean): void {
     this.button.hidden = !available;
     this.online = online;

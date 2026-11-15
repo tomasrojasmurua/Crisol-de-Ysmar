@@ -1,6 +1,7 @@
 import type { Summon } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -522,3 +523,6 @@ export function updateGreatSummon(
     }
   }
 }
+
+// Compartidas por todas las vistas de este archivo: no se liberan al quitar una.
+for (const resource of [glowTexture]) shared(resource);
