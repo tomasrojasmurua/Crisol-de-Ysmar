@@ -1,3 +1,31 @@
+/* Letras del juego, servidas desde /fonts (sin depender de Google). Licencia OFL en esa carpeta.
+   Solo el subconjunto latino: alcanza para el español (tildes, ñ, ¿ y ¡). */
+@font-face {
+  font-family: "Cinzel";
+  src: url("/fonts/cinzel.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("/fonts/spectral-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("/fonts/spectral-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("/fonts/spectral-600.woff2") format("woff2");
+  font-weight: 500 800;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --bg: #07070c;
@@ -12,6 +40,7 @@
   --panel-edge: rgba(216, 191, 138, 0.22);
   --bronze: rgba(216, 191, 138, 0.35);
   --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --text: "Spectral", Georgia, "Times New Roman", serif;
   --safe-left: max(16px, env(safe-area-inset-left));
   --safe-right: max(16px, env(safe-area-inset-right));
   --safe-top: max(12px, env(safe-area-inset-top));
@@ -68,7 +97,7 @@ body {
   overscroll-behavior: none;
   background: var(--bg);
   color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--text);
   /* Safari en iPhone agranda por su cuenta los textos largos al poner el celular en
      horizontal: el informe de rendimiento empujaba los botones fuera de la pantalla. */
   -webkit-text-size-adjust: 100%;
@@ -129,14 +158,19 @@ body {
     border-color 140ms ease;
 }
 
-/* Primario: bronce oscuro con doble filete dorado (el mismo lenguaje que Lanzar). */
+/*
+ * Primario: placa de bronce con puntas (public/ui/boton.webp, hecha con ChatGPT). Va en 9 cortes
+ * con border-image, así las puntas no se estiran con el ancho del botón.
+ */
 #ui .primary {
-  border: 2px solid var(--gold);
-  background: linear-gradient(180deg, #44301d, #201913);
+  border-style: solid;
+  border-color: transparent;
+  border-width: 8px 26px;
+  border-radius: 0;
+  border-image: url("/ui/boton.webp") 26 92 fill / 8px 26px / 0 stretch;
+  background: none;
+  padding: 4px 6px;
   color: var(--gold-bright);
-  box-shadow:
-    inset 0 0 0 2px #17120e,
-    0 0 12px rgba(216, 191, 138, 0.2);
 }
 
 #ui .secondary {
@@ -151,6 +185,12 @@ body {
   scale: 0.97;
   border-color: var(--gold-bright);
   background: #30251b;
+}
+
+/* La placa no tiene fondo ni borde de color: al tocarla, se aclara. */
+#ui .primary:active:not(:disabled) {
+  background: none;
+  filter: brightness(1.18);
 }
 
 #ui .primary:disabled,
@@ -539,40 +579,17 @@ body {
   border: 1px solid var(--panel-edge);
 }
 
-/* El botón principal: hexágono de bronce con doble filete dorado y estrellas. */
+/* El botón principal: la misma placa de bronce, más grande. */
 #ui .menu-play {
-  --cut: 18px;
-  position: relative;
   width: min(100%, 340px);
   min-height: 56px;
-  border: none;
-  border-radius: 0;
-  background: var(--gold);
-  clip-path: polygon(
-    var(--cut) 0,
-    calc(100% - var(--cut)) 0,
-    100% 50%,
-    calc(100% - var(--cut)) 100%,
-    var(--cut) 100%,
-    0 50%
-  );
-  box-shadow: none;
+  border-width: 10px 32px;
+  border-image-width: 10px 32px;
+  padding: 4px 8px;
   font-size: clamp(15px, 2.3vw, 19px);
   letter-spacing: 0.1em;
   white-space: nowrap;
-  color: var(--gold-bright);
-  filter: drop-shadow(0 0 14px rgba(216, 191, 138, 0.35));
   --icon-size: 14px;
-}
-
-#ui .menu-play::before {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(243, 223, 176, 0.22), transparent 70%),
-    linear-gradient(180deg, #4a341f, #1d1610);
-  clip-path: inherit;
 }
 
 .menu-play > svg,
@@ -812,7 +829,7 @@ body {
   gap: 3px;
   margin-left: 8px;
   vertical-align: middle;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--text);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1765,9 +1782,7 @@ body {
 
 @keyframes rematch-call {
   50% {
-    box-shadow:
-      inset 0 0 0 2px #17120e,
-      0 0 22px rgba(180, 156, 255, 0.55);
+    filter: brightness(1.35);
   }
 }
 
@@ -3197,7 +3212,7 @@ body {
 
 .grimoire-section-count {
   margin-left: 8px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--text);
   font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--ink-quiet);
@@ -3322,7 +3337,7 @@ body {
 
 .grimoire-combo-level {
   margin-left: 6px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--text);
   font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--gold);
@@ -5221,4 +5236,85 @@ body {
 .grimoire-pocket-mark .icon-bookmark,
 #ui .grimoire-pocket-button.inside .icon-bookmark {
   fill: currentColor;
+}
+
+/* ---------- Acabado: placa, esquinas labradas y separador ---------- */
+
+/*
+ * Piezas generadas con ChatGPT y pasadas a WebP livianos en /ui (unos 50 KB en total). Son
+ * imágenes fijas montadas con CSS: no agregan efectos ni trabajo por cuadro al celular.
+ */
+
+/* Las cuatro esquinas labradas sobre los cuadros grandes, más la textura de piedra. */
+.lobby-panel,
+.pause-panel,
+.wardrobe-panel,
+.school-picker-card,
+.training-chooser-card,
+.home-invite-card,
+.grimoire-list,
+.menu-wizard-card {
+  --corner: 30px;
+  --ornate-corners:
+    url("/ui/esquina-si.webp") left top / var(--corner) no-repeat,
+    url("/ui/esquina-sd.webp") right top / var(--corner) no-repeat,
+    url("/ui/esquina-ii.webp") left bottom / var(--corner) no-repeat,
+    url("/ui/esquina-id.webp") right bottom / var(--corner) no-repeat;
+}
+
+.lobby-panel,
+.pause-panel,
+.wardrobe-panel,
+.school-picker-card,
+.training-chooser-card,
+.home-invite-card {
+  background:
+    var(--ornate-corners),
+    linear-gradient(180deg, rgba(26, 22, 34, 0.55), rgba(7, 7, 12, 0.35)),
+    url("/ui/textura.webp") 0 0 / 192px repeat,
+    #0e0c14;
+}
+
+/* Ya es opaco: el desenfoque de lo que hay detrás solo calentaba el celular. */
+.wardrobe-panel {
+  backdrop-filter: none;
+}
+
+/* El Grimorio se recorre con el dedo: las esquinas quedan fijas al cuadro, no al texto. */
+.grimoire-list {
+  background:
+    var(--ornate-corners),
+    url("/ui/textura.webp") 0 0 / 192px repeat,
+    rgba(10, 9, 15, 0.82);
+}
+
+/* La tarjeta de tu mago queda sin fondo: el retrato se ve a través. */
+.menu-wizard-card {
+  background: var(--ornate-corners);
+}
+
+/* Un poco más de aire en los bordes, para que las esquinas no pisen botones ni texto. */
+.school-picker-card,
+.training-chooser-card,
+.home-invite-card {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.wardrobe-panel {
+  padding: 12px 16px 14px;
+}
+
+.lobby-panel {
+  padding: 12px 20px 16px;
+}
+
+/* Separador bajo los títulos de los cuadros. */
+.lobby-panel h2,
+.pause-panel h2,
+.school-picker-card h2,
+.training-chooser-card h2,
+.home-invite-card h2 {
+  padding-bottom: 14px;
+  background: url("/ui/separador.webp") center bottom / min(240px, 70%) auto no-repeat;
 }
