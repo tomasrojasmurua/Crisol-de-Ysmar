@@ -254,7 +254,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Cómo se gana',
-          text: `Eres de la ${school.name}. Deja al rival sin vida y ganas la ronda. Gana 2 rondas y ganas el duelo.`,
+          text: `Eres del ${school.name}. Deja al rival sin vida y ganas la ronda. Gana 2 rondas y ganas el duelo.`,
           goal: { kind: 'read' },
           dummy: 'idle',
         },
