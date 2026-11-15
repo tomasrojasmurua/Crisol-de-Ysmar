@@ -36,8 +36,13 @@ export interface WizardLook {
  * anillo de bando, orbes del tejido y señales de estado. Formas simples y bien iluminadas
  * hasta que lleguen los modelos del Hito 5.
  */
-/** Cuánto se enciende el contorno del mago con el color de su bando. */
-const RIM_STRENGTH = 0.9;
+/** Cuánto se enciende el contorno del mago con el color de su bando (en partida). */
+const RIM_STRENGTH = 0.75;
+/**
+ * En el Vestidor y la tarjeta del menú el mago está cerca y bien iluminado: con el contorno de
+ * partida se veía lavado, casi blanco aunque la túnica fuera oscura.
+ */
+export const PORTRAIT_RIM_STRENGTH = 0.3;
 
 export class WizardView {
   /**
@@ -89,6 +94,7 @@ export class WizardView {
     look: WizardLook,
     rules: GameRules,
     private readonly particles: Particles | null = null,
+    rimStrength = RIM_STRENGTH,
   ) {
     this.teamColor = new THREE.Color(look.teamColor);
     const radius = rules.wizard.radius;
@@ -113,7 +119,7 @@ export class WizardView {
       this.eyeMaterial,
       radius,
     );
-    kit.applyRim(this.teamColor, RIM_STRENGTH);
+    kit.applyRim(this.teamColor, rimStrength);
     addCapeWave(kit.cape, this.capeMotion);
     this.robeMaterial = kit.robe;
     const model = buildWizardModel(kit, look);
