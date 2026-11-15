@@ -1,7 +1,7 @@
 import { createMatch, type GameRules, type Vec2, type Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { CameraRig } from '../camera/CameraRig';
-import type { QualityName } from '../game/MatchPerfLog';
+import type { QualityName, SceneLoad } from '../game/MatchPerfLog';
 import { AdaptiveResolution } from './AdaptiveResolution';
 import { AimGuide } from './AimGuide';
 import { ArenaView } from './arena/ArenaView';
@@ -139,6 +139,11 @@ export class GameScene {
   /** Limpia los hechizos (al empezar una partida o ronda). */
   clearSpells(): void {
     this.spells.sync([], NO_SPELL_WORLD);
+  }
+
+  /** Cuánto hay en pantalla, para el informe de rendimiento. */
+  get load(): SceneLoad {
+    return { spells: this.spells.count, particles: this.particles.alive };
   }
 
   get previewing(): boolean {

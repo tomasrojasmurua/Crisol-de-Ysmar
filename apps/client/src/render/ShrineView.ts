@@ -1,5 +1,6 @@
 import type { GameRules, Shrine } from '@crisol/core';
 import * as THREE from 'three';
+import { disposeTree } from './dispose';
 import { glow } from './palette';
 
 const SHRINE_COLOR = new THREE.Color('#f0d9a0');
@@ -98,5 +99,6 @@ export class ShrineView {
 
   dispose(): void {
     this.group.removeFromParent();
+    disposeTree(this.group);
   }
 }

@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { AudioEngine } from '../audio/AudioEngine';
 import { FpsMeter } from '../ui/FpsMeter';
-import { type FrameWork, MatchPerfLog, type QualityName } from './MatchPerfLog';
+import { type FrameWork, MatchPerfLog, type QualityName, type SceneLoad } from './MatchPerfLog';
 
 /**
  * Los datos de rendimiento: el medidor de FPS, los datos de la conexión y el informe de la
@@ -59,12 +59,18 @@ export class Diagnostics {
   }
 
   /** Un cuadro de juego terminado (no se llama en pausa ni con el resultado a la vista). */
-  matchFrame(frameMs: number, simMs: number): void {
+  matchFrame(frameMs: number, simMs: number, load?: SceneLoad): void {
+    const info = this.renderer.info;
     const work: FrameWork = {
       simMs,
       jsMs: performance.now() - this.frameStart,
-      calls: this.renderer.info.render.calls,
-      triangles: this.renderer.info.render.triangles,
+      calls: info.render.calls,
+      triangles: info.render.triangles,
+      spells: load?.spells,
+      particles: load?.particles,
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+      programs: info.programs?.length,
     };
     this.perfLog.frame(frameMs, work);
     while (this.audioCutsSeen < this.audio.interruptions) {

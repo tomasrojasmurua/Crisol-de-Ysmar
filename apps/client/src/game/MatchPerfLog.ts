@@ -12,6 +12,46 @@ export interface FrameWork {
   /** Llamadas de dibujo a la tarjeta gráfica (sombras y resplandor incluidos). */
   readonly calls: number;
   readonly triangles: number;
+  /** Lo que había en pantalla y en la memoria de la tarjeta gráfica. */
+  readonly spells?: number | undefined;
+  readonly particles?: number | undefined;
+  readonly geometries?: number;
+  readonly textures?: number;
+  /** Sombreadores compilados: si suben en plena partida, cada uno trabó un cuadro. */
+  readonly programs?: number | undefined;
+}
+
+/** Cuánto hay en pantalla en un cuadro. */
+export interface SceneLoad {
+  readonly spells: number;
+  readonly particles: number;
+}
+
+/** Máximos y extremos de lo que hubo en pantalla durante la partida. */
+interface LoadTrack {
+  maxSpells: number;
+  maxParticles: number;
+  firstGeometries: number | null;
+  lastGeometries: number;
+  maxGeometries: number;
+  firstTextures: number | null;
+  lastTextures: number;
+  firstPrograms: number | null;
+  lastPrograms: number;
+}
+
+function emptyLoad(): LoadTrack {
+  return {
+    maxSpells: 0,
+    maxParticles: 0,
+    firstGeometries: null,
+    lastGeometries: 0,
+    maxGeometries: 0,
+    firstTextures: null,
+    lastTextures: 0,
+    firstPrograms: null,
+    lastPrograms: 0,
+  };
 }
 
 export type QualityName = 'alta' | 'liviana';
@@ -42,6 +82,7 @@ export class MatchPerfLog {
   private triangles = 0;
   private startQuality: QualityName = 'alta';
   private readonly qualityChanges: { atMs: number; quality: QualityName }[] = [];
+  private load = emptyLoad();
 
   start(pixelRatio: number, quality: QualityName = 'alta'): void {
     this.worked = 0;
@@ -51,6 +92,7 @@ export class MatchPerfLog {
     this.triangles = 0;
     this.startQuality = quality;
     this.qualityChanges.length = 0;
+    this.load = emptyLoad();
     this.histogram.fill(0);
     this.frames = 0;
     this.playedMs = 0;
@@ -74,6 +116,7 @@ export class MatchPerfLog {
       this.jsMs += work.jsMs;
       this.calls += work.calls;
       this.triangles += work.triangles;
+      this.track(work);
     }
     const bin = Math.min(BINS - 1, Math.round(frameMs));
     this.histogram[bin] = (this.histogram[bin] ?? 0) + 1;
@@ -96,6 +139,27 @@ export class MatchPerfLog {
       }
       this.secondMs = 0;
       this.secondFrames = 0;
+    }
+  }
+
+  private track(work: FrameWork): void {
+    const load = this.load;
+    if (work.spells !== undefined) load.maxSpells = Math.max(load.maxSpells, work.spells);
+    if (work.particles !== undefined) {
+      load.maxParticles = Math.max(load.maxParticles, work.particles);
+    }
+    if (work.geometries !== undefined) {
+      load.firstGeometries ??= work.geometries;
+      load.lastGeometries = work.geometries;
+      load.maxGeometries = Math.max(load.maxGeometries, work.geometries);
+    }
+    if (work.textures !== undefined) {
+      load.firstTextures ??= work.textures;
+      load.lastTextures = work.textures;
+    }
+    if (work.programs !== undefined) {
+      load.firstPrograms ??= work.programs;
+      load.lastPrograms = work.programs;
     }
   }
 
@@ -142,6 +206,21 @@ export class MatchPerfLog {
       );
       lines.push(
         `Dibujos por cuadro ${Math.round(this.calls / this.worked)} · ${Math.round(this.triangles / this.worked / 1000)} mil triángulos`,
+      );
+    }
+
+    const load = this.load;
+    if (load.firstGeometries !== null) {
+      lines.push(`En pantalla: hasta ${load.maxSpells} conjuros y ${load.maxParticles} partículas`);
+      // Si la memoria crece toda la partida, algo no se libera y el celular se va frenando.
+      const textures =
+        load.firstTextures !== null ? ` · texturas ${load.firstTextures}→${load.lastTextures}` : '';
+      const programs =
+        load.firstPrograms !== null
+          ? ` · sombreadores ${load.firstPrograms}→${load.lastPrograms}`
+          : '';
+      lines.push(
+        `Memoria gráfica: geometrías ${load.firstGeometries}→${load.lastGeometries} (máx. ${load.maxGeometries})${textures}${programs}`,
       );
     }
 

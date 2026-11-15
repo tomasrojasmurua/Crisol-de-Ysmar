@@ -88,6 +88,11 @@ export class AdaptiveResolution {
     return this.steps[this.level] ?? 1;
   }
 
+  /** Si todavía puede bajar: si no, está en el mínimo o ya se comprobó que bajar no ayuda. */
+  get canLower(): boolean {
+    return this.level < this.floor;
+  }
+
   /** Vuelve a esperar el calentamiento (al empezar una partida). Conserva el nivel alcanzado. */
   restart(): void {
     this.warmupMs = WARMUP_MS;

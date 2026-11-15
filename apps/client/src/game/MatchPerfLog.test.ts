@@ -48,4 +48,28 @@ describe('MatchPerfLog', () => {
     expect(lines).toContain('Dibujos por cuadro 180 · 90 mil triángulos');
     expect(lines).toContain('Calidad: Liviana; Alta en 0:30');
   });
+
+  it('cuenta lo que hubo en pantalla y si la memoria gráfica creció', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5);
+    for (let t = 0; t < 10_000; t += 16) {
+      const geometries = 200 + Math.floor(t / 1000);
+      log.frame(16, {
+        simMs: 1,
+        jsMs: 6,
+        calls: 300,
+        triangles: 60_000,
+        spells: t < 5000 ? 4 : 12,
+        particles: 350,
+        geometries,
+        textures: 20,
+        programs: 54,
+      });
+    }
+    const lines = log.summary(true);
+    expect(lines).toContain('En pantalla: hasta 12 conjuros y 350 partículas');
+    expect(lines).toContain(
+      'Memoria gráfica: geometrías 200→209 (máx. 209) · texturas 20→20 · sombreadores 54→54',
+    );
+  });
 });

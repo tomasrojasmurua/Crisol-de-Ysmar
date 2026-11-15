@@ -1,5 +1,6 @@
 import type { Field, GuidedBolt } from '@crisol/core';
 import * as THREE from 'three';
+import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -462,3 +463,6 @@ export function updateGuidedBolt(
     size: 0.4,
   });
 }
+
+// Compartidas por todas las vistas de este archivo: no se liberan al quitar una.
+for (const resource of [discGeometry, ringGeometry, beamGeometry]) shared(resource);
