@@ -22,5 +22,6 @@ describe('la frase del maestro', () => {
     const quote = masterQuote('brasa', 'win', [2, 0], 2, 0);
     expect(quote.name).toBe('Vesk, la Salamandra');
     expect(quote.color).toMatch(/^#/);
+    expect(quote.voice).toBe('voice.brasa.win.0');
   });
 });

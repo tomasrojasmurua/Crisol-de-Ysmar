@@ -323,40 +323,15 @@ Instrumental dark fantasy battle loop, 84 bpm, A minor pentatonic. Heartbeat war
 Instrumental dark fantasy final duel loop, 108 bpm, A minor pentatonic. Driving war drums and anvil hits, urgent staccato strings, heavy distorted low cello riff with an arcane metal edge, ritual choir pads without words. Intense and urgent, life or death. No vocals. No intro and no ending, constant energy so it loops seamlessly.
 ```
 
-## 3. Voz: el narrador (opcional)
+## 3. Voces: el Crisol y los maestros
 
-Un anunciador que canta los momentos de la partida. **Hoy el juego no tiene dónde usarlo**: si te
-gusta cómo queda, lo conecto en un cambio chico. Por eso va al final.
-
-**Crear la voz** en _Voice Design_ con esta descripción:
-
-```text
-Deep, aged male narrator voice, calm and solemn, speaks Spanish with a neutral Latin American accent. Sounds like the ancient keeper of a magical arena: grave, measured, slightly echoing, with quiet authority. Not theatrical, not cartoonish.
-```
-
-**Generar cada frase** en _Text to Speech_ con esa voz (estabilidad media, unos 50%). Un archivo
-por frase, `.mp3`, sin silencio al inicio ni al final.
-
-| Archivo                  | Cuándo suena                   | Texto                             |
-| ------------------------ | ------------------------------ | --------------------------------- |
-| `voice.round1.mp3`       | Empieza la ronda 1             | Primera ronda.                    |
-| `voice.round2.mp3`       | Empieza la ronda 2             | Segunda ronda.                    |
-| `voice.round3.mp3`       | Empieza la ronda 3             | Ronda decisiva.                   |
-| `voice.hunt.mp3`         | Empieza la Caza                | Que comience la caza.             |
-| `voice.convergence.mp3`  | Empieza la Convergencia        | El Crisol se cierra.              |
-| `voice.final.mp3`        | Empieza el Duelo final         | Duelo final.                      |
-| `voice.sudden.mp3`       | Empieza la muerte súbita       | Muerte súbita. Solo uno saldrá.   |
-| `voice.firstBlood.mp3`   | Cae el primer mago de la ronda | La Trama se cobra el primer hilo. |
-| `voice.lastStanding.mp3` | Gana la ronda                  | Último en pie.                    |
-| `voice.victory.mp3`      | Ganas la partida               | Victoria. La Trama es tuya.       |
-| `voice.defeat.mp3`       | Pierdes la partida             | Derrota. Tu hilo se ha cortado.   |
-| `voice.draw.mp3`         | Empate                         | Empate. Ningún hilo prevalece.    |
-| `voice.guardian.mp3`     | Despierta el Guardián          | El Guardián del Crisol despierta. |
-| `voice.discover.mp3`     | Descubres un hechizo nuevo     | Un nuevo tejido.                  |
+Pasaron a su propio documento, [audio-voces.md](audio-voces.md): la voz del Crisol (que reemplaza
+al narrador de antes) y la de cada maestro, con todas sus frases. El juego ya las usa apenas
+existe el archivo.
 
 ## Orden sugerido
 
 1. Las 5 notas, `untie` y los 5 lanzamientos: es lo que se oye a cada segundo.
 2. Los 5 estallidos y los golpes (`hurt`, `hurtHeavy`, `confirm`, `clang`, `combo`, `fizzle`).
 3. La música de la Caza y del Duelo final.
-4. Todo lo demás. El narrador, al final y solo si te convence la idea.
+4. Todo lo demás. Las voces van aparte, en [audio-voces.md](audio-voces.md).
