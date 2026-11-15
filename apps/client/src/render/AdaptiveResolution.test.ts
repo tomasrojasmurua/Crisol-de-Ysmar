@@ -92,6 +92,22 @@ describe('AdaptiveResolution', () => {
     expect(adaptive.pixelRatio).toBe(2);
   });
 
+  it('si al empezar bajar no sirvió, lo vuelve a probar más tarde', () => {
+    const adaptive = new AdaptiveResolution(3, 1.5);
+    // El primer rato va a tirones sin importar los píxeles (se compilan sombreadores); después
+    // lo que frena es la tarjeta gráfica, y ahí sí conviene bajar.
+    let t = 0;
+    const changes: number[] = [];
+    while (t < 120_000) {
+      const frameMs = t < 20_000 ? 90 : adaptive.pixelRatio > 1.25 ? 28 : 16;
+      const next = adaptive.sample(frameMs);
+      if (next !== null) changes.push(next);
+      t += frameMs;
+    }
+    expect(changes.slice(0, 2)).toEqual([1, 1.5]);
+    expect(adaptive.pixelRatio).toBeLessThan(1.5);
+  });
+
   it('en una pantalla de 60 Hz vuelve a subir cuando sobra, pero no justo después de bajar', () => {
     const adaptive = new AdaptiveResolution(2);
     run(adaptive, gpuBound(24), 3);

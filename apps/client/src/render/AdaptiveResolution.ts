@@ -31,6 +31,14 @@ const FAILED_RISE_MS = 10_000;
  * porque pixelar no compraría fluidez.
  */
 const MIN_GAIN = 0.08;
+/**
+ * Si una bajada no sirvió, no se vuelve a probar por este rato (luego el doble, hasta el tope).
+ * Antes no se volvía a probar en toda la partida: un Android que al empezar iba a 11 cuadros
+ * por segundo (sombreadores compilándose) "aprendía" que bajar no servía y se quedaba en 1,5
+ * aunque después lo que frenaba era la tarjeta gráfica.
+ */
+const FLOOR_RETRY_MS = 45_000;
+const MAX_FLOOR_RETRY_MS = 240_000;
 /** Ventanas que se miden tras bajar antes de juzgar si sirvió (una sola es puro ruido). */
 const CHECK_WINDOWS = 2;
 /**
@@ -65,6 +73,9 @@ export class AdaptiveResolution {
   private dropFrom = 0;
   private checkSum = 0;
   private checkCount = 0;
+  /** Cuánto falta para volver a probar bajar tras una bajada que no sirvió. */
+  private floorRetryMs = 0;
+  private floorCooldownMs = FLOOR_RETRY_MS;
 
   /** `maxRatio`: el tope de nitidez (en celulares se usa uno más bajo, ver `GameScene`). */
   constructor(devicePixelRatio: number, maxRatio: number = STEPS[0]) {
@@ -88,6 +99,8 @@ export class AdaptiveResolution {
     this.checkSum = 0;
     this.checkCount = 0;
     this.floor = this.steps.length - 1;
+    this.floorRetryMs = 0;
+    this.floorCooldownMs = FLOOR_RETRY_MS;
   }
 
   /** Registra un cuadro. Devuelve la nueva resolución si cambió, o null. */
@@ -95,6 +108,10 @@ export class AdaptiveResolution {
     if (frameMs <= 0) return null;
     this.riseBlockedMs = Math.max(0, this.riseBlockedMs - frameMs);
     this.sinceRiseMs += frameMs;
+    if (this.floorRetryMs > 0) {
+      this.floorRetryMs -= frameMs;
+      if (this.floorRetryMs <= 0) this.floor = this.steps.length - 1;
+    }
     if (this.warmupMs > 0) {
       this.warmupMs -= frameMs;
       return null;
@@ -112,7 +129,7 @@ export class AdaptiveResolution {
     this.windowSum = 0;
     this.windowFrames = 0;
 
-    // ¿Sirvió la última bajada? Si no, se vuelve atrás y no se baja más en esta partida.
+    // ¿Sirvió la última bajada? Si no, se vuelve atrás y no se baja más por un rato.
     if (this.beforeDrop !== null) {
       this.checkSum += realAverage;
       this.checkCount += 1;
@@ -125,6 +142,8 @@ export class AdaptiveResolution {
       if (after > before * (1 - MIN_GAIN)) {
         this.level = this.dropFrom;
         this.floor = this.level;
+        this.floorRetryMs = this.floorCooldownMs;
+        this.floorCooldownMs = Math.min(this.floorCooldownMs * 2, MAX_FLOOR_RETRY_MS);
         this.fastWindows = 0;
         return this.pixelRatio;
       }
