@@ -120,6 +120,9 @@ let pendingInvite = '';
 
 const view = new GameScene(canvas, rules, PLAYER_ID);
 view.applyQuality(quality);
+// Mientras se está en el menú, se preparan de a poco los hechizos de muestra para compilar
+// sus sombreadores al empezar cada partida (ver `render/ShaderWarmup.ts`).
+view.warmup.prepare(view.scene, view.camera, () => view.lightKey);
 const { renderer, rig, resolution } = view;
 /** Pasa solo a Gráficos livianos si el celular sigue lento con la resolución al mínimo. */
 const autoQuality = new AutoQuality();
@@ -601,6 +604,8 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   else hud.setOmen(current.omen.name, current.omen.description);
   hud.setPlayerName(profile.name);
   screens.match(current instanceof TrainingMatch, current === net);
+  // Los sombreadores de todos los hechizos, sin bloquear (si ya estaban, no hace nada).
+  void view.warmUp();
   resolution.restart();
   autoQuality.restart();
   diagnostics.matchStarted(resolution.pixelRatio, quality);
@@ -861,5 +866,5 @@ if (isValidRoomCode(invited)) {
 
 // Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
 if (import.meta.env.DEV) {
-  Object.assign(window, { crisol: { match: () => match } });
+  Object.assign(window, { crisol: { match: () => match, view } });
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { matte } from './matte';
 import { createGlowTexture } from './textures';
 
 /**
@@ -271,12 +272,11 @@ function createBanners(arenaRadius: number, bases: THREE.Matrix4[]): THREE.Insta
   const geometry = new THREE.PlaneGeometry(width, height);
   // El pivote arriba: se mece desde el travesaño.
   geometry.translate(0, -height / 2, 0);
-  const material = new THREE.MeshStandardMaterial({
+  const material = matte({
     map: createBannerTexture(),
     side: THREE.DoubleSide,
     forceSinglePass: true,
     alphaTest: 0.5,
-    roughness: 0.95,
     emissive: '#ffffff',
     emissiveIntensity: 0.12,
   });

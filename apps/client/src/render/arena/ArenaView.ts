@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
 import { Ambience } from './Ambience';
+import { matte } from './matte';
 import {
   createFloorTexture,
   createGlowTexture,
@@ -64,11 +65,7 @@ export class ArenaView {
     const plaza = MAP_DECOR.plazaRadius;
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(plaza + 1.2, 96),
-      new THREE.MeshStandardMaterial({
-        map: createFloorTexture(plaza, plaza + 1.2),
-        roughness: 0.92,
-        metalness: 0.02,
-      }),
+      matte({ map: createFloorTexture(plaza, plaza + 1.2) }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0.02;
@@ -82,7 +79,7 @@ export class ArenaView {
     groundTexture.repeat.set(groundSize / 9, groundSize / 9);
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(groundSize, groundSize),
-      new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 1 }),
+      matte({ map: groundTexture }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -192,7 +189,7 @@ export class ArenaView {
     });
     const pedestalGeometry = new THREE.CylinderGeometry(0.32, 0.5, 1.2, 8);
     pedestalGeometry.translate(0, 0.6, 0);
-    const pedestalMaterial = new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.9 });
+    const pedestalMaterial = matte({ color: '#3b3733' });
     const count = MAP_DECOR.braziers.length;
     const pedestals = new THREE.InstancedMesh(pedestalGeometry, pedestalMaterial, count);
     const bowls = new THREE.InstancedMesh(bowlGeometry, bowlMaterial, count);
@@ -252,6 +249,11 @@ export class ArenaView {
    * Gráficos livianos: sin sombras de la luna ni luz propia en los braseros (sus llamas siguen
    * brillando). Cada luz encarece el sombreado de todo lo que se ve.
    */
+  /** Si están las sombras y las luces de los braseros (calidad Alta). */
+  get lit(): boolean {
+    return this.moon.castShadow;
+  }
+
   setLight(full: boolean): void {
     this.moon.castShadow = full;
     for (const light of this.brazierLights) light.visible = full;
@@ -360,7 +362,7 @@ function disposeTree(root: THREE.Object3D): void {
     node.geometry.dispose();
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     for (const material of materials) {
-      if (material instanceof THREE.MeshStandardMaterial && material.map !== null) {
+      if ('map' in material && material.map instanceof THREE.Texture) {
         material.map.dispose();
       }
       material.dispose();
@@ -371,7 +373,7 @@ function disposeTree(root: THREE.Object3D): void {
 /** Un murete bajo marca el borde de la arena. */
 function createLowWall(arenaRadius: number): THREE.Group {
   const group = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.9 });
+  const stone = matte({ color: '#3b3733' });
   const segments = 36;
   const geometry = new THREE.BoxGeometry(1, 0.6, 0.7);
   const blocks = new THREE.InstancedMesh(geometry, stone, segments);
@@ -397,7 +399,7 @@ function createLowWall(arenaRadius: number): THREE.Group {
 /** Columnas antiguas, algunas rotas, alrededor de la arena. */
 function createPillars(arenaRadius: number): THREE.Group {
   const group = new THREE.Group();
-  const material = new THREE.MeshStandardMaterial({ color: '#34302c', roughness: 0.85 });
+  const material = matte({ color: '#34302c' });
   const shaft = new THREE.CylinderGeometry(0.55, 0.65, 1, 10);
   const base = new THREE.BoxGeometry(1.6, 0.5, 1.6);
   const shafts = new THREE.InstancedMesh(shaft, material, PILLAR_COUNT);
@@ -431,7 +433,7 @@ function createDistantRuins(arenaRadius: number): THREE.InstancedMesh {
   const count = 46;
   const ruins = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshStandardMaterial({ color: '#16151a', roughness: 1 }),
+    matte({ color: '#16151a' }),
     count,
   );
   const matrix = new THREE.Matrix4();
@@ -459,13 +461,12 @@ function createDistantRuins(arenaRadius: number): THREE.InstancedMesh {
 function createPaths(arenaRadius: number, groundTexture: THREE.Texture): THREE.Group {
   const group = new THREE.Group();
   // Tierra más clara que la jungla; la textura se escala para que cada metro se vea igual.
-  const dirt = (repeatX: number, repeatY: number): THREE.MeshStandardMaterial => {
+  const dirt = (repeatX: number, repeatY: number): THREE.MeshLambertMaterial => {
     const texture = groundTexture.clone();
     texture.repeat.set(repeatX / 9, repeatY / 9);
-    return new THREE.MeshStandardMaterial({
+    return matte({
       map: texture,
       color: '#c4ae92',
-      roughness: 1,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,

@@ -1,6 +1,7 @@
 import type { MapLayout, Obstacle } from '@crisol/core';
 import * as THREE from 'three';
 import { elementColor, glow } from '../palette';
+import { matte } from './matte';
 
 /** Un número estable por obstáculo, para variar giro y forma sin azar. */
 function hash(o: Obstacle, salt: number): number {
@@ -112,7 +113,7 @@ export class JungleView {
     // Árboles: tronco oscuro y copa en capas, verde muy apagado para que la magia resalte.
     const trunk = new THREE.CylinderGeometry(0.16, 0.3, 2.6, 7);
     trunk.translate(0, 1.3, 0);
-    const bark = new THREE.MeshStandardMaterial({ color: '#4a3b2c', roughness: 0.95 });
+    const bark = matte({ color: '#4a3b2c' });
     this.trees = trees;
     this.group.add(
       instanced(trunk, bark, trees, (o, m) => {
@@ -125,11 +126,7 @@ export class JungleView {
     crown.translate(0, 3.4, 0);
     const crownTop = new THREE.ConeGeometry(1.05, 1.9, 7);
     crownTop.translate(0, 4.6, 0);
-    const leaves = new THREE.MeshStandardMaterial({
-      color: '#3b5e46',
-      roughness: 0.9,
-      flatShading: true,
-    });
+    const leaves = matte({ color: '#3b5e46', flatShading: true });
     for (const geometry of [crown, crownTop]) {
       this.group.add(
         this.track(
@@ -145,11 +142,7 @@ export class JungleView {
 
     // Rocas: piedras facetadas, achatadas y giradas.
     const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
-    const stone = new THREE.MeshStandardMaterial({
-      color: '#4a4744',
-      roughness: 0.95,
-      flatShading: true,
-    });
+    const stone = matte({ color: '#4a4744', flatShading: true });
     this.group.add(
       instanced(rockGeometry, stone, rocks, (o, m) => {
         const tilt = new THREE.Euler(hash(o, 5) * 0.4, hash(o, 6) * Math.PI * 2, hash(o, 7) * 0.4);
@@ -162,7 +155,7 @@ export class JungleView {
     // Ruinas: columnas quebradas de la ciudad antigua, de distinta altura.
     const column = new THREE.CylinderGeometry(0.8, 0.9, 1, 10);
     column.translate(0, 0.5, 0);
-    const ruinStone = new THREE.MeshStandardMaterial({ color: '#5a544d', roughness: 0.85 });
+    const ruinStone = matte({ color: '#5a544d' });
     this.group.add(
       instanced(column, ruinStone, ruins, (o, m) => {
         quaternion.setFromAxisAngle(up, hash(o, 9) * Math.PI);
