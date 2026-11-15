@@ -354,9 +354,9 @@ body {
   text-align: center;
   text-transform: uppercase;
   color: var(--gold-bright);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Un nombre largo baja a una segunda línea en vez de cortarse con "…". */
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .menu-wizard-affinity {
@@ -606,8 +606,10 @@ body {
 #ui .menu-extra > button {
   flex: 1;
   min-width: 0;
-  padding: 8px 6px;
+  padding: 8px 4px;
   font-size: 12px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
@@ -636,6 +638,10 @@ body {
   --icon-color: var(--gold);
 }
 
+#ui .menu-grimoire > .icon {
+  flex: none;
+}
+
 #ui .menu-grimoire > .icon:last-child {
   width: 16px;
   height: 16px;
@@ -645,6 +651,7 @@ body {
 .menu-grimoire-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .menu-grimoire-text strong,
@@ -707,9 +714,18 @@ body {
   }
 
   #ui .menu-extra > button {
-    font-size: 11px;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    padding: 8px 3px;
+  }
+
+  .menu-wizard-name {
+    font-size: 13px;
     letter-spacing: 0.04em;
-    padding: 8px 6px;
+  }
+
+  .menu-wizard-affinity {
+    font-size: 11px;
   }
 
   .menu-grimoire-text strong,
@@ -719,7 +735,12 @@ body {
 
   #ui .menu-grimoire {
     --icon-size: 22px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 8px 6px 8px 10px;
+  }
+
+  .menu-grimoire-text strong {
+    letter-spacing: 0.04em;
   }
 }
 
@@ -4386,31 +4407,38 @@ body {
   color: var(--ink);
 }
 
+/* La tarjeta es angosta en celulares chicos: placa de puntas más cortas para que quepa. */
 #ui .tutorial-next,
 #ui .tutorial-finish button {
   min-height: 34px;
-  min-width: 110px;
-  padding-top: 2px;
-  padding-bottom: 2px;
+  min-width: 96px;
+  border-width: 7px 20px;
+  border-image-width: 7px 20px;
+  padding: 2px 6px;
 }
 
 .tutorial-finish {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-top: 2px;
 }
 
+/* Si Siguiente y Saltar no caben lado a lado, Saltar baja; nunca se salen de la tarjeta. */
 .tutorial-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 4px 8px;
   margin-top: 2px;
 }
 
 /* Saltar es discreto: un texto, no un botón grande que compita con Siguiente. */
 #ui .tutorial-skip {
   min-height: 30px;
-  padding: 2px 8px;
+  padding: 2px 4px;
   border: none;
   background: none;
   font-size: 10.5px;
@@ -4977,6 +5005,32 @@ body {
 .weave-glyphs.tiny {
   flex: none;
   --icon-size: 12px;
+}
+
+@media (max-width: 760px) {
+  /* Elegir linaje: cinco columnas angostas; menos aire para que los nombres entren enteros. */
+  .school-cards {
+    gap: 4px;
+  }
+
+  #ui .school-card {
+    padding: 8px 4px;
+  }
+
+  .school-card-spell {
+    gap: 3px;
+    font-size: 10.5px;
+  }
+
+  .school-card-spell .weave-glyphs.tiny {
+    --icon-size: 11px;
+  }
+
+  /* Si aun así no cabe, el nombre baja a una segunda línea en vez de cortarse. */
+  .school-card-spell-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 .school-picker-foot {
