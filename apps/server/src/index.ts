@@ -34,18 +34,19 @@ export default {
     ) {
       // Respaldo de Cloudflare: sin un lugar común donde ver las salas abiertas, cada Partida
       // rápida es una sala nueva (la vuelve pública el primero que entra, ver DuelHost.makeQuick).
-      // La de verdad, que junta desconocidos, es la del servidor de Santiago.
+      // La de verdad, que junta desconocidos, es la del servidor de Santiago. El código empieza
+      // con número: dice que la sala vive aquí (ver `roomServerOf`).
       const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
       };
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-      const roomCode = generateRoomCode((array) => crypto.getRandomValues(array));
+      const roomCode = generateRoomCode((array) => crypto.getRandomValues(array), 'fallback');
       return Response.json({ roomCode }, { headers });
     }
 
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
-      const roomCode = generateRoomCode((array) => crypto.getRandomValues(array));
+      const roomCode = generateRoomCode((array) => crypto.getRandomValues(array), 'fallback');
       return Response.json({ roomCode }, { status: 201 });
     }
 

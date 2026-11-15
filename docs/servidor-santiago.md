@@ -55,8 +55,12 @@ con 6 amigos son centavos.
 
 ## Si algo falla
 
-- **El juego no conecta:** abrir el juego con `?sala=cloudflare` al final de la dirección usa las
-  Salas de Cloudflare (con más lag, pero andan). Para todos: dejar `SANTIAGO_URL` vacío y publicar.
+Cuántas salas aguanta, el respaldo automático en Cloudflare, la vigilancia y cómo agrandar la
+máquina: [carga.md](carga.md).
+
+- **El juego no conecta:** si Santiago no contesta, las salas nuevas ya se crean solas en
+  Cloudflare. Abrir el juego con `?sala=cloudflare` al final de la dirección lo fuerza (con más
+  lag, pero andan). Para todos y para siempre: dejar `SANTIAGO_URL` vacío y publicar.
 - **Ver qué pasa en la máquina:** en Cloud Shell,
   `gcloud compute ssh crisol-sala --zone=southamerica-west1-a` y luego
   `sudo journalctl -u sala -n 50` (servidor) o `sudo journalctl -u sala-actualizar -n 20`.

@@ -1,0 +1,67 @@
+name: Vigilar el servidor de salas
+
+# Cada 10 minutos revisa que el servidor de Santiago conteste. Si no contesta, abre un aviso
+# (issue) "El servidor de salas no responde", que llega por correo, y lo cierra solo cuando vuelve.
+# Mientras tanto el juego manda las salas nuevas a Cloudflare (ver docs/carga.md).
+# Ojo: GitHub apaga los programados tras 60 días sin cambios en el repositorio.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vigilar-sala
+
+jobs:
+  vigilar:
+    name: Revisar Santiago
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preguntar al servidor
+        id: health
+        run: |
+          URL=$(grep -o "SANTIAGO_URL = '[^']*'" apps/client/src/net/serverUrl.ts | cut -d"'" -f2)
+          if [ -z "$URL" ]; then echo "Sin servidor de Santiago."; echo "state=none" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          for i in 1 2 3; do
+            if BODY=$(curl -fsS -m 10 "$URL/health"); then
+              echo "$BODY"
+              echo "state=up" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Santiago contesta"
+                echo '```json'
+                echo "$BODY"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "state=down" >> "$GITHUB_OUTPUT"
+      - name: Avisar o cerrar el aviso
+        if: steps.health.outputs.state != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.health.outputs.state }}
+          URL: ${{ steps.health.outputs.url }}
+        run: |
+          TITLE="El servidor de salas no responde"
+          OPEN=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ "$STATE" = "up" ]; then
+            if [ -n "$OPEN" ]; then gh issue close "$OPEN" --comment "Volvió a contestar ($(date -u +'%d-%m %H:%M') UTC)."; fi
+            exit 0
+          fi
+          if [ -z "$OPEN" ]; then
+            gh issue create --title "$TITLE" --body "$(printf '%s\n' \
+              "$URL/health no contesta desde $(date -u +'%d-%m %H:%M') UTC." \
+              "" \
+              "Mientras tanto, las salas nuevas se crean solas en Cloudflare (con más lag)." \
+              "Qué hacer: docs/carga.md, sección \"Si Santiago se cae\". Este aviso se cierra solo cuando vuelva.")"
+          fi
+          echo "::error::Santiago ($URL) no contesta"
+          exit 1

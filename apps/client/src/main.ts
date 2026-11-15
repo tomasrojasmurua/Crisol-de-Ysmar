@@ -46,7 +46,7 @@ import { TouchControls } from './input/TouchControls';
 import { leftRoom, recentRoomCode, roomToRejoin } from './net/lastRoom';
 import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
-import { quickMatchUrl } from './net/serverUrl';
+import { chooseRoomServer, newRoomServer, quickMatchUrls, warmUpRooms } from './net/serverUrl';
 import { BackGuard } from './platform/BackGuard';
 import { ProfileBackup } from './platform/backup';
 import { startErrorReports } from './platform/ErrorReporter';
@@ -236,7 +236,7 @@ const tutorialCard = new TutorialCard(
 let tutorial: Tutorial | null = null;
 const lobby = new Lobby(
   uiRoot,
-  () => joinRoom(randomRoomCode(Math.random)),
+  () => void createRoom(),
   (code) => joinRoom(code),
   () => showMenu(),
   () => net?.begin(),
@@ -629,12 +629,7 @@ async function quickMatch(): Promise<void> {
   lobby.showRoom('', true);
   lobby.setStatus('Buscando partida…');
   try {
-    const response = await fetch(quickMatchUrl(), {
-      method: 'POST',
-      signal: AbortSignal.timeout(6000),
-    });
-    const { roomCode } = (await response.json()) as { roomCode?: unknown };
-    if (typeof roomCode !== 'string' || !isValidRoomCode(roomCode)) throw new Error('Sin sala');
+    const roomCode = await findQuickRoom();
     // Si volvió al menú mientras se buscaba, no se lo saca de ahí.
     if (!lobby.visible) return;
     joinRoom(roomCode, true);
@@ -651,12 +646,47 @@ async function quickMatch(): Promise<void> {
   }
 }
 
+/**
+ * Pide sala de Partida rápida: primero a Santiago y, si no contesta o está lleno, a Cloudflare
+ * (ver net/serverUrl.ts).
+ */
+async function findQuickRoom(): Promise<string> {
+  for (const url of await quickMatchUrls()) {
+    try {
+      const response = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      const { roomCode } = (await response.json()) as { roomCode?: unknown };
+      if (typeof roomCode === 'string' && isValidRoomCode(roomCode)) return roomCode;
+    } catch {
+      // Se prueba el siguiente.
+    }
+  }
+  throw new Error('Sin sala');
+}
+
+/** Crea una sala para invitar amigos, en el servidor que la pueda recibir ahora. */
+async function createRoom(): Promise<void> {
+  joinRoom(randomRoomCode(Math.random, await newRoomServer()));
+}
+
+/** Cuántas veces se pidió entrar a una sala: si pide otra mientras se elige servidor, gana esa. */
+let joinAttempt = 0;
+
 function joinRoom(code: string, quick = false): void {
   net?.close();
+  net = null;
   menu.visible = false;
   lobby.showRoom(code, quick);
   history.replaceState(null, '', `?sala=${code}`);
   backGuard.arm();
+  const attempt = ++joinAttempt;
+  void chooseRoomServer(code).then(() => {
+    // Volvió al menú o entró a otra sala mientras tanto.
+    if (attempt !== joinAttempt || !lobby.visible) return;
+    connectRoom(code, quick);
+  });
+}
+
+function connectRoom(code: string, quick: boolean): void {
   net = openRoom(
     code,
     {
@@ -816,6 +846,7 @@ renderer.setAnimationLoop((now) => {
 // Sin invitación, si la página se recargó o cerró en plena partida, se vuelve a esa sala.
 const invited =
   new URLSearchParams(location.search).get('sala')?.toUpperCase() || roomToRejoin() || '';
+warmUpRooms();
 showMenu();
 // La primera vez eliges nombre y personaje, y después tu linaje (también los perfiles de antes).
 if (!profile.name) openWardrobe();

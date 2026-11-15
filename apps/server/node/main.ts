@@ -10,6 +10,7 @@
  */
 import { randomFillSync } from 'node:crypto';
 import { createServer, type IncomingMessage } from 'node:http';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
 import { WebSocket, WebSocketServer } from 'ws';
 import { generateRoomCode } from '../src/roomCode';
@@ -24,6 +25,13 @@ const EMPTY_ROOM_MS = 10 * 60_000;
 /** Cada cuánto se mandan pings del protocolo WebSocket para notar sockets muertos. */
 const HEARTBEAT_MS = 20_000;
 const ROOM_SOCKET_PATH = /^\/api\/rooms\/([A-Z0-9]+)\/socket$/;
+/**
+ * Cuántas salas jugando a la vez aguanta la máquina antes de mandar las salas nuevas a
+ * Cloudflare. Depende de la máquina (lo fija instalar.sh): ver la tabla de docs/carga.md.
+ */
+const MAX_ACTIVE_ROOMS = Number(process.env.MAX_SALAS ?? 2);
+/** Si el reloj de las Salas se atrasa más que esto (ms, p99) jugando, la máquina está llena. */
+const LAG_FULL_MS = Number(process.env.ATRASO_LLENA ?? 30);
 
 /** Un socket de `ws` visto como conexión de la Sala. */
 class WsPeer implements Peer {
@@ -47,6 +55,43 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
+
+/**
+ * Cómo anda la máquina, medido cada 5 segundos: CPU del proceso, atraso del reloj (lo que tarda
+ * en correr un paso que tocaba, en ms) y memoria. Va en `/health` para la vigilancia y la
+ * prueba de carga, y decide si la máquina está llena.
+ */
+const loopDelay = monitorEventLoopDelay({ resolution: 10 });
+loopDelay.enable();
+let load = { cpu: 0, lagP99: 0, lagMax: 0, memoryMb: 0 };
+let lastCpu = process.cpuUsage();
+let lastCpuAt = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  const cpu = process.cpuUsage(lastCpu);
+  load = {
+    cpu: Math.round(((cpu.user + cpu.system) / 1000 / (now - lastCpuAt)) * 100),
+    lagP99: Math.round(loopDelay.percentile(99) / 1e5) / 10,
+    lagMax: Math.round(loopDelay.max / 1e5) / 10,
+    memoryMb: Math.round(process.memoryUsage().rss / 1048576),
+  };
+  lastCpu = process.cpuUsage();
+  lastCpuAt = now;
+  loopDelay.reset();
+}, 5000).unref();
+
+/** Salas con el reloj corriendo (alguien conectado). */
+function activeRooms(): number {
+  let active = 0;
+  for (const room of rooms.values()) if (room.host.running) active++;
+  return active;
+}
+
+/** Si ya no caben salas nuevas: las manda a Cloudflare (las que juegan siguen aquí). */
+function isFull(): boolean {
+  const active = activeRooms();
+  return active >= MAX_ACTIVE_ROOMS || (active > 0 && load.lagP99 > LAG_FULL_MS);
+}
 
 function roomFor(code: string): Room {
   let room = rooms.get(code);
@@ -108,13 +153,24 @@ const server = createServer((request, response) => {
     let players = 0;
     for (const room of rooms.values()) players += room.peers.size;
     response.end(
-      JSON.stringify({ ok: true, rooms: rooms.size, players, protocol: PROTOCOL_VERSION }),
+      JSON.stringify({
+        ok: true,
+        rooms: rooms.size,
+        active: activeRooms(),
+        players,
+        protocol: PROTOCOL_VERSION,
+        full: isFull(),
+        ...load,
+        uptime: Math.round(process.uptime()),
+      }),
     );
     return;
   }
   if (path === '/api/quick' && request.method === 'POST') {
-    response.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
-    response.end(JSON.stringify({ roomCode: quickRoom() }));
+    const roomCode = quickRoom();
+    // Llena: el celular pide su Partida rápida a Cloudflare.
+    response.writeHead(roomCode ? 200 : 503, { ...CORS, 'Content-Type': 'application/json' });
+    response.end(JSON.stringify(roomCode ? { roomCode } : { full: true }));
     return;
   }
   if (path === '/api/rooms' && request.method === 'POST') {
@@ -130,8 +186,9 @@ const server = createServer((request, response) => {
  * Partida rápida: la sala pública a la que va quien la pide. Primero una que esté esperando
  * gente; si no, una que vaya en la primera ronda con un mago de la IA que tomar; si no, una nueva
  * (que se marca pública antes de que llegue nadie, para que dos que piden a la vez caigan juntos).
+ * `null` si hace falta una nueva y la máquina está llena.
  */
-function quickRoom(): string {
+function quickRoom(): string | null {
   let late: string | null = null;
   for (const [code, room] of rooms) {
     const opening = room.host.quickOpening;
@@ -139,6 +196,7 @@ function quickRoom(): string {
     if (opening === 'late') late ??= code;
   }
   if (late) return late;
+  if (isFull()) return null;
   let code = generateRoomCode((array) => randomFillSync(array));
   while (rooms.has(code)) code = generateRoomCode((array) => randomFillSync(array));
   const room = roomFor(code);

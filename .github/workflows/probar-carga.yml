@@ -1,0 +1,72 @@
+name: Probar la carga del servidor de salas
+
+# Abre salas de a una en el servidor de Santiago, con celulares livianos, hasta que se atrasa, y
+# muestra cuántas aguantó (CPU, atraso del reloj, memoria y ping). Se corre a mano, cuando nadie
+# está jugando: Actions → Probar la carga del servidor de salas → Run workflow. Ver docs/carga.md.
+# Ojo: mientras corre, la máquina se llena y las salas nuevas de verdad se van a Cloudflare.
+on:
+  workflow_dispatch:
+    inputs:
+      salas:
+        description: "Máximo de salas"
+        default: "12"
+      jugadores:
+        description: "Celulares por sala (el resto lo juega la IA)"
+        default: "2"
+      modo:
+        description: "rapida | libre4 | libre6 | equipos3 | duelo"
+        default: "libre4"
+      ritmo:
+        description: "Segundos entre una sala y la siguiente"
+        default: "12"
+      sala:
+        description: "Servidor (vacío: Santiago)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  carga:
+    name: Muchas salas a la vez
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Dónde
+        id: where
+        run: |
+          URL="${{ inputs.sala }}"
+          [ -n "$URL" ] || URL=$(grep -o "SANTIAGO_URL = '[^']*'" apps/client/src/net/serverUrl.ts | cut -d"'" -f2)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          curl -fsS --max-time 10 "$URL/health"
+      - name: Abrir salas hasta que se atrase
+        env:
+          SALA: ${{ steps.where.outputs.url }}
+          SALAS: ${{ inputs.salas }}
+          JUGADORES: ${{ inputs.jugadores }}
+          MODO: ${{ inputs.modo }}
+          RITMO: ${{ inputs.ritmo }}
+          # Desde Norteamérica el ping de base ya es ~150 ms: se mira el atraso del servidor.
+          PING_EXTRA: "120"
+          REPORTE: ${{ runner.temp }}/carga.json
+        run: pnpm exec vitest run --config apps/server/red/vitest.config.ts carga
+      - name: Resumen
+        if: always()
+        env:
+          REPORTE: ${{ runner.temp }}/carga.json
+        run: |
+          if [ -f "$REPORTE" ]; then
+            {
+              echo "## Prueba de carga"
+              echo '```json'
+              cat "$REPORTE"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            cat "$REPORTE"
+          fi
