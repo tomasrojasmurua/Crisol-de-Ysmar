@@ -30,3 +30,13 @@ describe('maestros', () => {
     }
   });
 });
+
+describe('lore de los hechizos', () => {
+  it('cada uno de los 155 hechizos tiene su nota, en una línea corta', async () => {
+    const { SPELL_LORE } = await import('./spellLore');
+    const { SPELL_WEAVES } = await import('@crisol/core');
+    for (const spell of Object.keys(SPELL_WEAVES))
+      expect(SPELL_LORE[spell as keyof typeof SPELL_LORE]).toBeTruthy();
+    for (const line of Object.values(SPELL_LORE)) expect(line.length).toBeLessThanOrEqual(100);
+  });
+});

@@ -723,6 +723,31 @@ body {
   color: #efe4cc;
 }
 
+/* La nota al margen del Grimorio: lore en la voz del maestro del primer elemento. */
+.spell-card-lore {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--element, var(--gold)) 60%, transparent);
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+  color: rgba(240, 230, 210, 0.8);
+}
+
+.spell-card-lore q {
+  quotes: "«" "»";
+}
+
+.spell-card-lore-author {
+  margin-left: 6px;
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--element, var(--gold)) 70%, var(--ink));
+}
+
 .spell-card-facts {
   display: flex;
   flex-wrap: wrap;

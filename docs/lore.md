@@ -89,8 +89,8 @@ La dirección acordada; lo que no dice "hecho" no existe todavía.
 - **Tu maestro** (hecho: elección y resultado). Falta que te guíe en el tutorial.
 - **La voz del Crisol.** Solo en momentos clave: al empezar, en muerte súbita y en la victoria.
   Puede ser el narrador de ElevenLabs que ya estaba planeado.
-- **Una línea de lore por hechizo** en el Grimorio, escrita como nota de tu maestro. Descubrir un
-  hechizo también descubre un pedazo de Ysmar y del misterio.
+- **Una línea de lore por hechizo** en el Grimorio, como nota al margen del maestro del primer
+  elemento (`packages/content/src/spellLore.ts`). Hecho para los 155. Descubrir un hechizo también descubre un pedazo de Ysmar y del misterio.
 - **El menú como un lugar:** el campamento de tu Linaje a las puertas del Crisol. Hecho: tu
   maestro habla bajo el logo (frases `camp`, con pistas del misterio) y el menú toma un resplandor
   del color de tu Linaje. Falta un fondo ilustrado por Linaje.

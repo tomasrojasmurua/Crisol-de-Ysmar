@@ -1,4 +1,13 @@
-import { ALL_WEAVES, COMBOS, type Combo, ELEMENTS, type School, spellName } from '@crisol/content';
+import {
+  ALL_WEAVES,
+  COMBOS,
+  type Combo,
+  ELEMENTS,
+  masterOf,
+  type School,
+  SPELL_LORE,
+  spellName,
+} from '@crisol/content';
 import { type ElementId, type GameRules, SPELL_WEAVES, spellOf, type Weave } from '@crisol/core';
 import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
@@ -159,6 +168,16 @@ export class GrimoireBook {
     card.classList.add('grimoire-card');
     card.style.setProperty('--element', colorOf(weave[0] ?? 'brasa'));
     card.prepend(weaveGlyphs(weave, 'weave-glyphs large'));
+    // La nota que dejó en el margen el maestro del primer elemento del tejido.
+    const lore = SPELL_LORE[spell];
+    const first = weave[0];
+    if (lore && first) {
+      const note = el('p', 'spell-card-lore');
+      const author = masterOf(first).name.split(',')[0] ?? '';
+      note.append(el('q', '', lore), el('span', 'spell-card-lore-author', author));
+      note.style.setProperty('--element', colorOf(first));
+      query(card, '.spell-card-text').after(note);
+    }
     const close = el('button', 'grimoire-card-close');
     close.type = 'button';
     close.setAttribute('aria-label', 'Cerrar');
