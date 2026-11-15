@@ -1,0 +1,70 @@
+name: Probar el servidor de salas
+
+# Antes de una prueba con amigos: celulares simulados juegan una sala de verdad en el servidor
+# de Santiago (o en el que se indique) y se muestra cómo les fue. Se corre a mano:
+# Actions → Probar el servidor de salas → Run workflow. Ver apps/server/red/simulacion.test.ts.
+# Ojo: los servidores de GitHub están en Norteamérica; el ping que se ve aquí no es el de Chile.
+on:
+  workflow_dispatch:
+    inputs:
+      jugadores:
+        description: "Cuántos celulares"
+        default: "4"
+      modo:
+        description: "duelo | equipos2 | equipos3 | libre4 | libre6"
+        default: "libre4"
+      segundos:
+        description: "Segundos de partida"
+        default: "120"
+      caos:
+        description: "1 = cortes de señal y salidas a WhatsApp"
+        default: "1"
+      sala:
+        description: "Servidor (vacío: Santiago)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probar:
+    name: Celulares simulados
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Estado del servidor
+        env:
+          SALA: ${{ inputs.sala || 'https://34-176-182-249.sslip.io' }}
+        run: curl -fsS --max-time 10 "$SALA/health"
+      - name: Jugar una sala
+        env:
+          SALA: ${{ inputs.sala || 'https://34-176-182-249.sslip.io' }}
+          JUGADORES: ${{ inputs.jugadores }}
+          MODO: ${{ inputs.modo }}
+          SEGUNDOS: ${{ inputs.segundos }}
+          CAOS: ${{ inputs.caos }}
+          # La red real ya pone su lag: no se agrega más.
+          LAG: "0"
+          PERDIDA: "0"
+          REPORTE: ${{ runner.temp }}/reporte.json
+        run: pnpm exec vitest run --config apps/server/red/vitest.config.ts
+      - name: Resumen
+        if: always()
+        env:
+          REPORTE: ${{ runner.temp }}/reporte.json
+        run: |
+          if [ -f "$REPORTE" ]; then
+            {
+              echo "## Celulares simulados"
+              echo '```json'
+              cat "$REPORTE"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            cat "$REPORTE"
+          fi

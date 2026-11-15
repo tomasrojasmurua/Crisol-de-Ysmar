@@ -234,8 +234,19 @@ export class MatchFlow {
   private reportPerformance(current: MatchView): void {
     const network = current.networkSummary?.();
     if (!network) return;
-    const lines = [...network, ...this.deps.diagnostics.fullReport()];
+    const series = current.series;
+    const winner = series.winnerTeam ?? -1;
+    const result = winner < 0 ? 'empate' : winner === current.player.team ? 'ganó' : 'perdió';
+    const game = `Partida: ${current.state.wizards.length} magos · ${series.roundsPlayed} rondas · ${result} · marcador ${series.wins.join('-')}`;
+    const lines = [...network, game, ...this.deps.diagnostics.fullReport()];
     reportProblem('rendimiento', network[0] ?? 'Resumen de la partida', lines.join('\n'));
+    // Y se pregunta a cada uno cómo se jugó: lo que sintió junto a lo que midió su celular.
+    const ping = network[0] ?? '';
+    this.deps.hud.askOpinion((opinion, comment) => {
+      if (comment)
+        reportProblem('opinion', `Comentario: ${comment}`, [opinion ?? '', ping].join('\n').trim());
+      else if (opinion) reportProblem('opinion', `Se jugó: ${opinion}`, ping);
+    });
   }
 
   /** Los combos de hechizos del catálogo: su nombre sobre el blanco y, en partidas, el acierto. */

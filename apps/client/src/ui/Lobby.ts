@@ -48,8 +48,10 @@ interface SettingRow {
     /** Si no se puede elegir con la gente que ya está (un modo con menos puestos). */
     readonly fits?: (people: number) => boolean;
   }[];
-  /** Si la fila se muestra con estos ajustes (las Vidas no salen en el 1v1). */
-  readonly shown?: (s: RoomSettings) => boolean;
+  /** Si la fila se muestra con estos ajustes y esta gente (las Vidas no salen en el 1v1). */
+  readonly shown?: (s: RoomSettings, people: number) => boolean;
+  /** Fila corta (Sí/No): va al lado de otras cortas, para que la sala quepa sin deslizar. */
+  readonly compact?: boolean;
 }
 
 const SETTING_ROWS: readonly SettingRow[] = [
@@ -79,7 +81,8 @@ const SETTING_ROWS: readonly SettingRow[] = [
     })),
   },
   {
-    title: 'Glifos entre rondas',
+    title: 'Glifos',
+    compact: true,
     options: [true, false].map((glyphs) => ({
       label: glyphs ? 'Sí' : 'No',
       pick: (s) => ({ ...s, glyphs }),
@@ -88,6 +91,7 @@ const SETTING_ROWS: readonly SettingRow[] = [
   },
   {
     title: 'Presagio',
+    compact: true,
     options: [true, false].map((omen) => ({
       label: omen ? 'Sí' : 'No',
       pick: (s) => ({ ...s, omen }),
@@ -96,6 +100,7 @@ const SETTING_ROWS: readonly SettingRow[] = [
   },
   {
     title: 'Al caer',
+    compact: true,
     options: [false, true].map((lives) => ({
       label: lives ? '3 vidas' : 'Fuera',
       pick: (s) => ({ ...s, lives }),
@@ -110,6 +115,8 @@ const SETTING_ROWS: readonly SettingRow[] = [
       pick: (s) => ({ ...s, botLevel }),
       chosen: (s) => s.botLevel === botLevel,
     })),
+    // Con la sala llena no hay puestos para la IA: la fila sobra.
+    shown: (s, people) => playerCount(s.mode) > people,
   },
 ];
 
@@ -171,7 +178,7 @@ export class Lobby {
             <p class="lobby-code"></p>
             <div class="lobby-invite-buttons">
               <a class="primary lobby-share" target="_blank" rel="noopener">WhatsApp</a>
-              <button type="button" class="secondary lobby-copy">${MENU_ICONS.copy}<span class="lobby-copy-text">Copiar enlace</span></button>
+              <button type="button" class="secondary lobby-copy" aria-label="Copiar enlace">${MENU_ICONS.copy}<span class="lobby-copy-text">Copiar</span></button>
             </div>
             <p class="lobby-mode"></p>
             <ul class="lobby-roster"></ul>
@@ -204,7 +211,7 @@ export class Lobby {
     });
     const settingsBox = query(this.root, '.lobby-settings');
     for (const row of SETTING_ROWS) {
-      const line = el('div', 'lobby-setting');
+      const line = el('div', row.compact ? 'lobby-setting compact' : 'lobby-setting');
       line.append(el('span', 'lobby-setting-title', row.title));
       const chips = el('div', 'lobby-setting-options');
       for (const option of row.options) {
@@ -235,7 +242,7 @@ export class Lobby {
     this.copy.addEventListener('click', () => {
       void navigator.clipboard?.writeText(this.link).then(
         () => {
-          this.copyText.textContent = 'Enlace copiado';
+          this.copyText.textContent = 'Copiado';
         },
         () => {
           this.copyText.textContent = this.link;
@@ -263,7 +270,7 @@ export class Lobby {
     this.codeLabel.textContent = code;
     this.link = `${location.origin}${location.pathname}?sala=${code}`;
     this.updateShare();
-    this.copyText.textContent = 'Copiar enlace';
+    this.copyText.textContent = 'Copiar';
     this.status.textContent = 'Conectando…';
     this.roster.replaceChildren();
     this.modeTitle.textContent = '';
@@ -296,12 +303,14 @@ export class Lobby {
       button.classList.toggle('locked', !isHost);
     }
     for (const { line, row } of this.settingLines) {
-      line.hidden = !(row.shown?.(settings) ?? true);
+      line.hidden = !(row.shown?.(settings, players.length) ?? true);
     }
     this.updateShare();
     const total = playerCount(mode);
     this.modeTitle.textContent = `${this.modeName} · ${players.length} de ${total}`;
     const teams = mode.kind === 'teams';
+    // Con más de 3, la lista va en dos columnas para que "Salir" siga a la vista.
+    this.roster.classList.toggle('many', players.length > 3);
     this.roster.replaceChildren(
       ...[...players]
         .sort((a, b) => (teams ? a.team - b.team : 0) || a.id - b.id)

@@ -102,36 +102,119 @@ const where = room ? 'at >= ? AND room = ?' : 'at >= ?';
 const params = room ? [since, room] : [since];
 let groups;
 let latest;
+let opinions;
+let matches;
+// Las opiniones y los resúmenes de rendimiento no son errores: van en sus propias secciones.
+const errorsOnly = `${where} AND kind NOT IN ('rendimiento', 'opinion')`;
 try {
   groups = await query(
     uuid,
     `SELECT kind, message, COUNT(*) AS veces, COUNT(DISTINCT session) AS visitas,
        GROUP_CONCAT(DISTINCT device) AS celulares, MAX(at) AS ultima
-     FROM reports WHERE ${where} GROUP BY kind, message ORDER BY veces DESC LIMIT 40`,
+     FROM reports WHERE ${errorsOnly} GROUP BY kind, message ORDER BY veces DESC LIMIT 40`,
     params,
   );
   latest = await query(
     uuid,
     `SELECT at, source, kind, message, detail, version, device, screen, room, match, session, uptime
-     FROM reports WHERE ${where} ORDER BY at DESC LIMIT 60`,
+     FROM reports WHERE ${errorsOnly} ORDER BY at DESC LIMIT 80`,
+    params,
+  );
+  opinions = await query(
+    uuid,
+    `SELECT at, message, detail, version, device, room, match, session
+     FROM reports WHERE ${where} AND kind = 'opinion' ORDER BY at DESC LIMIT 200`,
+    params,
+  );
+  matches = await query(
+    uuid,
+    `SELECT at, message, detail, version, device, screen, room, match, session
+     FROM reports WHERE ${where} AND kind = 'rendimiento' ORDER BY at DESC LIMIT 120`,
     params,
   );
 } catch (error) {
   if (!/no such table/.test(error.message)) throw error;
   groups = [];
   latest = [];
+  opinions = [];
+  matches = [];
 }
 
 const scope = room ? ` en la sala ${room}` : '';
 print(`## Registro de errores: últimas ${hours} horas${scope}`);
 print();
-if (latest.length === 0) {
+if (latest.length + opinions.length + matches.length === 0) {
   print('No hay informes. 🎉');
   finish();
   process.exit(0);
 }
 
-print('### Resumen');
+/** De un resumen de rendimiento, la línea que empieza así (sin el comienzo). */
+const lineOf = (detail, start) =>
+  String(detail ?? '')
+    .split('\n')
+    .find((line) => line.startsWith(start))
+    ?.slice(start.length)
+    .trim() ?? '';
+
+if (opinions.length > 0) {
+  print('### Qué dijeron los jugadores');
+  print();
+  const counts = new Map();
+  for (const o of opinions) {
+    if (!o.message.startsWith('Se jugó: ')) continue;
+    const answer = o.message.slice('Se jugó: '.length);
+    counts.set(answer, (counts.get(answer) ?? 0) + 1);
+  }
+  if (counts.size > 0) {
+    print([...counts].map(([answer, n]) => `**${answer}**: ${n}`).join(' · '));
+    print();
+  }
+  print('| Hora | Qué dijo | Ping y detalle | Celular | Sala | Partida | Visita |');
+  print('| ---- | -------- | -------------- | ------- | ---- | ------- | ------ |');
+  for (const o of opinions) {
+    print(
+      `| ${chileTime(o.at)} | ${cell(o.message)} | ${cell(o.detail)} | ${cell(o.device)} | ${cell(o.room)} | ${cell(o.match)} | ${cell(o.session)} |`,
+    );
+  }
+  print();
+}
+
+if (matches.length > 0) {
+  print('### Rendimiento de cada partida en red');
+  print();
+  print(
+    '| Hora | Sala | Celular | Servidor | Ping | Toque confirmado | Colchón | Cuadros | Visita |',
+  );
+  print(
+    '| ---- | ---- | ------- | -------- | ---- | ---------------- | ------- | ------- | ------ |',
+  );
+  for (const m of matches) {
+    const fps = lineOf(m.detail, 'Duración');
+    print(
+      `| ${chileTime(m.at)} | ${cell(m.room)} | ${cell(m.device)} | ${cell(lineOf(m.detail, 'Servidor de salas:'))} | ${cell(m.message)} | ${cell(lineOf(m.detail, 'Toque confirmado'))} | ${cell(lineOf(m.detail, 'Colchón'))} | ${cell(fps)} | ${cell(lineOf(m.detail, 'Partida:'))} | ${cell(m.session)} |`,
+    );
+  }
+  print();
+  print('<details><summary>Resúmenes completos</summary>');
+  print();
+  for (const m of matches) {
+    print(`**${chileTime(m.at)} · ${m.room} · ${m.device}**`);
+    print('```');
+    print(m.detail);
+    print('```');
+  }
+  print('</details>');
+  print();
+}
+
+if (latest.length === 0) {
+  print('Sin errores ni cortes. 🎉');
+  finish();
+  process.exit(0);
+}
+
+print('### Errores y cortes');
 print();
 print('| Veces | Visitas | Tipo | Qué pasó | Celulares | Última vez |');
 print('| ----: | ------: | ---- | -------- | --------- | ---------- |');
