@@ -66,6 +66,10 @@ export function openRoom(code: string, profile: NetProfile, deps: RoomDeps): Net
     },
     problem: (reason, fatal) => {
       if (room !== deps.current()) return;
+      // Se publicó una versión nueva mientras tenía el juego abierto: se recarga solo y vuelve a
+      // la misma sala (la dirección ya lleva ?sala=). En la última prueba un amigo quedó
+      // trabado en la sala de espera con este aviso.
+      if (/desactualizada/i.test(reason) && reloadOnce()) return;
       if (fatal) leftRoom();
       if (lobby.visible) lobby.setStatus(reason);
       else hud.announce(reason, fatal ? '' : 'Tu mago sigue en manos de la IA', 3);
@@ -85,4 +89,18 @@ export function openRoom(code: string, profile: NetProfile, deps: RoomDeps): Net
     },
   });
   return room;
+}
+
+/** Recarga la página, salvo que ya se haya recargado por lo mismo hace poco. */
+function reloadOnce(): boolean {
+  const key = 'crisol.recargaVersion';
+  try {
+    const last = Number(sessionStorage.getItem(key) ?? 0);
+    if (Date.now() - last < 60_000) return false;
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {
+    return false;
+  }
+  location.reload();
+  return true;
 }

@@ -237,7 +237,8 @@ export class MatchFlow {
    */
   private reportPerformance(current: MatchView): void {
     const network = current.networkSummary?.();
-    if (!network) return;
+    // Sin datos de red (una revancha que terminó al toque) no hay nada que contar.
+    if (!network || network.length === 0) return;
     const series = current.series;
     const winner = series.winnerTeam ?? -1;
     const result = winner < 0 ? 'empate' : winner === current.player.team ? 'ganó' : 'perdió';
