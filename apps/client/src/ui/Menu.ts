@@ -9,6 +9,7 @@ import {
 import type { AudioEngine } from '../audio/AudioEngine';
 import type { MatchOptions } from '../game/LocalMatch';
 import type { Profile } from '../game/Profile';
+import { Dropdown } from './Dropdown';
 import { el, query } from './dom';
 import { HomeScreenInvite } from './HomeScreenInvite';
 import { elementIcon } from './icons';
@@ -113,7 +114,11 @@ export class Menu {
   private readonly affinityIcon: HTMLElement;
   private readonly portrait: HTMLElement;
   private readonly grimoireCount: HTMLElement;
-  private readonly sizes: HTMLElement;
+  /** Un desplegable de tamaño por pestaña (equipos y todos contra todos). */
+  private readonly sizePickers = new Map<string, Dropdown>();
+  private readonly rulesBox: HTMLElement;
+  private readonly rulePicker: Dropdown;
+  private readonly levelPicker: Dropdown;
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -143,9 +148,11 @@ export class Menu {
       </header>
       <section class="menu-center">
         <div class="menu-tabs" role="tablist" aria-label="Modo"></div>
-        <div class="menu-sizes"></div>
-        <div class="menu-rules"></div>
-        <div class="menu-level" aria-label="Dificultad de la IA"></div>
+        <div class="menu-options">
+          <div class="menu-option menu-size"></div>
+          <div class="menu-option menu-rules"><span class="menu-option-label">Al caer</span></div>
+          <div class="menu-option menu-level"><span class="menu-option-label">IA</span></div>
+        </div>
         <button type="button" class="primary menu-play">${MENU_ICONS.star}<span>Entrar al Crisol</span>${MENU_ICONS.star}</button>
         <div class="menu-extra">
           <button type="button" class="secondary menu-friend">${MENU_ICONS.friend}<span>Jugar con amigos</span></button>
@@ -171,7 +178,6 @@ export class Menu {
     this.affinityIcon = query(this.root, '.menu-affinity-icon');
     this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
-    this.sizes = query(this.root, '.menu-sizes');
     new HomeScreenInvite(query(this.root, '.menu-side'), this.root);
     query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
     this.portrait.addEventListener('click', onWardrobe);
@@ -207,31 +213,47 @@ export class Menu {
       tabs.append(button);
     }
 
-    const rules = query(this.root, '.menu-rules');
-    for (const rule of DEATH_RULES) {
-      const button = el('button', 'menu-chip');
-      button.type = 'button';
-      button.dataset.id = rule.id;
-      button.title = rule.detail;
-      button.textContent = rule.title;
-      button.addEventListener('click', () => {
-        this.deathRule = rule.id;
-        this.refresh();
+    // Tamaño, regla al caer y dificultad de la IA: una sola fila de desplegables, de alto fijo,
+    // para que elegir "Todos contra todos" no empuje las pestañas sobre el subtítulo.
+    const center = query(this.root, '.menu-center');
+    const sizeBox = query(this.root, '.menu-size');
+    for (const tab of TABS) {
+      if (tab.sizes.length < 2) continue;
+      const picker = new Dropdown({
+        title: tab.title,
+        host: center,
+        options: tab.sizes.map((size) => ({ id: size.modeId, label: size.label })),
+        onPick: (id) => {
+          this.modeId = id;
+          this.refresh();
+        },
       });
-      rules.append(button);
+      sizeBox.append(picker.root);
+      this.sizePickers.set(tab.id, picker);
     }
-    const levels = query(this.root, '.menu-level');
-    levels.append(el('span', 'menu-level-label', 'IA'));
-    for (const level of BOT_LEVELS) {
-      const button = el('button', 'menu-chip', BOT_LEVEL_NAMES[level]);
-      button.type = 'button';
-      button.dataset.level = level;
-      button.addEventListener('click', () => {
-        this.botLevel = level;
+    this.rulesBox = query(this.root, '.menu-rules');
+    this.rulePicker = new Dropdown({
+      title: 'Al caer',
+      host: center,
+      options: DEATH_RULES.map((rule) => ({ id: rule.id, label: rule.title })),
+      onPick: (id) => {
+        const rule = DEATH_RULES.find((r) => r.id === id);
+        if (rule) this.deathRule = rule.id;
         this.refresh();
-      });
-      levels.append(button);
-    }
+      },
+    });
+    this.rulesBox.append(this.rulePicker.root);
+    this.levelPicker = new Dropdown({
+      title: 'Dificultad de la IA',
+      host: center,
+      options: BOT_LEVELS.map((level) => ({ id: level, label: BOT_LEVEL_NAMES[level] })),
+      onPick: (id) => {
+        const level = BOT_LEVELS.find((l) => l === id);
+        if (level) this.botLevel = level;
+        this.refresh();
+      },
+    });
+    query(this.root, '.menu-level').append(this.levelPicker.root);
     query(this.root, '.menu-friend').addEventListener('click', onFriend);
     query(this.root, '.menu-training').addEventListener('click', onTraining);
     query(this.root, '.menu-play').addEventListener('click', () => {
@@ -271,6 +293,7 @@ export class Menu {
   }
 
   set visible(value: boolean) {
+    if (!value) Dropdown.closeAll();
     this.root.hidden = !value;
   }
 
@@ -286,29 +309,17 @@ export class Menu {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-selected', String(selected));
     }
-    // El tamaño solo se pregunta en equipos y todos contra todos; el hueco queda reservado.
-    const sizes = tab && tab.sizes.length > 1 ? tab.sizes : [];
-    this.sizes.classList.toggle('empty', sizes.length === 0);
-    this.sizes.replaceChildren(
-      ...sizes.map((size) => {
-        const button = el('button', 'menu-chip', size.label);
-        button.type = 'button';
-        button.classList.toggle('selected', size.modeId === this.modeId);
-        button.addEventListener('click', () => {
-          this.modeId = size.modeId;
-          this.refresh();
-        });
-        return button;
-      }),
-    );
+    // El tamaño solo se pregunta en equipos y todos contra todos.
+    for (const [tabId, picker] of this.sizePickers) {
+      const shown = tabId === tab?.id;
+      picker.root.hidden = !shown;
+      if (shown) picker.value = this.modeId;
+    }
     const duel = (MODES.find((m) => m.id === this.modeId)?.mode.kind ?? 'duel') === 'duel';
-    query(this.root, '.menu-rules').hidden = DEATH_RULES.length < 2 || duel;
-    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-level .menu-chip')) {
-      button.classList.toggle('selected', button.dataset.level === this.botLevel);
-    }
-    for (const button of this.root.querySelectorAll<HTMLElement>('.menu-rules .menu-chip')) {
-      button.classList.toggle('selected', button.dataset.id === this.deathRule);
-    }
+    query(this.root, '.menu-size').hidden = duel;
+    this.rulesBox.hidden = DEATH_RULES.length < 2 || duel;
+    this.rulePicker.value = this.deathRule;
+    this.levelPicker.value = this.botLevel;
   }
 
   private restore(): void {
