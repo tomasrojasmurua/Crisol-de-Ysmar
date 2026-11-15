@@ -285,7 +285,7 @@ export class Hud {
     this.result.showPerf(lines);
   }
 
-  /** En red: pregunta en la pantalla final cómo se jugó. */
+  /** En red y contra la IA: pregunta en la pantalla final cómo se jugó. */
   askOpinion(sink: OpinionSink): void {
     this.result.askOpinion(sink);
   }

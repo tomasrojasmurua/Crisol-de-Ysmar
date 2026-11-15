@@ -170,7 +170,7 @@ if (opinions.length > 0) {
     print([...counts].map(([answer, n]) => `**${answer}**: ${n}`).join(' · '));
     print();
   }
-  print('| Hora | Qué dijo | Ping y detalle | Celular | Sala | Partida | Visita |');
+  print('| Hora | Qué dijo | Ping o cuadros | Celular | Sala | Partida | Visita |');
   print('| ---- | -------- | -------------- | ------- | ---- | ------- | ------ |');
   for (const o of opinions) {
     print(
@@ -180,7 +180,26 @@ if (opinions.length > 0) {
   print();
 }
 
-if (matches.length > 0) {
+// Los resúmenes de partidas contra la IA no traen ping: van en su propia tabla.
+const againstAi = (m) => String(m.match ?? '').startsWith('IA');
+const netMatches = matches.filter((m) => !againstAi(m));
+const aiMatches = matches.filter(againstAi);
+
+/** Los resúmenes completos, plegados. */
+const printFullSummaries = (list) => {
+  print('<details><summary>Resúmenes completos</summary>');
+  print();
+  for (const m of list) {
+    print(`**${chileTime(m.at)} · ${m.room || m.match} · ${m.device}**`);
+    print('```');
+    print(m.detail);
+    print('```');
+  }
+  print('</details>');
+  print();
+};
+
+if (netMatches.length > 0) {
   print('### Rendimiento de cada partida en red');
   print();
   print(
@@ -189,23 +208,28 @@ if (matches.length > 0) {
   print(
     '| ---- | ---- | ------- | -------- | ---- | ---------------- | ------- | ------- | ------- | ------ |',
   );
-  for (const m of matches) {
+  for (const m of netMatches) {
     const fps = lineOf(m.detail, 'Duración');
     print(
       `| ${chileTime(m.at)} | ${cell(m.room)} | ${cell(m.device)} | ${cell(lineOf(m.detail, 'Servidor de salas:'))} | ${cell(m.message)} | ${cell(lineOf(m.detail, 'Toque confirmado'))} | ${cell(lineOf(m.detail, 'Colchón'))} | ${cell(fps)} | ${cell(lineOf(m.detail, 'Partida:'))} | ${cell(m.session)} |`,
     );
   }
   print();
-  print('<details><summary>Resúmenes completos</summary>');
+  printFullSummaries(netMatches);
+}
+
+if (aiMatches.length > 0) {
+  print('### Rendimiento de cada partida contra la IA');
   print();
-  for (const m of matches) {
-    print(`**${chileTime(m.at)} · ${m.room} · ${m.device}**`);
-    print('```');
-    print(m.detail);
-    print('```');
+  print('| Hora | Celular | Pantalla | Cuadros | Lento | Calidad | Modo | Partida | Visita |');
+  print('| ---- | ------- | -------- | ------- | ----- | ------- | ---- | ------- | ------ |');
+  for (const m of aiMatches) {
+    print(
+      `| ${chileTime(m.at)} | ${cell(m.device)} | ${cell(m.screen)} | ${cell(lineOf(m.detail, 'Duración'))} | ${cell(lineOf(m.detail, 'Lento (menos de 50 fps):'))} | ${cell(lineOf(m.detail, 'Calidad:'))} | ${cell(m.match)} | ${cell(lineOf(m.detail, 'Partida:'))} | ${cell(m.session)} |`,
+    );
   }
-  print('</details>');
   print();
+  printFullSummaries(aiMatches);
 }
 
 if (latest.length === 0) {
