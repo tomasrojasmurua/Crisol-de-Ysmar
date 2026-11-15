@@ -398,7 +398,7 @@ function closeOverlays(): void {
   grimoireBook.hide();
   view.hidePreview();
   screens.refreshIdentity(profile, grimoire);
-  // Recién creado el hechicero (o un perfil de antes): falta elegir escuela.
+  // Recién creado el hechicero (o un perfil de antes): falta elegir linaje.
   if (profile.name && !profile.school) {
     schoolPicker.show();
     return;
@@ -412,7 +412,7 @@ function closeOverlays(): void {
 }
 
 /**
- * Eligió escuela: queda para siempre y su elemento pasa a ser su Afinidad (en el Vestidor la
+ * Eligió linaje: queda para siempre y su elemento pasa a ser su Afinidad (en el Vestidor la
  * puede cambiar). Si nunca hizo el tutorial, entra directo; si venía de una invitación, a la sala.
  */
 function chooseSchool(school: ElementId): void {
@@ -756,7 +756,7 @@ renderer.setAnimationLoop((now) => {
 const invited =
   new URLSearchParams(location.search).get('sala')?.toUpperCase() || roomToRejoin() || '';
 showMenu();
-// La primera vez eliges nombre y personaje, y después tu escuela (también los perfiles de antes).
+// La primera vez eliges nombre y personaje, y después tu linaje (también los perfiles de antes).
 if (!profile.name) openWardrobe();
 else if (!profile.school) {
   menu.visible = false;

@@ -28,7 +28,7 @@ class Script implements Controller {
   }
 }
 
-/** La escuela de casi todas las pruebas: Marea (Salpicón, Géiser, Rayo en cadena, Era de hielo). */
+/** El linaje de casi todas las pruebas: Marea (Salpicón, Géiser, Rayo en cadena, Era de hielo). */
 const MAREA = tutorialChapters('marea');
 
 const chapterIndex = (id: string, chapters: readonly TutorialChapter[] = MAREA): number =>
@@ -78,7 +78,7 @@ function play(
   maxTicks: number,
   startStep = 0,
   chapters: readonly TutorialChapter[] = MAREA,
-  /** Tu Afinidad: la de tu escuela, como al crear el hechicero. */
+  /** Tu Afinidad: la de tu linaje, como al crear el hechicero. */
   affinity: ElementId | null = null,
 ): { tutorial: Tutorial; reached: string[]; match: TrainingMatch; withSecond: Set<string> } {
   const match = new TrainingMatch(DUEL_RULES, new Script(plan), affinity);
@@ -125,8 +125,8 @@ const castsAt =
     return spell ? castAt(state, spell) : approach(state);
   };
 
-describe('Tutorial por escuela', () => {
-  it('recorre lo básico y la escuela, del objetivo al examen; Más técnicas va aparte', () => {
+describe('Tutorial por linaje', () => {
+  it('recorre lo básico y el linaje, del objetivo al examen; Más técnicas va aparte', () => {
     expect(MAREA.map((c) => c.id)).toEqual([
       'objetivo',
       'moverse',
@@ -145,7 +145,7 @@ describe('Tutorial por escuela', () => {
     expect(MAREA.filter((c) => c.extra).map((c) => c.id)).toEqual(['defensa', 'reacciones']);
   });
 
-  it('cada escuela enseña sus 4 hechizos y Paso, y ningún otro', () => {
+  it('cada linaje enseña sus 4 hechizos y Paso, y ningún otro', () => {
     for (const element of ['brasa', 'tormenta', 'marea', 'raiz', 'umbra'] as const) {
       const chapters = tutorialChapters(element);
       const taught = new Set(
@@ -326,7 +326,7 @@ describe('Tutorial por escuela', () => {
     expect(near.reached).toEqual(['{umbra}']);
   });
 
-  it('tejer pide los hechizos justos de la escuela: el orden importa', () => {
+  it('tejer pide los hechizos justos del linaje: el orden importa', () => {
     // Brasa → Marea (Obsidiana) es otro tejido: no cuenta. Entre uno y otro, los elementos
     // descansan (3 s).
     const casts = new Map<number, SpellId>([
@@ -344,7 +344,7 @@ describe('Tutorial por escuela', () => {
     expect(tutorial.finished).toEqual(['tejer']);
   });
 
-  it('apuntar: arrastrar ✦ y dejar el hechizo de suelo de tu escuela', () => {
+  it('apuntar: arrastrar ✦ y dejar el hechizo de suelo de tu linaje', () => {
     const { tutorial, reached } = play(
       (tick, state) => {
         if (tick === 5) return castAt(state, 'splash');
@@ -458,7 +458,7 @@ describe('Tutorial por escuela', () => {
   });
 
   /**
-   * El combo de cada escuela, como lo haría el jugador: primer paso y el segundo apenas
+   * El combo de cada linaje, como lo haría el jugador: primer paso y el segundo apenas
    * descansa el elemento que comparten (3 s, o 2,25 s el de tu Afinidad).
    */
   const SCHOOL_COMBOS: readonly [ElementId, SpellId, SpellId, number][] = [
@@ -515,7 +515,7 @@ describe('Tutorial por escuela', () => {
     expect(dummy(match.state).hp).toBe(dummy(match.state).maxHp);
   });
 
-  it('el Aprendiz del examen teje solo los hechizos de su escuela', () => {
+  it('el Aprendiz del examen teje solo los hechizos de su linaje', () => {
     const match = new TrainingMatch(DUEL_RULES, new Script(() => []), null);
     match.restless = false;
     match.examSpellbook = schoolSpellbook('raiz');

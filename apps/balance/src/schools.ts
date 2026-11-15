@@ -18,8 +18,8 @@ import {
 } from '@crisol/core';
 
 /**
- * Balance de las escuelas: duelos de Duelistas que solo tejen su set (más Paso), con la
- * Afinidad en su elemento. Cada escuela debería ganar entre 45% y 55% contra las otras cuatro.
+ * Balance de los linajes: duelos de Duelistas que solo tejen su set (más Paso), con la
+ * Afinidad en su elemento. Cada linaje debería ganar entre 45% y 55% contra los otros cuatro.
  * Uso: pnpm --filter @crisol/balance schools [duelos por cruce] [semilla inicial]
  */
 const perPair = Number(process.argv[2] ?? 200);
@@ -27,7 +27,7 @@ const firstSeed = Number(process.argv[3] ?? 1000);
 const RULES = rulesForMode({ kind: 'duel' });
 const MAX_TICKS = TICK_RATE * 60 * 6;
 
-/** Un duelo entre dos escuelas; devuelve el equipo ganador (0: la primera) o null. */
+/** Un duelo entre dos linajes; devuelve el equipo ganador (0: el primero) o null. */
 function duel(seed: number, a: ElementId, b: ElementId): number | null {
   const setup = duelSetup(seed, RULES);
   const sides = [a, b];
@@ -68,7 +68,7 @@ function duel(seed: number, a: ElementId, b: ElementId): number | null {
 const elements = SCHOOLS.map((s) => s.element);
 const wins = new Map(elements.map((e) => [e, 0]));
 const played = new Map(elements.map((e) => [e, 0]));
-console.log(`Escuelas (${perPair} duelos por cruce, mitad de cada lado):`);
+console.log(`Linajes (${perPair} duelos por cruce, mitad de cada lado):`);
 elements.forEach((x, i) => {
   for (const y of elements.slice(i + 1)) {
     let xWins = 0;
@@ -88,7 +88,7 @@ elements.forEach((x, i) => {
     console.log(`  ${x} contra ${y}: ${share}%`);
   }
 });
-console.log('Victorias por escuela (meta: 45% a 55%):');
+console.log('Victorias por linaje (meta: 45% a 55%):');
 for (const element of elements) {
   const rate = ((wins.get(element) ?? 0) / Math.max(1, played.get(element) ?? 0)) * 100;
   console.log(`  ${element.padEnd(9)} ${rate.toFixed(1)}%`);

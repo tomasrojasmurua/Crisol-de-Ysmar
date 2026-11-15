@@ -16,7 +16,7 @@ export interface Profile {
   readonly look: Appearance;
   readonly affinity: ElementId | null;
   /**
-   * La escuela que eligió al crear su hechicero, para siempre: destaca su set de principiante en
+   * El linaje que eligió al crear su hechicero, para siempre: destaca su set de principiante en
    * el Grimorio y decide qué enseña el tutorial. Null en los perfiles de antes (se elige al
    * abrir el juego).
    */

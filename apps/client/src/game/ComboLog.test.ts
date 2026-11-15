@@ -26,7 +26,7 @@ describe('ComboLog', () => {
   beforeEach(() => vi.stubGlobal('localStorage', memoryStorage()));
   afterEach(() => vi.unstubAllGlobals());
 
-  it('empieza sin combos y el tutorial entrega el de tu escuela', () => {
+  it('empieza sin combos y el tutorial entrega el de tu linaje', () => {
     const log = new ComboLog();
     expect(log.unlockedCount).toBe(0);
     expect(log.tutorialDone).toBe(false);

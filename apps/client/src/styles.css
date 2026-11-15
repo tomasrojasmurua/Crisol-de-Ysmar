@@ -4579,7 +4579,7 @@ body {
   gap: 10px;
 }
 
-/* ---------- Elegir escuela (al crear el hechicero) ---------- */
+/* ---------- Elegir linaje (al crear el hechicero) ---------- */
 
 .school-picker {
   position: absolute;
@@ -4834,7 +4834,7 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* ---------- Grimorio: tu escuela ---------- */
+/* ---------- Grimorio: tu linaje ---------- */
 
 #ui .grimoire-spell.school {
   border-color: color-mix(in srgb, var(--element) 70%, transparent);

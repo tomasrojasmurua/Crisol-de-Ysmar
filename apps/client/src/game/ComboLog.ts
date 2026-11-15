@@ -5,7 +5,7 @@ const HITS_KEY = 'crisol.combos';
 const OWN_KEY = 'crisol.misCombos';
 /** Quien terminó el tutorial de antes (el de los 3 combos) los conserva. */
 const TUTORIAL_KEY = 'crisol.tutorial';
-/** Los combos que entregó el tutorial de la escuela. */
+/** Los combos que entregó el tutorial del linaje. */
 const GIFTS_KEY = 'crisol.regalos';
 
 /** Hasta cuántos hechizos lleva un combo propio. */
@@ -24,7 +24,7 @@ export interface OwnCombo {
 /**
  * Los combos del catálogo que el jugador acertó en partidas y los que anotó él mismo, guardados
  * en este celular. Un combo aparece en el Grimorio al juntar sus aciertos (3, o 5 los más
- * poderosos); antes no se muestra nada de él. El tutorial entrega el combo de tu escuela (y
+ * poderosos); antes no se muestra nada de él. El tutorial entrega el combo de tu linaje (y
  * quien hizo el tutorial de antes conserva sus 3).
  */
 export class ComboLog {
@@ -43,7 +43,7 @@ export class ComboLog {
     );
   }
 
-  /** Si ya recibió algún combo del tutorial (el de su escuela, o los 3 del de antes). */
+  /** Si ya recibió algún combo del tutorial (el de su linaje, o los 3 del de antes). */
   get tutorialDone(): boolean {
     return this.legacyTutorial || this.gifts.size > 0;
   }

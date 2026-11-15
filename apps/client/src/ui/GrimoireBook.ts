@@ -74,7 +74,7 @@ export class GrimoireBook {
   private tab: Tab = 'brasa';
   private grimoire: Grimoire | null = null;
   private comboLog: ComboLog | null = null;
-  /** Tu escuela: sus hechizos van destacados y arriba en la pestaña de su elemento. */
+  /** Tu linaje: sus hechizos van destacados y arriba en la pestaña de su elemento. */
   private school: School | null = null;
   private readonly editor: OwnComboEditor;
 
@@ -313,7 +313,7 @@ export class GrimoireBook {
   }
 
   /**
-   * Tu escuela, arriba de todo: sus 4 hechizos y Paso, con para qué sirve cada uno. Se ven
+   * Tu linaje, arriba de todo: sus 4 hechizos y Paso, con para qué sirve cada uno. Se ven
    * aunque todavía no los lances: son los que el tutorial te enseña.
    */
   private renderSchool(school: School): void {
@@ -355,7 +355,7 @@ export class GrimoireBook {
         'Combos',
         `${log.unlockedCount} de ${log.total}`,
         !log.tutorialDone
-          ? 'El tutorial de Entrenamiento te entrega el de tu escuela'
+          ? 'El tutorial de Entrenamiento te entrega el de tu linaje'
           : left > 0
             ? `Te faltan ${left} por descubrir`
             : 'Los descubriste todos',
