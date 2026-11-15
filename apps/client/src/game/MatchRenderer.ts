@@ -30,7 +30,9 @@ import type { BlindVeil } from '../ui/BlindVeil';
 import type { ComboCallouts } from '../ui/ComboCallouts';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { Minimap } from '../ui/Minimap';
+import type { PocketStrip } from '../ui/PocketStrip';
 import type { UiObstacles } from '../ui/UiObstacles';
+import type { WeaveName } from '../ui/WeaveName';
 import type { WorldLabels } from '../ui/WorldLabels';
 import type { MatchView } from './MatchView';
 import { TrainingMatch } from './TrainingMatch';
@@ -44,6 +46,8 @@ export interface MatchUi {
   readonly blindVeil: BlindVeil;
   readonly comboCallouts: ComboCallouts;
   readonly obstacles: UiObstacles;
+  readonly weaveName: WeaveName;
+  readonly pocketStrip: PocketStrip;
 }
 
 /** Lo que cambia de partida en partida y el dibujo necesita saber. */
@@ -245,6 +249,10 @@ export class MatchRenderer {
     );
 
     ui.controls.render(current.present?.(player) ?? player, rules);
+    // Lo que tejes y tu bolsillo son tuyos: si caíste o algo tapa la arena, no se muestran.
+    const own = watched === null && !covered ? me : null;
+    ui.weaveName.render(own);
+    ui.pocketStrip.render(own);
     ui.hud.update(state, player, current.series, current.roundNumber, badges, rules);
     ui.obstacles.refresh();
     ui.labels.updateBeasts(state, camera, beastName, elementColorHex);

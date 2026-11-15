@@ -89,3 +89,6 @@ export function glyphIcon(glyph: Glyph): string {
 export const CAST_ICON = svg(CAST_PATH, 'icon-cast');
 export const UNDO_ICON = svg(UNDO_PATH, 'icon-undo');
 export const DUEL_ICON = svg(DUEL_PATH, 'icon-duel');
+
+/** Marcador de libro: lo que llevas en el bolsillo. */
+export const BOOKMARK_ICON = svg('<path d="M9 4H23V28L16 22L9 28Z"/>', 'icon-bookmark');

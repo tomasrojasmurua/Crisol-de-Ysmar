@@ -2,9 +2,10 @@ import { ALL_WEAVES, COMBOS, type Combo, ELEMENTS, type School, spellName } from
 import { type ElementId, type GameRules, SPELL_WEAVES, spellOf, type Weave } from '@crisol/core';
 import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
+import { POCKET_SIZE, type Pocket } from '../game/Pocket';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
-import { elementIcon } from './icons';
+import { BOOKMARK_ICON, elementIcon } from './icons';
 import { MENU_ICONS } from './menuIcons';
 import { OwnComboEditor } from './OwnComboEditor';
 import { spellCard } from './spellFacts';
@@ -81,6 +82,7 @@ export class GrimoireBook {
     parent: HTMLElement,
     onClose: () => void,
     private readonly rules: () => GameRules,
+    private readonly pocket: Pocket,
   ) {
     this.root = el('div', 'grimoire');
     this.root.hidden = true;
@@ -161,7 +163,7 @@ export class GrimoireBook {
     close.type = 'button';
     close.setAttribute('aria-label', 'Cerrar');
     close.innerHTML = '×';
-    card.append(close);
+    card.append(close, this.pocketButton(weave));
     this.detail.replaceChildren(card);
     this.detail.hidden = false;
   }
@@ -207,6 +209,7 @@ export class GrimoireBook {
           : 'Conjuros que empiezan con este elemento',
       ),
     );
+    this.renderPocket();
     if (this.school?.element === element) this.renderSchool(this.school);
     const highlighted = new Set(this.school?.spells ?? []);
     for (const group of GROUPS) {
@@ -222,6 +225,7 @@ export class GrimoireBook {
         const id = spellOf(weave);
         card.classList.toggle('school', id !== null && highlighted.has(id));
         card.append(weaveGlyphs(weave), el('span', 'grimoire-spell-name', spellName(weave)));
+        if (this.pocket.has(weave)) card.append(pocketMark());
         card.addEventListener('click', () => this.openDetail(weave));
         grid.append(card);
       }
@@ -238,6 +242,74 @@ export class GrimoireBook {
       section.append(title, grid);
       this.list.append(section);
     }
+  }
+
+  /**
+   * El botón de la ficha para meter o sacar el hechizo del bolsillo. Con el bolsillo lleno avisa
+   * que primero hay que sacar otro. Tocarlo no cierra la ficha.
+   */
+  private pocketButton(weave: Weave): HTMLButtonElement {
+    const button = el('button', 'grimoire-pocket-button');
+    button.type = 'button';
+    const paint = (): void => {
+      const inside = this.pocket.has(weave);
+      const blocked = !inside && this.pocket.full;
+      button.classList.toggle('inside', inside);
+      button.disabled = blocked;
+      button.innerHTML = BOOKMARK_ICON;
+      button.append(
+        el(
+          'span',
+          '',
+          inside
+            ? 'En tu bolsillo · sacar'
+            : blocked
+              ? `Bolsillo lleno (${POCKET_SIZE} de ${POCKET_SIZE}): saca uno primero`
+              : 'Llevar en el bolsillo',
+        ),
+      );
+    };
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.pocket.toggle(weave);
+      paint();
+      const scroll = this.list.scrollTop;
+      this.render();
+      this.list.scrollTop = scroll;
+    });
+    paint();
+    return button;
+  }
+
+  /**
+   * Tu bolsillo, arriba de cada pestaña: los hechizos que marcaste para ver su receta en
+   * partida, y los huecos que quedan.
+   */
+  private renderPocket(): void {
+    const weaves = this.pocket.weaves;
+    const section = el('section', 'grimoire-group grimoire-pocket');
+    const title = el('h3', 'grimoire-group-title', 'Tu bolsillo');
+    title.append(
+      el('span', 'grimoire-group-count', `${weaves.length}/${POCKET_SIZE} · su receta en partida`),
+    );
+    const grid = el('div', 'grimoire-grid');
+    for (const weave of weaves) {
+      const card = el('button', 'grimoire-spell');
+      card.type = 'button';
+      card.style.setProperty('--element', colorOf(weave[0] ?? 'brasa'));
+      card.append(
+        weaveGlyphs(weave),
+        el('span', 'grimoire-spell-name', spellName(weave)),
+        pocketMark(),
+      );
+      card.addEventListener('click', () => this.openDetail(weave));
+      grid.append(card);
+    }
+    if (weaves.length < POCKET_SIZE) {
+      grid.append(el('span', 'grimoire-spell missing', 'Toca un hechizo para sumarlo'));
+    }
+    section.append(title, grid);
+    this.list.append(section);
   }
 
   /**
@@ -374,4 +446,12 @@ function comboCard(combo: Combo): HTMLElement {
   card.append(head, el('span', 'grimoire-combo-detail', combo.detail));
   if (combo.team) card.append(el('span', 'grimoire-combo-tag', 'En equipo'));
   return card;
+}
+
+/** La marca de un hechizo que va en el bolsillo. */
+function pocketMark(): HTMLElement {
+  const mark = el('span', 'grimoire-pocket-mark');
+  mark.innerHTML = BOOKMARK_ICON;
+  mark.setAttribute('aria-label', 'En tu bolsillo');
+  return mark;
 }

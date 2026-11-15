@@ -161,6 +161,11 @@ export class Hud {
     this.root.hidden = !value;
   }
 
+  /** La capa del HUD, para piezas que van sobre la arena y se esconden con él. */
+  get layer(): HTMLElement {
+    return this.root;
+  }
+
   /** La columna de arriba a la izquierda (nombre, vida, Presagio), para sumar cosas debajo. */
   get playerColumn(): HTMLElement {
     return query(this.root, '.hud-player');

@@ -27,6 +27,7 @@ import { MatchFlow } from './game/MatchFlow';
 import type { QualityName } from './game/MatchPerfLog';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
+import { Pocket } from './game/Pocket';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
 import { examSchool, GIFT_CHAPTER, Tutorial, tutorialChapters } from './game/Tutorial';
@@ -58,6 +59,7 @@ import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { PauseMenu } from './ui/PauseMenu';
+import { PocketStrip } from './ui/PocketStrip';
 import { SchoolPicker } from './ui/SchoolPicker';
 import { Screens } from './ui/Screens';
 import { TrainingChooser } from './ui/TrainingChooser';
@@ -65,6 +67,7 @@ import { TrainingPanel } from './ui/TrainingPanel';
 import { TutorialCard } from './ui/TutorialCard';
 import { UiObstacles } from './ui/UiObstacles';
 import { Wardrobe } from './ui/Wardrobe';
+import { WeaveName } from './ui/WeaveName';
 import { WorldLabels } from './ui/WorldLabels';
 
 // Aquí se arma el juego: se crean las piezas, se conectan entre sí y corre el bucle. Lo que
@@ -126,6 +129,7 @@ const human = new HumanController(
 const audio = new GameAudio();
 const grimoire = new Grimoire();
 const comboLog = new ComboLog();
+const pocket = new Pocket();
 const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
 const controls = new TouchControls(uiRoot, input);
@@ -156,6 +160,8 @@ const cameraDrag = new CameraDrag(
 );
 const screenAwake = new ScreenAwake();
 const hud = new Hud(uiRoot, rematch, () => showMenu());
+const weaveName = new WeaveName(hud.layer, (weave) => grimoire.has(weave));
+const pocketStrip = new PocketStrip(hud.playerColumn, pocket);
 const menu = new Menu(
   uiRoot,
   (options) => startMatch(options),
@@ -179,6 +185,7 @@ const grimoireBook = new GrimoireBook(
   uiRoot,
   () => closeOverlays(),
   () => rules,
+  pocket,
 );
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 const trainingPanel = new TrainingPanel(
@@ -219,7 +226,17 @@ const lobby = new Lobby(
 const matchRenderer = new MatchRenderer(
   uiRoot,
   view,
-  { hud, labels, minimap, controls, blindVeil, comboCallouts, obstacles },
+  {
+    hud,
+    labels,
+    minimap,
+    controls,
+    blindVeil,
+    comboCallouts,
+    obstacles,
+    weaveName,
+    pocketStrip,
+  },
   audio,
   input,
 );
