@@ -26,6 +26,14 @@ const MAX_DISTANCE = 45;
 const OTHER_WEAVE_GAIN = 0.45;
 /** Golpes de este tamaño o más suenan pesados. */
 const HEAVY_HIT = 14;
+/**
+ * Los golpes chicos (quemaduras, veneno y otros daños por segundo llegan de a 0,1 varias veces
+ * por segundo) suenan como mucho una vez cada `CHIP_GAP_MS`; sin esto el quejido sonaba ~30
+ * veces por segundo. Cualquier golpe deja al menos `HIT_GAP_MS` antes del siguiente.
+ */
+const CHIP_HIT = 3;
+const CHIP_GAP_MS = 900;
+const HIT_GAP_MS = 90;
 
 /**
  * El sonido de la partida: escucha los eventos del núcleo y los tejidos que se ven, y decide qué
@@ -42,6 +50,8 @@ export class GameAudio {
   private playerId: EntityId = -1;
   /** Largo del tejido visible de cada mago en el cuadro anterior. */
   private readonly weaveLengths = new Map<EntityId, number>();
+  /** Cuándo sonó el último golpe de cada tipo (recibido, dado, ajeno), y el último chico. */
+  private readonly lastHit = new Map<string, number>();
 
   /** Música según el momento: portada, fase de la ronda o silencio. */
   setMood(mood: MusicMood): void {
@@ -261,6 +271,9 @@ export class GameAudio {
 
   private onHit(event: Extract<GameEvent, { type: 'hit' }>, targetPos: Vec2 | undefined): void {
     const heavy = event.amount >= HEAVY_HIT;
+    const role =
+      event.targetId === this.playerId ? 'yo' : event.sourceId === this.playerId ? 'mio' : 'otro';
+    if (!this.hitAllowed(role, event.amount)) return;
     if (event.targetId === this.playerId) {
       this.sound(heavy ? 'hurtHeavy' : 'hurt', CENTER, () => this.synth.hurt(CENTER, heavy));
     } else if (event.sourceId === this.playerId) {
@@ -269,6 +282,17 @@ export class GameAudio {
       const place = this.at(targetPos, 0.5);
       this.sound('hurt', place, () => this.synth.hurt(place, heavy));
     }
+  }
+
+  private hitAllowed(role: string, amount: number): boolean {
+    const now = performance.now();
+    if (now - (this.lastHit.get(role) ?? -Infinity) < HIT_GAP_MS) return false;
+    if (amount < CHIP_HIT) {
+      if (now - (this.lastHit.get(`${role}.chip`) ?? -Infinity) < CHIP_GAP_MS) return false;
+      this.lastHit.set(`${role}.chip`, now);
+    }
+    this.lastHit.set(role, now);
+    return true;
   }
 
   /** Volumen y lado de algo que pasa en `pos`, visto desde el oyente. */
