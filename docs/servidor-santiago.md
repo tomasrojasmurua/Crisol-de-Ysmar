@@ -60,7 +60,8 @@ con 6 amigos son centavos.
 - **Ver qué pasa en la máquina:** en Cloud Shell,
   `gcloud compute ssh crisol-sala --zone=southamerica-west1-a` y luego
   `sudo journalctl -u sala -n 50` (servidor) o `sudo journalctl -u sala-actualizar -n 20`.
-- **Probarla con celulares simulados:**
+- **Probarla con celulares simulados:** en GitHub, Actions → "Probar el servidor de salas" →
+  Run workflow (4 celulares en "Libre de 4", con cortes de señal). O a mano:
   `SALA=https://34-176-10-20.sslip.io pnpm exec vitest run --config apps/server/red/vitest.config.ts`.
 - Los errores de las Salas de Santiago llegan al mismo registro (D1) con el celular
   "servidor Santiago". El resumen de cada partida dice qué servidor de salas usó.

@@ -4,9 +4,11 @@
  * versión, en qué tipo de celular y en qué sala y partida.
  */
 
-/** Qué clase de problema es. */
-/** `rendimiento` no es un error: el resumen de red y cuadros de cada partida en red. */
-export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala', 'rendimiento'] as const;
+/**
+ * Qué clase de informe es. `rendimiento` no es un error: el resumen de red y cuadros de cada partida en red. `opinion`:
+ * lo que cada jugador contesta al final de la partida (cómo se jugó y qué mejoraría).
+ */
+export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala', 'rendimiento', 'opinion'] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 export interface ErrorReport {

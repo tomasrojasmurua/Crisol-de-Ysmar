@@ -28,6 +28,13 @@ export interface RematchView {
   readonly mine: boolean;
 }
 
+/** Cómo se sintió la partida en red: lo que se elige al final (va al registro). */
+export const OPINIONS = ['Fluida', 'Con tirones', 'Muy trabada'] as const;
+export type Opinion = (typeof OPINIONS)[number];
+
+/** Recibe la opinión al tocarla y, si escribe algo, el comentario aparte. */
+export type OpinionSink = (opinion: Opinion | null, comment: string) => void;
+
 const TITLES: Record<Outcome, string> = { win: 'Victoria', loss: 'Derrota', draw: 'Empate' };
 
 /**
@@ -69,6 +76,13 @@ export class ResultScreen {
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
   private readonly perf: HTMLElement;
+  private readonly opinion: HTMLElement;
+  private readonly opinionOptions: HTMLElement;
+  private readonly opinionMore: HTMLFormElement;
+  private readonly opinionInput: HTMLInputElement;
+  private readonly opinionThanks: HTMLElement;
+  private opinionSink: OpinionSink | null = null;
+  private chosen: Opinion | null = null;
   private rematchKey = '';
 
   constructor(parent: HTMLElement, onRematch: () => void, onMenu: () => void) {
@@ -85,6 +99,16 @@ export class ResultScreen {
           <button type="button" class="primary rematch">${MENU_ICONS.rematch}<span>Revancha</span></button>
           <button type="button" class="secondary to-menu">${MENU_ICONS.leave}<span>Menú</span></button>
         </div>
+        <div class="hud-result-opinion" hidden>
+          <p class="hud-result-opinion-ask">¿Cómo se jugó?</p>
+          <div class="hud-result-opinion-options"></div>
+          <form class="hud-result-opinion-more" hidden>
+            <input maxlength="280" enterkeyhint="send" autocomplete="off"
+              placeholder="¿Qué mejorarías? (opcional)" aria-label="Qué mejorarías" />
+            <button type="submit" class="secondary">Enviar</button>
+          </form>
+          <p class="hud-result-opinion-thanks" hidden>¡Gracias! Lo vemos para la próxima versión.</p>
+        </div>
         <ul class="hud-result-perf" hidden></ul>
       </div>`;
     parent.append(this.root);
@@ -98,6 +122,50 @@ export class ResultScreen {
     this.perf = query(this.root, '.hud-result-perf');
     this.rematchButton.addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
+    this.opinion = query(this.root, '.hud-result-opinion');
+    this.opinionOptions = query(this.root, '.hud-result-opinion-options');
+    this.opinionMore = query(this.root, '.hud-result-opinion-more') as HTMLFormElement;
+    this.opinionInput = query(this.opinionMore, 'input') as HTMLInputElement;
+    this.opinionThanks = query(this.root, '.hud-result-opinion-thanks');
+    for (const opinion of OPINIONS) {
+      const chip = el('button', 'hud-result-opinion-chip', opinion) as HTMLButtonElement;
+      chip.type = 'button';
+      chip.addEventListener('click', () => this.choose(opinion));
+      this.opinionOptions.append(chip);
+    }
+    this.opinionMore.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const comment = this.opinionInput.value.trim();
+      if (comment) this.opinionSink?.(this.chosen, comment);
+      this.opinionInput.blur();
+      this.opinionMore.hidden = true;
+      this.opinionThanks.hidden = false;
+    });
+    // Que las teclas del juego (1-5, espacio) no tejan mientras escribes.
+    this.opinionInput.addEventListener('keydown', (event) => event.stopPropagation());
+  }
+
+  /**
+   * En red: pregunta cómo se jugó. La respuesta sale al tocarla (por si cierran la app) y el
+   * comentario, si lo escriben, sale aparte.
+   */
+  askOpinion(sink: OpinionSink): void {
+    this.opinionSink = sink;
+    this.chosen = null;
+    for (const chip of this.opinionOptions.children) chip.classList.remove('selected');
+    this.opinionInput.value = '';
+    this.opinionMore.hidden = true;
+    this.opinionThanks.hidden = true;
+    this.opinion.hidden = false;
+  }
+
+  private choose(opinion: Opinion): void {
+    if (this.chosen === opinion) return;
+    this.chosen = opinion;
+    for (const chip of this.opinionOptions.children)
+      chip.classList.toggle('selected', chip.textContent === opinion);
+    this.opinionSink?.(opinion, '');
+    if (this.opinionThanks.hidden) this.opinionMore.hidden = false;
   }
 
   show(summary: ResultSummary): void {
@@ -116,6 +184,8 @@ export class ResultScreen {
   hide(): void {
     this.root.hidden = true;
     this.perf.hidden = true;
+    this.opinion.hidden = true;
+    this.opinionSink = null;
   }
 
   /** Informe de rendimiento bajo el resultado; vacío lo oculta. */

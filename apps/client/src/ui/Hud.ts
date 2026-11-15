@@ -9,7 +9,12 @@ import {
 } from '@crisol/core';
 import { el, query } from './dom';
 import { CAST_ICON, elementIcon } from './icons';
-import { type RematchView, ResultScreen, type ResultSummary } from './ResultScreen';
+import {
+  type OpinionSink,
+  type RematchView,
+  ResultScreen,
+  type ResultSummary,
+} from './ResultScreen';
 
 const PHASE_NAMES: Record<RoundPhase, string> = {
   hunt: 'Caza',
@@ -265,6 +270,9 @@ export class Hud {
   }
 
   showResult(summary: ResultSummary): void {
+    // Un aviso que quedaba ("Caíste") no se transparenta bajo el resultado.
+    window.clearTimeout(this.bannerTimer);
+    this.banner.hidden = true;
     this.result.show(summary);
   }
 
@@ -275,6 +283,11 @@ export class Hud {
   /** Informe de rendimiento de la partida bajo el resultado; vacío lo oculta. */
   showPerf(lines: readonly string[]): void {
     this.result.showPerf(lines);
+  }
+
+  /** En red: pregunta en la pantalla final cómo se jugó. */
+  askOpinion(sink: OpinionSink): void {
+    this.result.askOpinion(sink);
   }
 
   /** En red: cómo va la revancha en la pantalla final. */
