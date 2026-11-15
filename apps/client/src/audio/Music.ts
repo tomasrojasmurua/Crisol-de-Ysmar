@@ -1,5 +1,5 @@
 import type { AudioEngine } from './AudioEngine';
-import type { SoundBank, SoundKey } from './SoundBank';
+import type { SoundBank } from './SoundBank';
 import { CRISOL_SCALE } from './voices';
 
 /** Qué pide la música: la portada, cada fase de la ronda o nada. */
@@ -32,12 +32,16 @@ const SCHEDULE_MS = 60;
 /**
  * Música generada en vivo con la escala del Crisol: un bordón grave, notas punteadas al azar
  * y, desde la Convergencia, un latido que se acelera en el Duelo final. Si llega una pista de
- * ElevenLabs para el ánimo (`music.hunt`…), suena esa en bucle en su lugar.
+ * ElevenLabs para el ánimo (`music.hunt`…), suena esa en bucle en su lugar, leída de a poco desde
+ * un elemento `<audio>` para no tener la pista entera decodificada en memoria.
  */
 export class Music {
   private mood: MusicMood = 'silent';
   private drone: { osc: OscillatorNode[]; filter: BiquadFilterNode; gain: GainNode } | null = null;
-  private track: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private track: { element: HTMLAudioElement; gain: GainNode } | null = null;
+  /** Un elemento por pista: un `<audio>` solo se puede conectar al contexto una vez. */
+  private readonly elements = new Map<string, { element: HTMLAudioElement; gain: GainNode }>();
+  private readonly pauseTimers = new Map<HTMLAudioElement, number>();
   private nextBeat = 0;
   private beat = 0;
   private timer: number | null = null;
@@ -47,10 +51,27 @@ export class Music {
     private readonly bank: SoundBank,
   ) {
     engine.onReady(() => {
+      this.unlockTracks();
       const wanted = this.mood;
       this.mood = 'silent';
       this.set(wanted);
     });
+    // Si la pista llega después de que empezó la música generada, se cambia a la pista.
+    bank.onManifest(() => {
+      const wanted = this.mood;
+      if (wanted === 'silent' || this.track || !bank.url(`music.${wanted}`)) return;
+      this.mood = 'silent';
+      this.set(wanted);
+    });
+    // Si el celular no dejó sonar la pista, cada toque la reintenta.
+    window.addEventListener(
+      'pointerdown',
+      () => {
+        const element = this.track?.element;
+        if (element?.paused) element.play().catch(() => {});
+      },
+      { capture: true },
+    );
   }
 
   set(mood: MusicMood): void {
@@ -64,13 +85,16 @@ export class Music {
       this.stopScheduler();
       return;
     }
-    const track = this.bank.loop(`music.${mood}` as SoundKey);
-    if (track) {
+    const url = this.bank.url(`music.${mood}`);
+    if (url && this.startTrack(ctx, url)) {
       this.stopDrone(ctx);
       this.stopScheduler();
-      this.startTrack(ctx, track);
       return;
     }
+    this.startGenerated(ctx, mood);
+  }
+
+  private startGenerated(ctx: AudioContext, mood: Exclude<MusicMood, 'silent'>): void {
     this.startDrone(ctx, MOODS[mood].drone);
     if (this.timer === null) {
       this.nextBeat = ctx.currentTime + 0.1;
@@ -204,23 +228,85 @@ export class Music {
     for (const o of drone.osc) o.stop(ctx.currentTime + 3);
   }
 
-  private startTrack(ctx: AudioContext, source: AudioBufferSourceNode): void {
+  /**
+   * iOS solo deja sonar un `<audio>` que partió durante un toque. En el primer toque se prende y
+   * se apaga cada pista, y así después pueden cambiar con las fases sin que nadie toque nada.
+   */
+  private unlockTracks(): void {
+    const ctx = this.engine.ctx;
+    if (!ctx) return;
+    for (const mood of ['menu', 'hunt', 'convergence', 'final'] as const) {
+      const url = this.bank.url(`music.${mood}`);
+      const track = url ? this.trackFor(ctx, url) : null;
+      if (!track || mood === this.mood) continue;
+      const { element } = track;
+      element
+        .play()
+        .then(() => {
+          if (this.track?.element !== element) element.pause();
+        })
+        .catch(() => {});
+    }
+  }
+
+  private trackFor(
+    ctx: AudioContext,
+    url: string,
+  ): { element: HTMLAudioElement; gain: GainNode } | null {
     const dest = this.engine.music;
-    if (!dest) return;
-    const gain = ctx.createGain();
+    if (!dest) return null;
+    let track = this.elements.get(url);
+    if (!track) {
+      const element = new Audio(url);
+      element.loop = true;
+      element.preload = 'auto';
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0001;
+      try {
+        ctx.createMediaElementSource(element).connect(gain).connect(dest);
+      } catch {
+        return null;
+      }
+      track = { element, gain };
+      this.elements.set(url, track);
+      // Si el archivo no carga, vuelve la música generada.
+      element.addEventListener('error', () => {
+        const mood = this.mood;
+        if (this.track?.element !== element || mood === 'silent') return;
+        this.track = null;
+        this.startGenerated(ctx, mood);
+      });
+    }
+    return track;
+  }
+
+  private startTrack(ctx: AudioContext, url: string): boolean {
+    const track = this.trackFor(ctx, url);
+    if (!track) return false;
+    const { element, gain } = track;
+    window.clearTimeout(this.pauseTimers.get(element));
+    gain.gain.cancelScheduledValues(ctx.currentTime);
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 1.5);
-    source.connect(gain).connect(dest);
-    source.start();
-    this.track = { source, gain };
+    element.currentTime = 0;
+    element.play().catch(() => {
+      // Sin permiso para sonar todavía: lo intenta de nuevo cuando el contexto despierte.
+    });
+    this.track = track;
+    return true;
   }
 
   private stopTrack(ctx: AudioContext): void {
     const track = this.track;
     if (!track) return;
     this.track = null;
+    track.gain.gain.cancelScheduledValues(ctx.currentTime);
     track.gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.5);
-    track.source.stop(ctx.currentTime + 2.5);
+    const element = track.element;
+    this.pauseTimers.set(
+      element,
+      window.setTimeout(() => element.pause(), 2500),
+    );
   }
 
   private stopScheduler(): void {

@@ -6,15 +6,15 @@ respaldo. No hay que tocar código para cambiar un sonido.
 
 ## Cómo está armado
 
-| Archivo          | Qué hace                                                                        |
-| ---------------- | ------------------------------------------------------------------------------- |
-| `AudioEngine.ts` | El contexto de audio (nace con el primer toque), buses, reverberación, silencio |
-| `voices.ts`      | La nota y el timbre de cada elemento, y la escala del Crisol                    |
-| `Synth.ts`       | Los sonidos sintetizados: notas, acordes, explosiones, rayos, campanas, gong    |
-| `SoundBank.ts`   | Las claves y los archivos de `public/audio/manifest.json`                       |
-| `Music.ts`       | Música generada en vivo según el momento (portada, Caza, Convergencia, Final)   |
-| `GameAudio.ts`   | Traduce los eventos del núcleo a sonidos, con distancia y lado                  |
-| `VoiceBank.ts`   | Las voces del Crisol y de los maestros, una a la vez                            |
+| Archivo          | Qué hace                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| `AudioEngine.ts` | El contexto de audio (nace con el primer toque), buses, reverberación, silencio      |
+| `voices.ts`      | La nota y el timbre de cada elemento, y la escala del Crisol                         |
+| `Synth.ts`       | Los sonidos sintetizados: notas, acordes, explosiones, rayos, campanas, gong         |
+| `SoundBank.ts`   | Las claves y los archivos de `public/audio/manifest.json`                            |
+| `Music.ts`       | La música de cada momento (portada, Caza, Convergencia, Final), en archivo o en vivo |
+| `GameAudio.ts`   | Traduce los eventos del núcleo a sonidos, con distancia y lado                       |
+| `VoiceBank.ts`   | Las voces del Crisol y de los maestros, una a la vez                                 |
 
 - **Cada elemento es una nota** del círculo de quintas en el orden del pentágono: Brasa Do,
   Tormenta Sol, Marea Re, Raíz La, Umbra Mi. Vecinos suenan a quinta (se funden) y opuestos a un
@@ -29,11 +29,17 @@ respaldo. No hay que tocar código para cambiar un sonido.
 ## Cómo agregar los sonidos de ElevenLabs
 
 1. Genera el archivo con su prompt de [audio-elevenlabs.md](audio-elevenlabs.md) y descárgalo en
-   `.mp3`.
-2. Cópialo a `apps/client/public/audio/` con el nombre de la clave (por ejemplo `note.brasa.mp3`).
+   `.mp3` con el nombre de la clave (por ejemplo `note.brasa.mp3`).
+2. Pásalo por `scripts/audio-prepare.sh <carpeta>`: recorta el silencio del inicio (cualquier
+   retraso se siente al tejer) y del final, nivela el volumen por tipo de sonido y deja la música
+   lista para sonar en bucle sin costura. Escribe en `apps/client/public/audio/`.
 3. Anótalo en `apps/client/public/audio/manifest.json`: `{ "note.brasa": "note.brasa.mp3" }`.
 
-Los efectos conviene recortarlos sin silencio al inicio: cualquier retraso se siente al tejer.
+Hoy están los 40 efectos y pistas menos `guardianAwake` y `stepDone`, que siguen sintetizados.
+
+La música no se decodifica entera (90 s ocuparían unos 30 MB por pista en el celular): suena desde
+un `<audio>` conectado al bus de música. En el primer toque se prende y apaga cada pista, porque
+iOS solo deja sonar un `<audio>` que partió durante un toque.
 
 ## Voces
 

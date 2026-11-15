@@ -59,12 +59,24 @@ export class SoundBank {
   private readonly files = new Map<SoundKey, string>();
   private readonly buffers = new Map<SoundKey, AudioBuffer>();
   private readonly loading = new Set<SoundKey>();
+  private readonly manifestListeners: (() => void)[] = [];
 
   constructor(private readonly engine: AudioEngine) {
     void this.readManifest();
-    engine.onReady(() => {
-      for (const key of this.files.keys()) void this.load(key);
-    });
+    engine.onReady(() => this.preload());
+  }
+
+  /**
+   * La dirección del archivo de una clave, si hay. La música se toca desde aquí sin decodificar:
+   * una pista de 90 s ocupa unos 30 MB ya decodificada, demasiado para un celular.
+   */
+  url(key: SoundKey): string | undefined {
+    return this.files.get(key);
+  }
+
+  /** Avisa cuando llega el manifiesto (la música pudo empezar sintetizada antes). */
+  onManifest(listener: () => void): void {
+    this.manifestListeners.push(listener);
   }
 
   /** Hay archivo listo para esta clave. */
@@ -92,17 +104,6 @@ export class SoundBank {
     return true;
   }
 
-  /** Una pista de música en bucle, o null si no hay archivo (entonces suena la generada). */
-  loop(key: SoundKey): AudioBufferSourceNode | null {
-    const buffer = this.buffers.get(key);
-    const ctx = this.engine.ctx;
-    if (!buffer || !ctx) return null;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    return source;
-  }
-
   private async readManifest(): Promise<void> {
     try {
       const response = await fetch(MANIFEST_URL, { cache: 'no-cache' });
@@ -112,10 +113,16 @@ export class SoundBank {
         const file = manifest[key];
         if (typeof file === 'string' && file) this.files.set(key, `audio/${file}`);
       }
-      if (this.engine.ctx) for (const key of this.files.keys()) void this.load(key);
+      if (this.engine.ctx) this.preload();
+      for (const listener of this.manifestListeners) listener();
     } catch {
       // Sin manifiesto: todo suena sintetizado.
     }
+  }
+
+  /** Decodifica de antemano los efectos cortos; la música no (ver `url`). */
+  private preload(): void {
+    for (const key of this.files.keys()) if (!key.startsWith('music.')) void this.load(key);
   }
 
   private async load(key: SoundKey): Promise<void> {
