@@ -184,10 +184,10 @@ if (matches.length > 0) {
   print('### Rendimiento de cada partida en red');
   print();
   print(
-    '| Hora | Sala | Celular | Servidor | Ping | Toque confirmado | Colchón | Cuadros | Visita |',
+    '| Hora | Sala | Celular | Servidor | Ping | Toque confirmado | Colchón | Cuadros | Partida | Visita |',
   );
   print(
-    '| ---- | ---- | ------- | -------- | ---- | ---------------- | ------- | ------- | ------ |',
+    '| ---- | ---- | ------- | -------- | ---- | ---------------- | ------- | ------- | ------- | ------ |',
   );
   for (const m of matches) {
     const fps = lineOf(m.detail, 'Duración');

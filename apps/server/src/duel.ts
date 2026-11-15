@@ -78,7 +78,15 @@ const GROWS_TO: readonly (readonly [GameMode, GameMode])[] = [
     { kind: 'teams', size: 3 },
   ],
   [
+    { kind: 'ffa', players: 3 },
     { kind: 'ffa', players: 4 },
+  ],
+  [
+    { kind: 'ffa', players: 4 },
+    { kind: 'ffa', players: 5 },
+  ],
+  [
+    { kind: 'ffa', players: 5 },
     { kind: 'ffa', players: 6 },
   ],
 ];
@@ -275,7 +283,7 @@ export class DuelHost {
 
   /**
    * Llegó alguien y el modo elegido ya no tiene puestos: la sala crece al modo siguiente
-   * (1 vs 1 → 2 vs 2 → 3 vs 3; Libre de 4 → Libre de 6). Antes el tercer amigo que abría el
+   * (1 vs 1 → 2 vs 2 → 3 vs 3; todos contra todos de 3 → 4 → 5 → 6). Antes el tercer amigo que abría el
    * enlace veía "La sala está llena" si quien creó la sala no había cambiado el modo antes.
    * Ya en el máximo, se libera el lugar de quien lleva más rato cortado. Devuelve el puesto libre.
    */

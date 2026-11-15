@@ -3690,6 +3690,7 @@ body {
 }
 
 #ui .lobby-chip {
+  min-width: 36px;
   padding: 5px 9px;
   border-radius: 6px;
   font-size: 12px;

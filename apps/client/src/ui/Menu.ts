@@ -26,10 +26,22 @@ const MODES: readonly ModeChoice[] = [
   { id: 'teams2', title: '2 contra 2', detail: 'Equipos', mode: { kind: 'teams', size: 2 } },
   { id: 'teams3', title: '3 contra 3', detail: 'Equipos', mode: { kind: 'teams', size: 3 } },
   {
+    id: 'ffa3',
+    title: 'Libre de 3',
+    detail: 'Todos contra todos',
+    mode: { kind: 'ffa', players: 3 },
+  },
+  {
     id: 'ffa4',
     title: 'Libre de 4',
     detail: 'Todos contra todos',
     mode: { kind: 'ffa', players: 4 },
+  },
+  {
+    id: 'ffa5',
+    title: 'Libre de 5',
+    detail: 'Todos contra todos',
+    mode: { kind: 'ffa', players: 5 },
   },
   {
     id: 'ffa6',
@@ -70,7 +82,9 @@ const TABS: readonly {
     title: 'Todos contra todos',
     icon: MENU_ICONS.ffa,
     sizes: [
+      { modeId: 'ffa3', label: '3 magos' },
       { modeId: 'ffa4', label: '4 magos' },
+      { modeId: 'ffa5', label: '5 magos' },
       { modeId: 'ffa6', label: '6 magos' },
     ],
   },

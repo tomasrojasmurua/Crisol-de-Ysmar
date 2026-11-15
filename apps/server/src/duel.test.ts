@@ -252,6 +252,19 @@ describe('Salas de más de dos y ajustes', () => {
     ]);
   });
 
+  it('todos contra todos de 3 crece de a uno si llegan más amigos', () => {
+    const duel = room();
+    expect(duel.configure(1, { mode: { kind: 'ffa', players: 3 } })).not.toBeNull();
+    duel.join({ name: 'Beto' });
+    duel.join({ name: 'Caro' });
+    expect(duel.gameMode).toEqual({ kind: 'ffa', players: 3 });
+    expect(duel.join({ name: 'Dani' })).not.toBeNull();
+    expect(duel.gameMode).toEqual({ kind: 'ffa', players: 4 });
+    expect(duel.join({ name: 'Eli' })).not.toBeNull();
+    expect(duel.gameMode).toEqual({ kind: 'ffa', players: 5 });
+    expect(duel.players.map((p) => p.team)).toEqual([0, 1, 2, 3, 4]);
+  });
+
   it('en equipos reparte a los amigos entre los dos bandos', () => {
     const duel = room();
     duel.configure(1, teams2);

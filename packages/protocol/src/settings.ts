@@ -35,7 +35,9 @@ export const ROOM_MODES: readonly GameMode[] = [
   { kind: 'duel' },
   { kind: 'teams', size: 2 },
   { kind: 'teams', size: 3 },
+  { kind: 'ffa', players: 3 },
   { kind: 'ffa', players: 4 },
+  { kind: 'ffa', players: 5 },
   { kind: 'ffa', players: 6 },
 ];
 
