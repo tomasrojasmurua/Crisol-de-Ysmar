@@ -45,6 +45,12 @@ es lo vigente.
   noviembre de 2026). Hay un **modo entrenamiento** contra un muñeco, con un
   panel que muestra lo que estás tejiendo y qué hace. El Grimorio muestra solo lo descubierto y, al
   tocar un conjuro, qué hace.
+- **Recordar las recetas** (los amigos hacían un hechizo y después no lo podían repetir):
+  - **Lo que tejes:** en partida, abajo al centro y solo en tu pantalla, el nombre del hechizo que
+    vas a lanzar, para corregir con ✕ antes de lanzar. Si todavía no lo descubres cambia al color
+    de la Trama y dice "Nuevo", sin nombre: el nombre se gana lanzándolo.
+  - **Tu bolsillo:** desde la ficha del Grimorio se marcan hasta 3 hechizos; en partida su receta se
+    ve bajo tu vida. Es solo un recordatorio: se teje igual, con los botones.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Dificultades de la IA:** Aprendiz, Duelista y Maestro (`packages/content/src/bots.ts`). Cambian
   qué tan rápido piensan, la puntería, cuánto esquivan proyectiles y avisos en el suelo, si se
