@@ -22,7 +22,7 @@ function modeLabel(mode: GameMode): string {
     case 'teams':
       return `${mode.size} contra ${mode.size}`;
     case 'ffa':
-      return `Libre de ${mode.players}`;
+      return 'Todos contra todos';
   }
 }
 
@@ -43,7 +43,8 @@ interface SettingRow {
   readonly title: string;
   readonly options: readonly {
     readonly label: string;
-    readonly pick: (s: RoomSettings) => RoomSettings;
+    /** `people`: cuántos hay en la sala (el todos contra todos parte con lugar para todos). */
+    readonly pick: (s: RoomSettings, people: number) => RoomSettings;
     readonly chosen: (s: RoomSettings) => boolean;
     /** Si no se puede elegir con la gente que ya está (un modo con menos puestos). */
     readonly fits?: (people: number) => boolean;
@@ -57,12 +58,33 @@ interface SettingRow {
 const SETTING_ROWS: readonly SettingRow[] = [
   {
     title: 'Modo',
-    options: ROOM_MODES.map((mode) => ({
-      label: modeChip(mode),
-      pick: (s) => ({ ...s, mode, lives: s.lives && livesAllowed(mode) }),
+    options: [
+      ...ROOM_MODES.filter((mode) => mode.kind !== 'ffa').map((mode) => ({
+        label: modeChip(mode),
+        pick: (s: RoomSettings) => ({ ...s, mode, lives: s.lives && livesAllowed(mode) }),
+        chosen: (s: RoomSettings) => sameMode(s.mode, mode),
+        fits: (people: number) => playerCount(mode) >= people,
+      })),
+      {
+        label: 'Todos contra todos',
+        pick: (s: RoomSettings, people: number) =>
+          s.mode.kind === 'ffa'
+            ? s
+            : { ...s, mode: { kind: 'ffa', players: Math.min(Math.max(people, 3), 6) } },
+        chosen: (s: RoomSettings) => s.mode.kind === 'ffa',
+      },
+    ],
+  },
+  {
+    // Todos contra todos: cuántos magos (los puestos sin persona los juega la IA).
+    title: 'Magos',
+    options: ROOM_MODES.filter((mode) => mode.kind === 'ffa').map((mode) => ({
+      label: String(playerCount(mode)),
+      pick: (s) => ({ ...s, mode }),
       chosen: (s) => sameMode(s.mode, mode),
       fits: (people) => playerCount(mode) >= people,
     })),
+    shown: (s) => s.mode.kind === 'ffa',
   },
   {
     title: 'La zona se cierra en',
@@ -143,6 +165,8 @@ export class Lobby {
     readonly option: SettingRow['options'][number];
   }[] = [];
   private settings: RoomSettings | null = null;
+  /** Cuántos hay en la sala ahora. */
+  private people = 1;
   private readonly roster: HTMLElement;
   private readonly modeTitle: HTMLElement;
   private readonly beginButton: HTMLButtonElement;
@@ -218,7 +242,7 @@ export class Lobby {
         const button = el('button', 'lobby-chip', option.label) as HTMLButtonElement;
         button.type = 'button';
         button.addEventListener('click', () => {
-          if (this.settings) this.onSettings(option.pick(this.settings));
+          if (this.settings) this.onSettings(option.pick(this.settings, this.people));
         });
         chips.append(button);
         this.settingButtons.push({ button, option });
@@ -292,6 +316,7 @@ export class Lobby {
   ): void {
     const mode = settings.mode;
     this.settings = settings;
+    this.people = players.length;
     this.modeName = modeLabel(mode);
     const host = players.find((p) => p.id === hostId);
     const isHost = me === hostId;
@@ -307,7 +332,9 @@ export class Lobby {
     }
     this.updateShare();
     const total = playerCount(mode);
-    this.modeTitle.textContent = `${this.modeName} · ${players.length} de ${total}`;
+    // En la columna angosta, el todos contra todos va abreviado para no partirse en dos líneas.
+    const shortName = mode.kind === 'ffa' ? 'Todos vs todos' : this.modeName;
+    this.modeTitle.textContent = `${shortName} · ${players.length} de ${total}`;
     const teams = mode.kind === 'teams';
     // Con más de 3, la lista va en dos columnas para que "Salir" siga a la vista.
     this.roster.classList.toggle('many', players.length > 3);
