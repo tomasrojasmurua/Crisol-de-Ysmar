@@ -39,7 +39,7 @@ máquina se actualice.
    gcloud compute addresses create crisol-sala --region=southamerica-west1
    gcloud compute firewall-rules create crisol-web --allow=tcp:80,tcp:443 --target-tags=crisol-sala || true
    gcloud compute instances create crisol-sala \
-     --zone=southamerica-west1-a --machine-type=e2-micro \
+     --zone=southamerica-west1-b --machine-type=e2-micro \
      --image-family=debian-12 --image-project=debian-cloud \
      --address=crisol-sala --tags=crisol-sala \
      --metadata=startup-script='curl -fsSL https://raw.githubusercontent.com/tomasrojasmurua/Crisol-de-Ysmar/main/scripts/sala/instalar.sh | bash'
@@ -62,7 +62,7 @@ máquina: [carga.md](carga.md).
   Cloudflare. Abrir el juego con `?sala=cloudflare` al final de la dirección lo fuerza (con más
   lag, pero andan). Para todos y para siempre: dejar `SANTIAGO_URL` vacío y publicar.
 - **Ver qué pasa en la máquina:** en Cloud Shell,
-  `gcloud compute ssh crisol-sala --zone=southamerica-west1-a` y luego
+  `gcloud compute ssh crisol-sala --zone=southamerica-west1-b` y luego
   `sudo journalctl -u sala -n 50` (servidor) o `sudo journalctl -u sala-actualizar -n 20`.
 - **Probarla con celulares simulados:** en GitHub, Actions → "Probar el servidor de salas" →
   Run workflow (4 celulares en "Libre de 4", con cortes de señal). O a mano:
