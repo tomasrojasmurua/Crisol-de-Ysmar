@@ -1,3 +1,14 @@
+export {
+  BACKUP_CODE_ALPHABET,
+  BACKUP_CODE_LENGTH,
+  BACKUP_KEY_PREFIX,
+  BACKUP_LIMITS,
+  type BackupEntries,
+  formatBackupCode,
+  generateBackupCode,
+  normalizeBackupCode,
+  parseBackupEntries,
+} from './backup';
 export { decodeClientMessage, decodeServerMessage, encode } from './codec';
 export {
   cleanReport,

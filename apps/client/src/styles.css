@@ -4743,6 +4743,115 @@ body {
   gap: 10px;
 }
 
+/* ---------- Tu respaldo (código para traer el hechicero a otro celular) ---------- */
+
+/* Más tenue aún que "Agregar a inicio": está siempre, pero casi nunca hace falta. */
+#ui .menu-backup {
+  border-color: rgba(216, 191, 138, 0.25);
+  --icon-color: var(--bronze);
+}
+
+/* Encima del Vestidor, que también la abre la primera vez. */
+.backup-sheet {
+  z-index: 7;
+}
+
+.backup-card {
+  width: min(480px, 100%);
+}
+
+.backup-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.backup-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+#ui .backup-sheet .primary,
+#ui .backup-sheet .secondary {
+  min-height: 36px;
+  padding: 6px 14px;
+}
+
+.backup-status {
+  margin: 6px 0 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink-quiet);
+}
+
+.backup-restore {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(216, 191, 138, 0.18);
+}
+
+.backup-own[hidden] + .backup-restore {
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.backup-restore-title {
+  margin: 0 0 6px;
+  text-align: center;
+  color: var(--ink-quiet);
+}
+
+#ui .backup-input {
+  width: 13em;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(216, 191, 138, 0.4);
+  background: rgba(7, 7, 12, 0.8);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  /* 16px: Safari en iPhone no acerca la página al escribir. */
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.backup-message {
+  min-height: 1.4em;
+  margin: 6px 0 0;
+  text-align: center;
+  color: var(--ink-quiet);
+}
+
+.backup-message:empty {
+  min-height: 0;
+}
+
+.backup-confirm-text {
+  margin: 4px 0 8px;
+  text-align: center;
+}
+
+/* La primera vez, en el Vestidor: un enlace discreto bajo el arquetipo. */
+#ui .wardrobe-restore {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--ink-quiet);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ---------- Elegir linaje (al crear el hechicero) ---------- */
 
 .school-picker {

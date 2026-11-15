@@ -38,6 +38,11 @@ export function roomsServerName(): string {
   return roomsUrl() === SANTIAGO_URL ? 'Santiago' : 'Cloudflare';
 }
 
+/** Dónde se respalda el perfil (ver platform/backup.ts). */
+export function profileBackupUrl(): string {
+  return `${SERVER_URL}/api/perfil`;
+}
+
 /** Dónde se mandan los informes de errores (ver platform/ErrorReporter.ts). */
 export function errorReportUrl(): string {
   return `${SERVER_URL}/api/errors`;

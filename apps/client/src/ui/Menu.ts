@@ -129,6 +129,8 @@ export class Menu {
   private readonly camp: HTMLElement;
   /** El Linaje cuya ilustración ya se pidió, para no pedirla de nuevo. */
   private campFor: ElementId | null = null;
+  /** La columna derecha (Grimorio, Sonido…), para sumarle tarjetas desde afuera. */
+  readonly side: HTMLElement;
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -198,7 +200,8 @@ export class Menu {
     this.tagline = query(this.root, '.menu-tagline');
     // Tocar a tu maestro le saca otra frase.
     this.tagline.addEventListener('click', () => this.speak(true));
-    new HomeScreenInvite(query(this.root, '.menu-side'), this.root);
+    this.side = query(this.root, '.menu-side');
+    new HomeScreenInvite(this.side, this.root);
     query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
     this.portrait.addEventListener('click', onWardrobe);
     query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);

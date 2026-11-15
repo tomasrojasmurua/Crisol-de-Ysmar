@@ -8,7 +8,11 @@
   },
   // Registro de errores (ver docs/errores.md). Sin database_id: wrangler la crea al publicar si
   // no existe y la conecta por nombre si ya existe.
-  "d1_databases": [{ "binding": "ERRORS", "database_name": "crisol-errores" }],
+  // Respaldo de perfiles (ver docs/respaldo.md), igual: se crea sola al publicar.
+  "d1_databases": [
+    { "binding": "ERRORS", "database_name": "crisol-errores" },
+    { "binding": "PROFILES", "database_name": "crisol-perfiles" }
+  ],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
   "observability": { "enabled": true }
 }

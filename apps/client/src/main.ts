@@ -42,6 +42,7 @@ import { leftRoom, recentRoomCode, roomToRejoin } from './net/lastRoom';
 import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
 import { BackGuard } from './platform/BackGuard';
+import { ProfileBackup } from './platform/backup';
 import { startErrorReports } from './platform/ErrorReporter';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
@@ -50,6 +51,7 @@ import { CALM_FPS, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
 import { readQuality, saveQuality } from './render/Quality';
+import { BackupSheet } from './ui/BackupSheet';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
@@ -78,6 +80,9 @@ startErrorReports(() => ({ room: net?.code ?? '', match: describeMatch() }));
 blockBrowserGestures();
 // Abierto desde el ícono recién agregado a inicio: trae el progreso que tenía Safari.
 adoptCarriedProgress();
+// Y se respalda en el servidor cada vez que cambia (ver docs/respaldo.md).
+const backup = new ProfileBackup();
+backup.start();
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const uiRoot = document.querySelector<HTMLElement>('#ui');
 if (!canvas || !uiRoot) {
@@ -181,7 +186,9 @@ const wardrobe = new Wardrobe(
     closeOverlays();
   },
   profile,
+  (restoreOnly) => backupSheet.open(restoreOnly),
 );
+const backupSheet = new BackupSheet(menu.side, uiRoot, backup);
 const grimoireBook = new GrimoireBook(
   uiRoot,
   () => closeOverlays(),
@@ -386,6 +393,8 @@ function showMenu(): void {
   endTutorial();
   useRules(GAME_RULES);
   screens.menu(profile, grimoire);
+  // De vuelta en el menú (al terminar una partida o el tutorial): se respalda lo nuevo.
+  void backup.sync();
 }
 
 function openWardrobe(): void {
@@ -404,6 +413,7 @@ function closeOverlays(): void {
   grimoireBook.hide();
   view.hidePreview();
   screens.refreshIdentity(profile, grimoire);
+  void backup.sync();
   // Recién creado el hechicero (o un perfil de antes): falta elegir linaje.
   if (profile.name && !profile.school) {
     schoolPicker.show();
