@@ -14,7 +14,12 @@ import {
   type Intent,
   SeededRng,
 } from '@crisol/core';
-import { isValidRoomCode, type PlayerInfo, randomRoomCode } from '@crisol/protocol';
+import {
+  isValidRoomCode,
+  type PlayerInfo,
+  QUICK_ROOM_SETTINGS,
+  randomRoomCode,
+} from '@crisol/protocol';
 import { GameAudio } from './audio/GameAudio';
 import { ComboLog } from './game/ComboLog';
 import { castOf, type OtherWizard, ownLook } from './game/cast';
@@ -41,6 +46,7 @@ import { TouchControls } from './input/TouchControls';
 import { leftRoom, recentRoomCode, roomToRejoin } from './net/lastRoom';
 import type { NetMatch } from './net/NetMatch';
 import { openRoom } from './net/openRoom';
+import { quickMatchUrl } from './net/serverUrl';
 import { BackGuard } from './platform/BackGuard';
 import { ProfileBackup } from './platform/backup';
 import { startErrorReports } from './platform/ErrorReporter';
@@ -174,6 +180,7 @@ const menu = new Menu(
   () => openGrimoire(),
   () => openLobby(),
   () => trainingChooser.show(!comboLog.tutorialDone && tutorialProgress.count === 0),
+  () => void quickMatch(),
   audio.engine,
   (key) => audio.say(key),
 );
@@ -611,15 +618,53 @@ function rematch(): void {
  * Entra a una sala (nueva o de un amigo) y espera a que empiece. Los ajustes (modo, tiempo,
  * rondas…) los elige en la sala quien la creó, a la vista de todos.
  */
-function joinRoom(code: string): void {
+/**
+ * Partida rápida: el servidor de salas dice a qué sala pública ir (una que espera gente, una en
+ * su primera ronda con un mago de la IA libre, o una nueva). Si no responde, se juega lo mismo
+ * contra la IA.
+ */
+async function quickMatch(): Promise<void> {
+  enterImmersive();
+  menu.visible = false;
+  lobby.showRoom('', true);
+  lobby.setStatus('Buscando partida…');
+  try {
+    const response = await fetch(quickMatchUrl(), {
+      method: 'POST',
+      signal: AbortSignal.timeout(6000),
+    });
+    const { roomCode } = (await response.json()) as { roomCode?: unknown };
+    if (typeof roomCode !== 'string' || !isValidRoomCode(roomCode)) throw new Error('Sin sala');
+    // Si volvió al menú mientras se buscaba, no se lo saca de ahí.
+    if (!lobby.visible) return;
+    joinRoom(roomCode, true);
+  } catch {
+    if (!lobby.visible) return;
+    lobby.hide();
+    startMatch({
+      mode: QUICK_ROOM_SETTINGS.mode,
+      deathRule: 'out',
+      affinity: profile.affinity,
+      botLevel: QUICK_ROOM_SETTINGS.botLevel,
+    });
+    hud.announce('No pudimos conectar con el servidor', 'Juegas contra la IA', 3);
+  }
+}
+
+function joinRoom(code: string, quick = false): void {
   net?.close();
   menu.visible = false;
-  lobby.showRoom(code);
+  lobby.showRoom(code, quick);
   history.replaceState(null, '', `?sala=${code}`);
   backGuard.arm();
   net = openRoom(
     code,
-    { name: profile.name || 'Hechicero', look: profile.look, affinity: profile.affinity },
+    {
+      name: profile.name || 'Hechicero',
+      look: profile.look,
+      affinity: profile.affinity,
+      ...(quick ? { quick: true } : {}),
+    },
     {
       lobby,
       hud,

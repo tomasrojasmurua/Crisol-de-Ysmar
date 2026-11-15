@@ -144,6 +144,11 @@ export class Lobby {
   private readonly modeTitle: HTMLElement;
   private readonly beginButton: HTMLButtonElement;
   private link = '';
+  /** Partida rápida: sala pública, sin invitar ni ajustes, que empieza sola. */
+  private quick = false;
+  /** Cuándo empieza sola (`performance.now()`), o null si no corre la cuenta. */
+  private startsAt: number | null = null;
+  private countdown: ReturnType<typeof setInterval> | null = null;
   private modeName = 'Duelo 1 contra 1';
 
   constructor(
@@ -252,6 +257,7 @@ export class Lobby {
 
   /** La pantalla para crear o unirse. `recentCode`, la última sala, queda escrita para volver. */
   showChoice(recentCode = ''): void {
+    this.applyQuick(false);
     this.root.hidden = false;
     this.choose.hidden = false;
     this.waiting.hidden = true;
@@ -259,8 +265,13 @@ export class Lobby {
     this.codeInput.value = recentCode;
   }
 
-  /** Ya estás en una sala: muestra el código y cómo invitar. */
-  showRoom(code: string): void {
+  /**
+   * Ya estás en una sala: muestra el código y cómo invitar. En la Partida rápida (`quick`) no se
+   * invita ni se eligen ajustes: se ve quién llegó y cuánto falta para empezar.
+   */
+  showRoom(code: string, quick = false): void {
+    this.applyQuick(quick);
+    this.startsAt = null;
     this.root.hidden = false;
     this.choose.hidden = true;
     this.waiting.hidden = false;
@@ -275,6 +286,16 @@ export class Lobby {
     this.beginButton.disabled = false;
   }
 
+  /** La Partida rápida no invita ni deja elegir ajustes: solo quién llegó y cuánto falta. */
+  private applyQuick(quick: boolean): void {
+    this.quick = quick;
+    query(this.root, '.lobby-title').textContent = quick ? 'Partida rápida' : 'Jugar con amigos';
+    for (const selector of ['.lobby-code-label', '.lobby-code', '.lobby-invite-buttons']) {
+      query(this.root, selector).hidden = quick;
+    }
+    query(this.root, '.lobby-settings').hidden = quick;
+  }
+
   private updateShare(): void {
     const text = `¡Te desafío en el Crisol de Ysmar (${this.modeName})! Entra aquí: ${this.link}`;
     this.share.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -286,7 +307,13 @@ export class Lobby {
     me: number,
     settings: RoomSettings,
     hostId: number,
+    /** Si es una Partida rápida (la Sala lo dice: vale también al volver con `?sala=`). */
+    quick = false,
+    /** Partida rápida: cuándo empieza sola (`performance.now()`), o null. */
+    startsAt: number | null = null,
   ): void {
+    if (quick !== this.quick) this.applyQuick(quick);
+    this.startsAt = startsAt;
     const mode = settings.mode;
     this.settings = settings;
     this.modeName = modeLabel(mode);
@@ -337,6 +364,13 @@ export class Lobby {
         : free === 1
           ? 'Empezar (la IA ocupa 1 puesto)'
           : `Empezar (la IA ocupa ${free} puestos)`;
+    if (this.quick) {
+      // Cualquiera de los que esperan puede no querer esperar: quien llegó primero empieza ya.
+      this.beginButton.textContent = 'Empezar ya';
+      this.tickCountdown();
+      this.countdown ??= setInterval(() => this.tickCountdown(), 250);
+      return;
+    }
     const who = host?.name ?? 'quien creó la sala';
     if (isHost) {
       this.status.textContent =
@@ -349,11 +383,33 @@ export class Lobby {
   }
 
   setStatus(text: string): void {
+    this.stopCountdown();
     this.status.textContent = text;
+  }
+
+  /** Partida rápida: "Empieza en 7 s…", cada cuarto de segundo. */
+  private tickCountdown(): void {
+    if (this.root.hidden || !this.quick) {
+      this.stopCountdown();
+      return;
+    }
+    if (this.startsAt === null) {
+      this.status.textContent = 'Buscando rivales…';
+      return;
+    }
+    const seconds = Math.max(0, Math.ceil((this.startsAt - performance.now()) / 1000));
+    this.status.textContent =
+      seconds > 0 ? `Empieza en ${seconds} s. La IA ocupa los puestos libres.` : 'Empezando…';
+  }
+
+  private stopCountdown(): void {
+    if (this.countdown) clearInterval(this.countdown);
+    this.countdown = null;
   }
 
   hide(): void {
     Dropdown.closeAll();
+    this.stopCountdown();
     this.root.hidden = true;
   }
 

@@ -33,6 +33,7 @@ import {
   SeededRng,
   type SeriesState,
   stepMatch,
+  TICK_MS,
   TICK_RATE,
   teamCount,
   type Vec2,
@@ -44,6 +45,7 @@ import {
   type NetStage,
   type PlayerInfo,
   type PlayerLook,
+  QUICK_ROOM_SETTINGS,
   type RoomSettings,
   type StateFrame,
   sameMode,
@@ -70,6 +72,11 @@ export const LOBBY_GRACE_TICKS = TICK_RATE * 60;
  * Antes, si quien creó la sala quedaba colgado, nadie más podía empezar.
  */
 export const HOST_SILENT_TICKS = TICK_RATE * 20;
+/**
+ * Partida rápida: la sala pública empieza sola este rato después de que entra el primero (o
+ * apenas se llena) y la IA ocupa los puestos libres.
+ */
+export const QUICK_START_TICKS = TICK_RATE * 10;
 /** A qué modo crece la sala si llega alguien y no hay puesto. */
 const GROWS_TO: readonly (readonly [GameMode, GameMode])[] = [
   [{ kind: 'duel' }, { kind: 'teams', size: 2 }],
@@ -98,6 +105,8 @@ export interface JoinRequest {
   readonly look?: PlayerLook | undefined;
   readonly affinity?: ElementId | null | undefined;
   readonly token?: string | undefined;
+  /** Entra por Partida rápida: si la sala está vacía, queda pública (ver `makeQuick`). */
+  readonly quick?: boolean | undefined;
 }
 
 interface Slot {
@@ -166,6 +175,10 @@ export class DuelHost {
   state: MatchState | null = null;
   /** Se pone en true cuando empieza una partida; quien lo usa avisa y lo vuelve a false. */
   startedNew = false;
+  /** Sala pública de Partida rápida: ajustes fijos y empieza sola. */
+  quick = false;
+  /** Paso en que la Partida rápida empieza sola (0: nadie la está esperando). */
+  private quickStartAt = 0;
 
   constructor(
     seed: number,
@@ -177,6 +190,13 @@ export class DuelHost {
 
   /** Entra un jugador, o vuelve uno que se había ido (con su token). Null si la Sala está llena. */
   join(request: JoinRequest): { playerId: number; token: string } | null {
+    if (request.quick) this.makeQuick();
+    if (this.quick && this.stage.kind === 'lobby' && this.connectedCount === 0) {
+      // Una Partida rápida que quedó vacía (la Sala no corre su reloj sin nadie) parte de cero.
+      this.slots.clear();
+      this.hostId = 0;
+      this.quickStartAt = 0;
+    }
     const name = cleanName(request.name);
     // Vuelve con su pase. Sin pase (otro navegador, por ejemplo el de WhatsApp en vez de
     // Chrome), se le devuelve el lugar de un jugador desconectado con su mismo nombre.
@@ -243,6 +263,11 @@ export class DuelHost {
     this.slots.set(id, slot);
     // Si quien mandaba se cortó y no queda nadie más, manda el que llega.
     if (this.hostId === 0 || !this.slots.get(this.hostId)?.connected) this.hostId = id;
+    if (this.quick) {
+      // El primero echa a andar la cuenta; si se llena, se empieza en el próximo paso.
+      if (this.quickStartAt === 0) this.quickStartAt = this.clock + QUICK_START_TICKS;
+      if (this.slots.size >= playerCount(this.settings.mode)) this.quickStartAt = this.clock + 1;
+    }
     return { playerId: id, token: slot.token };
   }
 
@@ -288,7 +313,10 @@ export class DuelHost {
    * Ya en el máximo, se libera el lugar de quien lleva más rato cortado. Devuelve el puesto libre.
    */
   private makeRoom(): number | undefined {
-    const bigger = GROWS_TO.find(([from]) => sameMode(from, this.settings.mode))?.[1];
+    // La Partida rápida no crece: siempre es de 4.
+    const bigger = this.quick
+      ? undefined
+      : GROWS_TO.find(([from]) => sameMode(from, this.settings.mode))?.[1];
     if (bigger) {
       this.settings = { ...this.settings, mode: bigger };
       this.rules = rulesForRoom(this.settings);
@@ -324,7 +352,7 @@ export class DuelHost {
    * llegada: devuelve los que cambiaron de número (puesto viejo → nuevo) para avisarles.
    */
   configure(playerId: number, raw: unknown): Map<number, number> | null {
-    if (this.stage.kind !== 'lobby' || playerId !== this.hostId) return null;
+    if (this.stage.kind !== 'lobby' || playerId !== this.hostId || this.quick) return null;
     const next = cleanRoomSettings(raw);
     if (playerCount(next.mode) < this.slots.size) return null;
     const modeChanged = !sameMode(next.mode, this.settings.mode);
@@ -348,9 +376,48 @@ export class DuelHost {
     return moved;
   }
 
+  /**
+   * La sala pasa a ser una Partida rápida: pública, con los ajustes fijos de `QUICK_ROOM_SETTINGS`
+   * (todos contra todos de 4, IA Duelista) y sin que nadie los cambie. Solo una sala vacía que
+   * no ha empezado: una sala de amigos no se vuelve pública porque alguien entre así.
+   */
+  makeQuick(): void {
+    if (this.quick || this.stage.kind !== 'lobby' || this.slots.size > 0) return;
+    this.quick = true;
+    this.settings = QUICK_ROOM_SETTINGS;
+    this.rules = rulesForRoom(this.settings);
+  }
+
+  /** Cuánto falta para que la Partida rápida empiece sola (ms), o null si no hay cuenta. */
+  get quickStartsIn(): number | null {
+    if (!this.quick || this.stage.kind !== 'lobby' || this.quickStartAt === 0) return null;
+    return Math.max(0, this.quickStartAt - this.clock) * TICK_MS;
+  }
+
+  /**
+   * Si a esta Partida rápida le cabe alguien que llega: `lobby` si espera y tiene puestos;
+   * `late` si va en la primera ronda y queda un mago de la IA que tomar; null si no.
+   */
+  get quickOpening(): 'lobby' | 'late' | null {
+    if (!this.quick) return null;
+    if (this.stage.kind === 'lobby') {
+      return this.slots.size < playerCount(this.settings.mode) ? 'lobby' : null;
+    }
+    const firstRound = this.series.roundsPlayed === 0 && this.stage.kind === 'playing';
+    const bots = [...this.slots.values()].some((s) => s.bot);
+    return firstRound && bots ? 'late' : null;
+  }
+
   /** Quien manda empieza sin esperar: la IA ocupa los puestos libres. */
   begin(playerId: number): boolean {
     if (this.stage.kind !== 'lobby' || playerId !== this.hostId) return false;
+    this.fillAndStart();
+    return true;
+  }
+
+  /** La IA ocupa los puestos libres y empieza la partida. */
+  private fillAndStart(): void {
+    this.quickStartAt = 0;
     const names = WIZARD_NAMES.filter((n) => ![...this.slots.values()].some((s) => s.name === n));
     for (const id of this.seatOrder()) {
       if (this.slots.has(id)) continue;
@@ -378,7 +445,6 @@ export class DuelHost {
       });
     }
     this.startSeries();
-    return true;
   }
 
   /**
@@ -528,6 +594,7 @@ export class DuelHost {
       case 'lobby':
         this.releaseLobbySeats();
         this.refreshHost();
+        this.maybeQuickStart();
         return;
       case 'finished':
         // Si quien faltaba se fue o salió de la app, los que pidieron la revancha no esperan más.
@@ -554,9 +621,22 @@ export class DuelHost {
   }
 
   /** En la sala de espera, el lugar de quien lleva más de un minuto cortado queda libre. */
+  /** La Partida rápida empieza sola al cumplirse la cuenta, si queda alguien esperando. */
+  private maybeQuickStart(): void {
+    if (this.quickStartAt === 0 || this.clock < this.quickStartAt) return;
+    if (this.connectedCount > 0) {
+      this.fillAndStart();
+    } else {
+      // Se fueron todos: la cuenta parte de nuevo con el próximo que llegue.
+      this.quickStartAt = 0;
+    }
+  }
+
   private releaseLobbySeats(): void {
+    // En la Partida rápida nadie espera a un desconocido que se fue: su lugar se libera al tiro.
+    const grace = this.quick ? 0 : LOBBY_GRACE_TICKS;
     for (const slot of [...this.slots.values()]) {
-      if (slot.connected || this.clock - slot.leftAt < LOBBY_GRACE_TICKS) continue;
+      if (slot.connected || this.clock - slot.leftAt < grace) continue;
       this.slots.delete(slot.id);
       if (this.hostId === slot.id) {
         this.hostId = [...this.slots.keys()].sort((a, b) => a - b)[0] ?? 0;

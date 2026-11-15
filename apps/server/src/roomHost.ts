@@ -79,6 +79,16 @@ export class RoomHost {
     this.drop(peer);
   }
 
+  /** La deja como Partida rápida antes de que llegue nadie (ver `DuelHost.makeQuick`). */
+  makeQuick(): void {
+    this.duel.makeQuick();
+  }
+
+  /** Si a esta Partida rápida le cabe alguien (`lobby` esperando, `late` tomando un bot). */
+  get quickOpening(): 'lobby' | 'late' | null {
+    return this.host?.quickOpening ?? null;
+  }
+
   /** Se apaga la Sala (el servidor se reinicia). */
   stop(): void {
     this.stopClock();
@@ -109,6 +119,7 @@ export class RoomHost {
           look: message.look,
           affinity: message.affinity,
           token: message.token,
+          quick: message.quick === true,
         });
         if (!joined) {
           send(peer, { type: 'error', reason: this.duel.joinError || 'La sala está llena' });
@@ -269,11 +280,14 @@ export class RoomHost {
 
   private broadcastPlayers(): void {
     if (!this.host) return;
+    const startsIn = this.host.quickStartsIn;
     const message = encode({
       type: 'players',
       players: this.host.players,
       settings: this.host.settings,
       hostId: this.host.hostId,
+      ...(this.host.quick ? { quick: true } : {}),
+      ...(startsIn !== null ? { startsIn } : {}),
     });
     for (const peer of this.home.peers()) trySend(peer, message);
   }

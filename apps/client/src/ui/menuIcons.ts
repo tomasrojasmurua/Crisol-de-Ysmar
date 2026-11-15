@@ -48,6 +48,8 @@ export const MENU_ICONS = {
   rematch: icon(
     '<path d="M20 11a8 8 0 0 0-14.5-4M4 13a8 8 0 0 0 14.5 4"/><path d="M5 3v4h4M19 21v-4h-4"/>',
   ),
+  /** Rayo: Partida rápida. */
+  quick: icon('<path d="M13 2L4 14h7l-1 8 9-12h-7Z"/>'),
   pause: icon('<path d="M9 5v14M15 5v14"/>'),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
   /** Un celular con un signo más: agregar el juego a la pantalla de inicio. */

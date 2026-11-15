@@ -17,7 +17,7 @@ de errores (D1) siguen en Cloudflare.
 | Pieza                              | Qué hace                                                                   |
 | ---------------------------------- | -------------------------------------------------------------------------- |
 | `apps/server/src/roomHost.ts`      | La Sala, sin saber dónde corre. La usan Cloudflare (`room.ts`) y Santiago. |
-| `apps/server/node/main.ts`         | El servidor Node: `/health`, `/api/rooms` y el socket de cada sala.        |
+| `apps/server/node/main.ts`         | El servidor Node: `/health`, `/api/rooms`, `/api/quick` y los sockets.     |
 | `scripts/sala/instalar.sh`         | Deja una máquina nueva lista: Node 22, Caddy (HTTPS) y el servicio `sala`. |
 | CI (`ci.yml`, solo `main`)         | Arma `sala.mjs` y lo sube a la versión `sala` de GitHub (Releases).        |
 | `apps/client/src/net/serverUrl.ts` | `SANTIAGO_URL`: si tiene dirección, las salas van ahí.                     |

@@ -33,6 +33,11 @@ export function roomSocketUrl(code: string): string {
   return `${roomsUrl().replace(/^http/, 'ws')}/api/rooms/${code}/socket`;
 }
 
+/** Dónde se pide una Partida rápida (el servidor de las salas, que sabe cuáles esperan gente). */
+export function quickMatchUrl(): string {
+  return `${roomsUrl()}/api/quick`;
+}
+
 /** Qué servidor de salas se usa, para el registro de errores. */
 export function roomsServerName(): string {
   return roomsUrl() === SANTIAGO_URL ? 'Santiago' : 'Cloudflare';

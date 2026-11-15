@@ -5,6 +5,7 @@ import {
   HOST_SILENT_TICKS,
   INTERMISSION_TICKS,
   LOBBY_GRACE_TICKS,
+  QUICK_START_TICKS,
   SILENT_TICKS,
 } from './duel';
 
@@ -403,5 +404,62 @@ describe('Salas de más de dos y ajustes', () => {
     }
     expect(kinds.has('choosing')).toBe(false);
     expect(kinds.has('intermission')).toBe(true);
+  });
+});
+
+describe('Partida rápida', () => {
+  it('queda pública con ajustes fijos y nadie los cambia', () => {
+    const duel = host();
+    expect(duel.join({ name: 'Ana', quick: true })?.playerId).toBe(1);
+    expect(duel.quick).toBe(true);
+    expect(duel.gameMode).toEqual({ kind: 'ffa', players: 4 });
+    expect(duel.configure(1, { ...duel.settings, mode: { kind: 'duel' } })).toBeNull();
+    expect(duel.quickOpening).toBe('lobby');
+  });
+
+  it('una sala de amigos no se vuelve pública porque alguien entre por Partida rápida', () => {
+    const duel = host();
+    duel.join({ name: 'Tomás' });
+    duel.join({ name: 'Ana', quick: true });
+    expect(duel.quick).toBe(false);
+    expect(duel.quickOpening).toBeNull();
+  });
+
+  it('empieza sola a los 10 s y la IA llena los puestos', () => {
+    const duel = host();
+    duel.join({ name: 'Ana', quick: true });
+    expect(duel.quickStartsIn).toBe(10_000);
+    for (let i = 0; i < QUICK_START_TICKS - 1; i++) duel.tick();
+    expect(duel.inLobby).toBe(true);
+    duel.join({ name: 'Beto', quick: true });
+    duel.tick();
+    expect(duel.inLobby).toBe(false);
+    expect(duel.startedNew).toBe(true);
+    expect(duel.players.filter((p) => p.bot)).toHaveLength(2);
+    // En la primera ronda, quien llega toma un mago de la IA.
+    expect(duel.quickOpening).toBe('late');
+    expect(duel.join({ name: 'Caro', quick: true })?.playerId).toBe(3);
+    expect(duel.players.filter((p) => p.bot)).toHaveLength(1);
+  });
+
+  it('con 4 personas empieza al tiro y no crece', () => {
+    const duel = host();
+    for (const name of ['A1', 'B2', 'C3', 'D4']) duel.join({ name, quick: true });
+    expect(duel.quickOpening).toBeNull();
+    duel.tick();
+    expect(duel.inLobby).toBe(false);
+    expect(duel.gameMode).toEqual({ kind: 'ffa', players: 4 });
+  });
+
+  it('si se van todos, la cuenta parte de cero con el próximo', () => {
+    const duel = host();
+    duel.join({ name: 'Ana', quick: true });
+    for (let i = 0; i < 30; i++) duel.tick();
+    duel.leave(1);
+    for (let i = 0; i < QUICK_START_TICKS; i++) duel.tick();
+    expect(duel.inLobby).toBe(true);
+    expect(duel.join({ name: 'Beto', quick: true })?.playerId).toBe(1);
+    expect(duel.players).toHaveLength(1);
+    expect(duel.quickStartsIn).toBe(10_000);
   });
 });
