@@ -12,12 +12,12 @@
 
 Generadas con ChatGPT y pasadas a WebP en `apps/client/public/ui/` (~50 KB en total):
 
-| Archivo          | Dónde va                                                          |
-| ---------------- | ----------------------------------------------------------------- |
-| `boton.webp`     | Placa de todo botón `.primary` (con `border-image`, 9 cortes).    |
-| `esquina-*.webp` | Las cuatro esquinas labradas de los cuadros grandes (`--corner`). |
-| `separador.webp` | Bajo los títulos `h2` de los cuadros.                             |
-| `textura.webp`   | Piedra oscura de fondo, repetida.                                 |
+| Archivo          | Dónde va                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| `boton.webp`     | Placa de todo botón `.primary` (con `border-image`, 9 cortes).                                  |
+| `marco.webp`     | Marco de los cuadros grandes: tus esquinas y su línea son el borde (`border-image`, `--frame`). |
+| `separador.webp` | Bajo los títulos `h2` de los cuadros.                                                           |
+| `textura.webp`   | Piedra oscura de fondo, repetida.                                                               |
 
 Son imágenes fijas: no agregan efectos ni trabajo por cuadro. Al montar una pieza nueva, revisar
 que las esquinas no pisen botones ni texto a 844×390 y 667×375.
