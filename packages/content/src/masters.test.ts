@@ -30,3 +30,13 @@ describe('maestros', () => {
     }
   });
 });
+
+describe('lore de los hechizos', () => {
+  it('trae los básicos y los hechizos de cada Linaje, en una línea corta', async () => {
+    const { SPELL_LORE } = await import('./spellLore');
+    const { SCHOOLS } = await import('./schools');
+    const needed = ['spark', 'step', 'splash', 'sap', 'claw', ...SCHOOLS.flatMap((s) => s.spells)];
+    for (const spell of needed) expect(SPELL_LORE[spell as keyof typeof SPELL_LORE]).toBeTruthy();
+    for (const line of Object.values(SPELL_LORE)) expect(line.length).toBeLessThanOrEqual(100);
+  });
+});

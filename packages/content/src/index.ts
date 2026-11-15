@@ -61,3 +61,4 @@ export {
 } from './schema';
 export { SCHOOLS, type School, schoolOf, schoolSpellbook } from './schools';
 export { blindedFrom, veiledFromTeam, visibleEnemies } from './sight';
+export { SPELL_LORE } from './spellLore';
