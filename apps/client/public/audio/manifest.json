@@ -1,1 +1,12 @@
-{}
+{
+  "voice.crisol.convergence": "voice.crisol.convergence.mp3",
+  "voice.crisol.defeat": "voice.crisol.defeat.mp3",
+  "voice.crisol.final": "voice.crisol.final.mp3",
+  "voice.crisol.firstFall": "voice.crisol.firstFall.mp3",
+  "voice.crisol.round1": "voice.crisol.round1.mp3",
+  "voice.crisol.round2": "voice.crisol.round2.mp3",
+  "voice.crisol.round3": "voice.crisol.round3.mp3",
+  "voice.crisol.roundWon": "voice.crisol.roundWon.mp3",
+  "voice.crisol.sudden": "voice.crisol.sudden.mp3",
+  "voice.crisol.victory": "voice.crisol.victory.mp3"
+}

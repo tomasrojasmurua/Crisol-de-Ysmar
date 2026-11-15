@@ -87,14 +87,15 @@ resultado (victoria, derrota, reñida o empate).
 La dirección acordada; lo que no dice "hecho" no existe todavía.
 
 - **Tu maestro** (hecho: elección y resultado). Falta que te guíe en el tutorial.
-- **La voz del Crisol.** Solo en momentos clave: al empezar, en muerte súbita y en la victoria.
-  Puede ser el narrador de ElevenLabs que ya estaba planeado.
+- **La voz del Crisol** (hecho: 10 frases en `public/audio/`). Solo en momentos clave: rondas,
+  fases, primera caída y resultado. Faltan `draw`, `discover` y `guardian`
+  ([audio-voces.md](audio-voces.md)).
 - **Una línea de lore por hechizo** en el Grimorio, como nota al margen del maestro del primer
   elemento (`packages/content/src/spellLore.ts`). Hecho para los 155. Descubrir un hechizo también descubre un pedazo de Ysmar y del misterio.
 - **El menú como un lugar:** el campamento de tu Linaje a las puertas del Crisol. Hecho: tu
   maestro habla bajo el logo (frases `camp`, con pistas del misterio) y el menú toma un resplandor
-  del color de tu Linaje. El fondo ilustrado por Linaje está listo en el juego; faltan las
-  imágenes ([arte/campamentos.md](arte/campamentos.md)).
+  del color de tu Linaje, sobre el fondo ilustrado de su campamento
+  ([arte/campamentos.md](arte/campamentos.md)).
 - **Quién controla Ysmar:** las victorias de un grupo de amigos suman para su Linaje ("Umbra
   controla Ysmar este mes"). Necesita el perfil guardado en el servidor.
 
