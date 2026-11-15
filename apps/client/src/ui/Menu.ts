@@ -126,6 +126,9 @@ export class Menu {
   /** Tu Linaje y la última frase de su maestro, para no repetirla al volver al menú. */
   private school: ElementId | null = null;
   private campLine = -1;
+  private readonly camp: HTMLElement;
+  /** El Linaje cuya ilustración ya se pidió, para no pedirla de nuevo. */
+  private campFor: ElementId | null = null;
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -143,6 +146,7 @@ export class Menu {
     this.restore();
     this.root = el('div', 'menu');
     this.root.innerHTML = `
+      <div class="menu-camp"></div>
       <div class="menu-veil"></div>
       <small class="menu-version"></small>
       <aside class="menu-card menu-wizard-card">
@@ -187,6 +191,10 @@ export class Menu {
     this.affinityIcon = query(this.root, '.menu-affinity-icon');
     this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
+    this.camp = query(this.root, '.menu-camp');
+    // El mago 3D se dibuja en el lienzo, detrás del menú: la ilustración le deja una ventana.
+    new ResizeObserver(() => this.fitCampWindow()).observe(this.portrait);
+    window.addEventListener('resize', () => this.fitCampWindow());
     this.tagline = query(this.root, '.menu-tagline');
     // Tocar a tu maestro le saca otra frase.
     this.tagline.addEventListener('click', () => this.speak(true));
@@ -303,6 +311,7 @@ export class Menu {
     this.affinityIcon.style.setProperty('--icon-color', element?.color ?? 'var(--gold)');
     this.grimoireCount.textContent = `${known} de ${total}`;
     this.school = profile.school;
+    this.showCamp(profile.school);
     const linaje = ELEMENTS.find((e) => e.id === profile.school);
     if (linaje) this.root.style.setProperty('--linaje', linaje.color);
     else this.root.style.removeProperty('--linaje');
@@ -334,6 +343,39 @@ export class Menu {
   set visible(value: boolean) {
     if (!value) Dropdown.closeAll();
     this.root.hidden = !value;
+    if (value) this.fitCampWindow();
+  }
+
+  /**
+   * El fondo ilustrado del campamento de tu Linaje (`public/campamento/<elemento>.webp`). Si no
+   * existe, o mientras carga, se ve el Crisol 3D de siempre.
+   */
+  private showCamp(school: ElementId | null): void {
+    if (school === this.campFor) return;
+    this.campFor = school;
+    this.root.classList.remove('has-camp');
+    if (!school) return;
+    const url = `/campamento/${school}.webp`;
+    const image = new Image();
+    image.onload = () => {
+      if (this.campFor !== school) return;
+      this.camp.style.backgroundImage = `url("${url}")`;
+      this.root.classList.add('has-camp');
+      this.fitCampWindow();
+    };
+    image.src = url;
+  }
+
+  /** La ventana en la ilustración por donde se ve tu mago (que vive en el lienzo de atrás). */
+  private fitCampWindow(): void {
+    if (this.root.hidden) return;
+    const root = this.root.getBoundingClientRect();
+    const rect = this.portrait.getBoundingClientRect();
+    const style = this.camp.style;
+    style.setProperty('--portrait-x', `${rect.left - root.left}px`);
+    style.setProperty('--portrait-y', `${rect.top - root.top}px`);
+    style.setProperty('--portrait-w', `${rect.width}px`);
+    style.setProperty('--portrait-h', `${rect.height}px`);
   }
 
   private refresh(): void {

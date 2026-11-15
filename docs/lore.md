@@ -93,7 +93,8 @@ La dirección acordada; lo que no dice "hecho" no existe todavía.
   elemento (`packages/content/src/spellLore.ts`). Hecho para los 155. Descubrir un hechizo también descubre un pedazo de Ysmar y del misterio.
 - **El menú como un lugar:** el campamento de tu Linaje a las puertas del Crisol. Hecho: tu
   maestro habla bajo el logo (frases `camp`, con pistas del misterio) y el menú toma un resplandor
-  del color de tu Linaje. Falta un fondo ilustrado por Linaje.
+  del color de tu Linaje. El fondo ilustrado por Linaje está listo en el juego; faltan las
+  imágenes ([arte/campamentos.md](arte/campamentos.md)).
 - **Quién controla Ysmar:** las victorias de un grupo de amigos suman para su Linaje ("Umbra
   controla Ysmar este mes"). Necesita el perfil guardado en el servidor.
 
