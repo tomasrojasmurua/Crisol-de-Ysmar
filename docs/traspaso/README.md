@@ -158,6 +158,11 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    en 3v3: de ~480 a ~300 llamadas de dibujo y 25% menos trabajo del procesador por cuadro.
    Detalle en `docs/arquitectura.md`, "Presupuestos de rendimiento". Falta confirmarlo en un
    Android real con el informe de la partida.
+   Segunda vuelta, con la telemetría de la prueba (A34 y A35 lentos más de la mitad del tiempo
+   aun en Liviana, frenados por la tarjeta gráfica): los sombreadores de los 155 hechizos se
+   compilan en el menú (ya no hay tirones al lanzar algo por primera vez), suelo y árboles con
+   material mate (22% menos trabajo gráfico en Liviana) y el toque de color dentro de la pasada
+   final. Falta ver el informe de la próxima partida en esos dos Samsung.
 5. **Revisión en celular real** de lo nuevo: la elección de linaje y el tutorial por linaje, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.

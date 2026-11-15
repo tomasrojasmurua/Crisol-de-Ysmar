@@ -145,6 +145,20 @@ sombras. Reglas que lo sostienen:
   nunca una sombra difusa (eso repinta la pantalla en cada cuadro).
 - La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
   cuadros por segundo y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
+- **Ningún sombreador se compila en plena pelea** (`render/ShaderWarmup.ts`). En el menú, en los
+  ratos libres, se lanzan los 155 hechizos en una partida de mentira, se arman sus vistas y
+  efectos fuera de la escena y se compilan sin bloquear (`compileAsync`); queda una pieza por
+  sombreador para sostenerlos. Medido en la jungla: de 6 a 12 compilaciones en los primeros 45 s
+  de partida (cada una, un tirón en un Android de gama media) a ninguna.
+- **No cambiar cuántas luces hay en escena**: eso recompila todos los materiales. La linterna se
+  apaga con la intensidad, no escondiéndola. Al cambiar la calidad (las sombras sí cambian) se
+  recompila sin bloquear y mientras tanto queda el último cuadro a la vista (hasta 3 s).
+- **Lo quieto y áspero del escenario usa `matte()`** (`render/arena/matte.ts`, material de solo
+  luz difusa): con aspereza de 0,85 a 1 el brillo del material realista casi no se ve, pero se
+  pagaba en cada píxel del suelo y los árboles. Medido con la tarjeta gráfica por software a 1,5
+  píxeles por punto: 22 a 24% menos trabajo por cuadro en Liviana y 12 a 14% en Alta.
+- **Una sola pasada de pantalla completa al final**: el toque de color (viñeta, sombras violeta,
+  contraste) va dentro de la pasada de tono y sRGB. Separado costaba otro 12% del cuadro en Alta.
 
 ## Hitos
 

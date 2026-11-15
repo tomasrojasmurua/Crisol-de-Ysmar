@@ -11,6 +11,7 @@ import { CreatureViews } from './CreatureViews';
 import { EffectsView } from './EffectsView';
 import { Particles } from './Particles';
 import { PostProcessing } from './postprocessing';
+import { ShaderWarmup } from './ShaderWarmup';
 import { SpellViews, type SpellWorld } from './SpellViews';
 import { TargetMarker } from './TargetMarker';
 import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView';
@@ -20,6 +21,13 @@ import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView
  * a 1,5 y el celular se calentaba; en una pantalla de 6 pulgadas la diferencia casi no se ve.
  */
 const PHONE_MAX_PIXEL_RATIO = 1.5;
+
+/** Lo más que se deja de dibujar esperando los sombreadores, por si el navegador no avisa. */
+const MAX_HOLD_MS = 3000;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Un mundo de hechizos vacío, para limpiar la escena fuera de partida. */
 const NO_SPELL_WORLD: SpellWorld = {
@@ -62,6 +70,13 @@ export class GameScene {
     window.devicePixelRatio,
     window.matchMedia?.('(pointer: coarse)').matches ? PHONE_MAX_PIXEL_RATIO : undefined,
   );
+  /** Compila de antemano los sombreadores de los hechizos (ver `ShaderWarmup`). */
+  readonly warmup: ShaderWarmup;
+  /**
+   * Mientras se compilan los sombreadores tras cambiar la calidad, no se dibuja: queda el último
+   * cuadro a la vista unos instantes en vez de trabar el juego entero (la partida sigue).
+   */
+  private holding = false;
   /** El aspecto de cada mago de la partida, para que su Señuelo se vea igual que él. */
   readonly wizardLooks = new Map<number, WizardLook>();
   /** Una luz suave sobre tu mago: en la jungla siempre se ve dónde estás. */
@@ -86,6 +101,7 @@ export class GameScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Las llamadas de dibujo se cuentan por cuadro completo (sombras y resplandor incluidos).
     this.renderer.info.autoReset = false;
+    this.warmup = new ShaderWarmup(this.renderer, rules);
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => {
         const { clientWidth, clientHeight } = canvas;
@@ -131,14 +147,48 @@ export class GameScene {
   /** Alta: todo el ambiente. Liviana: sin sombras, luces de brasero, resplandor ni estelas. */
   applyQuality(quality: QualityName): void {
     const full = quality === 'alta';
+    if (full === this.post.enabled && this.arena.lit === full) return;
     this.post.enabled = full;
     this.arena.setLight(full);
     this.spells.trailsEnabled = full;
+    // Las sombras y las luces cambian el sombreador de cada material: se recompila todo. Se
+    // hace sin bloquear, y mientras tanto queda el último cuadro a la vista.
+    this.holding = true;
+    void Promise.race([this.warmUp(true), wait(MAX_HOLD_MS)]).then(() => {
+      this.holding = false;
+    });
   }
 
+  /**
+   * Compila sin bloquear los sombreadores de todos los hechizos con las luces de ahora (y, con
+   * `withScene`, los de lo que ya está en escena). Se llama al empezar cada partida (por si se
+   * pasó por el Vestidor) y al cambiar la calidad. Si nada cambió, no hace nada.
+   */
+  warmUp(withScene = false): Promise<void> {
+    const spells = this.warmup.compile(this.scene, this.camera, this.lightKey);
+    if (!withScene) return spells;
+    const scene = this.renderer.compileAsync(this.scene, this.camera).then(
+      () => undefined,
+      () => undefined,
+    );
+    return Promise.all([scene, spells]).then(() => undefined);
+  }
+
+  /**
+   * Lo que de las luces cambia el sombreador de cada material: las sombras (calidad) y las luces
+   * del Vestidor. La linterna y los braseros cuentan siempre (se apagan con la intensidad).
+   */
+  get lightKey(): string {
+    return `${this.arena.lit}|${this.previewKey.visible}`;
+  }
+
+  /**
+   * La linterna se apaga bajando su intensidad, sin esconderla: cambiar cuántas luces hay en la
+   * escena obliga a recompilar el sombreador de cada material (un tirón largo al empezar cada
+   * partida) y dejaría inútiles los sombreadores compilados en el menú.
+   */
   setLantern(on: boolean): void {
     this.lantern.intensity = on ? 5 : 0;
-    this.lantern.visible = on;
   }
 
   /** Sigue a quien se mira: la linterna, la niebla de la arena y los braseros encendidos. */
@@ -253,6 +303,6 @@ export class GameScene {
     this.maps.jungle.update(elapsed, this.camera.position, player);
     this.effects.update(simDelta);
     this.particles.update(simDelta);
-    this.post.render();
+    if (!this.holding) this.post.render();
   }
 }
