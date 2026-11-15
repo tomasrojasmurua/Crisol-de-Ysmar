@@ -185,7 +185,7 @@ const BASICS: Readonly<Record<ElementId, SpellId>> = {
   umbra: 'claw',
 };
 
-/** Qué sale con el básico de cada elemento, para el primer paso de tu escuela. */
+/** Qué sale con el básico de cada elemento, para el primer paso de tu linaje. */
 const BASIC_NOTES: Readonly<Record<ElementId, string>> = {
   brasa: 'sale una Chispa. Los números rojos son el daño que haces.',
   tormenta: 'sale un Paso: te mueve rápido unos metros y sirve para esquivar.',
@@ -207,7 +207,7 @@ function newParts(spell: SpellId, shown: Set<HudPart>): ElementId[] {
   return fresh;
 }
 
-/** Un paso que pide tejer un hechizo de la escuela; si trae un elemento nuevo, lo presenta. */
+/** Un paso que pide tejer un hechizo del linaje; si trae un elemento nuevo, lo presenta. */
 function spellStep(school: School, spell: SpellId, shown: Set<HudPart>): TutorialStep {
   const fresh = newParts(spell, shown);
   const name = SPELL_NAMES[spell];
@@ -223,11 +223,11 @@ function spellStep(school: School, spell: SpellId, shown: Set<HudPart>): Tutoria
 }
 
 /**
- * El tutorial de una escuela, en capítulos que se pueden repetir: del objetivo del juego hasta
+ * El tutorial de un linaje, en capítulos que se pueden repetir: del objetivo del juego hasta
  * un examen contra la IA Aprendiz. La barra de botones se va abriendo: primero solo moverse y
- * la cámara, después el elemento de tu escuela, y cada elemento nuevo aparece cuando un hechizo
- * de tu set lo pide. Enseña los 4 hechizos de la escuela (y Paso para esquivar), no el resto.
- * Al terminar el capítulo de combos se entrega el combo de la escuela. Los capítulos `extra`
+ * la cámara, después el elemento de tu linaje, y cada elemento nuevo aparece cuando un hechizo
+ * de tu set lo pide. Enseña los 4 hechizos del linaje (y Paso para esquivar), no el resto.
+ * Al terminar el capítulo de combos se entrega el combo del linaje. Los capítulos `extra`
  * (Más técnicas) no son parte del recorrido: se eligen sueltos desde Entrenamiento.
  */
 export function tutorialChapters(element: ElementId): readonly TutorialChapter[] {
@@ -341,7 +341,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Combinar elementos',
-          text: 'Si tocas 2 o 3 elementos antes de ✦, sale otro hechizo. El orden cuenta: {tormenta} y {brasa} no es lo mismo que {brasa} y {tormenta}. Ahora vienen los de tu escuela.',
+          text: 'Si tocas 2 o 3 elementos antes de ✦, sale otro hechizo. El orden cuenta: {tormenta} y {brasa} no es lo mismo que {brasa} y {tormenta}. Ahora vienen los de tu linaje.',
           goal: { kind: 'read' },
         },
         ...tejer,
@@ -410,7 +410,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Combos',
-          text: 'Un combo son dos hechizos seguidos que se ayudan. Ahora aprendes el de tu escuela.',
+          text: 'Un combo son dos hechizos seguidos que se ayudan. Ahora aprendes el de tu linaje.',
           goal: { kind: 'read' },
           dummy: 'idle',
         },
@@ -436,7 +436,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
       steps: [
         {
           title: 'Todo es tuyo',
-          text: 'Ya tienes los 5 elementos. Los hechizos de tu escuela salen destacados en el Grimorio, pero puedes combinar cualquier elemento: hay 155 hechizos por descubrir.',
+          text: 'Ya tienes los 5 elementos. Los hechizos de tu linaje salen destacados en el Grimorio, pero puedes combinar cualquier elemento: hay 155 hechizos por descubrir.',
           goal: { kind: 'read' },
           reveal: [...ELEMENT_IDS],
         },
@@ -467,7 +467,7 @@ export function tutorialChapters(element: ElementId): readonly TutorialChapter[]
   return chapters.filter((chapter) => chapter.steps.length > 0);
 }
 
-/** El rival del examen: el Aprendiz de la escuela siguiente. */
+/** El rival del examen: el Aprendiz del linaje siguiente. */
 export function examSchool(element: ElementId): School {
   const index = SCHOOLS.findIndex((s) => s.element === element);
   return SCHOOLS[(index + 1) % SCHOOLS.length] ?? schoolOf(element);
@@ -530,7 +530,7 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
 export const mainChapters = (chapters: readonly TutorialChapter[]): number =>
   chapters.filter((c) => !c.extra).length;
 
-/** El capítulo que entrega el combo de la escuela al terminarse. */
+/** El capítulo que entrega el combo del linaje al terminarse. */
 export const GIFT_CHAPTER = 'combos';
 
 /**
@@ -577,7 +577,7 @@ export class Tutorial {
   constructor(
     private readonly playerId: EntityId,
     private readonly dummyId: EntityId,
-    /** Los capítulos de tu escuela (ver `tutorialChapters`). */
+    /** Los capítulos de tu linaje (ver `tutorialChapters`). */
     readonly chapters: readonly TutorialChapter[],
     startChapter = 0,
     /** Si termina al cerrar este capítulo (para repetir uno solo). */

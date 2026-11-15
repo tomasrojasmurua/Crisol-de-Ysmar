@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COMBOS } from './combos';
 import { SCHOOLS, schoolSpellbook } from './schools';
 
-describe('escuelas', () => {
+describe('linajes', () => {
   it('hay una por elemento, con 4 hechizos distintos y un papel para cada uno', () => {
     expect(SCHOOLS.map((s) => s.element).sort()).toEqual([...ELEMENT_IDS].sort());
     for (const school of SCHOOLS) {

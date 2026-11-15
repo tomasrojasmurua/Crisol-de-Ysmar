@@ -56,7 +56,7 @@ export interface BotProfile {
   /** Cuánto recuerda dónde vio al rival si lo pierde de vista (ceguera, Velo), en pasos. */
   readonly memoryTicks: number;
   /**
-   * Si está, solo teje estos hechizos (los de una escuela) y nunca improvisa. Sirve para medir
+   * Si está, solo teje estos hechizos (los de un linaje) y nunca improvisa. Sirve para medir
    * el balance de los sets de principiante.
    */
   readonly spellbook?: readonly SpellId[];

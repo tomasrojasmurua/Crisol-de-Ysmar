@@ -24,7 +24,7 @@ export class TrainingChooser {
     private readonly onChoose: (choice: TrainingChoice) => void,
     /** Si ese capítulo ya está hecho (lleva ✓). */
     private readonly isDone: (chapterId: string) => boolean,
-    /** Los capítulos del tutorial de tu escuela. */
+    /** Los capítulos del tutorial de tu linaje. */
     private readonly schoolChapters: () => readonly TutorialChapter[],
   ) {
     this.root = el('div', 'training-chooser');
@@ -39,7 +39,7 @@ export class TrainingChooser {
           <button type="button" class="training-option" data-kind="tutorial">
             <span class="training-option-badge">Recomendado</span>
             <strong>Tutorial</strong>
-            <span>Lo básico y tu escuela, por capítulos, y un examen al final</span>
+            <span>Lo básico y tu linaje, por capítulos, y un examen al final</span>
           </button>
           <button type="button" class="training-option" data-kind="free">
             ${MENU_ICONS.training}

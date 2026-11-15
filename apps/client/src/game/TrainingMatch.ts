@@ -138,7 +138,7 @@ export class TrainingMatch implements MatchView {
   lastIntents: readonly Intent[] = [];
   private dummyMode: DummyMode = 'idle';
   private dummyBrain: Controller | null = null;
-  /** Los hechizos del Aprendiz del examen: los de otra escuela (null: todos). */
+  /** Los hechizos del Aprendiz del examen: los de otro linaje (null: todos). */
   examSpellbook: readonly SpellId[] | null = null;
 
   constructor(

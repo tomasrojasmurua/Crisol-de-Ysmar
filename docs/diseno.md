@@ -63,7 +63,7 @@ es lo vigente.
 - **Progresión:** variedad, no poder. Grimorio, maestría, desafíos y rivalidades entre amigos.
 - **Arte:** fantasía oscura estilizada; la magia es lo único con color intenso.
 - **Audio:** cada elemento es una nota y un tejido suena como un acorde.
-- **Mundo:** Ysmar, sostenido por la Trama de cinco hilos; los vencedores del Crisol la retejen.
+- **Mundo:** Ysmar, sostenido por la Trama de cinco hilos; los vencedores del Crisol la retejen. Todo el lore está en [lore.md](lore.md).
 
 ## Lectura del combate
 
@@ -111,21 +111,21 @@ sin chocar.
   chocan con medio metro más de margen que el que tienen para pegarle a un mago
   (`interactions.clash.margin`). No es una reacción ni cuenta para el Grimorio.
 
-## Escuelas
+## Linajes
 
-Una por elemento, con nombre simple: "Escuela de Brasa", "Escuela de Tormenta", etc.
-(`packages/content/src/schools.ts`). El jugador elige una para siempre al crear su hechicero, justo
-antes del tutorial. La escuela solo destaca 4 hechizos de partida (y Paso) y fija la Afinidad
+Uno por elemento, con nombre simple: "Linaje de Brasa", "Linaje de Tormenta", etc.
+(`packages/content/src/schools.ts`). El jugador elige uno para siempre al crear su hechicero, justo
+antes del tutorial. El linaje solo destaca 4 hechizos de partida (y Paso) y fija la Afinidad
 inicial, que después se puede cambiar en el Vestidor; no bloquea nada. El Grimorio abre en la
-pestaña del elemento de la escuela con la sección "Escuela de X" arriba.
+pestaña del elemento del linaje con la sección "Linaje de X" arriba.
 
 Cada set es autosuficiente: daño, control, curarse o escapar. La regla de balance: Duelistas que
-solo tejen su set, con la Afinidad en su elemento, ganan entre 45% y 55% contra las otras cuatro
-escuelas (`pnpm escuelas`). Hoy: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 50%, Raíz ≈ 49%, Umbra ≈ 51%.
+solo tejen su set, con la Afinidad en su elemento, ganan entre 45% y 55% contra los otros cuatro
+linajes (`pnpm escuelas`). Hoy: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 50%, Raíz ≈ 49%, Umbra ≈ 51%.
 Hay contras duros a propósito (Raíz gana ~72% a Umbra; Umbra ~63% a Marea y Tormenta). Si se toca
 un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
 
-| Escuela  | Hechizos                                      | Combo que enseña   |
+| Linaje   | Hechizos                                      | Combo que enseña   |
 | -------- | --------------------------------------------- | ------------------ |
 | Brasa    | Chispa, Bola ígnea, Lluvia de fuego, Meteoro  | Blanco quieto      |
 | Tormenta | Rayo en cadena, Cometa, Pararrayos, Tempestad | Tormenta eléctrica |
@@ -136,10 +136,10 @@ un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
 ## Tutorial
 
 En Entrenamiento, por capítulos que se pueden repetir (`apps/client/src/game/Tutorial.ts`), armados
-para la escuela del jugador: el duelo, moverse, la cámara (mirar, fijar, saltar entre rivales,
-soltar), tu elemento (su básico, deshacer y el descanso), tejer los hechizos de la escuela, el Gran
-hechizo (si la escuela trae uno), esquivar con Paso, apuntar, el combo de la escuela (que se
-entrega al Grimorio), el Grimorio y un examen contra un Aprendiz de la escuela siguiente que solo
+para el linaje del jugador: el duelo, moverse, la cámara (mirar, fijar, saltar entre rivales,
+soltar), tu elemento (su básico, deshacer y el descanso), tejer los hechizos del linaje, el Gran
+hechizo (si el linaje trae uno), esquivar con Paso, apuntar, el combo del linaje (que se
+entrega al Grimorio), el Grimorio y un examen contra un Aprendiz del linaje siguiente que solo
 teje su set. "Más técnicas" (choque y meteoro, estados y reacciones) quedan como capítulos
 opcionales en Entrenamiento. La primera vez parte del principio; después se elige el capítulo.
 
@@ -149,7 +149,7 @@ que habla la guía brilla. Cada nombre de elemento en la guía lleva su ícono. 
 tutorial siempre se ven números de daño rojos, pequeños y breves (y palabras como Atrapado o Ciego
 para los estados); en partidas son una opción de Pausa.
 
-Los pasos que se hacen jugando piden hechizos y combos concretos (los de la escuela), no "cualquiera", para no adelantar el resto del Grimorio. La guía va
+Los pasos que se hacen jugando piden hechizos y combos concretos (los del linaje), no "cualquiera", para no adelantar el resto del Grimorio. La guía va
 arriba al centro y casi siempre recogida en una línea: la orden corta, los signos y la cuenta. Cada
 paso nuevo aparece desplegado con la explicación y se recoge solo al empezar a jugar o a los 6 s;
 tocar la línea la despliega. Los pasos de solo leer quedan desplegados con su botón Siguiente.

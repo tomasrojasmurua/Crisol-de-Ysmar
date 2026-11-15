@@ -1,12 +1,12 @@
 import type { ElementId, SpellId } from '@crisol/core';
 
 /**
- * Una escuela: el set de principiante que el jugador elige al crear su hechicero. No bloquea
+ * Un linaje: el set de principiante que el jugador elige al crear su hechicero. No bloquea
  * nada (los 155 hechizos siguen ahí); solo destaca 4 en el Grimorio y el tutorial los enseña.
  * Paso (Tormenta) lo aprenden todos para escapar y no cuenta dentro de los 4.
  *
  * Los sets se eligieron con el simulador (`pnpm escuelas`): Duelistas que solo tejen su set, con
- * la Afinidad en su elemento, ganan entre 45% y 55% contra las otras cuatro escuelas. Si se
+ * la Afinidad en su elemento, ganan entre 45% y 55% contra los otros cuatro linajes. Si se
  * cambia un set, la Afinidad o el balance de uno de estos hechizos, hay que volver a medir.
  */
 export interface School {
@@ -30,7 +30,7 @@ export interface School {
 export const SCHOOLS: readonly School[] = [
   {
     element: 'brasa',
-    name: 'Escuela de Brasa',
+    name: 'Linaje de Brasa',
     style: 'Daño directo',
     spells: ['spark', 'fireball', 'fireRain', 'meteor'],
     roles: {
@@ -46,7 +46,7 @@ export const SCHOOLS: readonly School[] = [
   },
   {
     element: 'tormenta',
-    name: 'Escuela de Tormenta',
+    name: 'Linaje de Tormenta',
     style: 'Movilidad',
     spells: ['chainLightning', 'comet', 'lightningRod', 'tempest'],
     roles: {
@@ -62,7 +62,7 @@ export const SCHOOLS: readonly School[] = [
   },
   {
     element: 'marea',
-    name: 'Escuela de Marea',
+    name: 'Linaje de Marea',
     style: 'Control',
     spells: ['splash', 'blizzard', 'lightningRod', 'iceAge'],
     roles: {
@@ -79,7 +79,7 @@ export const SCHOOLS: readonly School[] = [
   },
   {
     element: 'raiz',
-    name: 'Escuela de Raíz',
+    name: 'Linaje de Raíz',
     style: 'Aguante',
     spells: ['sap', 'shackle', 'spring', 'garden'],
     roles: {
@@ -95,7 +95,7 @@ export const SCHOOLS: readonly School[] = [
   },
   {
     element: 'umbra',
-    name: 'Escuela de Umbra',
+    name: 'Linaje de Umbra',
     style: 'Engaño y robo de vida',
     spells: ['claw', 'drain', 'blinding', 'spores'],
     roles: {
@@ -111,14 +111,14 @@ export const SCHOOLS: readonly School[] = [
   },
 ];
 
-/** La escuela de un elemento. */
+/** El linaje de un elemento. */
 export function schoolOf(element: ElementId): School {
   const school = SCHOOLS.find((s) => s.element === element);
-  if (!school) throw new Error(`Falta la escuela de ${element}`);
+  if (!school) throw new Error(`Falta el linaje de ${element}`);
   return school;
 }
 
-/** Lo que teje un Duelista de esa escuela en el simulador: su set más Paso. */
+/** Lo que teje un Duelista de ese linaje en el simulador: su set más Paso. */
 export function schoolSpellbook(element: ElementId): readonly SpellId[] {
   const { spells } = schoolOf(element);
   return spells.includes('step') ? spells : [...spells, 'step'];

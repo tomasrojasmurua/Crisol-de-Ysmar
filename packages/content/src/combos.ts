@@ -115,7 +115,7 @@ export const COMBOS: readonly Combo[] = [
     tutorial: true,
   },
 
-  // ---------- Combos de escuela (los enseña el tutorial de cada una) ----------
+  // ---------- Combos de linaje (los enseña el tutorial de cada uno) ----------
   {
     id: 'blanco-quieto',
     name: 'Blanco quieto',

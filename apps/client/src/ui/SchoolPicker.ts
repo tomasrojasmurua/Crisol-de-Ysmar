@@ -7,7 +7,7 @@ import { elementIcon } from './icons';
 const colorOf = (id: ElementId): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
 /**
- * Elegir escuela, al crear el hechicero: cinco tarjetas, una por elemento, con su estilo y sus 4
+ * Elegir linaje, al crear el hechicero: cinco tarjetas, una por elemento, con su estilo y sus 4
  * hechizos. Tocar una la marca; "Elegir" la deja para siempre. No bloquea nada: el resto de
  * los hechizos sigue a mano, solo se aprenden después.
  */
@@ -27,12 +27,12 @@ export class SchoolPicker {
     this.root.innerHTML = `
       <div class="school-picker-card">
         <header class="school-picker-head">
-          <h2>Elige tu escuela</h2>
+          <h2>Elige tu linaje</h2>
           <p>Te enseña 4 hechizos para empezar. Es para siempre, pero no te cierra nada: los demás hechizos los descubres jugando.</p>
         </header>
         <div class="school-cards"></div>
         <footer class="school-picker-foot">
-          <span class="school-picker-hint">Toca una escuela</span>
+          <span class="school-picker-hint">Toca un linaje</span>
           <button type="button" class="primary school-confirm" disabled>Elegir</button>
         </footer>
       </div>`;
@@ -81,7 +81,7 @@ export class SchoolPicker {
     }
     card.append(
       icon,
-      el('strong', 'school-card-name', school.name.replace('Escuela de ', '')),
+      el('strong', 'school-card-name', school.name.replace('Linaje de ', '')),
       el('span', 'school-card-style', school.style),
       list,
     );
@@ -98,6 +98,6 @@ export class SchoolPicker {
     }
     const school = SCHOOLS.find((s) => s.element === this.chosen);
     this.confirm.disabled = !school;
-    this.hint.textContent = school ? `${school.name} · ${school.style}` : 'Toca una escuela';
+    this.hint.textContent = school ? `${school.name} · ${school.style}` : 'Toca un linaje';
   }
 }
