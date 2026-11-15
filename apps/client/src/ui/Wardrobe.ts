@@ -16,63 +16,68 @@ import {
   SKIN_TONES,
   TRIM_COLORS,
 } from '@crisol/content';
-import { type ElementId, opposingOf, SeededRng } from '@crisol/core';
+import { type ElementId, isElementId, opposingOf, SeededRng } from '@crisol/core';
 import { cleanName, NAME_MAX_LENGTH, type Profile, randomAppearance } from '../game/Profile';
+import { Dropdown } from './Dropdown';
 import { el, query } from './dom';
 
 const elementName = (id: ElementId): string => ELEMENTS.find((e) => e.id === id)?.name ?? id;
 
-type TabId = 'mago' | 'rostro' | 'ropa' | 'cabeza' | 'foco';
+type TabId = 'mago' | 'aspecto' | 'ropa';
 
 const TABS: readonly { readonly id: TabId; readonly name: string }[] = [
   { id: 'mago', name: 'Mago' },
-  { id: 'rostro', name: 'Rostro' },
+  { id: 'aspecto', name: 'Aspecto' },
   { id: 'ropa', name: 'Ropa' },
-  { id: 'cabeza', name: 'Cabeza' },
-  { id: 'foco', name: 'Foco' },
 ];
 
-/** Una fila de opciones: piezas con nombre o muestras de color. */
+/** Un ajuste del aspecto: una fila con su desplegable. */
 interface Row {
   readonly key: keyof LookIds;
   readonly title: string;
   readonly options: readonly LookOption[];
-  readonly kind: 'pieces' | 'swatches';
 }
 
 const ROWS: Readonly<Record<Exclude<TabId, 'mago'>, readonly Row[]>> = {
-  rostro: [
-    { key: 'face', title: 'Linaje', options: FACES, kind: 'pieces' },
-    { key: 'skin', title: 'Piel, escamas o pelaje', options: SKIN_TONES, kind: 'swatches' },
-    { key: 'mask', title: 'En el rostro', options: MASKS, kind: 'pieces' },
+  aspecto: [
+    { key: 'face', title: 'Linaje', options: FACES },
+    { key: 'skin', title: 'Piel', options: SKIN_TONES },
+    { key: 'mask', title: 'Rostro', options: MASKS },
+    { key: 'headwear', title: 'Cabeza', options: HEADWEAR },
   ],
   ropa: [
-    { key: 'outfit', title: 'Ropa', options: OUTFITS, kind: 'pieces' },
-    { key: 'robe', title: 'Color', options: ROBE_COLORS, kind: 'swatches' },
-    { key: 'trim', title: 'Adornos y metal', options: TRIM_COLORS, kind: 'swatches' },
-    { key: 'cape', title: 'Capa', options: CAPES, kind: 'pieces' },
+    { key: 'outfit', title: 'Ropa', options: OUTFITS },
+    { key: 'robe', title: 'Color', options: ROBE_COLORS },
+    { key: 'trim', title: 'Adornos', options: TRIM_COLORS },
+    { key: 'cape', title: 'Capa', options: CAPES },
+    { key: 'focus', title: 'Foco', options: FOCI },
   ],
-  cabeza: [{ key: 'headwear', title: 'En la cabeza', options: HEADWEAR, kind: 'pieces' }],
-  foco: [{ key: 'focus', title: 'Foco', options: FOCI, kind: 'pieces' }],
 };
 
+/** El valor del desplegable de arquetipos cuando el aspecto ya no es ninguno de ellos. */
+const OWN_LOOK = 'A tu medida';
+
 /**
- * El Vestidor: nombre, Afinidad y todas las piezas del hechicero, en pestañas. Cada cambio se ve
- * en el modelo 3D que queda a un lado; todo es cosmético salvo la Afinidad. Los arquetipos arman
- * un hechicero de una vez y "Al azar" sortea uno que respete las combinaciones.
+ * El Vestidor: nombre, Afinidad y todas las piezas del hechicero, en tres pestañas. Cada ajuste es
+ * una sola fila con un desplegable (y flechas para probar uno por uno), así todo cabe sin
+ * deslizar y el mago en 3D queda a la vista en el espacio libre. Todo es cosmético salvo la
+ * Afinidad. Los arquetipos arman un hechicero de una vez y "Al azar" sortea uno que respete las
+ * combinaciones.
  */
 export class Wardrobe {
   private readonly root: HTMLElement;
+  private readonly panel: HTMLElement;
   private readonly nameInput: HTMLInputElement;
   private readonly affinityDetail: HTMLElement;
   private readonly pages = new Map<TabId, HTMLElement>();
   private readonly tabButtons = new Map<TabId, HTMLElement>();
-  private readonly pieceButtons: { key: keyof LookIds; option: LookOption; button: HTMLElement }[] =
-    [];
-  private readonly archetypeButtons: { look: LookIds; button: HTMLElement }[] = [];
-  private readonly affinityButtons: { id: string; button: HTMLElement }[] = [];
+  private readonly lookPickers: { readonly row: Row; readonly picker: Dropdown }[] = [];
+  private readonly archetypePicker: Dropdown;
+  private readonly affinityPicker: Dropdown;
   private profile: Profile;
   private tab: TabId = 'mago';
+  /** Qué parte del ancho queda libre a la izquierda del panel (0 a 1), para encuadrar al mago. */
+  private freeWidth = 0.5;
 
   constructor(
     parent: HTMLElement,
@@ -88,21 +93,27 @@ export class Wardrobe {
         <nav class="wardrobe-tabs"></nav>
         <div class="wardrobe-body">
           <div class="wardrobe-page" data-page="mago">
-            <label class="wardrobe-name">
-              <span>Nombre</span>
+            <label class="wardrobe-line wardrobe-name">
+              <span class="wardrobe-line-title">Nombre</span>
               <input type="text" maxlength="${NAME_MAX_LENGTH}" autocomplete="off"
                 autocapitalize="words" spellcheck="false" placeholder="¿Cómo te llaman?" />
             </label>
-            <h3>Afinidad</h3>
-            <div class="wardrobe-row affinity"></div>
+            <div class="wardrobe-line wardrobe-affinity-line">
+              <span class="wardrobe-line-title">Afinidad</span>
+            </div>
             <p class="wardrobe-affinity-detail"></p>
-            <h3>Arquetipos</h3>
-            <div class="wardrobe-row pieces archetypes"></div>
+            <div class="wardrobe-line wardrobe-archetype-line">
+              <span class="wardrobe-line-title">Arquetipo</span>
+            </div>
           </div>
         </div>
-        <button type="button" class="primary wardrobe-done">Listo</button>
+        <div class="wardrobe-actions">
+          <button type="button" class="secondary wardrobe-random">✦ Al azar</button>
+          <button type="button" class="primary wardrobe-done">Listo</button>
+        </div>
       </section>`;
     parent.append(this.root);
+    this.panel = query(this.root, '.wardrobe-panel');
     this.nameInput = query<HTMLInputElement>(this.root, 'input');
     this.affinityDetail = query(this.root, '.wardrobe-affinity-detail');
     this.pages.set('mago', query(this.root, '[data-page="mago"]'));
@@ -115,10 +126,37 @@ export class Wardrobe {
       if (event.key === 'Enter') this.nameInput.blur();
     });
     query(this.root, '.wardrobe-done').addEventListener('click', () => this.finish());
+    query(this.root, '.wardrobe-random').addEventListener('click', () => {
+      const rng = new SeededRng((Math.random() * 2 ** 32) >>> 0);
+      this.update({ ...this.profile, look: randomAppearance(rng) });
+    });
 
     this.buildTabs();
-    this.buildAffinity();
-    this.buildArchetypes();
+    this.affinityPicker = new Dropdown({
+      title: 'Afinidad',
+      host: this.panel,
+      arrows: true,
+      colorAs: 'text',
+      options: [
+        { id: '', label: 'Ninguna' },
+        ...ELEMENTS.map((e) => ({ id: e.id, label: e.name, color: e.color })),
+      ],
+      onPick: (id) => this.update({ ...this.profile, affinity: id && isElementId(id) ? id : null }),
+    });
+    query(this.root, '.wardrobe-affinity-line').append(this.affinityPicker.root);
+    this.archetypePicker = new Dropdown({
+      title: 'Arquetipo',
+      host: this.panel,
+      arrows: true,
+      placeholder: OWN_LOOK,
+      options: ARCHETYPES.map((a) => ({ id: a.id, label: a.name })),
+      onPick: (id) => {
+        const archetype = ARCHETYPES.find((a) => a.id === id);
+        if (archetype) this.update({ ...this.profile, look: archetype.look });
+      },
+    });
+    query(this.root, '.wardrobe-archetype-line').append(this.archetypePicker.root);
+
     const body = query(this.root, '.wardrobe-body');
     for (const [tab, rows] of Object.entries(ROWS) as [Exclude<TabId, 'mago'>, readonly Row[]][]) {
       const page = el('div', 'wardrobe-page');
@@ -126,10 +164,19 @@ export class Wardrobe {
       body.append(page);
       this.pages.set(tab, page);
     }
+    window.addEventListener('resize', () => this.measure());
   }
 
   get visible(): boolean {
     return !this.root.hidden;
+  }
+
+  /**
+   * La franja libre a la izquierda del panel, como parte del ancho de la pantalla (0 a 1): ahí
+   * se encuadra al mago para que el panel nunca lo tape.
+   */
+  get stageWidth(): number {
+    return this.freeWidth;
   }
 
   show(profile: Profile): void {
@@ -139,11 +186,21 @@ export class Wardrobe {
     this.tab = 'mago';
     this.refresh();
     this.root.hidden = false;
+    this.measure();
   }
 
   hide(): void {
+    Dropdown.closeAll();
     this.root.hidden = true;
     this.nameInput.blur();
+  }
+
+  /** Se mide al abrir y al girar o redimensionar, nunca en cada cuadro. */
+  private measure(): void {
+    if (this.root.hidden) return;
+    const width = window.innerWidth;
+    if (width <= 0) return;
+    this.freeWidth = Math.min(Math.max(this.panel.getBoundingClientRect().left / width, 0.2), 1);
   }
 
   private finish(): void {
@@ -182,6 +239,7 @@ export class Wardrobe {
       const button = el('button', 'wardrobe-tab', tab.name);
       button.type = 'button';
       button.addEventListener('click', () => {
+        Dropdown.closeAll();
         this.tab = tab.id;
         this.refresh();
         query(this.root, '.wardrobe-body').scrollTop = 0;
@@ -191,66 +249,21 @@ export class Wardrobe {
     }
   }
 
-  private buildAffinity(): void {
-    const row = query(this.root, '.wardrobe-row.affinity');
-    const none = el('button', 'wardrobe-affinity none', 'Ninguna');
-    none.type = 'button';
-    none.addEventListener('click', () => this.update({ ...this.profile, affinity: null }));
-    row.append(none);
-    this.affinityButtons.push({ id: '', button: none });
-    for (const element of ELEMENTS) {
-      const button = el('button', 'wardrobe-affinity', element.name);
-      button.type = 'button';
-      button.style.setProperty('--element', element.color);
-      button.addEventListener('click', () =>
-        this.update({ ...this.profile, affinity: element.id as ElementId }),
-      );
-      row.append(button);
-      this.affinityButtons.push({ id: element.id, button });
-    }
-  }
-
-  private buildArchetypes(): void {
-    const row = query(this.root, '.archetypes');
-    for (const archetype of ARCHETYPES) {
-      const button = el('button', 'wardrobe-piece', archetype.name);
-      button.type = 'button';
-      button.addEventListener('click', () =>
-        this.update({ ...this.profile, look: archetype.look }),
-      );
-      row.append(button);
-      this.archetypeButtons.push({ look: archetype.look, button });
-    }
-    const random = el('button', 'wardrobe-piece wardrobe-random', '✦ Al azar');
-    random.type = 'button';
-    random.addEventListener('click', () => {
-      const rng = new SeededRng((Math.random() * 2 ** 32) >>> 0);
-      this.update({ ...this.profile, look: randomAppearance(rng) });
-    });
-    row.append(random);
-  }
-
   private buildRow(page: HTMLElement, row: Row): void {
-    page.append(el('h3', '', row.title));
-    const list = el('div', `wardrobe-row ${row.kind}`);
-    for (const option of row.options) {
-      const swatch = row.kind === 'swatches';
-      const button = el(
-        'button',
-        swatch ? 'wardrobe-swatch' : 'wardrobe-piece',
-        swatch ? undefined : option.name,
-      );
-      button.type = 'button';
-      if (swatch) {
-        button.title = option.name;
-        button.setAttribute('aria-label', option.name);
-        button.style.setProperty('--swatch', option.color ?? '#888');
-      }
-      button.addEventListener('click', () => this.setLook(row.key, option.id));
-      list.append(button);
-      this.pieceButtons.push({ key: row.key, option, button });
-    }
-    page.append(list);
+    const line = el('div', 'wardrobe-line');
+    line.append(el('span', 'wardrobe-line-title', row.title));
+    const swatches = row.options.every((o) => o.color !== undefined);
+    const picker = new Dropdown({
+      title: row.title,
+      host: this.panel,
+      arrows: true,
+      swatches,
+      options: row.options.map((o) => ({ id: o.id, label: o.name, color: o.color })),
+      onPick: (id) => this.setLook(row.key, id),
+    });
+    line.append(picker.root);
+    page.append(line);
+    this.lookPickers.push({ row, picker });
   }
 
   private refresh(): void {
@@ -258,18 +271,15 @@ export class Wardrobe {
     for (const [id, page] of this.pages) page.hidden = id !== this.tab;
     for (const [id, button] of this.tabButtons)
       button.classList.toggle('selected', id === this.tab);
-    for (const { key, option, button } of this.pieceButtons) {
-      button.classList.toggle('selected', look[key] === option.id);
-      const fits = fitsFace(option, look.face);
-      button.classList.toggle('unavailable', !fits);
-      (button as HTMLButtonElement).disabled = !fits;
+    for (const { row, picker } of this.lookPickers) {
+      picker.value = look[row.key];
+      picker.setDisabled((id) => {
+        const option = row.options.find((o) => o.id === id);
+        return option ? !fitsFace(option, look.face) : false;
+      });
     }
-    for (const { look: preset, button } of this.archetypeButtons) {
-      button.classList.toggle('selected', sameLook(preset, look));
-    }
-    for (const { id, button } of this.affinityButtons) {
-      button.classList.toggle('selected', id === (affinity ?? ''));
-    }
+    this.archetypePicker.value = ARCHETYPES.find((a) => sameLook(a.look, look))?.id ?? '';
+    this.affinityPicker.value = affinity ?? '';
     if (affinity) {
       const own = Math.round((1 - AFFINITY_RULES.ownFatigueMultiplier) * 100);
       const opposing = Math.round((AFFINITY_RULES.opposingFatigueMultiplier - 1) * 100);

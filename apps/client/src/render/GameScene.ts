@@ -30,6 +30,13 @@ const NO_SPELL_WORLD: SpellWorld = {
   wizardPos: () => undefined,
 };
 
+/** Lo que mide el mago del Vestidor con su foco (alto y ancho, en metros) y la altura de su centro. */
+const PREVIEW_HEIGHT = 3.0;
+const PREVIEW_WIDTH = 1.8;
+const PREVIEW_MIDDLE = 1.35;
+/** Qué parte de la franja ocupa el mago: el resto queda de aire alrededor. */
+const PREVIEW_FILL = 0.86;
+
 /**
  * Todo lo 3D que no depende de una partida en particular: el renderer, la arena y los mapas,
  * la cámara, el posprocesado, las vistas compartidas (hechizos, bestias, efectos, partículas),
@@ -176,15 +183,30 @@ export class GameScene {
     this.previewRim.visible = false;
   }
 
-  /** Cámara del Vestidor: el mago a un lado y el panel al otro. */
-  updatePreview(time: number, delta: number, rules: GameRules): void {
+  /**
+   * Cámara del Vestidor: el mago entero (de los pies a la punta del sombrero) centrado en la
+   * franja libre a la izquierda del panel. `stageWidth` es esa franja como parte del ancho de la
+   * pantalla (0 a 1). La distancia se calcula con la proporción de la pantalla, así el mago no
+   * queda cortado ni debajo del panel en ningún celular.
+   */
+  updatePreview(time: number, delta: number, rules: GameRules, stageWidth: number): void {
     if (!this.preview) return;
     const { view, wizard } = this.preview;
     const angle = Math.PI + Math.sin(time * 0.35) * 0.9;
     wizard.facing = { x: Math.sin(angle), z: Math.cos(angle) };
     view.update(wizard, 0, 0, time, delta, rules);
-    this.camera.position.set(-0.8, 1.65, -3.0);
-    this.camera.lookAt(-0.8, 1.25, 0);
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const aspect = this.camera.aspect;
+    const stage = Math.min(Math.max(stageWidth, 0.2), 1);
+    // Que quepa a lo alto (con aire arriba y abajo) y a lo ancho de la franja libre.
+    const byHeight = PREVIEW_HEIGHT / 2 / (tanHalf * PREVIEW_FILL);
+    const byWidth = PREVIEW_WIDTH / 2 / (tanHalf * aspect * stage * PREVIEW_FILL);
+    const distance = Math.max(byHeight, byWidth);
+    // El centro de la franja, en coordenadas de pantalla (-1 a 1); la derecha de la cámara es -x.
+    const center = stage - 1;
+    const sideways = center * distance * tanHalf * aspect;
+    this.camera.position.set(sideways, PREVIEW_MIDDLE + 0.2, -distance);
+    this.camera.lookAt(sideways, PREVIEW_MIDDLE, 0);
   }
 
   resize(): void {

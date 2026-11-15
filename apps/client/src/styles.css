@@ -894,6 +894,7 @@ body {
 }
 
 .lobby-panel {
+  position: relative;
   width: min(640px, 94vw);
   max-height: 100%;
   overflow: auto;
@@ -2481,94 +2482,122 @@ body {
 
 /* ---------- Vestidor ---------- */
 
+/*
+ * El panel ocupa la altura completa a la derecha y no cambia de tamaño entre pestañas: así no
+ * salta al tocar una pestaña y el mago (encuadrado por GameScene en la franja libre de la
+ * izquierda) nunca queda debajo. Cada ajuste es una fila con un desplegable.
+ */
 .wardrobe {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: flex-end;
-  align-items: center;
+  align-items: stretch;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   pointer-events: none;
-  background: linear-gradient(90deg, transparent 35%, rgba(7, 7, 12, 0.6));
+  background: linear-gradient(90deg, transparent 40%, rgba(7, 7, 12, 0.55));
 }
 
 .wardrobe-panel {
-  width: min(420px, 54vw);
-  max-height: 100%;
+  position: relative;
+  width: min(370px, 50vw);
+  height: 100%;
   overflow: hidden;
   pointer-events: auto;
-  padding: 14px 16px 12px;
-  border-radius: 18px;
+  padding: 10px 12px;
+  border-radius: 16px;
   border: 1px solid var(--panel-edge);
-  background: linear-gradient(180deg, rgba(20, 17, 28, 0.88), rgba(10, 9, 14, 0.92));
+  background: linear-gradient(180deg, rgba(20, 17, 28, 0.9), rgba(10, 9, 14, 0.94));
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   animation: fade-in 0.4s ease both;
 }
 
-/* El contenido se desliza; el botón Listo queda siempre debajo, sin taparlo. */
+/* Si algo no cabe (pantallas muy bajas), solo el cuerpo se desliza; los botones quedan fijos. */
 .wardrobe-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  margin: 0 -6px;
-  padding: 0 6px 6px;
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
 }
 
 .wardrobe-panel * {
   touch-action: pan-y;
 }
 
-.wardrobe-panel h2 {
-  margin: 0;
+.wardrobe-tabs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#ui .wardrobe-tab {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: 10px;
   font-family: var(--display);
-  font-size: 20px;
-  letter-spacing: 0.1em;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+  border: 1px solid transparent;
+  background: transparent;
+  touch-action: manipulation;
+}
+
+#ui .wardrobe-tab.selected {
   color: var(--gold-bright);
+  border-color: var(--panel-edge);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.18), rgba(216, 191, 138, 0.04));
 }
 
-.wardrobe-panel h3 {
-  margin: 6px 0 0;
-  font-family: var(--display);
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-
-.wardrobe-name {
+.wardrobe-page {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-  letter-spacing: 0.2em;
+  gap: 7px;
+}
+
+.wardrobe-page[hidden] {
+  display: none;
+}
+
+/* Una fila: el nombre del ajuste a la izquierda y su control a la derecha. */
+.wardrobe-line {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.wardrobe-line-title {
+  font-family: var(--display);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--gold);
 }
 
 .wardrobe-name input {
+  min-width: 0;
   pointer-events: auto;
   touch-action: manipulation;
   user-select: text;
   -webkit-user-select: text;
-  padding: 9px 12px;
-  border-radius: 12px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.35);
   color: var(--ink);
   font-family: var(--display);
-  font-size: 17px;
+  /* 16 px o más: Safari no agranda la página al escribir. */
+  font-size: 16px;
   letter-spacing: 0.04em;
-  text-transform: none;
   outline: none;
 }
 
@@ -2591,34 +2620,13 @@ body {
   }
 }
 
-.wardrobe-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-#ui .wardrobe-affinity {
-  padding: 6px 11px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  border: 1px solid color-mix(in srgb, var(--element, #888) 50%, transparent);
-  background: color-mix(in srgb, var(--element, #888) 10%, rgba(0, 0, 0, 0.3));
-  color: var(--element, var(--ink-quiet));
-}
-
-#ui .wardrobe-affinity.selected {
-  background: color-mix(in srgb, var(--element, #888) 30%, rgba(0, 0, 0, 0.2));
-  color: #fff;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--element, #888) 55%, transparent);
-}
-
 .wardrobe-affinity-detail {
-  margin: 2px 0 0;
+  margin: -2px 0 0 82px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 11.5px;
+  line-height: 1.3;
   color: var(--ink-quiet);
 }
 
@@ -2630,9 +2638,199 @@ body {
   font-style: italic;
 }
 
-#ui .wardrobe-swatch {
+.wardrobe-actions {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+
+#ui .wardrobe-actions .primary,
+#ui .wardrobe-actions .secondary {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+#ui .wardrobe-random {
+  color: var(--gold-bright);
+}
+
+/* ---------- Desplegables ---------- */
+
+.dropdown {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+
+#ui .dropdown-value,
+#ui .dropdown-arrow {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  touch-action: manipulation;
+}
+
+#ui .dropdown-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--option-color, var(--ink));
+}
+
+#ui .dropdown-value.placeholder {
+  color: var(--ink-quiet);
+  font-style: italic;
+}
+
+#ui .dropdown-arrow {
+  flex: none;
   width: 32px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--gold);
+}
+
+#ui .dropdown-value:active:not(:disabled),
+#ui .dropdown-arrow:active:not(:disabled) {
+  border-color: var(--gold);
+  background: rgba(216, 191, 138, 0.14);
+}
+
+.dropdown-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-caret {
+  flex: none;
+  font-size: 11px;
+  color: var(--gold);
+}
+
+.dropdown-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--swatch);
+}
+
+.dropdown-swatch[hidden] {
+  display: none;
+}
+
+/* Quien no creó la sala ve el ajuste, sin flecha ni marco de botón. */
+#ui .dropdown.locked .dropdown-arrow,
+#ui .dropdown.locked .dropdown-caret {
+  display: none;
+}
+
+#ui .dropdown.locked .dropdown-value {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: default;
+}
+
+/* La lista abierta cubre su contenedor entero, nunca lo que está al lado. */
+.dropdown-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #16131e, #0a090e);
+  pointer-events: auto;
+}
+
+.dropdown-sheet[hidden] {
+  display: none;
+}
+
+.dropdown-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dropdown-sheet-title {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+#ui .dropdown-close {
+  width: 36px;
   height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--ink-quiet);
+  touch-action: manipulation;
+}
+
+.dropdown-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  align-content: start;
+  gap: 6px;
+}
+
+.dropdown-list.swatches {
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  justify-items: center;
+}
+
+#ui .dropdown-item {
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--option-color, var(--ink));
+  touch-action: manipulation;
+}
+
+#ui .dropdown-item.selected {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.22), rgba(216, 191, 138, 0.06));
+}
+
+#ui .dropdown-item.unavailable {
+  opacity: 0.3;
+}
+
+#ui .dropdown-list.swatches .dropdown-item {
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  padding: 0;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.15);
   background: radial-gradient(
@@ -2642,76 +2840,19 @@ body {
   );
 }
 
-#ui .wardrobe-swatch.selected {
+#ui .dropdown-list.swatches .dropdown-item.selected {
   border-color: var(--gold-bright);
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.6),
     0 0 14px rgba(243, 223, 176, 0.5);
 }
 
-#ui .wardrobe-piece {
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12.5px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-#ui .wardrobe-piece.selected {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(216, 191, 138, 0.22), rgba(216, 191, 138, 0.06));
-}
-
-.wardrobe-tabs {
-  flex: none;
-  display: flex;
-  gap: 4px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-#ui .wardrobe-tab {
-  flex: 1;
-  padding: 7px 4px;
-  border-radius: 10px;
-  font-family: var(--display);
-  font-size: 12.5px;
-  letter-spacing: 0.06em;
-  color: var(--ink-quiet);
-  border: 1px solid transparent;
-  background: transparent;
-  touch-action: manipulation;
-}
-
-#ui .wardrobe-tab.selected {
-  color: var(--gold-bright);
-  border-color: var(--panel-edge);
-  background: linear-gradient(180deg, rgba(216, 191, 138, 0.18), rgba(216, 191, 138, 0.04));
-}
-
-.wardrobe-page {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.wardrobe-page[hidden] {
-  display: none;
-}
-
-#ui .wardrobe-piece.unavailable {
-  opacity: 0.3;
-}
-
-#ui .wardrobe-random {
-  color: var(--gold-bright);
-  border-color: var(--panel-edge);
-}
-
-#ui .wardrobe-done {
-  flex: none;
-  margin-top: 6px;
-  touch-action: manipulation;
+.dropdown-item-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 /* ---------- Grimorio ---------- */
@@ -3658,60 +3799,38 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Cada ajuste es un desplegable: caben de a dos por fila y la sala no se desliza. */
 .lobby-settings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
   text-align: left;
-}
-
-/* Las filas largas ocupan todo el ancho; las de Sí/No van lado a lado. */
-.lobby-setting:not(.compact) {
-  flex: 1 0 100%;
 }
 
 .lobby-setting {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
+}
+
+.lobby-setting[hidden] {
+  display: none;
 }
 
 .lobby-setting-title {
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.lobby-setting-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-#ui .lobby-chip {
-  min-width: 36px;
-  padding: 5px 9px;
-  border-radius: 6px;
-  font-size: 12px;
-  border: 1px solid rgba(216, 191, 138, 0.3);
-  background: rgba(14, 12, 20, 0.88);
-  color: var(--ink);
-  touch-action: manipulation;
-}
-
-#ui .lobby-chip.selected {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(216, 191, 138, 0.28), rgba(216, 191, 138, 0.08));
-  color: var(--gold-bright);
-}
-
-#ui .lobby-chip:disabled:not(.selected) {
-  opacity: 0.35;
-}
-
-#ui .lobby-chip.locked.selected {
-  opacity: 1;
+#ui .lobby-setting .dropdown .dropdown-value {
+  height: 34px;
+  font-size: 13px;
 }
 
 /* Si la sala no cabe (más ajustes, barras del navegador), el panel se desliza con el dedo y

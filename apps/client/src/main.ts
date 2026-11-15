@@ -335,6 +335,13 @@ window.addEventListener('keydown', (event) => {
   else pauseMenu.open();
 });
 window.addEventListener('resize', () => view.resize());
+// Al cerrar el teclado (el nombre, el código de sala), Safari en iPhone puede dejar la página
+// corrida hacia arriba y los menús descuadrados: se vuelve a su lugar.
+document.addEventListener('focusout', (event) => {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+    window.scrollTo(0, 0);
+  }
+});
 
 // ---------- Navegación ----------
 
@@ -705,7 +712,7 @@ renderer.setAnimationLoop((now) => {
       renderMatch(current, alpha, delta);
     }
   } else if (view.previewing) {
-    view.updatePreview(elapsed, delta, rules);
+    view.updatePreview(elapsed, delta, rules, wardrobe.stageWidth);
     view.zone.update(rules.arenaRadius, elapsed);
   } else {
     rig.orbit(elapsed, delta);

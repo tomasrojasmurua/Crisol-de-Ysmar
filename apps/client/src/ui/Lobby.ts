@@ -11,6 +11,7 @@ import {
   type RoomSettings,
   sameMode,
 } from '@crisol/protocol';
+import { Dropdown } from './Dropdown';
 import { el, query } from './dom';
 import { MENU_ICONS } from './menuIcons';
 
@@ -38,53 +39,30 @@ function modeChip(mode: GameMode): string {
   }
 }
 
-/** Una fila de ajustes: su título y sus opciones. */
+/** Un ajuste de la sala: su título y sus alternativas, que van en un desplegable. */
 interface SettingRow {
   readonly title: string;
   readonly options: readonly {
     readonly label: string;
-    /** `people`: cuántos hay en la sala (el todos contra todos parte con lugar para todos). */
-    readonly pick: (s: RoomSettings, people: number) => RoomSettings;
+    readonly pick: (s: RoomSettings) => RoomSettings;
     readonly chosen: (s: RoomSettings) => boolean;
     /** Si no se puede elegir con la gente que ya está (un modo con menos puestos). */
     readonly fits?: (people: number) => boolean;
   }[];
-  /** Si la fila se muestra con estos ajustes y esta gente (las Vidas no salen en el 1v1). */
+  /** Si el ajuste se muestra con estos ajustes y esta gente (las Vidas no salen en el 1v1). */
   readonly shown?: (s: RoomSettings, people: number) => boolean;
-  /** Fila corta (Sí/No): va al lado de otras cortas, para que la sala quepa sin deslizar. */
-  readonly compact?: boolean;
 }
 
 const SETTING_ROWS: readonly SettingRow[] = [
   {
+    // Un solo desplegable para todos los modos: el todos contra todos ya dice cuántos magos.
     title: 'Modo',
-    options: [
-      ...ROOM_MODES.filter((mode) => mode.kind !== 'ffa').map((mode) => ({
-        label: modeChip(mode),
-        pick: (s: RoomSettings) => ({ ...s, mode, lives: s.lives && livesAllowed(mode) }),
-        chosen: (s: RoomSettings) => sameMode(s.mode, mode),
-        fits: (people: number) => playerCount(mode) >= people,
-      })),
-      {
-        label: 'Todos contra todos',
-        pick: (s: RoomSettings, people: number) =>
-          s.mode.kind === 'ffa'
-            ? s
-            : { ...s, mode: { kind: 'ffa', players: Math.min(Math.max(people, 3), 6) } },
-        chosen: (s: RoomSettings) => s.mode.kind === 'ffa',
-      },
-    ],
-  },
-  {
-    // Todos contra todos: cuántos magos (los puestos sin persona los juega la IA).
-    title: 'Magos',
-    options: ROOM_MODES.filter((mode) => mode.kind === 'ffa').map((mode) => ({
-      label: String(playerCount(mode)),
-      pick: (s) => ({ ...s, mode }),
-      chosen: (s) => sameMode(s.mode, mode),
-      fits: (people) => playerCount(mode) >= people,
+    options: ROOM_MODES.map((mode) => ({
+      label: modeChip(mode),
+      pick: (s: RoomSettings) => ({ ...s, mode, lives: s.lives && livesAllowed(mode) }),
+      chosen: (s: RoomSettings) => sameMode(s.mode, mode),
+      fits: (people: number) => playerCount(mode) >= people,
     })),
-    shown: (s) => s.mode.kind === 'ffa',
   },
   {
     title: 'La zona se cierra en',
@@ -104,7 +82,6 @@ const SETTING_ROWS: readonly SettingRow[] = [
   },
   {
     title: 'Glifos',
-    compact: true,
     options: [true, false].map((glyphs) => ({
       label: glyphs ? 'Sí' : 'No',
       pick: (s) => ({ ...s, glyphs }),
@@ -113,7 +90,6 @@ const SETTING_ROWS: readonly SettingRow[] = [
   },
   {
     title: 'Presagio',
-    compact: true,
     options: [true, false].map((omen) => ({
       label: omen ? 'Sí' : 'No',
       pick: (s) => ({ ...s, omen }),
@@ -122,7 +98,6 @@ const SETTING_ROWS: readonly SettingRow[] = [
   },
   {
     title: 'Al caer',
-    compact: true,
     options: [false, true].map((lives) => ({
       label: lives ? '3 vidas' : 'Fuera',
       pick: (s) => ({ ...s, lives }),
@@ -131,7 +106,7 @@ const SETTING_ROWS: readonly SettingRow[] = [
     shown: (s) => livesAllowed(s.mode),
   },
   {
-    title: 'IA en los puestos libres',
+    title: 'IA en puestos libres',
     options: BOT_LEVELS.map((botLevel) => ({
       label: BOT_LEVEL_NAMES[botLevel],
       pick: (s) => ({ ...s, botLevel }),
@@ -159,14 +134,12 @@ export class Lobby {
   private readonly share: HTMLAnchorElement;
   private readonly copy: HTMLButtonElement;
   private readonly copyText: HTMLElement;
-  private readonly settingLines: { readonly line: HTMLElement; readonly row: SettingRow }[] = [];
-  private readonly settingButtons: {
-    readonly button: HTMLButtonElement;
-    readonly option: SettingRow['options'][number];
+  private readonly settingLines: {
+    readonly line: HTMLElement;
+    readonly row: SettingRow;
+    readonly picker: Dropdown;
   }[] = [];
   private settings: RoomSettings | null = null;
-  /** Cuántos hay en la sala ahora. */
-  private people = 1;
   private readonly roster: HTMLElement;
   private readonly modeTitle: HTMLElement;
   private readonly beginButton: HTMLButtonElement;
@@ -234,22 +207,22 @@ export class Lobby {
       this.onBegin();
     });
     const settingsBox = query(this.root, '.lobby-settings');
+    const panel = query(this.root, '.lobby-panel');
     for (const row of SETTING_ROWS) {
-      const line = el('div', row.compact ? 'lobby-setting compact' : 'lobby-setting');
+      const line = el('div', 'lobby-setting');
       line.append(el('span', 'lobby-setting-title', row.title));
-      const chips = el('div', 'lobby-setting-options');
-      for (const option of row.options) {
-        const button = el('button', 'lobby-chip', option.label) as HTMLButtonElement;
-        button.type = 'button';
-        button.addEventListener('click', () => {
-          if (this.settings) this.onSettings(option.pick(this.settings, this.people));
-        });
-        chips.append(button);
-        this.settingButtons.push({ button, option });
-      }
-      line.append(chips);
+      const picker = new Dropdown({
+        title: row.title,
+        host: panel,
+        options: row.options.map((option, index) => ({ id: String(index), label: option.label })),
+        onPick: (id) => {
+          const option = row.options[Number(id)];
+          if (this.settings && option) this.onSettings(option.pick(this.settings));
+        },
+      });
+      line.append(picker.root);
       settingsBox.append(line);
-      this.settingLines.push({ line, row });
+      this.settingLines.push({ line, row, picker });
     }
 
     query(this.root, '.lobby-create').addEventListener('click', () => this.onCreate());
@@ -316,19 +289,15 @@ export class Lobby {
   ): void {
     const mode = settings.mode;
     this.settings = settings;
-    this.people = players.length;
     this.modeName = modeLabel(mode);
     const host = players.find((p) => p.id === hostId);
     const isHost = me === hostId;
-    for (const { button, option } of this.settingButtons) {
-      button.classList.toggle('selected', option.chosen(settings));
-      const fits = option.fits?.(players.length) ?? true;
-      // Solo quien creó la sala cambia los ajustes; los demás los ven igual.
-      button.disabled = !isHost || !fits;
-      button.classList.toggle('locked', !isHost);
-    }
-    for (const { line, row } of this.settingLines) {
+    for (const { line, row, picker } of this.settingLines) {
       line.hidden = !(row.shown?.(settings, players.length) ?? true);
+      picker.value = String(row.options.findIndex((option) => option.chosen(settings)));
+      picker.setDisabled((id) => !(row.options[Number(id)]?.fits?.(players.length) ?? true));
+      // Solo quien creó la sala cambia los ajustes; los demás los ven igual.
+      picker.setLocked(!isHost);
     }
     this.updateShare();
     const total = playerCount(mode);
@@ -384,6 +353,7 @@ export class Lobby {
   }
 
   hide(): void {
+    Dropdown.closeAll();
     this.root.hidden = true;
   }
 
