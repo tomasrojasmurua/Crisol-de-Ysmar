@@ -195,6 +195,47 @@ body {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
+/*
+ * El fondo ilustrado de tu Linaje, si existe su imagen. Tapa el Crisol 3D salvo una ventana
+ * donde se dibuja tu mago (el recuadro del retrato), que la máscara deja transparente.
+ */
+.menu-camp {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background-position: center;
+  background-size: cover;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-size:
+    100% 100%,
+    var(--portrait-w, 0) var(--portrait-h, 0);
+  -webkit-mask-position:
+    0 0,
+    var(--portrait-x, 0) var(--portrait-y, 0);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-size:
+    100% 100%,
+    var(--portrait-w, 0) var(--portrait-h, 0);
+  mask-position:
+    0 0,
+    var(--portrait-x, 0) var(--portrait-y, 0);
+  mask-repeat: no-repeat;
+  mask-composite: exclude;
+}
+
+.menu.has-camp .menu-camp {
+  display: block;
+  animation: camp-in 1.2s ease both;
+}
+
+@keyframes camp-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .menu-veil {
   position: absolute;
   inset: 0;
