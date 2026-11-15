@@ -198,7 +198,9 @@ export class Wardrobe {
   /** Se mide al abrir y al girar o redimensionar, nunca en cada cuadro. */
   private measure(): void {
     if (this.root.hidden) return;
-    const width = window.innerWidth;
+    // El ancho real del Vestidor (ocupa la pantalla entera), no `innerWidth`, que Safari puede
+    // tener viejo justo después de girar.
+    const width = this.root.getBoundingClientRect().width;
     if (width <= 0) return;
     this.freeWidth = Math.min(Math.max(this.panel.getBoundingClientRect().left / width, 0.2), 1);
   }
