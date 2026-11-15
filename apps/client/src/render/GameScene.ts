@@ -13,7 +13,7 @@ import { Particles } from './Particles';
 import { PostProcessing } from './postprocessing';
 import { SpellViews, type SpellWorld } from './SpellViews';
 import { TargetMarker } from './TargetMarker';
-import { type WizardLook, WizardView } from './WizardView';
+import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView';
 
 /**
  * Tope de nitidez en celulares (pantallas táctiles). A 2 se dibujaban 1,8 veces más píxeles que
@@ -177,11 +177,11 @@ export class GameScene {
     );
     const wizard = state.wizards[0];
     if (!wizard) return;
-    const view = new WizardView(look, rules, this.particles);
+    const view = new WizardView(look, rules, this.particles, PORTRAIT_RIM_STRENGTH);
     this.scene.add(view.group);
     this.preview = { view, wizard };
-    this.previewKey.intensity = 22;
-    this.previewRim.intensity = 14;
+    this.previewKey.intensity = 8;
+    this.previewRim.intensity = 6;
     this.previewKey.visible = true;
     this.previewRim.visible = true;
   }

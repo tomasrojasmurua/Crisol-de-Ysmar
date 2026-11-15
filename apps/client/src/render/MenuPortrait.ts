@@ -1,6 +1,6 @@
 import { createMatch, type GameRules, type Wizard } from '@crisol/core';
 import * as THREE from 'three';
-import { type WizardLook, WizardView } from './WizardView';
+import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView';
 
 /**
  * Tu mago en la tarjeta del menú: una escena aparte, con su propia luz de estudio, que se
@@ -36,7 +36,7 @@ export class MenuPortrait {
       this.rules,
     );
     this.wizard = state.wizards[0] ?? null;
-    this.view = new WizardView(look, this.rules, null);
+    this.view = new WizardView(look, this.rules, null, PORTRAIT_RIM_STRENGTH);
     this.scene.add(this.view.group);
   }
 
