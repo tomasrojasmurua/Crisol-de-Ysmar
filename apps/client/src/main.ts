@@ -186,7 +186,7 @@ const wardrobe = new Wardrobe(
     closeOverlays();
   },
   profile,
-  () => backupSheet.open(true),
+  (restoreOnly) => backupSheet.open(restoreOnly),
 );
 const backupSheet = new BackupSheet(menu.side, uiRoot, backup);
 const grimoireBook = new GrimoireBook(

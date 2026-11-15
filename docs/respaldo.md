@@ -14,8 +14,9 @@ en el servidor, **sin cuentas**: no se pide correo ni contraseña.
 - En el menú, bajo Sonido, la tarjeta **Tu respaldo** abre una ventana con el código (para copiarlo)
   y un campo para traer a un hechicero desde otro celular. El código no se muestra en el menú mismo
   porque las capturas del menú se comparten.
-- La primera vez que se abre el juego, el Vestidor ofrece **"¿Ya tienes un hechicero? Tráelo con tu
-  código"**.
+- En el Vestidor, bajo el arquetipo, está **"Tu código de respaldo"** (abre la misma ventana). La
+  primera vez que se abre el juego, sin hechicero todavía, dice **"¿Ya tienes un hechicero? Tráelo
+  con tu código"** y solo ofrece traerlo.
 - Traer un respaldo reemplaza todo el progreso de ese celular (se pide confirmar) y la página se
   recarga con lo traído. Desde ahí ese celular respalda con el mismo código.
 - Si dos celulares usan el mismo código, gana el último que respaldó. Para el uso normal (un
