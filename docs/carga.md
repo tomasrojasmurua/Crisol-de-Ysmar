@@ -84,7 +84,7 @@ Todo se pega en **Cloud Shell** (`>_` arriba a la derecha en
 La máquina de hoy no sabe todavía actualizar su instalación sola. Esto lo deja hecho:
 
 ```bash
-gcloud compute ssh crisol-sala --zone=southamerica-west1-a --command \
+gcloud compute ssh crisol-sala --zone=southamerica-west1-b --command \
   'curl -fsSL https://raw.githubusercontent.com/tomasrojasmurua/Crisol-de-Ysmar/main/scripts/sala/instalar.sh | sudo bash'
 ```
 
@@ -116,9 +116,9 @@ Si algún comando falla, en la consola es: Monitoring → Uptime checks → Crea
 Mientras está apagada, las salas nuevas se van solas a Cloudflare. La IP no cambia (es fija).
 
 ```bash
-gcloud compute instances stop crisol-sala --zone=southamerica-west1-a
-gcloud compute instances set-machine-type crisol-sala --zone=southamerica-west1-a --machine-type=e2-small
-gcloud compute instances start crisol-sala --zone=southamerica-west1-a
+gcloud compute instances stop crisol-sala --zone=southamerica-west1-b
+gcloud compute instances set-machine-type crisol-sala --zone=southamerica-west1-b --machine-type=e2-small
+gcloud compute instances start crisol-sala --zone=southamerica-west1-b
 ```
 
 Cambia `e2-small` por `e2-medium` o `t2d-standard-1` según la tabla. Al arrancar, la máquina
