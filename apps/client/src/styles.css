@@ -5245,7 +5245,11 @@ body {
  * imágenes fijas montadas con CSS: no agregan efectos ni trabajo por cuadro al celular.
  */
 
-/* Las cuatro esquinas labradas sobre los cuadros grandes, más la textura de piedra. */
+/*
+ * El marco de los cuadros grandes: tus esquinas son las esquinas del cuadro y su línea es el
+ * borde (marco.webp, 9 cortes con border-image). La línea cae justo en el borde del cuadro y
+ * las puntas de la estrella salen un poco hacia afuera.
+ */
 .lobby-panel,
 .pause-panel,
 .wardrobe-panel,
@@ -5254,12 +5258,18 @@ body {
 .home-invite-card,
 .grimoire-list,
 .menu-wizard-card {
-  --corner: 30px;
-  --ornate-corners:
-    url("/ui/esquina-si.webp") left top / var(--corner) no-repeat,
-    url("/ui/esquina-sd.webp") right top / var(--corner) no-repeat,
-    url("/ui/esquina-ii.webp") left bottom / var(--corner) no-repeat,
-    url("/ui/esquina-id.webp") right bottom / var(--corner) no-repeat;
+  --frame: 40px;
+  border-radius: 0;
+  border-style: solid;
+  border-image: url("/ui/marco.webp") 145 / var(--frame) / calc(var(--frame) * 0.31) stretch;
+}
+
+/* El marco ya dibuja el filete: se quitan los dobles bordes interiores de antes. */
+.pause-panel,
+.school-picker-card,
+.training-chooser-card,
+.home-invite-card {
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
 }
 
 .lobby-panel,
@@ -5269,7 +5279,6 @@ body {
 .training-chooser-card,
 .home-invite-card {
   background:
-    var(--ornate-corners),
     linear-gradient(180deg, rgba(26, 22, 34, 0.55), rgba(7, 7, 12, 0.35)),
     url("/ui/textura.webp") 0 0 / 192px repeat,
     #0e0c14;
@@ -5280,20 +5289,21 @@ body {
   backdrop-filter: none;
 }
 
-/* El Grimorio se recorre con el dedo: las esquinas quedan fijas al cuadro, no al texto. */
 .grimoire-list {
+  --frame: 34px;
+  box-shadow: none;
   background:
-    var(--ornate-corners),
     url("/ui/textura.webp") 0 0 / 192px repeat,
     rgba(10, 9, 15, 0.82);
 }
 
 /* La tarjeta de tu mago queda sin fondo: el retrato se ve a través. */
 .menu-wizard-card {
-  background: var(--ornate-corners);
+  --frame: 34px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Un poco más de aire en los bordes, para que las esquinas no pisen botones ni texto. */
+/* Un poco más de aire en los bordes, para que el adorno de las esquinas no pise botones ni texto. */
 .school-picker-card,
 .training-chooser-card,
 .home-invite-card {
