@@ -1,4 +1,4 @@
-import { ELEMENTS, SCHOOLS, type School, SPELL_NAMES } from '@crisol/content';
+import { ELEMENTS, masterOf, SCHOOLS, type School, SPELL_NAMES } from '@crisol/content';
 import { type ElementId, SPELL_WEAVES } from '@crisol/core';
 import { el, query } from './dom';
 import { weaveGlyphs } from './GrimoireBook';
@@ -8,7 +8,7 @@ const colorOf = (id: ElementId): string => ELEMENTS.find((e) => e.id === id)?.co
 
 /**
  * Elegir linaje, al crear el hechicero: cinco tarjetas, una por elemento, con su estilo y sus 4
- * hechizos. Tocar una la marca; "Elegir" la deja para siempre. No bloquea nada: el resto de
+ * hechizos. Tocar una la marca y su maestro te recibe con una línea; "Elegir" la deja para siempre. No bloquea nada: el resto de
  * los hechizos sigue a mano, solo se aprenden después.
  */
 export class SchoolPicker {
@@ -16,6 +16,7 @@ export class SchoolPicker {
   private readonly cards: HTMLElement;
   private readonly confirm: HTMLButtonElement;
   private readonly hint: HTMLElement;
+  private readonly master: HTMLElement;
   private chosen: ElementId | null = null;
 
   constructor(
@@ -32,7 +33,10 @@ export class SchoolPicker {
         </header>
         <div class="school-cards"></div>
         <footer class="school-picker-foot">
-          <span class="school-picker-hint">Toca un linaje</span>
+          <div class="school-picker-say">
+            <span class="school-picker-hint">Toca un linaje</span>
+            <span class="school-picker-master" hidden></span>
+          </div>
           <button type="button" class="primary school-confirm" disabled>Elegir</button>
         </footer>
       </div>`;
@@ -40,6 +44,7 @@ export class SchoolPicker {
     this.cards = query(this.root, '.school-cards');
     this.confirm = query(this.root, '.school-confirm');
     this.hint = query(this.root, '.school-picker-hint');
+    this.master = query(this.root, '.school-picker-master');
     for (const school of SCHOOLS) this.cards.append(this.card(school));
     this.confirm.addEventListener('click', () => {
       if (!this.chosen) return;
@@ -99,5 +104,12 @@ export class SchoolPicker {
     const school = SCHOOLS.find((s) => s.element === this.chosen);
     this.confirm.disabled = !school;
     this.hint.textContent = school ? `${school.name} · ${school.style}` : 'Toca un linaje';
+    // Su maestro te recibe: una línea con su voz, firmada.
+    this.master.hidden = !school;
+    if (school) {
+      const master = masterOf(school.element);
+      this.master.textContent = `«${master.lines.welcome}» ${master.name}`;
+      this.master.style.setProperty('--element', colorOf(school.element));
+    }
   }
 }

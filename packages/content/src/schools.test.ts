@@ -4,7 +4,7 @@ import { COMBOS } from './combos';
 import { SCHOOLS, schoolSpellbook } from './schools';
 
 describe('linajes', () => {
-  it('hay una por elemento, con 4 hechizos distintos y un papel para cada uno', () => {
+  it('hay uno por elemento, con 4 hechizos distintos y un papel para cada uno', () => {
     expect(SCHOOLS.map((s) => s.element).sort()).toEqual([...ELEMENT_IDS].sort());
     for (const school of SCHOOLS) {
       expect(new Set(school.spells).size).toBe(4);
@@ -12,7 +12,7 @@ describe('linajes', () => {
     }
   });
 
-  it('cada una trae al menos un hechizo que empieza con su elemento', () => {
+  it('cada uno trae al menos un hechizo que empieza con su elemento', () => {
     for (const school of SCHOOLS) {
       expect(school.spells.some((s) => SPELL_WEAVES[s][0] === school.element)).toBe(true);
     }

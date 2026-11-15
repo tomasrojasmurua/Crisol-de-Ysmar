@@ -252,6 +252,7 @@ const flow = new MatchFlow({
   comboCallouts,
   renderer: matchRenderer,
   diagnostics,
+  school: () => profile.school,
 });
 const pauseMenu = new PauseMenu(
   uiRoot,
