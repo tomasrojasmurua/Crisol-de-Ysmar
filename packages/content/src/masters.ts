@@ -11,6 +11,12 @@ export interface MasterLines {
   /** Perdiste en la ronda decisiva. */
   readonly closeLoss: readonly string[];
   readonly draw: readonly string[];
+  /**
+   * En el menú, el campamento de tu Linaje: lo que dice mientras esperas. Mezcla de su
+   * personalidad, lo que piensa de los otros Linajes, algún consejo y pistas del misterio de
+   * los hilos (ver `docs/lore.md`).
+   */
+  readonly camp: readonly string[];
 }
 
 /**
@@ -55,6 +61,13 @@ export const MASTERS: readonly Master[] = [
         'Te faltó una chispa. Una. Búscala.',
       ],
       draw: ['¿Empate? El fuego no empata. Otra vez.'],
+      camp: [
+        'Nadie recuerda a los tibios. Ni a los lentos, agrego yo.',
+        'El Meteoro se esquiva. No se lo tires a alguien que corre.',
+        'Marea quiere que todo vuelva a ser como antes. Antes era peor.',
+        'Los de Anvel lloran cada árbol que quemo. Que planten menos.',
+        'El Crisol no te debe nada. Gánatelo.',
+      ],
     },
   },
   {
@@ -83,6 +96,13 @@ export const MASTERS: readonly Master[] = [
         'Te faltó un salto. Uno solo. Ja.',
       ],
       draw: ['Empate. El cielo se encogió de hombros.'],
+      camp: [
+        'En Velgar no hay reyes. Hay viento, y gente que se mueve.',
+        'Si te tiran algo lento, no lo pares: no estés ahí.',
+        'El Velado dice que lo sabe todo. Yo digo que no sabe bailar.',
+        'Raíz quiere un lugar para todos. Yo, que nadie tenga uno fijo.',
+        'Paso no es huir. Bueno, sí es huir. Pero con estilo.',
+      ],
     },
   },
   {
@@ -112,6 +132,13 @@ export const MASTERS: readonly Master[] = [
         'El agua no olvida su cauce. Tú no olvides este.',
       ],
       draw: ['Empate. El mar no sabe qué escribir.'],
+      camp: [
+        'Llevo los nombres de todos los que cayeron aquí. Son muchos.',
+        'Antes de que los hilos se aflojaran, Ysmar era otro.',
+        'Brasa quema lo que no entiende. Por eso lo quema todo.',
+        'El orden importa al tejer. También al recordar.',
+        'Algunos nombres se borran solos de mi libro. No debería pasar.',
+      ],
     },
   },
   {
@@ -140,6 +167,13 @@ export const MASTERS: readonly Master[] = [
         'Aguantaste harto. Un poco más y era tuya.',
       ],
       draw: ['Empate. Nadie se cae, nadie crece. Otra.'],
+      camp: [
+        '¿Comiste algo, mijo? En el Crisol nadie te va a convidar.',
+        'En Anvel cada árbol tiene nombre. Y cada incendio, también.',
+        'Si un elemento se cansa, teje otro. Un bosque no es una raíz.',
+        'Tormenta corre de todo. Algún día va a tener que quedarse.',
+        'Los hilos crujen de noche. Antes no crujían.',
+      ],
     },
   },
   {
@@ -162,6 +196,13 @@ export const MASTERS: readonly Master[] = [
       closeWin: ['Por poco. Pero el poco también es nuestro.', 'Casi te ven venir. Casi.'],
       closeLoss: ['Tan cerca. Interesante. Lo recordaré.', 'Faltó un instante de oscuridad. Uno.'],
       draw: ['Empate. Nadie ganó. Nadie sabe quién lo decidió.'],
+      camp: [
+        'Los hilos no se aflojan solos. Pero eso no te lo dije yo.',
+        'Que te vean tejer es un regalo para el rival. No regales.',
+        'En Ossel aprendemos a leer el tejido ajeno antes que el propio.',
+        'Tormenta grita libertad. Nosotros la tenemos, en silencio.',
+        'El Crisol tiene hambre. ¿Nunca te preguntaste de qué?',
+      ],
     },
   },
 ];

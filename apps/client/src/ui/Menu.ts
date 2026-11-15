@@ -1,4 +1,4 @@
-import { BOT_LEVEL_NAMES, ELEMENTS, FEATURES } from '@crisol/content';
+import { BOT_LEVEL_NAMES, ELEMENTS, FEATURES, masterOf } from '@crisol/content';
 import {
   BOT_LEVELS,
   type BotLevel,
@@ -61,6 +61,9 @@ const DEATH_RULES = ALL_DEATH_RULES.filter((rule) => rule.id !== 'lives' || FEAT
 
 const STORAGE_KEY = 'crisol.menu';
 
+/** Bajo el logo, mientras no tengas Linaje; con Linaje, habla tu maestro. */
+const TAGLINE = 'Teje la magia. Lee al rival. Sobrevive al Crisol.';
+
 /** Las tres pestañas del mockup; equipos y todos contra todos eligen además el tamaño. */
 const TABS: readonly {
   readonly id: 'duel' | 'teams' | 'ffa';
@@ -119,6 +122,10 @@ export class Menu {
   private readonly rulesBox: HTMLElement;
   private readonly rulePicker: Dropdown;
   private readonly levelPicker: Dropdown;
+  private readonly tagline: HTMLElement;
+  /** Tu Linaje y la última frase de su maestro, para no repetirla al volver al menú. */
+  private school: ElementId | null = null;
+  private campLine = -1;
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -144,7 +151,7 @@ export class Menu {
       </aside>
       <header class="menu-title">
         <h1><img class="menu-logo" src="/logo.webp" alt="Crisol de Ysmar" width="658" height="288" decoding="async" /></h1>
-        <p class="menu-tagline">Teje la magia. Lee al rival. Sobrevive al Crisol.</p>
+        <p class="menu-tagline">${TAGLINE}</p>
       </header>
       <section class="menu-center">
         <div class="menu-tabs" role="tablist" aria-label="Modo"></div>
@@ -178,6 +185,9 @@ export class Menu {
     this.affinityIcon = query(this.root, '.menu-affinity-icon');
     this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
+    this.tagline = query(this.root, '.menu-tagline');
+    // Tocar a tu maestro le saca otra frase.
+    this.tagline.addEventListener('click', () => this.speak());
     new HomeScreenInvite(query(this.root, '.menu-side'), this.root);
     query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
     this.portrait.addEventListener('click', onWardrobe);
@@ -290,6 +300,31 @@ export class Menu {
     this.affinityIcon.innerHTML = profile.affinity ? elementIcon(profile.affinity) : '';
     this.affinityIcon.style.setProperty('--icon-color', element?.color ?? 'var(--gold)');
     this.grimoireCount.textContent = `${known} de ${total}`;
+    this.school = profile.school;
+    const linaje = ELEMENTS.find((e) => e.id === profile.school);
+    if (linaje) this.root.style.setProperty('--linaje', linaje.color);
+    else this.root.style.removeProperty('--linaje');
+    this.speak();
+  }
+
+  /**
+   * El campamento de tu Linaje: bajo el logo, tu maestro dice algo distinto cada vez que vuelves
+   * al menú (o lo tocas). Sin Linaje queda el lema del juego.
+   */
+  private speak(): void {
+    this.tagline.classList.toggle('master', this.school !== null);
+    if (!this.school) {
+      this.tagline.textContent = TAGLINE;
+      return;
+    }
+    const master = masterOf(this.school);
+    const lines = master.lines.camp;
+    let next = Math.floor(Math.random() * lines.length);
+    if (lines.length > 1 && next === this.campLine) next = (next + 1) % lines.length;
+    this.campLine = next;
+    const quote = el('q', 'menu-tagline-quote', lines[next] ?? '');
+    const name = el('span', 'menu-tagline-master', master.name.split(',')[0] ?? master.name);
+    this.tagline.replaceChildren(quote, name);
   }
 
   set visible(value: boolean) {

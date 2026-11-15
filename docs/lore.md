@@ -91,7 +91,9 @@ La dirección acordada; lo que no dice "hecho" no existe todavía.
   Puede ser el narrador de ElevenLabs que ya estaba planeado.
 - **Una línea de lore por hechizo** en el Grimorio, escrita como nota de tu maestro. Descubrir un
   hechizo también descubre un pedazo de Ysmar y del misterio.
-- **El menú como un lugar:** el campamento de tu Linaje a las puertas del Crisol.
+- **El menú como un lugar:** el campamento de tu Linaje a las puertas del Crisol. Hecho: tu
+  maestro habla bajo el logo (frases `camp`, con pistas del misterio) y el menú toma un resplandor
+  del color de tu Linaje. Falta un fondo ilustrado por Linaje.
 - **Quién controla Ysmar:** las victorias de un grupo de amigos suman para su Linaje ("Umbra
   controla Ysmar este mes"). Necesita el perfil guardado en el servidor.
 

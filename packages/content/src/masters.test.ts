@@ -24,6 +24,9 @@ describe('maestros', () => {
       for (const group of [lines.win, lines.loss, lines.closeWin, lines.closeLoss, lines.draw])
         expect(group.length).toBeGreaterThan(0);
       for (const line of all) expect(line.length).toBeLessThanOrEqual(66);
+      // En el menú hay más ancho: una línea bajo el logo.
+      expect(lines.camp.length).toBeGreaterThanOrEqual(3);
+      for (const line of lines.camp) expect(line.length).toBeLessThanOrEqual(64);
     }
   });
 });
