@@ -232,25 +232,33 @@ export class MatchFlow {
   }
 
   /**
-   * En red, al terminar la serie: el resumen de conexión y cuadros va al registro remoto, para
-   * saber de dónde viene el lag sin pedir capturas.
+   * Al terminar la serie (en red o contra la IA): el resumen de cuadros, y en red también el de
+   * conexión, va al registro remoto, para saber de dónde viene el lag sin pedir capturas. Y se
+   * pregunta cómo se jugó. En Entrenamiento no se manda nada.
    */
   private reportPerformance(current: MatchView): void {
-    const network = current.networkSummary?.();
-    // Sin datos de red (una revancha que terminó al toque) no hay nada que contar.
-    if (!network || network.length === 0) return;
+    if (current instanceof TrainingMatch) return;
+    const network = current.networkSummary?.() ?? [];
+    const online = current.networkSummary !== undefined;
+    // En red sin datos de conexión (una revancha que terminó al toque) no hay nada que contar.
+    if (online && network.length === 0) return;
     const series = current.series;
     const winner = series.winnerTeam ?? -1;
     const result = winner < 0 ? 'empate' : winner === current.player.team ? 'ganó' : 'perdió';
     const game = `Partida: ${current.state.wizards.length} magos · ${series.roundsPlayed} rondas · ${result} · marcador ${series.wins.join('-')}`;
-    const lines = [...network, game, ...this.deps.diagnostics.fullReport()];
-    reportProblem('rendimiento', network[0] ?? 'Resumen de la partida', lines.join('\n'));
+    const frames = this.deps.diagnostics.fullReport();
+    const headline = online ? (network[0] ?? 'Resumen de la partida') : 'Contra la IA';
+    reportProblem('rendimiento', headline, [...network, game, ...frames].join('\n'));
     // Y se pregunta a cada uno cómo se jugó: lo que sintió junto a lo que midió su celular.
-    const ping = network[0] ?? '';
+    const measured = online ? (network[0] ?? '') : (frames[0] ?? '');
     this.deps.hud.askOpinion((opinion, comment) => {
       if (comment)
-        reportProblem('opinion', `Comentario: ${comment}`, [opinion ?? '', ping].join('\n').trim());
-      else if (opinion) reportProblem('opinion', `Se jugó: ${opinion}`, ping);
+        reportProblem(
+          'opinion',
+          `Comentario: ${comment}`,
+          [opinion ?? '', measured].join('\n').trim(),
+        );
+      else if (opinion) reportProblem('opinion', `Se jugó: ${opinion}`, measured);
     });
   }
 

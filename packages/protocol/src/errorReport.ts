@@ -5,7 +5,7 @@
  */
 
 /**
- * Qué clase de informe es. `rendimiento` no es un error: el resumen de red y cuadros de cada partida en red. `opinion`:
+ * Qué clase de informe es. `rendimiento` no es un error: el resumen de cuadros de cada partida (en red, también el de conexión). `opinion`:
  * lo que cada jugador contesta al final de la partida (cómo se jugó y qué mejoraría).
  */
 export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala', 'rendimiento', 'opinion'] as const;
