@@ -23,6 +23,8 @@ interface Timed {
 }
 
 const HIT_HEIGHT = 1.2;
+/** Desde cuánto daño un golpe tuyo sacude la cámara. */
+const HEAVY_HIT = 10;
 const SOUL_COLOR = new THREE.Color('#a9b8ff');
 const LIFE_COLOR = new THREE.Color('#9effc8');
 const ZONE_COLOR = new THREE.Color('#b49cff');
@@ -108,6 +110,8 @@ export class EffectsView {
     placeOf: (id: number) => Vec2 | undefined,
   ): void {
     const byId = (id: number): Wizard | undefined => state.wizards.find((w) => w.id === id);
+    /** A quién golpeaste en este paso: si cae en el mismo paso, lo derribaste tú. */
+    const struck = new Set<number>();
     for (const event of events) {
       switch (event.type) {
         case 'cast': {
@@ -203,6 +207,12 @@ export class EffectsView {
           }
           if (event.targetId === this.playerId) {
             this.shake = Math.min(1, this.shake + Math.min(0.6, event.amount / 30));
+          } else if (event.sourceId === this.playerId) {
+            struck.add(event.targetId);
+            // Tu golpe fuerte también se siente, pero menos que uno recibido.
+            if (event.amount >= HEAVY_HIT) {
+              this.shake = Math.min(1, this.shake + Math.min(0.25, event.amount / 120));
+            }
           }
           break;
         }
@@ -270,6 +280,12 @@ export class EffectsView {
           this.particles.burst(fallen.pos.x, 1, fallen.pos.z, glow(SOUL_COLOR, 1.3), 40, 4, 0.6);
           this.ring(fallen.pos.x, fallen.pos.z, SOUL_COLOR, 4, 0.7);
           if (event.wizardId === this.playerId) this.shake = 1;
+          else if (struck.has(event.wizardId)) {
+            // Lo derribaste tú: un remate que se nota, con destello y onda grande.
+            this.shake = Math.min(1, this.shake + 0.45);
+            this.flash(fallen.pos.x, HIT_HEIGHT, fallen.pos.z, SOUL_COLOR, 3.2, 0.3);
+            this.ring(fallen.pos.x, fallen.pos.z, COMBO_COLOR, 6, 0.55);
+          }
           break;
         }
         case 'respawned':

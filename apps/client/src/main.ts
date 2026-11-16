@@ -65,6 +65,7 @@ import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook } from './ui/GrimoireBook';
 import { Hud, type WizardBadge } from './ui/Hud';
+import { HurtEdge } from './ui/HurtEdge';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
@@ -155,6 +156,7 @@ const minimap = new Minimap(uiRoot, rules);
 const menuPortrait = new MenuPortrait(rules);
 const diagnostics = new Diagnostics(uiRoot, audio.engine, renderer);
 const blindVeil = new BlindVeil(uiRoot);
+const hurtEdge = new HurtEdge(uiRoot);
 const comboCallouts = new ComboCallouts(uiRoot);
 const hitFeedback = new HitFeedback({
   damage: (amount, targetId) => comboCallouts.showDamage(amount, targetId),
@@ -260,6 +262,7 @@ const matchRenderer = new MatchRenderer(
     minimap,
     controls,
     blindVeil,
+    hurtEdge,
     comboCallouts,
     obstacles,
     weaveName,
@@ -321,6 +324,7 @@ const screens = new Screens({
   controls,
   minimap,
   blindVeil,
+  hurtEdge,
   comboCallouts,
   glyphPicker,
   pauseMenu,
