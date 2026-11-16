@@ -131,6 +131,11 @@ export class Menu {
   private campFor: ElementId | null = null;
   /** La columna derecha (Grimorio, Sonido…), para sumarle tarjetas desde afuera. */
   readonly side: HTMLElement;
+  /** El Camino de tu Linaje (se ve una vez elegido el Linaje). */
+  private readonly pathCard: HTMLElement;
+  private readonly pathCount: HTMLElement;
+  /** Al tocar el Camino. */
+  onPath: () => void = () => {};
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -184,6 +189,11 @@ export class Menu {
           <span class="menu-grimoire-text"><strong>Grimorio</strong><span class="menu-grimoire-count"></span></span>
           ${MENU_ICONS.chevron}
         </button>
+        <button type="button" class="menu-card menu-grimoire menu-path" hidden>
+          ${MENU_ICONS.path}
+          <span class="menu-grimoire-text"><strong>Camino</strong><span class="menu-path-count"></span></span>
+          ${MENU_ICONS.chevron}
+        </button>
         <div class="menu-card menu-sound">
           <div class="menu-sound-head">${MENU_ICONS.soundAll}<strong>Sonido</strong></div>
           <div class="menu-sound-options"></div>
@@ -209,7 +219,10 @@ export class Menu {
     query(this.root, '.menu-wardrobe').addEventListener('click', onWardrobe);
     query(this.root, '.menu-profile').addEventListener('click', onProfile);
     this.portrait.addEventListener('click', onWardrobe);
-    query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);
+    query(this.root, '.menu-grimoire:not(.menu-path)').addEventListener('click', onGrimoire);
+    this.pathCard = query(this.root, '.menu-path');
+    this.pathCount = query(this.root, '.menu-path-count');
+    this.pathCard.addEventListener('click', () => this.onPath());
 
     const soundOptions = query(this.root, '.menu-sound-options');
     for (const choice of SOUND_CHOICES) {
@@ -302,6 +315,13 @@ export class Menu {
       affinity: this.affinity,
       botLevel: this.botLevel,
     };
+  }
+
+  /** Cuántos pasos del Camino llevas; null lo esconde (sin Linaje todavía). */
+  setPath(done: number | null, total: number): void {
+    this.pathCard.hidden = done === null;
+    this.pathCount.textContent =
+      done === null ? '' : done >= total ? 'Completo' : `${done} de ${total}`;
   }
 
   /** Dónde va el mago en 3D, o null si el menú no está a la vista. */

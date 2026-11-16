@@ -1,7 +1,12 @@
 import {
+  ARCHETYPES,
   DEFAULT_LOOK,
+  ELEMENTS,
   GAME_RULES,
+  linajePath,
+  masterOf,
   NO_OMEN,
+  type PathStep,
   rulesForMode,
   schoolOf,
   schoolSpellbook,
@@ -32,6 +37,7 @@ import { MatchFlow } from './game/MatchFlow';
 import type { QualityName } from './game/MatchPerfLog';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
+import { PathProgress } from './game/PathProgress';
 import { PlayerStats } from './game/PlayerStats';
 import { Pocket } from './game/Pocket';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
@@ -69,6 +75,7 @@ import { HurtEdge } from './ui/HurtEdge';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
+import { PathScreen } from './ui/PathScreen';
 import { PauseMenu } from './ui/PauseMenu';
 import { PocketStrip } from './ui/PocketStrip';
 import { ProfileScreen } from './ui/ProfileScreen';
@@ -149,6 +156,7 @@ const grimoire = new Grimoire();
 const comboLog = new ComboLog();
 const playerStats = new PlayerStats();
 const pocket = new Pocket();
+const pathProgress = new PathProgress();
 const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
 const controls = new TouchControls(uiRoot, input);
@@ -194,6 +202,7 @@ const menu = new Menu(
   () => profileScreen.open(profile, playerStats.record),
   (key) => audio.say(key),
 );
+menu.onPath = () => openPath();
 const profileScreen = new ProfileScreen(uiRoot);
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -285,7 +294,16 @@ const flow = new MatchFlow({
   diagnostics,
   stats: playerStats,
   school: () => profile.school,
+  path: pathProgress,
 });
+const pathScreen = new PathScreen(
+  uiRoot,
+  (step) => startPathStep(step),
+  () => {
+    menu.visible = true;
+  },
+  (key) => audio.say(key),
+);
 const pauseMenu = new PauseMenu(
   uiRoot,
   audio.engine,
@@ -404,6 +422,8 @@ function useRules(next: GameRules): void {
 }
 
 function showMenu(): void {
+  // Desde un paso del Camino (el resultado o la Pausa) se vuelve al Camino.
+  const fromPath = match !== null && match !== net && match.options.path !== undefined;
   // Salir a propósito de una sala: al recargar ya no se vuelve sola.
   if (net) leftRoom();
   net?.close();
@@ -414,8 +434,46 @@ function showMenu(): void {
   endTutorial();
   useRules(GAME_RULES);
   screens.menu(profile, grimoire);
+  refreshPath();
+  if (fromPath) openPath();
   // De vuelta en el menú (al terminar una partida o el tutorial): se respalda lo nuevo.
   void backup.sync();
+}
+
+/** El Camino de tu Linaje en la tarjeta del menú: cuántos pasos llevas. */
+function refreshPath(): void {
+  const path = profile.school ? linajePath(profile.school) : null;
+  menu.setPath(path ? pathProgress.count(path) : null, path?.length ?? 0);
+}
+
+/** Abre el Camino de tu Linaje en el paso que toca. */
+function openPath(): void {
+  const school = profile.school;
+  if (!school) return;
+  const steps = linajePath(school);
+  const master = masterOf(school);
+  menu.visible = false;
+  pathScreen.show(`Camino de ${ELEMENTS.find((e) => e.id === school)?.name ?? school}`, {
+    steps,
+    isDone: (id) => pathProgress.has(id),
+    current: pathProgress.current(steps),
+    master: {
+      name: master.name,
+      short: master.name.split(',')[0] ?? master.name,
+      color: ELEMENTS.find((e) => e.id === school)?.color ?? '#d8bf8a',
+    },
+  });
+}
+
+/** Un paso del Camino: un duelo contra la IA con las reglas del paso. */
+function startPathStep(step: PathStep): void {
+  startMatch({
+    mode: step.mode,
+    deathRule: 'out',
+    affinity: profile.affinity,
+    botLevel: step.botLevel,
+    path: step,
+  });
 }
 
 function openWardrobe(): void {
@@ -456,6 +514,7 @@ function chooseSchool(school: ElementId): void {
   profile = { ...profile, school, affinity: school };
   saveProfile(profile);
   screens.refreshIdentity(profile, grimoire);
+  refreshPath();
   if (pendingInvite) {
     menu.visible = true;
     const code = pendingInvite;
@@ -496,7 +555,19 @@ function startMatch(options: MatchOptions): void {
         },
       ]),
   );
+  // El último paso del Camino es contra tu maestro: con su nombre y su cara.
+  const step = options.path;
+  if (step?.master) {
+    const master = masterOf(step.school);
+    const look = ARCHETYPES.find((a) => a.id === master.archetype)?.look;
+    for (const w of current.state.wizards) {
+      if (w.team === current.player.team || !look) continue;
+      others.set(w.id, { name: master.name.split(',')[0] ?? master.name, look });
+    }
+  }
   beginMatch(current, (id) => others.get(id) ?? { name: 'Hechicero', look: profile.look });
+  // Un paso que solo deja tejer algunos elementos: los otros botones no aparecen.
+  if (step?.elements) controls.reveal(new Set([...step.elements, 'cast', 'undo', 'duel']));
 }
 
 /**

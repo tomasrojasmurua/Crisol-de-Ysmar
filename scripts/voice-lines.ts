@@ -17,6 +17,7 @@ const GROUPS = [
   ['closeLoss', 'Perdiste en la ronda decisiva'],
   ['draw', 'Empate'],
   ['camp', 'En el menú, al tocar su frase'],
+  ['challenge', 'Al presentar el último paso del Camino'],
 ] as const;
 
 const out: string[] = [];
@@ -24,11 +25,12 @@ for (const master of MASTERS) {
   out.push(`### ${master.name} · \`voice.${master.element}.…\``, '');
   out.push('| Archivo | Cuándo | Texto |', '| --- | --- | --- |');
   for (const [group, when] of GROUPS) {
-    const lines = group === 'welcome' ? [master.lines.welcome] : master.lines[group];
+    const lines =
+      group === 'welcome' || group === 'challenge' ? [master.lines[group]] : master.lines[group];
     lines.forEach((text, i) => {
       const file =
-        group === 'welcome'
-          ? `voice.${master.element}.welcome`
+        group === 'welcome' || group === 'challenge'
+          ? `voice.${master.element}.${group}`
           : `voice.${master.element}.${group}.${i}`;
       out.push(`| \`${file}.mp3\` | ${when} | ${text} |`);
     });

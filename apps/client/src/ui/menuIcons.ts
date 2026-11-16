@@ -56,6 +56,10 @@ export const MENU_ICONS = {
     '<path d="M6 3h12v18l-6-4-6 4Z"/><path d="M12 7l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/>',
   ),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
+  /** El Camino de tu Linaje: un sendero que sube hasta una bandera. */
+  path: icon(
+    '<path d="M6 21c0-3 3-4 6-5s5-3 3-5-6-1-6-4 2-3 3-3"/><path d="M12 4V1.5l4.5 1.6L12 4.8"/>',
+  ),
   /** Un celular con un signo más: agregar el juego a la pantalla de inicio. */
   keep: icon('<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 8v6M9 11h6"/>'),
   /** Estrella de cuatro puntas, sólida: adorna el botón principal. */

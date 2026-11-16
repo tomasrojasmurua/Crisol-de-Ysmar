@@ -3,13 +3,18 @@ import {
   BOT_PROFILES,
   GLYPHS,
   type Glyph,
+  NO_OMEN,
   OMENS,
   type Omen,
+  omenById,
+  type PathStep,
+  schoolSpellbook,
 } from '@crisol/content';
 import {
   affinityPatch,
   BotController,
   type BotLevel,
+  type BotProfile,
   type Controller,
   combineMods,
   createMatch,
@@ -49,6 +54,8 @@ export interface MatchOptions {
   readonly affinity: ElementId | null;
   /** La dificultad de los magos de la IA. */
   readonly botLevel: BotLevel;
+  /** Un paso del Camino de tu Linaje: fija el Presagio, los rivales y su forma de tejer. */
+  readonly path?: PathStep | undefined;
 }
 
 export type MatchStage =
@@ -95,15 +102,23 @@ export class LocalMatch implements MatchView {
   ) {
     this.series = createSeries(teamCount(options.mode));
     this.rng = new SeededRng(seed ^ 0x2545f491);
-    this.omen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
+    const randomOmen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
+    const path = options.path;
+    // En el Camino el Presagio es parte del reto: el del paso, o ninguno.
+    this.omen = path ? (path.omenId ? omenById(path.omenId) : NO_OMEN) : randomOmen;
     const total = playerCount(options.mode);
     for (let id = 1; id <= total; id++) {
-      this.affinities.set(
-        id,
-        id === PLAYER_ID
-          ? options.affinity
-          : (ELEMENT_IDS[this.rng.int(0, ELEMENT_IDS.length - 1)] ?? null),
-      );
+      const random = ELEMENT_IDS[this.rng.int(0, ELEMENT_IDS.length - 1)] ?? null;
+      this.affinities.set(id, id === PLAYER_ID ? options.affinity : random);
+    }
+    // Los rivales del paso: con la Afinidad de su Linaje (o de tu maestro, que es el tuyo).
+    const rivalAffinity = path ? (path.master ? path.school : path.rivalSchool) : null;
+    if (rivalAffinity) {
+      // El jugador es siempre el primer mago (id 1) y está en el equipo 0.
+      const { wizards } = modeSetup(options.mode, seed, options.deathRule, rules);
+      wizards.forEach((w, index) => {
+        if (w.team !== 0) this.affinities.set(index + 1, rivalAffinity);
+      });
     }
     this.state = this.startRound();
     this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
@@ -230,6 +245,7 @@ export class LocalMatch implements MatchView {
       return { ...w, affinity, mods: combineMods(this.omen.mods, ...patches) };
     });
     const state = createMatch({ ...setup, wizards }, this.rules);
+    const playerTeam = state.wizards.find((w) => w.id === PLAYER_ID)?.team;
     this.bots = new Map(
       state.wizards
         .filter((w) => w.id !== PLAYER_ID)
@@ -238,12 +254,19 @@ export class LocalMatch implements MatchView {
           new BotController(
             (roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0,
             this.rules,
-            BOT_PROFILES[this.options.botLevel],
+            this.botProfile(w.team !== playerTeam),
           ),
         ]),
     );
     this.previous.clear();
     return state;
+  }
+
+  /** Cómo juega un bot: en un paso con Linaje rival, los rivales solo tejen el set de ese Linaje. */
+  private botProfile(rival: boolean): BotProfile {
+    const base = BOT_PROFILES[this.options.botLevel];
+    const school = this.options.path?.rivalSchool;
+    return rival && school ? { ...base, spellbook: schoolSpellbook(school) } : base;
   }
 
   private controllerOf(wizard: Wizard): Controller {
