@@ -232,6 +232,12 @@ export class NetMatch implements MatchView {
   private socket: WebSocket | null = null;
   private readonly buffer: StateMessage[] = [];
   private primed = false;
+  /**
+   * El paso cuyos eventos ya se mostraron. Entre rondas y en el resultado la Sala reenvía el
+   * último estado de a ratos, con los eventos de su último paso: sin esto, el golpe final, las
+   * explosiones y sus sonidos se repetían tres veces por segundo detrás del menú.
+   */
+  private eventsTick = -1;
   private target = BUFFER_MIN;
   private calmSteps = 0;
   /** Lo menos que tuvo el colchón (además del paso que se muestra) desde la última revisión. */
@@ -386,6 +392,8 @@ export class NetMatch implements MatchView {
     const next = this.buffer.shift();
     if (!next) return;
     this.apply(next);
+    if (next.state.tick === this.eventsTick) return;
+    this.eventsTick = next.state.tick;
     events.push(...next.state.events);
   }
 

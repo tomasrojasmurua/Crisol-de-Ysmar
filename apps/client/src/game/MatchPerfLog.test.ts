@@ -17,6 +17,15 @@ describe('MatchPerfLog', () => {
     expect(lines).toContain('Sonido: sin cortes');
   });
 
+  it('si el celular frena la pantalla a 30, lo dice (para no buscar el lag en el juego)', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5, 'alta', true);
+    play(log, 33.3, 60);
+    expect(log.summary(true)).toContain(
+      'Pantalla frenada a 30 fps por el celular (¿Modo de bajo consumo?)',
+    );
+  });
+
   it('cuenta lo que pasó en toda la partida, no solo el final', () => {
     const log = new MatchPerfLog();
     log.start(2);

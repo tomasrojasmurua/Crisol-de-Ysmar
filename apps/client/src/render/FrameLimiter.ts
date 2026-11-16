@@ -21,6 +21,11 @@ export class FrameLimiter {
   private screenMs = 0;
   private skipped = 0;
 
+  /** Cada cuánto llama la pantalla (ms, promediado); 0 si aún no se sabe. */
+  get screenIntervalMs(): number {
+    return this.screenMs;
+  }
+
   /** Si toca dibujar en `now` con ese tope. Hay que llamarlo en cada cuadro de la pantalla. */
   ready(now: number, fps: number): boolean {
     const gap = now - this.lastCall;

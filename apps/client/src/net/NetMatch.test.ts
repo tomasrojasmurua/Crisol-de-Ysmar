@@ -147,6 +147,18 @@ describe('duelo en red: el celular', () => {
     expect(net.playerId).toBe(2);
   });
 
+  it('el mismo paso reenviado (entre rondas, en el resultado) no repite sus efectos ni sonidos', () => {
+    const { net, socket } = joined();
+    const frame = stateMessage(40);
+    frame.state.events = [{ type: 'defeated', wizardId: 1 }];
+    const last: StateFrame = { ...frame, stage: { kind: 'finished', rematch: [] } };
+    // La Sala reenvía el último estado de a ratos mientras se ve el resultado.
+    for (let i = 0; i < 6; i++) socket.receive(last);
+    const seen = [];
+    for (let i = 0; i < 12; i++) seen.push(...net.step());
+    expect(seen.filter((e) => e.type === 'defeated')).toHaveLength(1);
+  });
+
   it('guarda un colchón de dos pasos antes de mostrar y los muestra de a uno', () => {
     const { net, socket } = joined();
     socket.receive(stateMessage(1));

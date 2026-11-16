@@ -145,6 +145,13 @@ sombras. Reglas que lo sostienen:
   nunca una sombra difusa (eso repinta la pantalla en cada cuadro).
 - La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
   cuadros por segundo y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
+- **Celular frenado a 30** (Modo de bajo consumo del iPhone): `render/ScreenCap.ts` lo detecta
+  en los menús (la pantalla llama cada 33 ms aunque el juego casi no trabaje). Con el freno, 30
+  cuadros por segundo cuentan como ir a tope: la resolución y la calidad automáticas no bajan por
+  eso, se avisa una vez en partida y el informe de rendimiento lo anota.
+- **Los eventos de un paso se muestran una sola vez.** Entre rondas y en el resultado la Sala
+  reenvía el estado quieto de a ratos: la Sala vacía sus eventos y `NetMatch` ignora los de un
+  paso que ya mostró (antes el golpe final y sus sonidos se repetían detrás del resultado).
 - **Ningún sombreador se compila en plena pelea** (`render/ShaderWarmup.ts`). En el menú, en los
   ratos libres, se lanzan los 155 hechizos en una partida de mentira, se arman sus vistas y
   efectos fuera de la escena y se compilan sin bloquear (`compileAsync`); queda una pieza por

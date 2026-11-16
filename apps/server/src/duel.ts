@@ -590,6 +590,11 @@ export class DuelHost {
   /** Avanza un paso. */
   tick(): void {
     this.clock++;
+    // Fuera de juego el estado queda quieto: sus eventos son los del último paso y ya se
+    // mandaron. Se vacían para no reenviarlos con cada estado de las pausas.
+    if (this.stage.kind !== 'playing' && this.state && this.state.events.length > 0) {
+      this.state.events = [];
+    }
     switch (this.stage.kind) {
       case 'lobby':
         this.releaseLobbySeats();
