@@ -19,6 +19,13 @@ export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './mat
 export { stateHash } from './match/hash';
 export { isBurned, liveRules } from './match/liveMap';
 export {
+  createMatchStats,
+  favoriteSpell,
+  type MatchStats,
+  recordMatchStats,
+  type WizardMatchStats,
+} from './match/matchStats';
+export {
   type GameMode,
   MAX_PLAYERS,
   modeSetup,

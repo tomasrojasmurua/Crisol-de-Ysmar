@@ -21,7 +21,7 @@ import {
   type Wizard,
 } from '@crisol/core';
 import type { MatchOptions, MatchStage } from './LocalMatch';
-import type { MatchView } from './MatchView';
+import type { MatchSummary, MatchView } from './MatchView';
 import type { DummyMode } from './Tutorial';
 
 const PLAYER = 1;
@@ -291,6 +291,11 @@ export class TrainingMatch implements MatchView {
   }
 
   chooseGlyph(_glyph: Glyph): void {}
+
+  /** El entrenamiento no tiene resumen ni suma al perfil. */
+  matchSummary(): MatchSummary | null {
+    return null;
+  }
 
   glyphsOf(_id: number): readonly Glyph[] {
     return [];

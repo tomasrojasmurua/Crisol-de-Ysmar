@@ -1,4 +1,6 @@
+import type { Weave } from '@crisol/core';
 import { el, query } from './dom';
+import { weaveOrbs } from './GrimoireBook';
 import { MENU_ICONS } from './menuIcons';
 
 export type Outcome = 'win' | 'loss' | 'draw';
@@ -13,12 +15,34 @@ export interface ResultTeam {
   readonly winner: boolean;
 }
 
+/** El cuadro de un mago en el resumen: lo que hizo en toda la partida. */
+export interface ResultPlayer {
+  readonly name: string;
+  readonly color: string;
+  readonly own: boolean;
+  readonly damage: number;
+  readonly knockouts: number;
+  readonly falls: number;
+  readonly casts: number;
+  /** Su hechizo más usado, o null si no lanzó nada. */
+  readonly favorite: { readonly name: string; readonly weave: Weave } | null;
+  /** Quien hizo más daño en la partida. */
+  readonly top: boolean;
+  /**
+   * Cada uno por su cuenta (1v1 y todos contra todos): sus rondas ganadas van en su cuadro, en
+   * vez de un marcador aparte que no cabría con 6 magos.
+   */
+  readonly rounds?: { readonly wins: number; readonly winner: boolean } | undefined;
+}
+
 export interface ResultSummary {
   readonly outcome: Outcome;
   /** Debajo del título: quién ganó, o nada si ganaste tú. */
   readonly detail: string;
   readonly teams: readonly ResultTeam[];
   readonly roundsToWin: number;
+  /** Un cuadro por mago, tu bando primero. Vacío, no se muestra el resumen. */
+  readonly players: readonly ResultPlayer[];
   /** Lo que dice tu maestro (sin Linaje elegido, nada). */
   readonly master?:
     | { readonly name: string; readonly line: string; readonly color: string }
@@ -77,6 +101,8 @@ export class ResultScreen {
   private readonly detail: HTMLElement;
   private readonly score: HTMLElement;
   private readonly master: HTMLElement;
+  private readonly card: HTMLElement;
+  private readonly players: HTMLElement;
   private readonly rematchNote: HTMLElement;
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
@@ -95,6 +121,7 @@ export class ResultScreen {
     this.root.hidden = true;
     this.root.innerHTML = `
       <div class="hud-result-card">
+        <div class="hud-result-main">
         <div class="hud-result-crest"></div>
         <h2></h2>
         <p class="hud-result-detail"></p>
@@ -108,6 +135,9 @@ export class ResultScreen {
           <button type="button" class="primary rematch">${MENU_ICONS.rematch}<span>Revancha</span></button>
           <button type="button" class="secondary to-menu">${MENU_ICONS.leave}<span>Menú</span></button>
         </div>
+        </div>
+        <div class="hud-result-side">
+        <section class="hud-result-players" aria-label="Resumen de la partida" hidden></section>
         <div class="hud-result-opinion" hidden>
           <p class="hud-result-opinion-ask">¿Cómo se jugó?</p>
           <div class="hud-result-opinion-options"></div>
@@ -119,6 +149,7 @@ export class ResultScreen {
           <p class="hud-result-opinion-thanks" hidden>¡Gracias! Lo vemos para la próxima versión.</p>
         </div>
         <ul class="hud-result-perf" hidden></ul>
+        </div>
       </div>`;
     parent.append(this.root);
     this.crest = query(this.root, '.hud-result-crest');
@@ -126,6 +157,8 @@ export class ResultScreen {
     this.detail = query(this.root, '.hud-result-detail');
     this.score = query(this.root, '.hud-result-score');
     this.master = query(this.root, '.hud-result-master');
+    this.card = query(this.root, '.hud-result-card');
+    this.players = query(this.root, '.hud-result-players');
     this.rematchNote = query(this.root, '.hud-result-rematch');
     this.rematchButton = query(this.root, '.rematch');
     this.rematchLabel = query(this.rematchButton, 'span');
@@ -187,6 +220,15 @@ export class ResultScreen {
     this.score.replaceChildren(
       ...summary.teams.map((team) => this.teamScore(team, summary.roundsToWin)),
     );
+    this.score.hidden = summary.teams.length === 0;
+    this.players.replaceChildren(
+      ...summary.players.map((player) => playerCard(player, summary.roundsToWin)),
+    );
+    this.players.hidden = summary.players.length === 0;
+    // De a 3 por fila salvo con 2 o 4 magos (1v1 y 2v2: cada bando en su fila).
+    const count = summary.players.length;
+    this.players.dataset.columns = String(count === 2 || count === 4 ? 2 : Math.min(3, count));
+    this.card.classList.toggle('with-players', count > 0);
     const master = summary.master;
     this.master.hidden = !master;
     if (master) {
@@ -231,13 +273,55 @@ export class ResultScreen {
       `hud-result-team${team.own ? ' own' : ''}${team.winner ? ' winner' : ''}`,
     );
     group.style.setProperty('--team', team.color);
-    const pips = el('span', 'hud-result-pips');
-    for (let i = 0; i < roundsToWin; i++) {
-      pips.append(el('span', `pip${i < team.wins ? ' won' : ''}`));
-    }
-    group.append(pips, el('span', 'hud-result-team-name', team.label));
+    group.append(roundPips(team.wins, roundsToWin), el('span', 'hud-result-team-name', team.label));
     return group;
   }
+}
+
+/** Daño con miles separados por punto, como se lee en Chile. */
+const formatNumber = (value: number): string => Math.round(value).toLocaleString('es-CL');
+
+/** Los rombos de las rondas ganadas, como en la cinta de ronda. */
+function roundPips(wins: number, roundsToWin: number): HTMLElement {
+  const pips = el('span', 'hud-result-pips');
+  for (let i = 0; i < roundsToWin; i++) {
+    pips.append(el('span', `pip${i < wins ? ' won' : ''}`));
+  }
+  return pips;
+}
+
+function playerCard(player: ResultPlayer, roundsToWin: number): HTMLElement {
+  const winner = player.rounds?.winner ?? false;
+  const card = el(
+    'article',
+    `hud-result-player${player.own ? ' own' : ''}${winner ? ' winner' : ''}`,
+  );
+  card.style.setProperty('--team', player.color);
+  const head = el('header', 'hud-result-player-head');
+  // Tu cuadro dice "Tú" (tu nombre ya lo conoces) y así cabe junto a tus rondas.
+  head.append(el('span', 'hud-result-player-name', player.own ? 'Tú' : player.name));
+  if (player.rounds) head.append(roundPips(player.rounds.wins, roundsToWin));
+  const list = el('dl', 'hud-result-player-stats');
+  const rows: [string, string, boolean][] = [
+    ['Daño', formatNumber(player.damage), player.top],
+    ['Derribos', String(player.knockouts), false],
+    ['Caídas', String(player.falls), false],
+    ['Hechizos', String(player.casts), false],
+  ];
+  for (const [label, value, best] of rows) {
+    const row = el('div', best ? 'best' : '');
+    row.append(el('dt', '', label), el('dd', '', value));
+    list.append(row);
+  }
+  const favorite = el('p', 'hud-result-player-fav');
+  if (player.favorite) {
+    favorite.append(weaveOrbs(player.favorite.weave), el('span', '', player.favorite.name));
+    favorite.title = `Su favorito: ${player.favorite.name}`;
+  } else {
+    favorite.append(el('span', '', 'Sin hechizos'));
+  }
+  card.append(head, list, favorite);
+  return card;
 }
 
 function rematchText(status: RematchView, othersAsked: number): string {

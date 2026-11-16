@@ -32,6 +32,7 @@ import { MatchFlow } from './game/MatchFlow';
 import type { QualityName } from './game/MatchPerfLog';
 import { MatchRenderer } from './game/MatchRenderer';
 import type { MatchView } from './game/MatchView';
+import { PlayerStats } from './game/PlayerStats';
 import { Pocket } from './game/Pocket';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
@@ -69,6 +70,7 @@ import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { PauseMenu } from './ui/PauseMenu';
 import { PocketStrip } from './ui/PocketStrip';
+import { ProfileScreen } from './ui/ProfileScreen';
 import { SchoolPicker } from './ui/SchoolPicker';
 import { Screens } from './ui/Screens';
 import { TrainingChooser } from './ui/TrainingChooser';
@@ -144,6 +146,7 @@ const human = new HumanController(
 const audio = new GameAudio();
 const grimoire = new Grimoire();
 const comboLog = new ComboLog();
+const playerStats = new PlayerStats();
 const pocket = new Pocket();
 const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
@@ -186,8 +189,10 @@ const menu = new Menu(
   () => trainingChooser.show(!comboLog.tutorialDone && tutorialProgress.count === 0),
   () => void quickMatch(),
   audio.engine,
+  () => profileScreen.open(profile, playerStats.record),
   (key) => audio.say(key),
 );
+const profileScreen = new ProfileScreen(uiRoot);
 const wardrobe = new Wardrobe(
   uiRoot,
   (draft) => view.showPreview(ownLook(draft), rules),
@@ -275,6 +280,7 @@ const flow = new MatchFlow({
   comboCallouts,
   renderer: matchRenderer,
   diagnostics,
+  stats: playerStats,
   school: () => profile.school,
 });
 const pauseMenu = new PauseMenu(

@@ -1,5 +1,13 @@
 import type { Glyph, Omen } from '@crisol/content';
-import type { ElementId, GameEvent, MatchState, SeriesState, Vec2, Wizard } from '@crisol/core';
+import type {
+  ElementId,
+  GameEvent,
+  MatchState,
+  SeriesState,
+  Vec2,
+  Wizard,
+  WizardMatchStats,
+} from '@crisol/core';
 import type { MatchOptions, MatchStage } from './LocalMatch';
 
 /** En red, al terminar: la revancha empieza cuando la piden todos los conectados. */
@@ -8,6 +16,13 @@ export interface RematchStatus {
   readonly needed: number;
   /** Si este celular ya la pidió. */
   readonly mine: boolean;
+}
+
+/** Al terminar la serie: lo que hizo cada mago y con qué se distingue esta partida. */
+export interface MatchSummary {
+  /** Distingue la partida: en red, si vuelves tras un corte no se suma dos veces a tu perfil. */
+  readonly id: string;
+  readonly stats: readonly WizardMatchStats[];
 }
 
 /**
@@ -25,6 +40,8 @@ export interface MatchView {
   readonly playerId: number;
   readonly player: Wizard;
   readonly roundNumber: number;
+  /** Lo que hizo cada mago en la serie; `null` mientras no termina (o en el entrenamiento). */
+  matchSummary(): MatchSummary | null;
   /** Avanza un paso y devuelve lo que pasó. */
   step(): readonly GameEvent[];
   chooseGlyph(glyph: Glyph): void;

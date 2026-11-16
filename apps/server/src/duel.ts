@@ -18,6 +18,7 @@ import {
   BotController,
   combineMods,
   createMatch,
+  createMatchStats,
   createSeries,
   ELEMENT_IDS,
   type ElementId,
@@ -27,8 +28,10 @@ import {
   type Intent,
   isElementId,
   type MatchState,
+  type MatchStats,
   modeSetup,
   playerCount,
+  recordMatchStats,
   recordRound,
   SeededRng,
   type SeriesState,
@@ -165,6 +168,8 @@ export class DuelHost {
   private readonly rng: SeededRng;
   private stage: Stage = { kind: 'lobby' };
   private series: SeriesState = createSeries(2);
+  /** Lo que hizo cada mago en la serie en curso: sale en el resumen del final. */
+  private stats: MatchStats = [];
   private omen: Omen = OMENS[0] as Omen;
   private bots = new Map<number, BotController>();
   /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
@@ -685,6 +690,8 @@ export class DuelHost {
         return {
           kind: 'finished',
           rematch: [...this.slots.values()].filter((s) => s.rematch).map((s) => s.id),
+          seriesId: this.seed,
+          stats: this.stats,
         };
     }
   }
@@ -770,6 +777,7 @@ export class DuelHost {
       slot.pending = [];
     }
     this.state = this.startRound();
+    this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
     this.stage = { kind: 'playing' };
     this.startedNew = true;
   }
@@ -789,6 +797,7 @@ export class DuelHost {
       }
     }
     stepMatch(state, intents, this.rules);
+    recordMatchStats(this.stats, state);
     const roundWinner = state.winnerTeam;
     if (roundWinner !== null) {
       recordRound(this.series, roundWinner, this.rules.round);

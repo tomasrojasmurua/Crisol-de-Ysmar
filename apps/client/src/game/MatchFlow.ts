@@ -1,5 +1,12 @@
 import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
-import { type ElementId, type GameEvent, type GameRules, spellOf } from '@crisol/core';
+import {
+  type ElementId,
+  favoriteSpell,
+  type GameEvent,
+  type GameRules,
+  SPELL_WEAVES,
+  spellOf,
+} from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import { reportProblem } from '../platform/ErrorReporter';
@@ -11,7 +18,7 @@ import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import { intentTag } from '../ui/intentTag';
 import type { Minimap } from '../ui/Minimap';
-import type { ResultTeam } from '../ui/ResultScreen';
+import type { Outcome, ResultPlayer, ResultTeam } from '../ui/ResultScreen';
 import { ComboDetector } from './ComboDetector';
 import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
@@ -19,6 +26,7 @@ import type { Grimoire } from './Grimoire';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
 import { masterQuote } from './masterLine';
+import type { ModeGroup, PlayerStats } from './PlayerStats';
 import { TrainingMatch } from './TrainingMatch';
 
 /** El anuncio de quién ganó la ronda sale al empezar el entreacto. */
@@ -39,6 +47,8 @@ export interface MatchFlowDeps {
   readonly comboCallouts: ComboCallouts;
   readonly renderer: MatchRenderer;
   readonly diagnostics: Diagnostics;
+  /** Tu historial: cada partida terminada se suma al perfil. */
+  readonly stats: PlayerStats;
   /** Tu Linaje, para que tu maestro comente el resultado (null: aún no eliges). */
   readonly school: () => ElementId | null;
 }
@@ -161,7 +171,7 @@ export class MatchFlow {
     team: number,
     badges: ReadonlyMap<number, WizardBadge>,
   ): string {
-    const ffa = current.options.mode.kind === 'ffa';
+    const ffa = solo(current);
     if (team === current.player.team) return ffa ? 'ti' : 'tu equipo';
     if (!ffa) return 'el equipo rival';
     const member = current.state.wizards.find((w) => w.team === team);
@@ -234,8 +244,8 @@ export class MatchFlow {
       this.resultShown = true;
       const winner = current.series.winnerTeam ?? -1;
       this.deps.audio.finish(winner === playerTeam);
-      const ffa = current.options.mode.kind === 'ffa';
-      const outcome = winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss';
+      const ffa = solo(current);
+      const outcome: Outcome = winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss';
       const school = this.deps.school();
       const master = school
         ? masterQuote(school, outcome, current.series.wins, rules.round.roundsToWin, Math.random())
@@ -245,16 +255,20 @@ export class MatchFlow {
         `voice.crisol.${outcome === 'win' ? 'victory' : outcome === 'loss' ? 'defeat' : 'draw'}`,
       );
       if (master) this.deps.audio.say(master.voice, true);
+      const players = this.resultPlayers(current, badges, winner);
       this.deps.hud.showResult({
         outcome,
         detail:
           winner >= 0 && winner !== playerTeam
             ? `Ganó ${ffa ? this.teamName(current, winner, badges) : 'el equipo rival'}`
             : '',
-        teams: this.resultTeams(current, badges, winner),
+        // Cada uno por su cuenta y con resumen: las rondas van en el cuadro de cada mago.
+        teams: players.length > 0 && ffa ? [] : this.resultTeams(current, badges, winner),
         roundsToWin: rules.round.roundsToWin,
+        players,
         master,
       });
+      this.addToProfile(current, outcome);
       this.deps.hud.showPerf(this.deps.diagnostics.report());
       this.reportPerformance(current);
       this.deps.controls.visible = false;
@@ -314,6 +328,62 @@ export class MatchFlow {
     );
   }
 
+  /** Un cuadro por mago con lo que hizo: tú primero, después tu equipo y luego cada rival. */
+  private resultPlayers(
+    current: MatchView,
+    badges: ReadonlyMap<number, WizardBadge>,
+    winner: number,
+  ): ResultPlayer[] {
+    const summary = current.matchSummary();
+    if (!summary) return [];
+    const me = current.playerId;
+    const myTeam = current.player.team;
+    const teamOf = (id: number): number =>
+      current.state.wizards.find((w) => w.id === id)?.team ?? -1;
+    const rank = (id: number): number => {
+      const team = teamOf(id);
+      return id === me ? -2 : team === myTeam ? -1 : team;
+    };
+    const rows = [...summary.stats].sort((a, b) => rank(a.id) - rank(b.id) || a.id - b.id);
+    const topDamage = Math.max(0, ...rows.map((r) => r.damage));
+    return rows.map((row) => {
+      const favorite = favoriteSpell(row);
+      const weave = favorite ? SPELL_WEAVES[favorite] : null;
+      return {
+        name: badges.get(row.id)?.name ?? 'Hechicero',
+        color: badges.get(row.id)?.color ?? '#d8bf8a',
+        own: row.id === me,
+        damage: row.damage,
+        knockouts: row.knockouts,
+        falls: row.falls,
+        casts: row.casts,
+        favorite: weave ? { name: spellName(weave), weave } : null,
+        top: topDamage > 0 && row.damage === topDamage,
+        rounds: solo(current)
+          ? {
+              wins: current.series.wins[teamOf(row.id)] ?? 0,
+              winner: teamOf(row.id) === winner,
+            }
+          : undefined,
+      };
+    });
+  }
+
+  /** Suma la partida a tu perfil (contra la IA o en red; el entrenamiento no tiene resumen). */
+  private addToProfile(current: MatchView, outcome: Outcome): void {
+    const summary = current.matchSummary();
+    if (!summary) return;
+    const kind = current.options.mode.kind;
+    const mode: ModeGroup = kind === 'duel' ? 'duel' : kind === 'teams' ? 'teams' : 'ffa';
+    this.deps.stats.add({
+      id: summary.id,
+      outcome,
+      mode,
+      online: current.rematchStatus !== undefined,
+      own: summary.stats.find((row) => row.id === current.playerId),
+    });
+  }
+
   /** El marcador final: tu bando primero y después los demás, con su color y su nombre. */
   private resultTeams(
     current: MatchView,
@@ -321,7 +391,7 @@ export class MatchFlow {
     winner: number,
   ): ResultTeam[] {
     const playerTeam = current.player.team;
-    const ffa = current.options.mode.kind === 'ffa';
+    const ffa = solo(current);
     const teams = current.series.wins.map((wins, team): ResultTeam => {
       const member = current.state.wizards.find((w) => w.team === team);
       const own = team === playerTeam;
@@ -341,4 +411,9 @@ export class MatchFlow {
     });
     return [...teams.filter((t) => t.own), ...teams.filter((t) => !t.own)];
   }
+}
+
+/** Cada mago por su cuenta (1v1 y todos contra todos): el marcador lleva nombres, no equipos. */
+function solo(current: MatchView): boolean {
+  return current.options.mode.kind !== 'teams';
 }
