@@ -29,6 +29,7 @@ import { type WizardLook, WizardView } from '../render/WizardView';
 import type { BlindVeil } from '../ui/BlindVeil';
 import type { ComboCallouts } from '../ui/ComboCallouts';
 import type { Hud, WizardBadge } from '../ui/Hud';
+import type { HurtEdge } from '../ui/HurtEdge';
 import type { Minimap } from '../ui/Minimap';
 import type { PocketStrip } from '../ui/PocketStrip';
 import type { UiObstacles } from '../ui/UiObstacles';
@@ -44,6 +45,7 @@ export interface MatchUi {
   readonly minimap: Minimap;
   readonly controls: TouchControls;
   readonly blindVeil: BlindVeil;
+  readonly hurtEdge: HurtEdge;
   readonly comboCallouts: ComboCallouts;
   readonly obstacles: UiObstacles;
   readonly weaveName: WeaveName;
@@ -186,6 +188,8 @@ export class MatchRenderer {
     });
     // Cegado: la pantalla se oscurece alrededor y el minimapa se apaga.
     ui.blindVeil.update(player, delta);
+    // Golpe recibido: los bordes se tiñen de rojo un instante (solo tu mago, no a quien miras).
+    if (watched === null) ui.hurtEdge.update(player, delta);
     // En el entrenamiento la esquina es del panel; el muñeco no se esconde.
     const sightless = player.statuses.blind && !player.statuses.hunting;
     ui.minimap.show(!sightless && !(current instanceof TrainingMatch));

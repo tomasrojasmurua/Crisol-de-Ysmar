@@ -87,6 +87,8 @@ export class WizardView {
   private readonly capeMotion = { time: { value: 0 }, move: { value: 0 } };
   /** Retroceso al soltar un conjuro: 1 justo al lanzar y se apaga solo. */
   private recoil = 0;
+  /** Encogimiento al recibir un golpe: 1 justo al golpe, más fuerte cuanto más daño. */
+  private flinch = 0;
   private wasChanneling = false;
   private ghostly = false;
 
@@ -330,9 +332,21 @@ export class WizardView {
       deltaSeconds,
     );
 
-    // Golpe recibido: un destello breve en la túnica.
-    if (this.lastHp >= 0 && wizard.hp < this.lastHp - 0.9) this.flash = 1;
+    // Golpe recibido: un destello breve en la túnica y el cuerpo se encoge y echa atrás.
+    const drop = this.lastHp >= 0 ? this.lastHp - wizard.hp : 0;
+    if (drop > 0.9) this.flash = 1;
+    // El goteo (quemadura, zonas) solo destella; los golpes de verdad además sacuden el cuerpo.
+    if (drop >= 3 && alive) this.flinch = Math.max(this.flinch, 0.5 + Math.min(0.5, drop / 40));
     this.lastHp = wizard.hp;
+    this.flinch = Math.max(0, this.flinch - deltaSeconds * 5);
+    if (this.flinch > 0) {
+      const hit = this.flinch * this.flinch;
+      this.body.rotation.x -= 0.32 * hit;
+      // Aplastado un instante: más ancho y más bajo, sin cambiar su volumen a la vista.
+      this.body.scale.x *= 1 + 0.1 * hit;
+      this.body.scale.z *= 1 + 0.1 * hit;
+      this.body.scale.y *= 1 - 0.12 * hit;
+    }
     this.flash = Math.max(0, this.flash - deltaSeconds * 6);
     const emissive = this.robeMaterial.emissive;
     emissive.setRGB(this.flash * 0.9, this.flash * 0.8, this.flash * 0.75);

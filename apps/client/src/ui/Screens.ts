@@ -14,6 +14,7 @@ import type { ComboCallouts } from './ComboCallouts';
 import type { GlyphPicker } from './GlyphPicker';
 import type { GrimoireBook } from './GrimoireBook';
 import type { Hud } from './Hud';
+import type { HurtEdge } from './HurtEdge';
 import type { Lobby } from './Lobby';
 import type { Menu } from './Menu';
 import type { Minimap } from './Minimap';
@@ -35,6 +36,7 @@ export interface ScreenParts {
   readonly controls: TouchControls;
   readonly minimap: Minimap;
   readonly blindVeil: BlindVeil;
+  readonly hurtEdge: HurtEdge;
   readonly comboCallouts: ComboCallouts;
   readonly glyphPicker: GlyphPicker;
   readonly pauseMenu: PauseMenu;
@@ -73,6 +75,7 @@ export class Screens {
     p.controls.visible = false;
     p.minimap.show(false);
     p.blindVeil.reset();
+    p.hurtEdge.reset();
     p.comboCallouts.clear();
     p.cameraDrag.enabled = false;
     p.view.setLantern(false);
