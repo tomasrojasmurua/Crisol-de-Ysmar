@@ -143,6 +143,7 @@ export class Menu {
     onTraining: () => void,
     onQuick: () => void,
     private readonly audio: AudioEngine,
+    onProfile: () => void,
     /** Dice una frase de tu maestro si existe su voz (`voice.…`). */
     private readonly onVoice: (key: string) => void = () => {},
   ) {
@@ -156,7 +157,8 @@ export class Menu {
         <button type="button" class="menu-portrait" aria-label="Abrir el Vestidor"></button>
         <strong class="menu-wizard-name"></strong>
         <span class="menu-wizard-affinity"><span class="menu-affinity-icon"></span><span class="menu-affinity-text"></span></span>
-        <button type="button" class="secondary menu-wizard">${MENU_ICONS.wardrobe}<span>Vestidor</span></button>
+        <button type="button" class="secondary menu-wizard menu-profile">${MENU_ICONS.profile}<span>Perfil</span></button>
+        <button type="button" class="secondary menu-wizard menu-wardrobe">${MENU_ICONS.wardrobe}<span>Vestidor</span></button>
       </aside>
       <header class="menu-title">
         <h1><img class="menu-logo" src="/logo.webp" alt="Crisol de Ysmar" width="658" height="288" decoding="async" /></h1>
@@ -204,7 +206,8 @@ export class Menu {
     this.tagline.addEventListener('click', () => this.speak(true));
     this.side = query(this.root, '.menu-side');
     new HomeScreenInvite(this.side, this.root);
-    query(this.root, '.menu-wizard').addEventListener('click', onWardrobe);
+    query(this.root, '.menu-wardrobe').addEventListener('click', onWardrobe);
+    query(this.root, '.menu-profile').addEventListener('click', onProfile);
     this.portrait.addEventListener('click', onWardrobe);
     query(this.root, '.menu-grimoire').addEventListener('click', onGrimoire);
 

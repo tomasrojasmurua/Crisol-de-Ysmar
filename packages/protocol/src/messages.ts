@@ -1,8 +1,8 @@
-import type { ElementId, Intent, MatchState } from '@crisol/core';
+import type { ElementId, Intent, MatchState, WizardMatchStats } from '@crisol/core';
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -47,7 +47,17 @@ export type NetStage =
       readonly chosen: boolean;
       readonly ticksLeft: number;
     }
-  | { readonly kind: 'finished'; readonly rematch: readonly number[] };
+  /**
+   * Terminó la serie: quiénes piden revancha y el resumen de cada mago (sale en la pantalla
+   * final y se suma a tu perfil). `seriesId` distingue cada partida, para no sumarla dos veces
+   * si vuelves tras un corte.
+   */
+  | {
+      readonly kind: 'finished';
+      readonly rematch: readonly number[];
+      readonly seriesId: number;
+      readonly stats: readonly WizardMatchStats[];
+    };
 
 /** Del celular a la Sala. */
 export type ClientMessage =

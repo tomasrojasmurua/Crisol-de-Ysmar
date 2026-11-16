@@ -129,6 +129,12 @@ describe('Sala de duelo 1v1', () => {
     expect(duel.seriesInfo().glyphs[1]).toHaveLength(1);
     until(duel, () => duel.stageFor(1).kind === 'finished', 30 * 60 * 30);
     expect(duel.seriesInfo().seriesWinner).not.toBeNull();
+    // El resumen del final: una fila por mago, con lo que hizo en toda la serie.
+    const finished = duel.stageFor(1);
+    if (finished.kind !== 'finished') throw new Error('Debía terminar');
+    expect(finished.stats.map((row) => row.id)).toEqual([1, 2]);
+    expect(finished.stats.reduce((sum, row) => sum + row.casts, 0)).toBeGreaterThan(0);
+    expect(finished.stats.reduce((sum, row) => sum + row.falls, 0)).toBeGreaterThan(0);
     duel.join({ name: 'A', token: 'token-1' });
     duel.rematch(1);
     expect(duel.stageFor(1).kind).toBe('playing');

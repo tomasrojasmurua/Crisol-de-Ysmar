@@ -13,6 +13,7 @@ import {
   type Controller,
   combineMods,
   createMatch,
+  createMatchStats,
   createSeries,
   type DeathRule,
   ELEMENT_IDS,
@@ -21,8 +22,10 @@ import {
   type GameMode,
   type GameRules,
   type MatchState,
+  type MatchStats,
   modeSetup,
   playerCount,
+  recordMatchStats,
   recordRound,
   SeededRng,
   type SeriesState,
@@ -32,7 +35,7 @@ import {
   type Vec2,
   type Wizard,
 } from '@crisol/core';
-import type { MatchView } from './MatchView';
+import type { MatchSummary, MatchView } from './MatchView';
 
 export const PLAYER_ID = 1;
 
@@ -81,6 +84,8 @@ export class LocalMatch implements MatchView {
   private readonly rng: SeededRng;
   private bots = new Map<number, BotController>();
   private readonly previous = new Map<number, Vec2>();
+  /** Lo que hace cada mago en la serie, para el resumen del final. */
+  private readonly stats: MatchStats;
 
   constructor(
     readonly options: MatchOptions,
@@ -101,6 +106,12 @@ export class LocalMatch implements MatchView {
       );
     }
     this.state = this.startRound();
+    this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
+  }
+
+  matchSummary(): MatchSummary | null {
+    if (this.stage.kind !== 'finished') return null;
+    return { id: `ia-${this.seed}`, stats: this.stats };
   }
 
   get player(): Wizard {
@@ -133,6 +144,7 @@ export class LocalMatch implements MatchView {
       ]),
     );
     stepMatch(this.state, intents, this.rules);
+    recordMatchStats(this.stats, this.state);
 
     const roundWinner = this.state.winnerTeam;
     if (roundWinner !== null) {

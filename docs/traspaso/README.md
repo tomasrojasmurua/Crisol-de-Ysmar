@@ -50,7 +50,7 @@ amigos (de 1v1 a todos contra todos de 6) en
 6. Todo entra por PR a `main`, que siempre se puede jugar. La plantilla está en
    `.github/pull_request_template.md`.
 7. **Si cambia la forma del estado, de los eventos o de los ajustes de sala, sube
-   `PROTOCOL_VERSION`** en `packages/protocol/src/messages.ts` (va en 18). Cliente y Sala deben
+   `PROTOCOL_VERSION`** en `packages/protocol/src/messages.ts` (va en 19). Cliente y Sala deben
    coincidir; quien tenga el juego abierto debe recargar.
 8. **Celular en horizontal y nada tapa los botones.** Toda pieza nueva de interfaz se revisa a
    844×390 (iPhone) y en pantallas más angostas.

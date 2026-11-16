@@ -1815,6 +1815,384 @@ body {
   }
 }
 
+/*
+ * Con resumen: el resultado a la izquierda y un cuadro por mago a la derecha, para que todo
+ * quepa en un celular en horizontal sin tapar Revancha ni Menú.
+ */
+.hud-result-main,
+.hud-result-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.hud-result-card.with-players {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 0 clamp(12px, 3vw, 28px);
+  width: min(920px, 100%);
+}
+
+.hud-result-card.with-players .hud-result-crest {
+  width: clamp(32px, 10vh, 48px);
+  height: clamp(32px, 10vh, 48px);
+}
+
+.hud-result-card.with-players h2 {
+  font-size: clamp(30px, 11vh, 56px);
+  letter-spacing: 0.08em;
+}
+
+.hud-result-card.with-players .hud-result-score {
+  margin: clamp(6px, 2.5vh, 14px) 0 clamp(8px, 3vh, 16px);
+}
+
+.hud-result-card.with-players .hud-result-master {
+  max-width: 100%;
+  margin: 0 0 clamp(8px, 3vh, 14px);
+}
+
+.hud-result-card.with-players .hud-result-master blockquote {
+  font-size: 13px;
+}
+
+.hud-result-card.with-players .hud-result-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#ui .hud-result-card.with-players .hud-result-actions .primary,
+#ui .hud-result-card.with-players .hud-result-actions .secondary {
+  min-width: 128px;
+}
+
+.hud-result-card.with-players .hud-result-opinion {
+  margin-top: 10px;
+}
+
+.hud-result-card.with-players .hud-result-opinion-more input {
+  width: min(240px, 26vw);
+}
+
+.hud-result-players {
+  display: grid;
+  grid-template-columns: repeat(var(--columns, 3), minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  animation: fade-in 0.6s ease 0.3s both;
+}
+
+.hud-result-players[data-columns="2"] {
+  --columns: 2;
+}
+
+.hud-result-players[data-columns="1"] {
+  --columns: 1;
+}
+
+.hud-result-player {
+  min-width: 0;
+  padding: 5px 8px 6px;
+  border: 1px solid rgba(216, 191, 138, 0.2);
+  border-top: 2px solid var(--team);
+  border-radius: 6px;
+  background: rgba(14, 12, 20, 0.8);
+  text-align: left;
+}
+
+.hud-result-player.own {
+  border-color: rgba(243, 223, 176, 0.45);
+  border-top-color: var(--team);
+  background: linear-gradient(180deg, rgba(216, 191, 138, 0.12), rgba(14, 12, 20, 0.85) 60%);
+}
+
+.hud-result-player-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 3px;
+}
+
+.hud-result-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--team);
+}
+
+.hud-result-player.winner {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--team) 28%, transparent);
+}
+
+.hud-result-player-head .hud-result-pips {
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0 2px;
+}
+
+.hud-result-player-head .hud-result-pips .pip {
+  width: 7px;
+  height: 7px;
+  border-width: 1px;
+}
+
+.hud-result-player.own .hud-result-player-name {
+  color: var(--gold-bright);
+}
+
+.hud-result-player-stats {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+}
+
+.hud-result-player-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.hud-result-player-stats dt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-quiet);
+}
+
+.hud-result-player-stats dd {
+  flex: none;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* Quien hizo más daño en la partida: su cifra brilla en oro. */
+.hud-result-player-stats .best dd {
+  color: var(--gold-bright);
+  text-shadow: 0 0 8px rgba(243, 223, 176, 0.5);
+}
+
+.hud-result-player-stats .best dd::before {
+  content: "✦ ";
+  font-size: 9px;
+}
+
+.hud-result-player-fav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 3px 0 0;
+  padding-top: 3px;
+  border-top: 1px solid rgba(216, 191, 138, 0.14);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.hud-result-player-fav span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-result-player-fav .weave-orbs {
+  flex: none;
+}
+
+/* ---------- Tu perfil ---------- */
+
+.profile-card {
+  width: min(680px, 100%);
+}
+
+.profile-card .home-invite-head h2 {
+  padding-bottom: 8px;
+  text-transform: uppercase;
+  max-width: calc(100% - 64px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-lineage {
+  margin: 2px 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--linaje, var(--gold));
+}
+
+.profile-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.profile-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 4px;
+  border: 1px solid rgba(216, 191, 138, 0.22);
+  border-radius: 6px;
+  background: rgba(7, 7, 12, 0.55);
+}
+
+.profile-tile-value {
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-bright);
+}
+
+.profile-tile-label,
+.profile-tile-note {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+}
+
+.profile-tile-label {
+  text-transform: uppercase;
+}
+
+.profile-tile-note {
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.profile-empty {
+  margin: 0 0 8px;
+  text-align: center;
+  color: var(--ink-quiet);
+}
+
+.profile-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-block {
+  min-width: 0;
+}
+
+.profile-block h3 {
+  margin: 0 0 3px;
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.profile-block h3:not(:first-child) {
+  margin-top: 8px;
+}
+
+.profile-list {
+  display: grid;
+  margin: 0;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px dashed rgba(216, 191, 138, 0.1);
+}
+
+.profile-row dt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-quiet);
+}
+
+.profile-row dd {
+  flex: none;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.profile-favorites {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-favorite,
+.profile-favorite-none {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.profile-favorite-none {
+  color: var(--ink-quiet);
+  font-style: italic;
+}
+
+.profile-favorite .weave-orbs,
+.profile-element-icon {
+  flex: none;
+  /* Del ancho de 3 orbes: los nombres quedan alineados aunque el tejido sea más corto. */
+  min-width: 40px;
+}
+
+.profile-element-icon {
+  --icon-size: 15px;
+  display: inline-flex;
+}
+
+.profile-favorite-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-favorite-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-quiet);
+}
+
 /* ---------- Etiquetas sobre los magos ---------- */
 
 .world-labels {

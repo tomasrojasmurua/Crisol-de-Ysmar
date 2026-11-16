@@ -51,6 +51,10 @@ export const MENU_ICONS = {
   /** Rayo: Partida rápida. */
   quick: icon('<path d="M13 2L4 14h7l-1 8 9-12h-7Z"/>'),
   pause: icon('<path d="M9 5v14M15 5v14"/>'),
+  /** Perfil: un estandarte con una estrella. */
+  profile: icon(
+    '<path d="M6 3h12v18l-6-4-6 4Z"/><path d="M12 7l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/>',
+  ),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
   /** Un celular con un signo más: agregar el juego a la pantalla de inicio. */
   keep: icon('<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 8v6M9 11h6"/>'),

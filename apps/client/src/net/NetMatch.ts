@@ -34,7 +34,7 @@ import {
   type StateFrame,
 } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from '../game/LocalMatch';
-import type { MatchView, RematchStatus } from '../game/MatchView';
+import type { MatchSummary, MatchView, RematchStatus } from '../game/MatchView';
 import { reportProblem } from '../platform/ErrorReporter';
 import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl, roomsServerName } from './serverUrl';
@@ -420,6 +420,12 @@ export class NetMatch implements MatchView {
   requestRematch(): void {
     this.rematchAsked = true;
     this.send({ type: 'rematch' });
+  }
+
+  /** Al terminar la serie: lo que hizo cada mago, según la Sala. */
+  matchSummary(): MatchSummary | null {
+    if (this.netStage.kind !== 'finished') return null;
+    return { id: `red-${this.code}-${this.netStage.seriesId}`, stats: this.netStage.stats };
   }
 
   /** Al terminar la serie: cuántos piden revancha, cuántos hacen falta y si ya la pediste. */
