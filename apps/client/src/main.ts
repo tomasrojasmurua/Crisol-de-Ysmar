@@ -823,8 +823,8 @@ renderer.setAnimationLoop((now) => {
   if (live && screenCap.capped && !capNoticeShown && elapsed >= capNoticeAt) {
     capNoticeShown = true;
     hud.announce(
-      'Tu celular va a 30 cuadros por segundo',
-      '¿Modo de bajo consumo? Apágalo para jugar más fluido',
+      'Tu celular va a 30 cuadros',
+      '¿Modo de bajo consumo? Apágalo para ir más fluido',
       4,
     );
   }
