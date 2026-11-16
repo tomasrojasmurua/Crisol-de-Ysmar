@@ -46,8 +46,9 @@ export class Diagnostics {
     this.netBadge.textContent = text;
   }
 
-  matchStarted(pixelRatio: number, quality: QualityName): void {
-    this.perfLog.start(pixelRatio, quality);
+  /** `screenCapped`: el celular frena la pantalla a 30 cuadros (ver render/ScreenCap.ts). */
+  matchStarted(pixelRatio: number, quality: QualityName, screenCapped = false): void {
+    this.perfLog.start(pixelRatio, quality, screenCapped);
     this.audioCutsSeen = this.audio.interruptions;
   }
 

@@ -57,6 +57,7 @@ import { CALM_FPS, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
 import { readQuality, saveQuality } from './render/Quality';
+import { ScreenCap } from './render/ScreenCap';
 import { BackupSheet } from './ui/BackupSheet';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
@@ -608,7 +609,8 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   void view.warmUp();
   resolution.restart();
   autoQuality.restart();
-  diagnostics.matchStarted(resolution.pixelRatio, quality);
+  diagnostics.matchStarted(resolution.pixelRatio, quality, screenCap.capped);
+  capNoticeAt = elapsed + CAP_NOTICE_DELAY_S;
 }
 
 /** El botón Revancha del resultado: en red se pide a la sala; contra la IA, empieza otra. */
@@ -736,6 +738,12 @@ const limiter = new FrameLimiter();
 let lastFrame = performance.now();
 let elapsed = 0;
 let lastAlpha = 1;
+/** Si el celular frena la pantalla a 30 cuadros por segundo (Modo de bajo consumo). */
+const screenCap = new ScreenCap();
+/** El aviso del bajo consumo sale una vez por visita, pasado el anuncio de la ronda. */
+const CAP_NOTICE_DELAY_S = 5;
+let capNoticeAt = Number.POSITIVE_INFINITY;
+let capNoticeShown = false;
 
 /** Dibuja la partida en curso con lo que cambia de partida en partida. */
 function renderMatch(current: MatchView, alpha: number, delta: number): void {
@@ -788,24 +796,38 @@ function stepMatch(current: MatchView): void {
 renderer.setAnimationLoop((now) => {
   // Fuera de la partida en vivo (menús, pausa contra la IA, resultado) basta la mitad.
   const live = match !== null && !(paused && match !== net) && !flow.finished;
-  if (!limiter.ready(now, live ? PLAY_FPS : CALM_FPS)) return;
+  const due = limiter.ready(now, live ? PLAY_FPS : CALM_FPS);
+  // En los menús el juego casi no trabaja: si la pantalla igual llama cada 33 ms, la frena el
+  // celular (ver render/ScreenCap.ts).
+  if (match === null) screenCap.sample(limiter.screenIntervalMs);
+  if (!due) return;
   let simMs = 0;
   const frameMs = Math.min(now - lastFrame, 250);
   lastFrame = now;
   diagnostics.beginFrame(frameMs);
   // Con el tope de los menús los cuadros son largos a propósito: no cuentan como lentitud.
-  const newRatio = live ? resolution.sample(frameMs) : null;
+  // Con el celular frenado a 30, ir a 30 es ir a tope: no se baja nitidez por eso.
+  const judgedMs = screenCap.judged(frameMs);
+  const newRatio = live ? resolution.sample(judgedMs) : null;
   if (newRatio !== null) {
     view.resize();
     diagnostics.resolutionChanged(newRatio);
   }
-  if (live && quality === 'alta' && autoQuality.sample(frameMs, resolution.canLower)) {
+  if (live && quality === 'alta' && autoQuality.sample(judgedMs, resolution.canLower)) {
     setQuality('liviana');
     pauseMenu.setLightGraphics(true);
     hud.announce('Gráficos livianos', 'Tu celular iba lento: se cambia en Pausa', 2.6);
   }
   const delta = frameMs / 1000;
   elapsed += delta;
+  if (live && screenCap.capped && !capNoticeShown && elapsed >= capNoticeAt) {
+    capNoticeShown = true;
+    hud.announce(
+      'Tu celular va a 30 cuadros por segundo',
+      '¿Modo de bajo consumo? Apágalo para jugar más fluido',
+      4,
+    );
+  }
 
   const current = match;
   // En red, entre el aviso de partida nueva (una revancha) y su primer estado no hay magos:

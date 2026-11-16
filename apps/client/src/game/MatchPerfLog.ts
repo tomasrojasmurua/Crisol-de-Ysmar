@@ -83,8 +83,10 @@ export class MatchPerfLog {
   private startQuality: QualityName = 'alta';
   private readonly qualityChanges: { atMs: number; quality: QualityName }[] = [];
   private load = emptyLoad();
+  private screenCapped = false;
 
-  start(pixelRatio: number, quality: QualityName = 'alta'): void {
+  start(pixelRatio: number, quality: QualityName = 'alta', screenCapped = false): void {
+    this.screenCapped = screenCapped;
     this.worked = 0;
     this.simMs = 0;
     this.jsMs = 0;
@@ -232,6 +234,9 @@ export class MatchPerfLog {
             .map((change) => `${QUALITY_LABEL[change.quality]} en ${clock(change.atMs)}`)
             .join(', ')}`;
     lines.push(quality);
+    if (this.screenCapped) {
+      lines.push('Pantalla frenada a 30 fps por el celular (¿Modo de bajo consumo?)');
+    }
 
     const slowShare = Math.round((this.slowSeconds / seconds) * 100);
     lines.push(

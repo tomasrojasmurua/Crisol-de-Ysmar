@@ -381,6 +381,20 @@ describe('Salas de más de dos y ajustes', () => {
     expect(duel.stageFor(1).kind).toBe('playing');
   });
 
+  it('entre rondas no reenvía los eventos del último paso (se verían y oirían de nuevo)', () => {
+    const duel = host();
+    duel.join({ name: 'A' });
+    duel.join({ name: 'B' });
+    duel.begin(1);
+    duel.leave(1);
+    duel.leave(2);
+    until(duel, () => duel.stageFor(1).kind === 'intermission');
+    // El paso que cerró la ronda trae su caída: ese estado se manda una vez con sus eventos.
+    expect(duel.state?.events.some((e) => e.type === 'defeated')).toBe(true);
+    duel.tick();
+    expect(duel.state?.events).toEqual([]);
+  });
+
   it('sin Presagio ni Glifos, a 1 ronda corta: se juega hasta el final', () => {
     const duel = room();
     duel.configure(1, { ...teams2, minutes: 2, bestOf: 1, glyphs: false, omen: false });
