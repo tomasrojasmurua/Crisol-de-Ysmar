@@ -47,6 +47,17 @@ export interface ResultSummary {
   readonly master?:
     | { readonly name: string; readonly line: string; readonly color: string }
     | undefined;
+  /** Un paso del Camino de tu Linaje: si lo superaste y la meta. Revancha pasa a "Otra vez". */
+  readonly path?: ResultPath | undefined;
+}
+
+/** Cómo salió el paso del Camino, bajo el título. */
+export interface ResultPath {
+  /** "Paso 4 · El otro lado". */
+  readonly title: string;
+  readonly passed: boolean;
+  /** Superado: qué se abrió; si no, por qué no contó. */
+  readonly note: string;
 }
 
 /** En red, cómo va la revancha (la empiezan todos los conectados). */
@@ -106,6 +117,10 @@ export class ResultScreen {
   private readonly rematchNote: HTMLElement;
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
+  /** Lo que dice Revancha cuando no se espera a nadie ("Otra vez" en el Camino). */
+  private rematchText = 'Revancha';
+  private readonly menuLabel: HTMLElement;
+  private readonly path: HTMLElement;
   private readonly perf: HTMLElement;
   private readonly opinion: HTMLElement;
   private readonly opinionOptions: HTMLElement;
@@ -125,6 +140,7 @@ export class ResultScreen {
         <div class="hud-result-crest"></div>
         <h2></h2>
         <p class="hud-result-detail"></p>
+        <p class="hud-result-path" hidden><strong></strong><span></span></p>
         <div class="hud-result-score"></div>
         <figure class="hud-result-master" hidden>
           <blockquote></blockquote>
@@ -133,7 +149,7 @@ export class ResultScreen {
         <p class="hud-result-rematch" hidden></p>
         <div class="hud-result-actions">
           <button type="button" class="primary rematch">${MENU_ICONS.rematch}<span>Revancha</span></button>
-          <button type="button" class="secondary to-menu">${MENU_ICONS.leave}<span>Menú</span></button>
+          <button type="button" class="secondary to-menu">${MENU_ICONS.leave}<span class="to-menu-label">Menú</span></button>
         </div>
         </div>
         <div class="hud-result-side">
@@ -162,6 +178,8 @@ export class ResultScreen {
     this.rematchNote = query(this.root, '.hud-result-rematch');
     this.rematchButton = query(this.root, '.rematch');
     this.rematchLabel = query(this.rematchButton, 'span');
+    this.menuLabel = query(this.root, '.to-menu-label');
+    this.path = query(this.root, '.hud-result-path');
     this.perf = query(this.root, '.hud-result-perf');
     this.rematchButton.addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
@@ -236,6 +254,18 @@ export class ResultScreen {
       query(this.master, 'figcaption').textContent = master.name;
       this.master.style.setProperty('--master', master.color);
     }
+    const path = summary.path;
+    this.path.hidden = !path;
+    if (path) {
+      this.path.classList.toggle('passed', path.passed);
+      query(this.path, 'strong').textContent =
+        `${path.title} · ${path.passed ? 'superado' : 'sin superar'}`;
+      query(this.path, 'span').textContent = path.note;
+    }
+    // En el Camino se repite el mismo paso, y Menú vuelve al Camino.
+    this.rematchText = path ? 'Otra vez' : 'Revancha';
+    this.menuLabel.textContent = path ? 'Camino' : 'Menú';
+    this.rematchKey = '-';
     this.setRematch(null);
     this.root.hidden = false;
   }
@@ -260,7 +290,7 @@ export class ResultScreen {
     this.rematchKey = key;
     const waiting = status?.mine ?? false;
     this.rematchButton.disabled = waiting;
-    this.rematchLabel.textContent = waiting ? 'Esperando' : 'Revancha';
+    this.rematchLabel.textContent = waiting ? 'Esperando' : this.rematchText;
     const othersAsked = status ? status.asked - (status.mine ? 1 : 0) : 0;
     this.rematchButton.classList.toggle('called', !waiting && othersAsked > 0);
     this.rematchNote.textContent = status ? rematchText(status, othersAsked) : '';

@@ -1,4 +1,4 @@
-import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
+import { type Combo, ELEMENTS, NO_OMEN, PATH_LENGTH, spellName } from '@crisol/content';
 import {
   type ElementId,
   favoriteSpell,
@@ -18,7 +18,7 @@ import { weaveOrbs } from '../ui/GrimoireBook';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import { intentTag } from '../ui/intentTag';
 import type { Minimap } from '../ui/Minimap';
-import type { Outcome, ResultPlayer, ResultTeam } from '../ui/ResultScreen';
+import type { Outcome, ResultPath, ResultPlayer, ResultTeam } from '../ui/ResultScreen';
 import { ComboDetector } from './ComboDetector';
 import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
@@ -26,7 +26,9 @@ import type { Grimoire } from './Grimoire';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
 import { masterQuote } from './masterLine';
+import type { PathProgress } from './PathProgress';
 import type { ModeGroup, PlayerStats } from './PlayerStats';
+import { foreignSpell, judgePath } from './pathJudge';
 import { TrainingMatch } from './TrainingMatch';
 
 /** El anuncio de quién ganó la ronda sale al empezar el entreacto. */
@@ -51,6 +53,8 @@ export interface MatchFlowDeps {
   readonly stats: PlayerStats;
   /** Tu Linaje, para que tu maestro comente el resultado (null: aún no eliges). */
   readonly school: () => ElementId | null;
+  /** Los pasos superados del Camino de tu Linaje. */
+  readonly path: PathProgress;
 }
 
 /**
@@ -67,6 +71,8 @@ export class MatchFlow {
   private firstFallRound = 0;
   /** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
   private lastWinner = -1;
+  /** En el Camino, si ya se avisó que la meta de solo tus hechizos se rompió. */
+  private pathBroken = false;
 
   constructor(private readonly deps: MatchFlowDeps) {}
 
@@ -82,6 +88,7 @@ export class MatchFlow {
     this.resultShown = false;
     this.pickerShown = false;
     this.firstFallRound = 0;
+    this.pathBroken = false;
   }
 
   /** Avisos de la partida según lo que pasó en el paso. */
@@ -114,6 +121,22 @@ export class MatchFlow {
       } else if (event.type === 'phase') {
         this.deps.hud.announcePhase(event.phase);
         if (event.phase !== 'hunt') this.deps.audio.say(`voice.crisol.${event.phase}`);
+      }
+      const step = current.options.path;
+      if (
+        step &&
+        !this.pathBroken &&
+        event.type === 'release' &&
+        event.wizardId === me &&
+        foreignSpell(step, event.spell)
+      ) {
+        // Mejor saberlo al tiro que enterarse al final.
+        this.pathBroken = true;
+        this.deps.hud.announce(
+          `${spellName(SPELL_WEAVES[event.spell])} no es de tu Linaje`,
+          'Este duelo ya no cuenta para el Camino',
+          2.6,
+        );
       }
       if (
         event.type === 'defeated' &&
@@ -267,6 +290,7 @@ export class MatchFlow {
         roundsToWin: rules.round.roundsToWin,
         players,
         master,
+        path: this.judgePath(current, winner),
       });
       this.addToProfile(current, outcome);
       this.deps.hud.showPerf(this.deps.diagnostics.report());
@@ -274,6 +298,32 @@ export class MatchFlow {
       this.deps.controls.visible = false;
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /** En el Camino: si se superó el paso (y se guarda), o por qué no. */
+  private judgePath(current: MatchView, winner: number): ResultPath | undefined {
+    const step = current.options.path;
+    if (!step) return undefined;
+    const own = current.matchSummary()?.stats.find((row) => row.id === current.playerId);
+    const verdict = judgePath(step, {
+      won: winner === current.player.team,
+      roundsLost: current.series.wins.reduce(
+        (sum, wins, team) => sum + (team === current.player.team ? 0 : wins),
+        0,
+      ),
+      spells: own?.spells ?? {},
+    });
+    // Aquí se enchufarán los premios: `add` dice si es la primera vez que se supera.
+    const first = verdict.passed && this.deps.path.add(step.id);
+    const last = step.number >= PATH_LENGTH;
+    const note = !verdict.passed
+      ? verdict.reason
+      : !first
+        ? 'Ya lo habías superado: sigue en el Camino'
+        : last
+          ? 'Completaste el Camino de tu Linaje'
+          : `Se abrió el paso ${step.number + 1}`;
+    return { title: `Paso ${step.number} · ${step.title}`, passed: verdict.passed, note };
   }
 
   /**

@@ -15,6 +15,7 @@ describe('maestros', () => {
     for (const { lines } of MASTERS) {
       const all = [
         lines.welcome,
+        lines.challenge,
         ...lines.win,
         ...lines.loss,
         ...lines.closeWin,
