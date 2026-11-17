@@ -50,7 +50,6 @@ export class PauseMenu {
       <div class="pause-panel">
         <h2>Pausa</h2>
         <p class="pause-note" hidden>En línea la partida sigue mientras estás aquí.</p>
-        <button type="button" class="primary pause-resume">Continuar</button>
         <div class="pause-settings">
           <div class="pause-column">
           <span class="pause-label">Sonido</span>
@@ -71,7 +70,10 @@ export class PauseMenu {
           </label>
           </div>
         </div>
-        <button type="button" class="secondary pause-menu">${MENU_ICONS.leave}<span>Salir al menú principal</span></button>
+        <div class="pause-actions">
+          <button type="button" class="secondary pause-menu">${MENU_ICONS.leave}<span>Salir al menú</span></button>
+          <button type="button" class="primary pause-resume">Continuar</button>
+        </div>
       </div>`;
     parent.append(this.button, this.overlay);
     this.onlineNote = query(this.overlay, '.pause-note');

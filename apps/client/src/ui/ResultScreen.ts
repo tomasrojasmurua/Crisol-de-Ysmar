@@ -123,6 +123,8 @@ export class ResultScreen {
   private readonly path: HTMLElement;
   private readonly perf: HTMLElement;
   private readonly opinion: HTMLElement;
+  private readonly opinionAsk: HTMLElement;
+  private readonly opinionChange: HTMLButtonElement;
   private readonly opinionOptions: HTMLElement;
   private readonly opinionMore: HTMLFormElement;
   private readonly opinionInput: HTMLInputElement;
@@ -155,11 +157,12 @@ export class ResultScreen {
         <div class="hud-result-side">
         <section class="hud-result-players" aria-label="Resumen de la partida" hidden></section>
         <div class="hud-result-opinion" hidden>
-          <p class="hud-result-opinion-ask">¿Cómo se jugó?</p>
+          <p class="hud-result-opinion-ask"><span>¿Cómo se jugó?</span>
+            <button type="button" class="hud-result-opinion-change" hidden>Cambiar</button></p>
           <div class="hud-result-opinion-options"></div>
           <form class="hud-result-opinion-more" hidden>
             <input maxlength="280" enterkeyhint="send" autocomplete="off"
-              placeholder="¿Qué mejorarías? (opcional)" aria-label="Qué mejorarías" />
+              placeholder="¿Qué mejorarías?" aria-label="Qué mejorarías" />
             <button type="submit" class="secondary">Enviar</button>
           </form>
           <p class="hud-result-opinion-thanks" hidden>¡Gracias! Lo vemos para la próxima versión.</p>
@@ -184,6 +187,8 @@ export class ResultScreen {
     this.rematchButton.addEventListener('click', onRematch);
     query(this.root, '.to-menu').addEventListener('click', onMenu);
     this.opinion = query(this.root, '.hud-result-opinion');
+    this.opinionAsk = query(this.root, '.hud-result-opinion-ask span');
+    this.opinionChange = query(this.root, '.hud-result-opinion-change') as HTMLButtonElement;
     this.opinionOptions = query(this.root, '.hud-result-opinion-options');
     this.opinionMore = query(this.root, '.hud-result-opinion-more') as HTMLFormElement;
     this.opinionInput = query(this.opinionMore, 'input') as HTMLInputElement;
@@ -200,8 +205,12 @@ export class ResultScreen {
       if (comment) this.opinionSink?.(this.chosen, comment);
       this.opinionInput.blur();
       this.opinionMore.hidden = true;
+      this.opinionChange.hidden = true;
+      this.opinionAsk.textContent = this.chosen ? `Se jugó: ${this.chosen}` : '';
       this.opinionThanks.hidden = false;
     });
+    // Volver a las tres opciones, por si tocó la que no era.
+    this.opinionChange.addEventListener('click', () => this.showOptions());
     // Que las teclas del juego (1-5, espacio) no tejan mientras escribes.
     this.opinionInput.addEventListener('keydown', (event) => event.stopPropagation());
   }
@@ -215,18 +224,33 @@ export class ResultScreen {
     this.chosen = null;
     for (const chip of this.opinionOptions.children) chip.classList.remove('selected');
     this.opinionInput.value = '';
-    this.opinionMore.hidden = true;
     this.opinionThanks.hidden = true;
+    this.showOptions();
     this.opinion.hidden = false;
   }
 
+  /**
+   * Las opciones y el comentario ocupan la misma fila, uno a la vez: así la pregunta cabe entera
+   * bajo los cuadros en un celular en horizontal.
+   */
+  private showOptions(): void {
+    this.opinionAsk.textContent = '¿Cómo se jugó?';
+    this.opinionChange.hidden = true;
+    this.opinionOptions.hidden = false;
+    this.opinionMore.hidden = true;
+  }
+
   private choose(opinion: Opinion): void {
-    if (this.chosen === opinion) return;
-    this.chosen = opinion;
-    for (const chip of this.opinionOptions.children)
-      chip.classList.toggle('selected', chip.textContent === opinion);
-    this.opinionSink?.(opinion, '');
-    if (this.opinionThanks.hidden) this.opinionMore.hidden = false;
+    if (this.chosen !== opinion) {
+      this.chosen = opinion;
+      for (const chip of this.opinionOptions.children)
+        chip.classList.toggle('selected', chip.textContent === opinion);
+      this.opinionSink?.(opinion, '');
+    }
+    this.opinionAsk.textContent = `${opinion}. ¿Algo que mejorar?`;
+    this.opinionChange.hidden = false;
+    this.opinionOptions.hidden = true;
+    this.opinionMore.hidden = !this.opinionThanks.hidden;
   }
 
   show(summary: ResultSummary): void {
@@ -247,6 +271,8 @@ export class ResultScreen {
     const count = summary.players.length;
     this.players.dataset.columns = String(count === 2 || count === 4 ? 2 : Math.min(3, count));
     this.card.classList.toggle('with-players', count > 0);
+    // Por equipos el marcador va además a la izquierda: en celulares bajos se aprieta esa columna.
+    this.card.classList.toggle('with-teams', count > 0 && summary.teams.length > 0);
     const master = summary.master;
     this.master.hidden = !master;
     if (master) {
