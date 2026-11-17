@@ -7,7 +7,7 @@ import {
   type SeriesState,
   type Wizard,
 } from '@crisol/core';
-import { el, query } from './dom';
+import { barWidth, el, query, setStyle, setText } from './dom';
 import { CAST_ICON, elementIcon } from './icons';
 import {
   type OpinionSink,
@@ -208,9 +208,9 @@ export class Hud {
   ): void {
     if (player.hp !== this.lastHp) {
       this.lastHp = player.hp;
-      this.playerFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
+      setStyle(this.playerFill, 'width', barWidth(player.hp, player.maxHp));
       this.playerFill.classList.toggle('low', player.hp < player.maxHp * 0.3);
-      this.playerHp.textContent = `${Math.max(0, Math.ceil(player.hp))} / ${Math.round(player.maxHp)}`;
+      setText(this.playerHp, `${Math.max(0, Math.ceil(player.hp))} / ${Math.round(player.maxHp)}`);
     }
     // El medallón muestra tu Afinidad; sin Afinidad, la estrella del Crisol.
     const portraitKey = player.affinity ?? '';
@@ -220,10 +220,12 @@ export class Hud {
       const element = ELEMENTS.find((e) => e.id === player.affinity);
       this.portrait.style.setProperty('--icon-color', element?.color ?? 'var(--player)');
     }
-    this.playerLives.textContent =
+    setText(
+      this.playerLives,
       state.deathRule === 'lives'
         ? '◆'.repeat(player.lives) + '◇'.repeat(Math.max(0, rules.death.lives - player.lives))
-        : '';
+        : '',
+    );
 
     const essenceKey = ELEMENTS.map((e) => player.essence[e.id]).join(',');
     if (essenceKey !== this.lastEssenceKey) {
@@ -242,12 +244,12 @@ export class Hud {
       const ally = state.wizards.find((w) => w.id === id);
       if (!ally) continue;
       const fill = query(row, '.hud-fill');
-      fill.style.width = `${(ally.hp / ally.maxHp) * 100}%`;
+      setStyle(fill, 'width', barWidth(ally.hp, ally.maxHp));
       row.classList.toggle('down', ally.hp <= 0);
     }
 
-    this.roundLabel.textContent = `Ronda ${roundNumber}`;
-    this.phase.textContent = PHASE_NAMES[roundPhase(state.tick, rules)];
+    setText(this.roundLabel, `Ronda ${roundNumber}`);
+    setText(this.phase, PHASE_NAMES[roundPhase(state.tick, rules)]);
 
     const scoreKey = `${series.wins.join(',')}|${player.team}`;
     if (scoreKey !== this.lastScoreKey) {

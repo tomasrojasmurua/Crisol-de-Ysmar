@@ -1,5 +1,5 @@
 import type { Wizard } from '@crisol/core';
-import { el } from './dom';
+import { el, setHidden, setStyle } from './dom';
 
 /** Lo que se ve el borde con un golpe mínimo, y cuánto daño lo enciende entero. */
 const MIN_STRENGTH = 0.35;
@@ -46,8 +46,8 @@ export class HurtEdge {
     }
     if (this.strength === 0) return;
     this.strength = Math.max(0, this.strength - deltaSeconds * FADE_PER_SECOND);
-    this.root.style.opacity = this.strength.toFixed(3);
-    this.root.hidden = this.strength === 0;
+    setStyle(this.root, 'opacity', this.strength.toFixed(3));
+    setHidden(this.root, this.strength === 0);
   }
 
   /** Fuera de la partida no queda nada rojo. */
@@ -55,7 +55,7 @@ export class HurtEdge {
     this.strength = 0;
     this.lastHp = -1;
     this.lastId = -1;
-    this.root.style.opacity = '0';
-    this.root.hidden = true;
+    setStyle(this.root, 'opacity', '0');
+    setHidden(this.root, true);
   }
 }

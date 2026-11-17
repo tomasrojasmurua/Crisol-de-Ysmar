@@ -131,7 +131,8 @@ export class TouchControls {
     this.applyHex(wizard.statuses.hexed?.power ?? 0);
     for (const [element, button] of this.elementButtons) {
       const fatigue = wizard.fatigue[element] / rules.weave.fatigueTicks;
-      const value = fatigue.toFixed(2);
+      // De a 5%: el anillo de cansancio se ve igual y el botón no se repinta en cada cuadro.
+      const value = (Math.ceil(fatigue * 20) / 20).toFixed(2);
       if (button.dataset.fatigue !== value) {
         button.dataset.fatigue = value;
         button.style.setProperty('--fatigue', value);

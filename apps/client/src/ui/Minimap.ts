@@ -1,12 +1,17 @@
 import { ELEMENTS, MAP_DECOR } from '@crisol/content';
 import type { GameRules, MatchState, Vec2, Wizard } from '@crisol/core';
-import { el } from './dom';
+import { el, setHidden } from './dom';
 import type { WizardBadge } from './Hud';
 
 /** Lado del minimapa en píxeles de pantalla. */
 const SIZE = 112;
 /** Cuánto tiempo queda marcado dónde se vio a un rival por última vez, en segundos. */
 const LAST_SEEN_SECONDS = 4;
+/**
+ * Se redibuja a lo más ~30 veces por segundo: en un Android el lienzo 2D lo dibuja la misma
+ * tarjeta gráfica que la arena, y a 60 le quitaba tiempo al juego sin que se notara la diferencia.
+ */
+const MIN_REDRAW_MS = 30;
 
 const elementHex = (id: string): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
@@ -22,6 +27,7 @@ export class Minimap {
   private background: HTMLCanvasElement;
   private readonly lastSeen = new Map<number, { pos: Vec2; time: number }>();
   private readonly ratio = Math.min(window.devicePixelRatio || 1, 2);
+  private drawnAt = Number.NEGATIVE_INFINITY;
 
   constructor(
     parent: HTMLElement,
@@ -48,12 +54,13 @@ export class Minimap {
   }
 
   show(visible: boolean): void {
-    this.root.hidden = !visible;
+    setHidden(this.root, !visible);
   }
 
   /** Olvida los rastros de la ronda anterior. */
   reset(): void {
     this.lastSeen.clear();
+    this.drawnAt = Number.NEGATIVE_INFINITY;
   }
 
   update(
@@ -64,6 +71,9 @@ export class Minimap {
     badges: ReadonlyMap<number, WizardBadge>,
     time: number,
   ): void {
+    const now = performance.now();
+    if (now - this.drawnAt < MIN_REDRAW_MS) return;
+    this.drawnAt = now;
     const ctx = this.ctx;
     const radius = this.rules.arenaRadius;
     const px = this.ratio;

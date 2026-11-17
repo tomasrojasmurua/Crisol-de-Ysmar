@@ -2,6 +2,8 @@
 const SLOW_FRAME_MS = 20;
 /** Los cuadros se agrupan por milisegundo: alcanza para sacar promedios y percentiles. */
 const BINS = 101;
+/** Un cuadro más largo que esto es un tirón que se ve (el navegador mide lo mismo, ver abajo). */
+const HITCH_MS = 50;
 
 /** Lo que costó un cuadro por dentro, medido en el bucle principal. */
 export interface FrameWork {
@@ -54,6 +56,18 @@ function emptyLoad(): LoadTrack {
   };
 }
 
+/**
+ * Un cuadro largo visto por el navegador (Chrome, `long-animation-frame`): cuánto trabajó la
+ * página en él. Lo que no es código ni estilo y diseño es el resto del trabajo de la página.
+ */
+export interface PageHitch {
+  readonly durationMs: number;
+  /** El JavaScript (el juego, los toques, los mensajes de la red). */
+  readonly scriptMs: number;
+  /** Recalcular estilo, diseño y pintura de la interfaz HTML. */
+  readonly layoutMs: number;
+}
+
 export type QualityName = 'alta' | 'liviana';
 const QUALITY_LABEL: Record<QualityName, string> = { alta: 'Alta', liviana: 'Liviana' };
 
@@ -84,9 +98,17 @@ export class MatchPerfLog {
   private readonly qualityChanges: { atMs: number; quality: QualityName }[] = [];
   private load = emptyLoad();
   private screenCapped = false;
+  private pageHitches = 0;
+  private pageMs = 0;
+  private pageScriptMs = 0;
+  private pageLayoutMs = 0;
 
   start(pixelRatio: number, quality: QualityName = 'alta', screenCapped = false): void {
     this.screenCapped = screenCapped;
+    this.pageHitches = 0;
+    this.pageMs = 0;
+    this.pageScriptMs = 0;
+    this.pageLayoutMs = 0;
     this.worked = 0;
     this.simMs = 0;
     this.jsMs = 0;
@@ -163,6 +185,14 @@ export class MatchPerfLog {
       load.firstPrograms ??= work.programs;
       load.lastPrograms = work.programs;
     }
+  }
+
+  /** Un cuadro largo en que la página estuvo ocupada (solo lo avisa Chrome). */
+  pageHitch(hitch: PageHitch): void {
+    this.pageHitches += 1;
+    this.pageMs += hitch.durationMs;
+    this.pageScriptMs += hitch.scriptMs;
+    this.pageLayoutMs += hitch.layoutMs;
   }
 
   resolutionChanged(pixelRatio: number): void {
@@ -245,6 +275,8 @@ export class MatchPerfLog {
         : `Lento (menos de 50 fps): ${slowShare}% del tiempo, desde ${clock(this.firstSlowMs)}`,
     );
 
+    lines.push(this.hitchLine(seconds));
+
     const minutes = this.perMinute.filter((m) => m.frames > 0 && m.ms >= 30_000);
     const first = minutes[0];
     const last = minutes[minutes.length - 1];
@@ -276,6 +308,22 @@ export class MatchPerfLog {
       lines.push(`Sonido: se cortó ${count} (${times}) y ${audioPlaying ? 'volvió' : 'no volvió'}`);
     }
     return lines;
+  }
+
+  /**
+   * Cuántos tirones hubo y, si el navegador lo sabe, cuántos fueron por trabajo de la página
+   * (y de qué tipo). Los demás los frenó la tarjeta gráfica o el sistema: la página estaba libre.
+   */
+  private hitchLine(seconds: number): string {
+    let hitches = 0;
+    for (let bin = HITCH_MS + 1; bin < BINS; bin++) hitches += this.histogram[bin] ?? 0;
+    if (hitches === 0) return 'Tirones (cuadros de más de 50 ms): ninguno';
+    const perMinute = Math.round((hitches * 60) / seconds);
+    const base = `Tirones (cuadros de más de 50 ms): ${hitches}, ${perMinute} por minuto`;
+    if (this.pageHitches === 0) return base;
+    const share = (part: number) => `${Math.round((part / this.pageMs) * 100)}%`;
+    const other = Math.max(0, this.pageMs - this.pageScriptMs - this.pageLayoutMs);
+    return `${base} · la página ocupada en ${this.pageHitches} (código ${share(this.pageScriptMs)} · estilo y diseño ${share(this.pageLayoutMs)} · otro ${share(other)})`;
   }
 
   /** Duración del cuadro (ms) bajo la cual cae esa fracción de los cuadros. */

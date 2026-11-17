@@ -8,7 +8,7 @@ import {
   type Vec2,
 } from '@crisol/core';
 import * as THREE from 'three';
-import { el } from './dom';
+import { barWidth, el, setHidden, setStyle, setText } from './dom';
 import type { WizardBadge } from './Hud';
 import type { UiObstacles } from './UiObstacles';
 import { viewportSize } from './viewport';
@@ -108,36 +108,39 @@ export class WorldLabels {
       // A un rival escondido en la jungla no se le ve el nombre a través de los árboles.
       const hidden = wizard.team !== playerTeam && !seen.has(wizard.id);
 
-      label.root.hidden = !onScreen || hidden;
-      if (onScreen) {
+      const showLabel = onScreen && !hidden;
+      setHidden(label.root, !showLabel);
+      if (showLabel) {
         // Si el rival queda detrás del reloj, su nombre baja; si queda tras un botón, se aclara.
         const ly = this.obstacles.clearOfTop(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX);
-        label.root.style.transform = `translate(${x}px, ${ly}px) translate(-50%, -100%)`;
+        setStyle(label.root, 'transform', `translate(${x}px, ${ly}px) translate(-50%, -100%)`);
         label.root.classList.toggle(
           'under-controls',
           this.obstacles.coversControl(x, ly, LABEL_WIDTH, LABEL_HEIGHT_PX),
         );
-        label.fill.style.width = `${(wizard.hp / wizard.maxHp) * 100}%`;
+        setStyle(label.fill, 'width', barWidth(wizard.hp, wizard.maxHp));
         label.root.classList.toggle('fallen', wizard.hp <= 0);
         const showFatigue = insight && wizard.team !== playerTeam && wizard.hp > 0;
-        if (label.fatigue) label.fatigue.hidden = !showFatigue;
+        if (label.fatigue) setHidden(label.fatigue, !showFatigue);
         const bars = label.fatigueBars;
         if (showFatigue && bars) {
           ELEMENT_IDS.forEach((element, i) => {
             const left = wizard.fatigue[element] / rules.weave.fatigueTicks;
             const bar = bars[i];
-            if (bar) bar.style.height = `${Math.round((1 - Math.min(1, left)) * 100)}%`;
+            if (bar) setStyle(bar, 'height', `${Math.round((1 - Math.min(1, left)) * 100)}%`);
           });
         }
         const respawn = wizard.fallen?.respawnTicks;
         const badgeName = badges.get(wizard.id)?.name ?? '';
-        label.name.textContent =
-          respawn != null ? `${badgeName} · ${Math.ceil(respawn / TICK_RATE)}` : badgeName;
+        setText(
+          label.name,
+          respawn != null ? `${badgeName} · ${Math.ceil(respawn / TICK_RATE)}` : badgeName,
+        );
       }
 
       // Flecha en el borde para rivales vivos a la vista pero fuera de la pantalla.
       const showArrow = !onScreen && !hidden && wizard.team !== playerTeam && wizard.hp > 0;
-      label.arrow.hidden = !showArrow;
+      setHidden(label.arrow, !showArrow);
       if (showArrow) {
         let dx = this.projected.x * (behind ? -1 : 1);
         let dy = this.projected.y * (behind ? -1 : 1);
@@ -155,7 +158,11 @@ export class WorldLabels {
         const ax = clear.x;
         const ay = Math.min(height - EDGE_MARGIN, Math.max(EDGE_MARGIN, clear.y));
         const angle = Math.atan2(-dy, dx);
-        label.arrow.style.transform = `translate(${ax}px, ${ay}px) translate(-50%, -50%) rotate(${angle}rad)`;
+        setStyle(
+          label.arrow,
+          'transform',
+          `translate(${ax}px, ${ay}px) translate(-50%, -50%) rotate(${angle}rad)`,
+        );
       }
     }
   }
@@ -195,15 +202,18 @@ export class WorldLabels {
         BEAST_LABEL_RANGE;
       // Bajo el reloj o la vida, el nombre de una bestia estorbaría: se esconde.
       const underHud = this.obstacles.clearOfTop(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX) !== y;
-      label.root.hidden = !onScreen || !near || underHud;
+      // Una bestia tranquila no muestra su etiqueta (salvo el Guardián): se esconde del todo en
+      // vez de moverla invisible en cada cuadro.
+      const calm = !interesting && !beast.guardian;
+      setHidden(label.root, !onScreen || !near || underHud || calm);
       label.root.classList.toggle('calm', !interesting);
-      if (onScreen) {
+      if (!label.root.hidden) {
         label.root.classList.toggle(
           'under-controls',
           this.obstacles.coversControl(x, y, LABEL_WIDTH, LABEL_HEIGHT_PX),
         );
-        label.root.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-        label.fill.style.width = `${(beast.hp / beast.maxHp) * 100}%`;
+        setStyle(label.root, 'transform', `translate(${x}px, ${y}px) translate(-50%, -100%)`);
+        setStyle(label.fill, 'width', barWidth(beast.hp, beast.maxHp));
       }
     }
     for (const [id, label] of this.beastLabels) {

@@ -2380,6 +2380,8 @@ body {
   border-left: 16px solid var(--team);
   filter: drop-shadow(0 0 6px var(--team));
   opacity: 0.85;
+  /* Se mueve en cada cuadro: en su propia capa, así no se repinta la pantalla entera. */
+  will-change: transform;
 }
 
 /* ---------- Controles ---------- */
