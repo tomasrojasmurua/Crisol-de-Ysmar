@@ -1728,6 +1728,33 @@ body {
   color: var(--ink-quiet);
 }
 
+/* La pregunta y, ya elegida la respuesta, "Cambiar" para volver a las tres opciones. */
+.hud-result-opinion-ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+#ui .hud-result-opinion-change {
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  touch-action: manipulation;
+}
+
+/* El "¡Gracias!" toma la fila del comentario para que nada salte. */
+.hud-result-opinion-thanks {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
 .hud-result-opinion-options,
 .hud-result-opinion-more {
   display: flex;
@@ -1873,7 +1900,35 @@ body {
 }
 
 .hud-result-card.with-players .hud-result-opinion-more input {
-  width: min(240px, 26vw);
+  width: min(260px, 32vw);
+}
+
+/*
+ * Por equipos en un celular bajo (740×360), la columna del resultado suma marcador, maestro y
+ * cuenta de revancha: el emblema se guarda y los márgenes se aprietan para que Revancha y Menú
+ * queden a la vista sin deslizar.
+ */
+@media (max-height: 400px) {
+  .hud-result-card.with-teams .hud-result-crest {
+    display: none;
+  }
+
+  .hud-result-card.with-teams .hud-result-score {
+    margin: 6px 0 8px;
+  }
+
+  .hud-result-card.with-teams .hud-result-team {
+    gap: 4px;
+    padding: 6px 12px 5px;
+  }
+
+  .hud-result-card.with-teams .hud-result-master {
+    margin-bottom: 6px;
+  }
+
+  .hud-result-card.with-teams .hud-result-rematch {
+    margin-bottom: 6px;
+  }
 }
 
 .hud-result-players {
@@ -2191,6 +2246,31 @@ body {
   flex: none;
   font-variant-numeric: tabular-nums;
   color: var(--ink-quiet);
+}
+
+/* Celulares bajos (740×360): el perfil entra entero sin deslizar. */
+@media (max-height: 400px) {
+  .profile-lineage {
+    margin-bottom: 4px;
+  }
+
+  .profile-tile {
+    padding: 3px 4px;
+  }
+
+  .profile-tile-value {
+    font-size: 19px;
+  }
+
+  .profile-empty {
+    margin-bottom: 4px;
+  }
+
+  .profile-row,
+  .profile-favorite,
+  .profile-favorite-none {
+    line-height: 1.32;
+  }
 }
 
 /* ---------- Etiquetas sobre los magos ---------- */
@@ -4537,6 +4617,23 @@ body {
   color: var(--ink-quiet);
 }
 
+/*
+ * Salir y Continuar lado a lado al pie: con los dos en filas aparte, en un celular bajo
+ * (740×360) Salir quedaba fuera y había que deslizar.
+ */
+.pause-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+#ui .pause-actions .primary,
+#ui .pause-actions .secondary {
+  min-width: 0;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 /* En la sala de espera, quien se cortó conserva su lugar un minuto: se ve tenue. */
 .lobby-player.away {
   opacity: 0.5;
@@ -5257,6 +5354,35 @@ body {
   color: var(--ink-quiet);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/*
+ * Celulares bajos (740×360): filas un poco más justas para que cada pestaña del Vestidor
+ * entre entera, con "Tu código de respaldo" a la vista y sin deslizar.
+ */
+@media (max-height: 400px) {
+  .wardrobe-tabs {
+    padding-bottom: 6px;
+  }
+
+  #ui .wardrobe-tab {
+    padding: 5px 4px;
+  }
+
+  .wardrobe-page {
+    gap: 5px;
+  }
+
+  .wardrobe-name input,
+  #ui .wardrobe .dropdown-value,
+  #ui .wardrobe .dropdown-arrow {
+    height: 32px;
+  }
+
+  #ui .wardrobe-restore {
+    margin-top: 0;
+    padding: 2px 0;
+  }
 }
 
 /* ---------- Elegir linaje (al crear el hechicero) ---------- */
