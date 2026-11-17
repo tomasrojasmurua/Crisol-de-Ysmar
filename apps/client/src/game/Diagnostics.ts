@@ -3,6 +3,12 @@ import type { AudioEngine } from '../audio/AudioEngine';
 import { FpsMeter } from '../ui/FpsMeter';
 import { type FrameWork, MatchPerfLog, type QualityName, type SceneLoad } from './MatchPerfLog';
 
+/** Lo que usa este archivo de `PerformanceLongAnimationFrameTiming` (Chrome 123 o más nuevo). */
+interface LongFrameEntry extends PerformanceEntry {
+  readonly styleAndLayoutStart: number;
+  readonly scripts: readonly { readonly duration: number }[];
+}
+
 /**
  * Los datos de rendimiento: el medidor de FPS, los datos de la conexión y el informe de la
  * partida. Solo se ven si se activan en Pausa; el informe se arma siempre (es barato).
@@ -14,6 +20,8 @@ export class Diagnostics {
   private online = false;
   private audioCutsSeen = 0;
   private frameStart = 0;
+  /** Cuándo terminó el último cuadro de partida: los cuadros largos del menú no cuentan. */
+  private lastMatchFrameAt = Number.NEGATIVE_INFINITY;
 
   constructor(
     parent: HTMLElement,
@@ -25,6 +33,28 @@ export class Diagnostics {
     this.netBadge.className = 'net-badge';
     this.netBadge.hidden = true;
     parent.append(this.netBadge);
+    this.watchLongFrames();
+  }
+
+  /**
+   * Chrome avisa cada cuadro de más de 50 ms en que la página estuvo ocupada, y en qué: así el
+   * informe distingue un tirón del juego (código, estilo y diseño) de uno de la tarjeta gráfica.
+   */
+  private watchLongFrames(): void {
+    if (!PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame')) return;
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as LongFrameEntry[]) {
+          if (entry.startTime - this.lastMatchFrameAt > 500) continue;
+          const end = entry.startTime + entry.duration;
+          const layoutMs = entry.styleAndLayoutStart > 0 ? end - entry.styleAndLayoutStart : 0;
+          const scriptMs = (entry.scripts ?? []).reduce((sum, script) => sum + script.duration, 0);
+          this.perfLog.pageHitch({ durationMs: entry.duration, scriptMs, layoutMs });
+        }
+      }).observe({ type: 'long-animation-frame' });
+    } catch {
+      // Sin este dato el informe dice igual cuántos tirones hubo.
+    }
   }
 
   get enabled(): boolean {
@@ -74,6 +104,7 @@ export class Diagnostics {
       programs: info.programs?.length,
     };
     this.perfLog.frame(frameMs, work);
+    this.lastMatchFrameAt = performance.now();
     while (this.audioCutsSeen < this.audio.interruptions) {
       this.audioCutsSeen += 1;
       this.perfLog.audioCut();

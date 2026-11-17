@@ -17,6 +17,26 @@ describe('MatchPerfLog', () => {
     expect(lines).toContain('Sonido: sin cortes');
   });
 
+  it('cuenta los tirones y, si Chrome lo sabe, cuánto fue trabajo de la página', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5);
+    play(log, 16, 60);
+    for (let i = 0; i < 12; i++) log.frame(70);
+    expect(log.summary(true)).toContain('Tirones (cuadros de más de 50 ms): 12, 12 por minuto');
+    log.pageHitch({ durationMs: 100, scriptMs: 60, layoutMs: 30 });
+    log.pageHitch({ durationMs: 100, scriptMs: 40, layoutMs: 10 });
+    expect(log.summary(true)).toContain(
+      'Tirones (cuadros de más de 50 ms): 12, 12 por minuto · la página ocupada en 2 (código 50% · estilo y diseño 20% · otro 30%)',
+    );
+  });
+
+  it('sin tirones lo dice', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5);
+    play(log, 16, 30);
+    expect(log.summary(true)).toContain('Tirones (cuadros de más de 50 ms): ninguno');
+  });
+
   it('si el celular frena la pantalla a 30, lo dice (para no buscar el lag en el juego)', () => {
     const log = new MatchPerfLog();
     log.start(1.5, 'alta', true);

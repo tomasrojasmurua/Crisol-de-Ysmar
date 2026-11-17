@@ -137,6 +137,13 @@ sombras. Reglas que lo sostienen:
 - **Las piezas quietas que comparten material se funden** en una sola malla
   (`mergeGeometries`), como en las bestias y el bastón de los magos. Las bestias lejanas
   (más de 26 m) además funden las patas.
+- **La interfaz HTML se toca solo si algo cambió** (`setText`, `setHidden`, `setStyle` y
+  `barWidth` en `ui/dom.ts`). Reasignar el mismo texto o el mismo `hidden` en cada cuadro obligaba
+  a recalcular estilo, diseño y pintura de la página entera: medido con el procesador 4 veces más
+  lento (más o menos un Galaxy A35), de 7,6 a 2,6 ms por cuadro, tiempo que el informe mostraba
+  como "espera" y parecía de la tarjeta gráfica. Lo que se mueve en cada cuadro va en su propia
+  capa (`will-change: transform`), las etiquetas de bestias tranquilas se esconden en vez de
+  moverse invisibles y el minimapa se redibuja a 30 por segundo.
 - **Nada lee `window.innerWidth` ni mide el DOM en cada cuadro**: después de mover etiquetas eso
   obliga a recalcular el diseño. El tamaño de la ventana está en `ui/viewport.ts`.
 - **Calor y batería:** tope de 60 cuadros por segundo en partida y 30 en menús, pausa y

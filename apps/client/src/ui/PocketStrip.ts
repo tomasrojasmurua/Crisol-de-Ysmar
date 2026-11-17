@@ -1,7 +1,7 @@
 import { spellName } from '@crisol/content';
 import { type Wizard, weaveKey } from '@crisol/core';
 import type { Pocket } from '../game/Pocket';
-import { el } from './dom';
+import { el, setHidden } from './dom';
 import { weaveGlyphs } from './GrimoireBook';
 import { BOOKMARK_ICON } from './icons';
 
@@ -41,7 +41,7 @@ export class PocketStrip {
       });
       this.root.replaceChildren(head, ...rows);
     }
-    this.root.hidden = wizard === null || wizard.hp <= 0 || weaves.length === 0;
+    setHidden(this.root, wizard === null || wizard.hp <= 0 || weaves.length === 0);
     if (!wizard || this.root.hidden) return;
     const tired = weaves
       .map((weave) => (weave.some((e) => wizard.fatigue[e] > 0) ? '1' : '0'))

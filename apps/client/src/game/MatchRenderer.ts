@@ -28,6 +28,7 @@ import type { GameScene } from '../render/GameScene';
 import { type WizardLook, WizardView } from '../render/WizardView';
 import type { BlindVeil } from '../ui/BlindVeil';
 import type { ComboCallouts } from '../ui/ComboCallouts';
+import { setHidden, setText } from '../ui/dom';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { HurtEdge } from '../ui/HurtEdge';
 import type { Minimap } from '../ui/Minimap';
@@ -144,9 +145,9 @@ export class MatchRenderer {
     const watched = this.watchedOf(current);
     this.watchedId = watched?.id ?? -1;
     // Entre rondas y al final, la pantalla de Glifos o el resultado ocupan el centro.
-    this.watchBadge.hidden = watched === null || covered;
+    setHidden(this.watchBadge, watched === null || covered);
     if (watched) {
-      this.watchBadge.textContent = `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`;
+      setText(this.watchBadge, `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`);
     }
     const focus = watched ?? player;
     const playerPos = current.interpolated(focus.id, focus.pos, alpha);

@@ -1,5 +1,5 @@
 import type { Wizard } from '@crisol/core';
-import { el } from './dom';
+import { el, setHidden, setStyle } from './dom';
 
 /**
  * La Ceguera vista por quien la sufre: la pantalla se cierra en negro alrededor
@@ -30,14 +30,14 @@ export class BlindVeil {
     const speed = target > this.strength ? 6 : 3;
     this.strength += (target - this.strength) * Math.min(1, deltaSeconds * speed);
     if (this.strength < 0.01 && !blind) this.strength = 0;
-    this.root.style.opacity = this.strength.toFixed(3);
-    this.root.hidden = this.strength === 0;
+    setHidden(this.root, this.strength === 0);
+    if (this.strength > 0) setStyle(this.root, 'opacity', this.strength.toFixed(3));
   }
 
   /** Fuera de la partida no queda nada oscuro. */
   reset(): void {
     this.strength = 0;
-    this.root.style.opacity = '0';
-    this.root.hidden = true;
+    setStyle(this.root, 'opacity', '0');
+    setHidden(this.root, true);
   }
 }
