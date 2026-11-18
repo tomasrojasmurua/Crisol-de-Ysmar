@@ -1,4 +1,4 @@
-import { spellName } from '@crisol/content';
+import { SECOND_ELEMENT_ROLES, spellName } from '@crisol/content';
 import { spellOf, type Weave, type Wizard } from '@crisol/core';
 import { el } from './dom';
 import { weaveGlyphs } from './GrimoireBook';
@@ -8,7 +8,8 @@ import { intentTag } from './intentTag';
  * Lo que estás tejiendo, abajo al centro y solo en tu pantalla: los signos del tejido y el
  * nombre del hechizo que va a salir, para corregir con ✕ antes de lanzar y para que la receta se
  * grabe de tanto verla. Si todavía no lo descubres cambia de color y dice "Nuevo", sin nombre:
- * el nombre se gana lanzándolo.
+ * el nombre se gana lanzándolo. Si es de dos elementos, igual dice qué hace según el segundo
+ * (la receta), para que sepas si vale la pena lanzarlo ahora.
  */
 export class WeaveName {
   private readonly root: HTMLElement;
@@ -39,6 +40,10 @@ export class WeaveName {
     const pill = el('div', 'weave-name-pill');
     pill.append(weaveGlyphs(weave), name);
     if (!isNew) pill.append(intentTag(spell));
+    else if (weave.length === 2 && weave[1]) {
+      // La receta: en uno nuevo de dos elementos, el segundo dice qué hace.
+      pill.append(el('span', 'weave-name-role', SECOND_ELEMENT_ROLES[weave[1]].verb));
+    }
     this.root.replaceChildren(pill);
   }
 }

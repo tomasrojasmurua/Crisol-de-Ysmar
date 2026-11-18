@@ -4,7 +4,9 @@ import {
   type Combo,
   ELEMENTS,
   masterOf,
+  RECIPE_RULE,
   type School,
+  SECOND_ELEMENT_ROLES,
   SPELL_LORE,
   spellName,
 } from '@crisol/content';
@@ -232,6 +234,10 @@ export class GrimoireBook {
     if (this.school?.element === element) this.renderSchool(this.school);
     const highlighted = new Set(this.school?.spells ?? []);
     for (const group of GROUPS) {
+      if (group.length === 2) {
+        this.renderRecipe(element, grimoire);
+        continue;
+      }
       const inGroup = weaves.filter((w) => w.length === group.length);
       const found = inGroup.filter((w) => grimoire.has(w));
       const section = el('section', 'grimoire-group');
@@ -261,6 +267,46 @@ export class GrimoireBook {
       section.append(title, grid);
       this.list.append(section);
     }
+  }
+
+  /**
+   * Los cinco hechizos de dos elementos que empiezan con este, siempre a la vista con su receta:
+   * el segundo elemento dice qué hace, así eliges cuál tejer según lo que necesitas. Los que no
+   * descubriste no dicen su nombre: el nombre se gana lanzándolo.
+   */
+  private renderRecipe(first: ElementId, grimoire: Grimoire): void {
+    const weaves = ELEMENTS.map((e): Weave => [first, e.id as ElementId]);
+    const found = weaves.filter((w) => grimoire.has(w)).length;
+    const section = el('section', 'grimoire-group grimoire-recipe');
+    const title = el('h3', 'grimoire-group-title', 'Dos elementos');
+    title.append(el('span', 'grimoire-group-count', `${found}/${weaves.length}`));
+    const rule = el('p', 'grimoire-recipe-rule', RECIPE_RULE);
+    const grid = el('div', 'grimoire-grid');
+    for (const weave of weaves) {
+      const second = weave[1] as ElementId;
+      const known = grimoire.has(weave);
+      const card = el(known ? 'button' : 'div', 'grimoire-spell grimoire-recipe-spell');
+      card.classList.toggle('unknown', !known);
+      const text = el('span', 'grimoire-school-text');
+      const role = el('span', 'grimoire-recipe-role', SECOND_ELEMENT_ROLES[second].verb);
+      role.style.setProperty('--second', colorOf(second));
+      text.append(
+        el('span', 'grimoire-spell-name', known ? spellName(weave) : 'Por descubrir'),
+        role,
+      );
+      card.append(weaveGlyphs(weave), text);
+      card.title = SECOND_ELEMENT_ROLES[second].hint;
+      if (known) {
+        (card as HTMLButtonElement).type = 'button';
+        const id = spellOf(weave);
+        card.classList.toggle('school', id !== null && (this.school?.spells ?? []).includes(id));
+        if (this.pocket.has(weave)) card.append(pocketMark());
+        card.addEventListener('click', () => this.openDetail(weave));
+      }
+      grid.append(card);
+    }
+    section.append(title, rule, grid);
+    this.list.append(section);
   }
 
   /**
