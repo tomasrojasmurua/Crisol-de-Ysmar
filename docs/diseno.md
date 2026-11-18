@@ -51,6 +51,11 @@ es lo vigente.
     de la Trama y dice "Nuevo", sin nombre: el nombre se gana lanzándolo.
   - **Tu bolsillo:** desde la ficha del Grimorio se marcan hasta 3 hechizos; en partida su receta se
     ve bajo tu vida. Es solo un recordatorio: se teje igual, con los botones.
+  - **La receta de dos elementos** (`packages/content/src/recipes.ts`): el primer elemento dice de
+    qué está hecho y el segundo, qué hace. Brasa golpea, Tormenta te mueve, Marea protege o
+    estorba, Raíz se queda en el campo y Umbra engaña o maldice. El Grimorio muestra siempre los
+    cinco de cada pestaña con lo que hacen (los no descubiertos sin nombre) y, en partida, un
+    hechizo nuevo de dos elementos dice "Nuevo · Te mueve". En los Grandes el tercero es sorpresa.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Dificultades de la IA:** Aprendiz, Duelista y Maestro (`packages/content/src/bots.ts`). Cambian
   qué tan rápido piensan, la puntería, cuánto esquivan proyectiles y avisos en el suelo, si se
