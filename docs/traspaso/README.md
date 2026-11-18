@@ -168,6 +168,13 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    cuadro con el procesador 4 veces más lento; ahora 2,6. El informe agrega una línea "Tirones":
    cuántos cuadros de más de 50 ms hubo y, en Chrome, si la página estaba ocupada (código, estilo
    y diseño) o si frenó la tarjeta gráfica. Esa línea dice qué atacar si siguen lentos.
+   Cuarta vuelta (prueba de 3 personas del 17 de noviembre, sala J463): el iPhone y el S25 iban
+   parejos a 60, pero el A35 tenía ~25 tirones por minuto y a ratos iba a 120 cuadros porque el
+   tope de 60 calculaba mal el ritmo de su pantalla de 120 Hz (arreglado en
+   `render/FrameLimiter.ts`). En los tres celulares el colchón de red se vació 60 a 115 veces por
+   partida y en cada espera los rivales volvían a recorrer su último paso ("caminaba de a
+   jalones"); ahora se quedan quietos. El informe agrega los silencios de la Sala para saber si
+   los vacíos vienen de la Sala o de la red.
 5. **Revisión en celular real** de lo nuevo: la elección de linaje y el tutorial por linaje, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.
