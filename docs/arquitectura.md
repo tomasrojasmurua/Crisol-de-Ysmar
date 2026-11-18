@@ -147,7 +147,10 @@ sombras. Reglas que lo sostienen:
 - **Nada lee `window.innerWidth` ni mide el DOM en cada cuadro**: después de mover etiquetas eso
   obliga a recalcular el diseño. El tamaño de la ventana está en `ui/viewport.ts`.
 - **Calor y batería:** tope de 60 cuadros por segundo en partida y 30 en menús, pausa y
-  resultado (`render/FrameLimiter.ts`); en celulares la nitidez llega hasta 1,5 píxeles por punto,
+  resultado (`render/FrameLimiter.ts`). El ritmo de la pantalla es el hueco más corto del último
+  segundo y se cuentan los cuadros de pantalla que pasaron, no las llamadas: con el promedio, en
+  120 Hz bastaba que algunos cuadros tardaran más de 8 ms para que se dibujara en cada llamada
+  (el Galaxy A35 iba entre 60 y 120, disparejo y con el doble de trabajo). En celulares la nitidez llega hasta 1,5 píxeles por punto,
   no 2. Las animaciones de interfaz que corren sin parar mueven `scale`, `opacity` o `transform`,
   nunca una sombra difusa (eso repinta la pantalla en cada cuadro).
 - La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
@@ -156,6 +159,10 @@ sombras. Reglas que lo sostienen:
   en los menús (la pantalla llama cada 33 ms aunque el juego casi no trabaje). Con el freno, 30
   cuadros por segundo cuentan como ir a tope: la resolución y la calidad automáticas no bajan por
   eso, se avisa una vez en partida y el informe de rendimiento lo anota.
+- **Si el colchón de red se vacía, todo se queda quieto** hasta que llega el estado siguiente
+  (`NetMatch.hold`). Antes el dibujo volvía a recorrer el último paso en cada cuadro de espera y
+  los rivales y sus hechizos saltaban atrás y adelante. El informe de red anota los silencios de
+  la Sala (más de 100 ms sin estado jugando y el más largo).
 - **Los eventos de un paso se muestran una sola vez.** Entre rondas y en el resultado la Sala
   reenvía el estado quieto de a ratos: la Sala vacía sus eventos y `NetMatch` ignora los de un
   paso que ya mostró (antes el golpe final y sus sonidos se repetían detrás del resultado).

@@ -189,6 +189,30 @@ describe('duelo en red: el celular', () => {
     expect(net.state.tick).toBe(3);
   });
 
+  it('si el colchón se vacía, los rivales se quedan quietos (no vuelven a recorrer el último paso)', () => {
+    const { net, socket } = joined();
+    const moved = (tick: number, x: number): StateFrame => {
+      const frame = stateMessage(tick);
+      const rival = frame.state.wizards.find((w) => w.id === 1);
+      if (rival) rival.pos = { x, z: 0 };
+      return frame;
+    };
+    socket.receive(moved(1, 0));
+    socket.receive(moved(2, 1));
+    net.step();
+    net.step();
+    const rival = (): { x: number; z: number } =>
+      net.state.wizards.find((w) => w.id === 1)?.pos ?? { x: 0, z: 0 };
+    expect(rival().x).toBe(1);
+    // Mitad del paso: va entre 0 y 1, como debe.
+    expect(net.interpolated(1, rival(), 0.5).x).toBeCloseTo(0.5);
+    net.step(); // vacío: se espera
+    expect(net.interpolated(1, rival(), 0).x).toBe(1);
+    expect(net.interpolated(1, rival(), 0.5).x).toBe(1);
+    net.step(); // sigue esperando a juntar
+    expect(net.interpolated(1, rival(), 0.5).x).toBe(1);
+  });
+
   it('tras un tirón, el colchón vuelve a achicarse a los 3 s si sobra', () => {
     const { net, socket } = joined();
     for (const tick of [1, 2]) socket.receive(stateMessage(tick));

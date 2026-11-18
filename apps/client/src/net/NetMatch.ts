@@ -117,6 +117,9 @@ export class NetSummary {
   maxKbps = 0;
   biggest = 0;
   cuts = 0;
+  /** Silencios de la Sala jugando: veces que pasó más de `HOLE_MS` sin estado, y el más largo. */
+  holes = 0;
+  longestHole = 0;
 
   lines(buffer: number): string[] {
     if (this.pings.length === 0) return [];
@@ -127,11 +130,18 @@ export class NetSummary {
       `Toque confirmado típico ${ack.p50} ms · peor 5% ${ack.p95} ms`,
       `Colchón final ${buffer} pasos · máx ${this.maxTarget} · vaciado ${this.stalls} veces · cortes ${this.cuts}`,
       `Llega hasta ${this.maxKbps} KB/s · estado más grande ${this.biggest} B`,
+      `Silencios de más de ${HOLE_MS} ms: ${this.holes} · el más largo ${Math.round(this.longestHole)} ms`,
     ];
   }
 }
 
 const MAX_SAMPLES = 1200;
+/**
+ * Jugando, la Sala manda un estado cada 33 ms: más de esto sin nada vacía el colchón chico. Si
+ * los silencios son muchos y largos en todos los celulares de una sala a la vez, el atraso es de
+ * la Sala o de la red que comparten; si es uno solo, de su conexión.
+ */
+const HOLE_MS = 100;
 
 function sameWeave(a: readonly ElementId[], b: readonly ElementId[]): boolean {
   return a.length === b.length && a.every((element, i) => element === b[i]);
@@ -290,6 +300,8 @@ export class NetMatch implements MatchView {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private bytesIn = 0;
+  /** Cuándo llegó el último estado jugando (0: no se mide, tras un corte o entre rondas). */
+  private lastFrameAt = 0;
   private biggest = 0;
   private measuredAt = 0;
   private kbps = 0;
@@ -342,7 +354,10 @@ export class NetMatch implements MatchView {
       }
     }
     if (!this.primed) {
-      if (this.buffer.length < this.target) return [];
+      if (this.buffer.length < this.target) {
+        this.hold();
+        return [];
+      }
       this.primed = true;
     }
     const events: GameEvent[] = [];
@@ -361,6 +376,7 @@ export class NetMatch implements MatchView {
         this.calmLow = Number.POSITIVE_INFINITY;
       }
       this.primed = false;
+      this.hold();
       return events;
     }
     // Atrasado: se muestran dos pasos en este cuadro, un poco más rápido, hasta alcanzar.
@@ -601,6 +617,7 @@ export class NetMatch implements MatchView {
       this.lostAt = 0;
       this.lastHeard = performance.now();
       this.openedAt = this.lastHeard;
+      this.lastFrameAt = 0;
       this.send({
         type: 'hello',
         protocol: PROTOCOL_VERSION,
@@ -855,6 +872,7 @@ export class NetMatch implements MatchView {
       return;
     }
     if (!this.started) return;
+    this.measureHole(frame);
     // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
     this.latest = frame;
     this.measureAck(frame.ack);
@@ -866,6 +884,19 @@ export class NetMatch implements MatchView {
       return;
     }
     this.buffer.push(frame);
+  }
+
+  /** Cuánto pasó desde el estado anterior, si se está jugando (entre rondas llegan de a ratos). */
+  private measureHole(frame: StateFrame): void {
+    const now = performance.now();
+    // Con la app en segundo plano el celular retiene los mensajes: eso no es un silencio de la red.
+    const playing = frame.stage.kind === 'playing' && !document.hidden;
+    if (playing && this.lastFrameAt > 0) {
+      const gap = now - this.lastFrameAt;
+      if (gap > HOLE_MS) this.summary.holes++;
+      this.summary.longestHole = Math.max(this.summary.longestHole, gap);
+    }
+    this.lastFrameAt = playing ? now : 0;
   }
 
   /** Cuánto tardó en volver confirmado el toque más nuevo que la Sala ya jugó. */
@@ -907,6 +938,15 @@ export class NetMatch implements MatchView {
       winnerTeam: message.seriesWinner,
     };
     this.stage = toStage(message.stage, previous);
+  }
+
+  /**
+   * Sin estado nuevo que mostrar (el colchón se vació): todo se queda donde está. Antes el dibujo
+   * volvía a recorrer el último paso en cada cuadro de espera, y los rivales y sus hechizos
+   * saltaban hacia atrás y adelante: caminaban "de a jalones".
+   */
+  private hold(): void {
+    this.rememberPositions();
   }
 
   private rememberPositions(): void {
