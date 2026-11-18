@@ -6,9 +6,18 @@
 
 /**
  * Qué clase de informe es. `rendimiento` no es un error: el resumen de red y cuadros de cada partida en red. `opinion`:
- * lo que cada jugador contesta al final de la partida (cómo se jugó y qué mejoraría).
+ * lo que cada jugador contesta al final de la partida (cómo se jugó y qué mejoraría). `servidor`:
+ * cómo anduvo la Sala en esa misma partida (si su reloj se atrasó y cuándo).
  */
-export const REPORT_KINDS = ['error', 'promesa', 'red', 'sala', 'rendimiento', 'opinion'] as const;
+export const REPORT_KINDS = [
+  'error',
+  'promesa',
+  'red',
+  'sala',
+  'rendimiento',
+  'opinion',
+  'servidor',
+] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 export interface ErrorReport {
@@ -37,7 +46,8 @@ export interface ErrorReport {
 /** Topes de largo por campo: un informe nunca pesa más de unos pocos kB. */
 export const REPORT_LIMITS = {
   message: 300,
-  detail: 2000,
+  /** El resumen de una partida larga, con su línea de tiempo cada 10 s, cabe entero. */
+  detail: 4000,
   short: 80,
   /** Informes por envío. */
   batch: 20,

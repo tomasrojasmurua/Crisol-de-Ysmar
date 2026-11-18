@@ -104,8 +104,16 @@ let groups;
 let latest;
 let opinions;
 let matches;
+let servers;
 // Las opiniones y los resúmenes de rendimiento no son errores: van en sus propias secciones.
-const errorsOnly = `${where} AND kind NOT IN ('rendimiento', 'opinion')`;
+const errorsOnly = `${where} AND kind NOT IN ('rendimiento', 'opinion', 'servidor')`;
+// La compañía de internet llegó después: en una tabla vieja todavía no está la columna.
+let network = 'network';
+try {
+  await query(uuid, 'SELECT network FROM reports LIMIT 1');
+} catch {
+  network = "'' AS network";
+}
 try {
   groups = await query(
     uuid,
@@ -122,14 +130,20 @@ try {
   );
   opinions = await query(
     uuid,
-    `SELECT at, message, detail, version, device, room, match, session
+    `SELECT at, message, detail, version, device, room, match, session, ${network}
      FROM reports WHERE ${where} AND kind = 'opinion' ORDER BY at DESC LIMIT 200`,
     params,
   );
   matches = await query(
     uuid,
-    `SELECT at, message, detail, version, device, screen, room, match, session
+    `SELECT at, message, detail, version, device, screen, room, match, session, ${network}
      FROM reports WHERE ${where} AND kind = 'rendimiento' ORDER BY at DESC LIMIT 120`,
+    params,
+  );
+  servers = await query(
+    uuid,
+    `SELECT at, message, detail, device, room
+     FROM reports WHERE ${where} AND kind = 'servidor' ORDER BY at DESC LIMIT 120`,
     params,
   );
 } catch (error) {
@@ -138,12 +152,13 @@ try {
   latest = [];
   opinions = [];
   matches = [];
+  servers = [];
 }
 
 const scope = room ? ` en la sala ${room}` : '';
 print(`## Registro de errores: últimas ${hours} horas${scope}`);
 print();
-if (latest.length + opinions.length + matches.length === 0) {
+if (latest.length + opinions.length + matches.length + servers.length === 0) {
   print('No hay informes. 🎉');
   finish();
   process.exit(0);
@@ -170,11 +185,11 @@ if (opinions.length > 0) {
     print([...counts].map(([answer, n]) => `**${answer}**: ${n}`).join(' · '));
     print();
   }
-  print('| Hora | Qué dijo | Ping y detalle | Celular | Sala | Partida | Visita |');
-  print('| ---- | -------- | -------------- | ------- | ---- | ------- | ------ |');
+  print('| Hora | Qué dijo | Ping y detalle | Celular | Compañía | Sala | Partida | Visita |');
+  print('| ---- | -------- | -------------- | ------- | -------- | ---- | ------- | ------ |');
   for (const o of opinions) {
     print(
-      `| ${chileTime(o.at)} | ${cell(o.message)} | ${cell(o.detail)} | ${cell(o.device)} | ${cell(o.room)} | ${cell(o.match)} | ${cell(o.session)} |`,
+      `| ${chileTime(o.at)} | ${cell(o.message)} | ${cell(o.detail)} | ${cell(o.device)} | ${cell(o.network)} | ${cell(o.room)} | ${cell(o.match)} | ${cell(o.session)} |`,
     );
   }
   print();
@@ -184,24 +199,86 @@ if (matches.length > 0) {
   print('### Rendimiento de cada partida en red');
   print();
   print(
-    '| Hora | Sala | Celular | Servidor | Ping | Toque confirmado | Colchón | Cuadros | Partida | Visita |',
+    '| Hora | Sala | Celular | Compañía y conexión | Servidor | Ping | Silencios | Colchón | Cuadros | Partida | Visita |',
   );
   print(
-    '| ---- | ---- | ------- | -------- | ---- | ---------------- | ------- | ------- | ------- | ------ |',
+    '| ---- | ---- | ------- | ------------------- | -------- | ---- | --------- | ------- | ------- | ------- | ------ |',
   );
   for (const m of matches) {
     const fps = lineOf(m.detail, 'Duración');
+    const connection = [m.network, lineOf(m.detail, 'Conexión:')].filter(Boolean).join(' · ');
     print(
-      `| ${chileTime(m.at)} | ${cell(m.room)} | ${cell(m.device)} | ${cell(lineOf(m.detail, 'Servidor de salas:'))} | ${cell(m.message)} | ${cell(lineOf(m.detail, 'Toque confirmado'))} | ${cell(lineOf(m.detail, 'Colchón'))} | ${cell(fps)} | ${cell(lineOf(m.detail, 'Partida:'))} | ${cell(m.session)} |`,
+      `| ${chileTime(m.at)} | ${cell(m.room)} | ${cell(m.device)} | ${cell(connection)} | ${cell(lineOf(m.detail, 'Servidor de salas:'))} | ${cell(m.message)} | ${cell(lineOf(m.detail, 'Silencios de más de 100 ms:'))} | ${cell(lineOf(m.detail, 'Colchón'))} | ${cell(fps)} | ${cell(lineOf(m.detail, 'Partida:'))} | ${cell(m.session)} |`,
     );
   }
   print();
   print('<details><summary>Resúmenes completos</summary>');
   print();
   for (const m of matches) {
-    print(`**${chileTime(m.at)} · ${m.room} · ${m.device}**`);
+    const company = m.network ? ` · ${m.network}` : '';
+    print(`**${chileTime(m.at)} · ${m.room} · ${m.device}${company}**`);
     print('```');
     print(m.detail);
+    print('```');
+  }
+  print('</details>');
+  print();
+}
+
+if (servers.length > 0) {
+  print('### Cómo iba la Sala en cada partida');
+  print();
+  print('| Hora | Sala | Dónde | Qué pasó | Quiénes | Reloj | Máquina |');
+  print('| ---- | ---- | ----- | -------- | ------- | ----- | ------- |');
+  for (const r of servers) {
+    print(
+      `| ${chileTime(r.at)} | ${cell(r.room)} | ${cell(r.device)} | ${cell(r.message)} | ${cell(lineOf(r.detail, 'Sala:'))} | ${cell(lineOf(r.detail, 'Reloj:'))} | ${cell(lineOf(r.detail, 'Máquina:'))} |`,
+    );
+  }
+  print();
+}
+
+// Las líneas de tiempo de una misma sala juntas: si todos se trabaron en el mismo tramo de 10 s,
+// fue la Sala o una red compartida; si fue uno solo, su conexión o su celular.
+const rooms = [...new Set([...servers, ...matches].map((r) => r.room).filter(Boolean))];
+if (
+  rooms.length > 0 &&
+  (servers.length > 0 || matches.some((m) => m.detail.includes('cada 10 s')))
+) {
+  print('<details><summary>Líneas de tiempo por sala (cada 10 s)</summary>');
+  print();
+  for (const code of rooms) {
+    const rows = [
+      ...servers
+        .filter((r) => r.room === code)
+        .map((r) => ({
+          at: r.at,
+          who: `Sala (${r.device})`,
+          line: lineOf(r.detail, 'Cada 10 s, peor atraso (ms):'),
+        })),
+      ...matches
+        .filter((m) => m.room === code)
+        .flatMap((m) => [
+          {
+            at: m.at,
+            who: `${m.device} · red`,
+            line: lineOf(m.detail, 'Red cada 10 s (ping máx/vacíos/silencios):'),
+          },
+          {
+            at: m.at,
+            who: `${m.device} · cuadros`,
+            line: lineOf(m.detail, 'Cada 10 s (fps/tirones/conjuros):'),
+          },
+        ]),
+    ]
+      .filter((row) => row.line)
+      .sort((a, b) => a.at.localeCompare(b.at));
+    if (rows.length === 0) continue;
+    print(
+      `**Sala ${code}** · Sala: peor atraso en ms · red: ping máx/vacíos/silencios · cuadros: fps/tirones/conjuros`,
+    );
+    print('```');
+    for (const row of rows) print(`${chileTime(row.at)} · ${row.who}: ${row.line}`);
     print('```');
   }
   print('</details>');

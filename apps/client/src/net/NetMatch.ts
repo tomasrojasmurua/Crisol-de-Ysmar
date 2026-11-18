@@ -120,6 +120,32 @@ export class NetSummary {
   /** Silencios de la Sala jugando: veces que pasó más de `HOLE_MS` sin estado, y el más largo. */
   holes = 0;
   longestHole = 0;
+  /**
+   * Cada 10 s desde que empezó la partida: el peor ping, cuántas veces se vació el colchón y
+   * cuántos silencios hubo. Junto a la de los otros celulares y la de la Sala dice si se
+   * trabaron todos a la vez (la Sala o una red compartida) o cada uno por su lado.
+   */
+  readonly timeline: { ping: number; stalls: number; holes: number }[] = [];
+  private readonly startedAt: number;
+
+  constructor(now = performance.now()) {
+    this.startedAt = now;
+  }
+
+  /** Anota algo en su tramo de 10 s. */
+  note(what: 'ping' | 'stall' | 'hole', value = 0, now = performance.now()): void {
+    if (what === 'ping') sample(this.pings, value);
+    else if (what === 'stall') this.stalls++;
+    else this.holes++;
+    const index = Math.floor((now - this.startedAt) / TIMELINE_STEP_MS);
+    if (index < 0 || index >= TIMELINE_STEPS) return;
+    while (this.timeline.length <= index) this.timeline.push({ ping: 0, stalls: 0, holes: 0 });
+    const step = this.timeline[index];
+    if (!step) return;
+    if (what === 'ping') step.ping = Math.max(step.ping, Math.round(value));
+    else if (what === 'stall') step.stalls++;
+    else step.holes++;
+  }
 
   lines(buffer: number): string[] {
     if (this.pings.length === 0) return [];
@@ -131,11 +157,17 @@ export class NetSummary {
       `Colchón final ${buffer} pasos · máx ${this.maxTarget} · vaciado ${this.stalls} veces · cortes ${this.cuts}`,
       `Llega hasta ${this.maxKbps} KB/s · estado más grande ${this.biggest} B`,
       `Silencios de más de ${HOLE_MS} ms: ${this.holes} · el más largo ${Math.round(this.longestHole)} ms`,
+      `Red cada 10 s (ping máx/vacíos/silencios): ${this.timeline
+        .map((step) => `${step.ping}/${step.stalls}/${step.holes}`)
+        .join(' ')}`,
     ];
   }
 }
 
 const MAX_SAMPLES = 1200;
+const TIMELINE_STEP_MS = 10_000;
+/** Unos 20 minutos de partida. */
+const TIMELINE_STEPS = 120;
 /**
  * Jugando, la Sala manda un estado cada 33 ms: más de esto sin nada vacía el colchón chico. Si
  * los silencios son muchos y largos en todos los celulares de una sala a la vez, el atraso es de
@@ -369,7 +401,7 @@ export class NetMatch implements MatchView {
       // Se vació: se espera a juntar de nuevo y el colchón crece para la próxima.
       if (this.netStage.kind === 'playing') {
         this.stalls++;
-        this.summary.stalls++;
+        this.summary.note('stall');
         this.target = Math.min(BUFFER_LIMIT, this.target + 1);
         this.summary.maxTarget = Math.max(this.summary.maxTarget, this.target);
         this.calmSteps = 0;
@@ -833,7 +865,7 @@ export class NetMatch implements MatchView {
       case 'pong':
         this.ping = Math.round(performance.now() - message.sentAt);
         if (this.netStage.kind === 'playing') {
-          sample(this.summary.pings, this.ping);
+          this.summary.note('ping', this.ping);
           this.summary.maxKbps = Math.max(this.summary.maxKbps, this.kbps);
           this.summary.biggest = Math.max(this.summary.biggest, this.biggest);
         }
@@ -893,7 +925,7 @@ export class NetMatch implements MatchView {
     const playing = frame.stage.kind === 'playing' && !document.hidden;
     if (playing && this.lastFrameAt > 0) {
       const gap = now - this.lastFrameAt;
-      if (gap > HOLE_MS) this.summary.holes++;
+      if (gap > HOLE_MS) this.summary.note('hole', gap, now);
       this.summary.longestHole = Math.max(this.summary.longestHole, gap);
     }
     this.lastFrameAt = playing ? now : 0;

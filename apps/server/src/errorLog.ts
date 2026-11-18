@@ -4,6 +4,8 @@ import { type ErrorReport, PROTOCOL_VERSION, parseReports, REPORT_LIMITS } from 
  * Registro de errores en D1 (base `crisol-errores`). Los celulares mandan lo que les falla y la
  * Sala anota sus propias excepciones. Se lee con el flujo "Leer errores" de GitHub o con
  * `pnpm errores` (ver docs/errores.md). Se guarda solo lo del informe: nada de IP ni nombres.
+ * De la conexión se anota solo la compañía por la que llegó (`network`, la dice Cloudflare):
+ * "Entel" o "VTR" dicen si eran datos móviles o el internet de la casa, y si varios compartían red.
  */
 
 /** Los informes viejos se borran solos: para la prueba con amigos basta un mes. */
@@ -28,9 +30,12 @@ const SCHEMA = [
   'CREATE INDEX IF NOT EXISTS reports_at ON reports (at)',
 ];
 
+/** La columna de la compañía llegó después: en una tabla vieja se agrega (si ya está, falla y da igual). */
+const ADD_NETWORK = "ALTER TABLE reports ADD COLUMN network TEXT NOT NULL DEFAULT ''";
+
 const INSERT = `INSERT INTO reports
-  (at, source, kind, message, detail, version, device, screen, room, match, session, uptime)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  (at, source, kind, message, detail, version, device, screen, room, match, session, uptime, network)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 /** De dónde viene el informe: el celular o la Sala. */
 export type ReportSource = 'cliente' | 'sala';
@@ -41,7 +46,12 @@ const ready = new WeakMap<D1Database, Promise<unknown>>();
 function ensureSchema(db: D1Database): Promise<unknown> {
   let pending = ready.get(db);
   if (!pending) {
-    pending = db.batch(SCHEMA.map((sql) => db.prepare(sql)));
+    pending = db.batch(SCHEMA.map((sql) => db.prepare(sql))).then(() =>
+      db
+        .prepare(ADD_NETWORK)
+        .run()
+        .catch(() => undefined),
+    );
     // Si falla, se reintenta en el próximo informe.
     pending.catch(() => ready.delete(db));
     ready.set(db, pending);
@@ -55,6 +65,7 @@ export async function saveReports(
   reports: readonly ErrorReport[],
   source: ReportSource,
   now: Date,
+  network = '',
 ): Promise<void> {
   if (reports.length === 0) return;
   await ensureSchema(db);
@@ -77,6 +88,7 @@ export async function saveReports(
           r.match,
           r.session,
           r.uptime,
+          network,
         ),
     ),
     db.prepare('DELETE FROM reports WHERE at < ?').bind(oldest),
@@ -104,12 +116,24 @@ export async function receiveReports(
   const reports = parseReports(await request.text());
   if (db && reports.length > 0) {
     waitUntil(
-      saveReports(db, reports, 'cliente', new Date()).catch((error: unknown) => {
-        console.error('No se pudieron guardar los informes', error);
-      }),
+      saveReports(db, reports, 'cliente', new Date(), networkOf(request)).catch(
+        (error: unknown) => {
+          console.error('No se pudieron guardar los informes', error);
+        },
+      ),
     );
   }
   return new Response(null, { status: 204, headers: CORS });
+}
+
+/**
+ * La compañía por la que llegó el celular ("Entel PCS Telecomunicaciones S.A."), sin la IP. La
+ * da Cloudflare en `request.cf`; fuera de Cloudflare (pruebas) no hay.
+ */
+export function networkOf(request: Request): string {
+  const cf = (request as { cf?: { asOrganization?: unknown } }).cf;
+  const name = cf?.asOrganization;
+  return typeof name === 'string' ? name.slice(0, REPORT_LIMITS.short) : '';
 }
 
 /** La Sala anota una excepción propia (sin cortar lo que estaba haciendo). */

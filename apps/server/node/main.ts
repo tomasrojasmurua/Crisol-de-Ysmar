@@ -104,6 +104,9 @@ function roomFor(code: string): Room {
         code,
         peers: () => [...peers],
         report: (where, error) => reportError(code, where, error),
+        perf: (summary) => sendReport({ kind: 'servidor', room: code, ...summary }),
+        machine: () =>
+          `Santiago · CPU ${load.cpu}% · atraso p99 ${load.lagP99} ms · máx ${load.lagMax} ms · ${activeRooms()} salas jugando · ${load.memoryMb} MB`,
       }),
     };
     rooms.set(code, room);
@@ -116,14 +119,19 @@ function reportError(room: string, where: string, error: unknown): void {
   console.error(`Error en la Sala ${room} (${where})`, error);
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   const detail = error instanceof Error ? (error.stack ?? '') : '';
+  sendReport({ kind: 'sala', room, message: `${where}: ${message}`, detail });
+}
+
+/** Manda un informe de la Sala al registro de Cloudflare (sin esperar respuesta). */
+function sendReport(entry: { kind: string; room: string; message: string; detail: string }): void {
   const report = {
-    kind: 'sala',
-    message: `${where}: ${message}`.slice(0, REPORT_LIMITS.message),
-    detail: detail.slice(0, REPORT_LIMITS.detail),
+    kind: entry.kind,
+    message: entry.message.slice(0, REPORT_LIMITS.message),
+    detail: entry.detail.slice(0, REPORT_LIMITS.detail),
     version: `protocolo ${PROTOCOL_VERSION}`,
     device: 'servidor Santiago',
     screen: '',
-    room,
+    room: entry.room,
     match: '',
     session: '',
     uptime: Math.round(process.uptime()),
