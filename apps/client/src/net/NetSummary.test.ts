@@ -21,4 +21,18 @@ describe('NetSummary', () => {
     expect(lines[2]).toContain('vaciado 3 veces · cortes 1');
     expect(lines[4]).toBe('Silencios de más de 100 ms: 4 · el más largo 312 ms');
   });
+
+  test('línea de tiempo cada 10 s: peor ping, vacíos y silencios de cada tramo', () => {
+    const summary = new NetSummary(0);
+    summary.note('ping', 12, 1000);
+    summary.note('ping', 30, 4000);
+    summary.note('stall', 0, 15_000);
+    summary.note('hole', 180, 15_000);
+    summary.note('ping', 200, 25_000);
+    expect(summary.stalls).toBe(1);
+    expect(summary.holes).toBe(1);
+    expect(summary.lines(2).at(-1)).toBe(
+      'Red cada 10 s (ping máx/vacíos/silencios): 30/0/0 0/1/1 200/0/0',
+    );
+  });
 });

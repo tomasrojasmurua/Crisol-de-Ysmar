@@ -9,10 +9,17 @@ interface Statement {
 /** Una D1 de mentira: anota cada lote de sentencias. */
 function fakeDb(): { db: D1Database; batches: Statement[][] } {
   const batches: Statement[][] = [];
-  const statement = (sql: string, args: unknown[] = []): Statement & { bind: unknown } => ({
+  const statement = (
+    sql: string,
+    args: unknown[] = [],
+  ): Statement & { bind: unknown; run: unknown } => ({
     sql,
     args,
     bind: (...next: unknown[]) => statement(sql, next),
+    run: async () => {
+      batches.push([{ sql, args }]);
+      return {};
+    },
   });
   const db = {
     prepare: (sql: string) => statement(sql),
@@ -53,10 +60,25 @@ describe('registro de errores', () => {
     await Promise.all(tasks);
     expect(response.status).toBe(204);
     expect(batches[0]?.[0]?.sql).toContain('CREATE TABLE IF NOT EXISTS reports');
-    const inserts = batches[1]?.filter((s) => s.sql.includes('INSERT')) ?? [];
+    expect(batches[1]?.[0]?.sql).toContain('ADD COLUMN network');
+    const inserts = batches[2]?.filter((s) => s.sql.includes('INSERT')) ?? [];
     expect(inserts).toHaveLength(1);
     expect(inserts[0]?.args.slice(1, 4)).toEqual(['cliente', 'error', 'boom']);
-    expect(batches[1]?.at(-1)?.sql).toContain('DELETE FROM reports');
+    expect(batches[2]?.at(-1)?.sql).toContain('DELETE FROM reports');
+  });
+
+  it('anota la compañía por la que llegó el celular, nunca la IP', async () => {
+    const { db, batches } = fakeDb();
+    const tasks: Promise<unknown>[] = [];
+    const request = post(JSON.stringify([report]));
+    Object.defineProperty(request, 'cf', {
+      value: { asOrganization: 'Entel PCS Telecomunicaciones S.A.', clientIp: '1.2.3.4' },
+    });
+    await receiveReports(request, db, (t) => tasks.push(t));
+    await Promise.all(tasks);
+    const insert = batches.flat().find((s) => s.sql.includes('INSERT'));
+    expect(insert?.args.at(-1)).toBe('Entel PCS Telecomunicaciones S.A.');
+    expect(insert?.args).not.toContain('1.2.3.4');
   });
 
   it('responde igual sin base de datos o con basura', async () => {

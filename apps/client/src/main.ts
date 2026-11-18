@@ -17,6 +17,7 @@ import {
   FixedStepClock,
   type GameRules,
   type Intent,
+  roundPhase,
   SeededRng,
 } from '@crisol/core';
 import {
@@ -70,7 +71,7 @@ import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook } from './ui/GrimoireBook';
-import { Hud, type WizardBadge } from './ui/Hud';
+import { Hud, PHASE_NAMES, type WizardBadge } from './ui/Hud';
 import { HurtEdge } from './ui/HurtEdge';
 import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
@@ -941,7 +942,13 @@ renderer.setAnimationLoop((now) => {
     pausedHere ? 0 : delta,
     current && current.state.wizards.length > 0 ? current.player.pos : null,
   );
-  if (current && !pausedHere && !flow.finished) diagnostics.matchFrame(frameMs, simMs, view.load);
+  if (current && !pausedHere && !flow.finished) {
+    const moment =
+      current.stage.kind === 'playing'
+        ? PHASE_NAMES[roundPhase(current.state.tick, rules)]
+        : 'Entre rondas';
+    diagnostics.matchFrame(frameMs, simMs, view.load, moment);
+  }
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;
   if (portraitRect) menuPortrait.render(renderer, portraitRect, elapsed, delta);

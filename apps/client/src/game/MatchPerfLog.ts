@@ -4,6 +4,26 @@ const SLOW_FRAME_MS = 20;
 const BINS = 101;
 /** Un cuadro más largo que esto es un tirón que se ve (el navegador mide lo mismo, ver abajo). */
 const HITCH_MS = 50;
+/** La línea de tiempo va en tramos de 10 s, igual que la de la red y la de la Sala. */
+const BUCKET_MS = 10_000;
+/** Una partida muy larga no hace crecer el informe sin fin (unos 20 minutos). */
+const MAX_BUCKETS = 120;
+/** Un momento o una cantidad de conjuros con menos tiempo que esto no dice nada. */
+const MIN_SPAN_MS = 10_000;
+/** Cuántos conjuros había en pantalla, de a tramos (el último es "o más"). */
+const SPELL_BANDS = [0, 5, 10, 15] as const;
+
+/** Tiempo y tirones de un tramo. */
+interface Span {
+  ms: number;
+  frames: number;
+  hitches: number;
+  maxSpells: number;
+}
+
+function emptySpan(): Span {
+  return { ms: 0, frames: 0, hitches: 0, maxSpells: 0 };
+}
 
 /** Lo que costó un cuadro por dentro, medido en el bucle principal. */
 export interface FrameWork {
@@ -102,6 +122,12 @@ export class MatchPerfLog {
   private pageMs = 0;
   private pageScriptMs = 0;
   private pageLayoutMs = 0;
+  /** Cada 10 s de partida. */
+  private timeline: Span[] = [];
+  /** Por momento de la partida ("Caza", "Muerte súbita", "Entre rondas"). */
+  private readonly moments = new Map<string, Span>();
+  /** Por cantidad de conjuros en pantalla (índice de `SPELL_BANDS`). */
+  private bands: Span[] = SPELL_BANDS.map(emptySpan);
 
   start(pixelRatio: number, quality: QualityName = 'alta', screenCapped = false): void {
     this.screenCapped = screenCapped;
@@ -109,6 +135,9 @@ export class MatchPerfLog {
     this.pageMs = 0;
     this.pageScriptMs = 0;
     this.pageLayoutMs = 0;
+    this.timeline = [];
+    this.moments.clear();
+    this.bands = SPELL_BANDS.map(emptySpan);
     this.worked = 0;
     this.simMs = 0;
     this.jsMs = 0;
@@ -131,9 +160,13 @@ export class MatchPerfLog {
     this.ratio = pixelRatio;
   }
 
-  /** Un cuadro de juego (no se llama en pausa). */
-  frame(frameMs: number, work?: FrameWork): void {
+  /**
+   * Un cuadro de juego (no se llama en pausa). `moment`: en qué parte de la partida se estaba
+   * ("Caza", "Muerte súbita"…), para saber en qué momentos hay más tirones.
+   */
+  frame(frameMs: number, work?: FrameWork, moment?: string): void {
     if (frameMs <= 0) return;
+    this.spans(frameMs, work?.spells ?? 0, moment);
     if (work) {
       this.worked += 1;
       this.simMs += work.simMs;
@@ -163,6 +196,34 @@ export class MatchPerfLog {
       }
       this.secondMs = 0;
       this.secondFrames = 0;
+    }
+  }
+
+  /** Suma el cuadro a su tramo de 10 s, a su momento y a su cantidad de conjuros. */
+  private spans(frameMs: number, spells: number, moment: string | undefined): void {
+    const index = Math.floor(this.playedMs / BUCKET_MS);
+    const touched: Span[] = [];
+    if (index < MAX_BUCKETS) {
+      while (this.timeline.length <= index) this.timeline.push(emptySpan());
+      touched.push(this.timeline[index] as Span);
+    }
+    if (moment) {
+      let span = this.moments.get(moment);
+      if (!span) {
+        span = emptySpan();
+        this.moments.set(moment, span);
+      }
+      touched.push(span);
+    }
+    let band = 0;
+    while (band + 1 < SPELL_BANDS.length && spells >= (SPELL_BANDS[band + 1] ?? 0)) band++;
+    touched.push(this.bands[band] as Span);
+    const hitch = frameMs > HITCH_MS;
+    for (const span of touched) {
+      span.ms += frameMs;
+      span.frames += 1;
+      if (hitch) span.hitches += 1;
+      span.maxSpells = Math.max(span.maxSpells, spells);
     }
   }
 
@@ -276,6 +337,7 @@ export class MatchPerfLog {
     );
 
     lines.push(this.hitchLine(seconds));
+    lines.push(...this.contextLines());
 
     const minutes = this.perMinute.filter((m) => m.frames > 0 && m.ms >= 30_000);
     const first = minutes[0];
@@ -306,6 +368,40 @@ export class MatchPerfLog {
       const times = this.audioCuts.slice(0, 3).map(clock).join(', ');
       const count = this.audioCuts.length === 1 ? '1 vez' : `${this.audioCuts.length} veces`;
       lines.push(`Sonido: se cortó ${count} (${times}) y ${audioPlaying ? 'volvió' : 'no volvió'}`);
+    }
+    if (this.timeline.length > 0) {
+      const steps = this.timeline.map((span) =>
+        span.frames === 0
+          ? '-'
+          : `${Math.round((span.frames * 1000) / span.ms)}/${span.hitches}/${span.maxSpells}`,
+      );
+      lines.push(`Cada 10 s (fps/tirones/conjuros): ${steps.join(' ')}`);
+    }
+    return lines;
+  }
+
+  /** En qué momentos de la partida y con cuántos conjuros en pantalla hubo tirones. */
+  private contextLines(): string[] {
+    const rate = (span: Span) => Math.round((span.hitches * 60_000) / span.ms);
+    const lines: string[] = [];
+    const moments = [...this.moments].filter(([, span]) => span.ms >= MIN_SPAN_MS);
+    if (moments.length > 0 && moments.some(([, span]) => span.hitches > 0)) {
+      lines.push(
+        `Tirones por momento: ${moments.map(([name, span]) => `${name} ${span.hitches} (${rate(span)}/min)`).join(' · ')}`,
+      );
+    }
+    const bands = this.bands
+      .map((span, i) => ({ span, i }))
+      .filter(({ span }) => span.ms >= MIN_SPAN_MS);
+    if (bands.length > 0 && bands.some(({ span }) => span.hitches > 0)) {
+      const label = (i: number) => {
+        const from = SPELL_BANDS[i] ?? 0;
+        const next = SPELL_BANDS[i + 1];
+        return next === undefined ? `${from} o más` : `${from} a ${next - 1}`;
+      };
+      lines.push(
+        `Tirones según conjuros en pantalla: ${bands.map(({ span, i }) => `${label(i)}: ${rate(span)}/min`).join(' · ')}`,
+      );
     }
     return lines;
   }

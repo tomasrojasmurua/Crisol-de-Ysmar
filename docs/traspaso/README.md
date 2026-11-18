@@ -175,6 +175,11 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
    partida y en cada espera los rivales volvían a recorrer su último paso ("caminaba de a
    jalones"); ahora se quedan quietos. El informe agrega los silencios de la Sala para saber si
    los vacíos vienen de la Sala o de la red.
+   Después, a pedido de Tomás (que no quiere preguntarle a cada amigo cómo se conectó), el
+   registro anota la compañía de internet de cada informe (sin IP), la Sala manda su propio
+   informe por serie (`servidor`: atrasos de su reloj) y cada celular trae líneas de tiempo cada
+   10 s, tirones por momento y por conjuros en pantalla, y en Android wifi o datos y batería.
+   `pnpm errores` junta las líneas de tiempo de cada sala (ver [errores.md](../errores.md)).
 5. **Revisión en celular real** de lo nuevo: la elección de linaje y el tutorial por linaje, el tutorial (sobre todo "Mirar" con la cámara y
    mantener y arrastrar ✦), la fila de IA en el menú, el choque de tejidos (si el margen de 0,5 m y la
    intercepción de 0,2 s se sienten justos) y la muerte súbita.

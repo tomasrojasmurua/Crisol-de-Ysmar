@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
+import { PROTOCOL_VERSION } from '@crisol/protocol';
 import type { Env } from './env';
-import { reportRoomError } from './errorLog';
+import { reportRoomError, saveReports } from './errorLog';
 import { type Peer, RoomHost } from './roomHost';
 
 /** Lo que la Sala recuerda de cada socket (sobrevive a que la Sala se duerma). */
@@ -41,6 +42,23 @@ export class Room extends DurableObject<Env> {
     peers: () => this.ctx.getWebSockets().map((socket) => this.peerOf(socket)),
     report: (where, error) =>
       this.ctx.waitUntil(reportRoomError(this.env.ERRORS, this.ctx.id.name ?? '', where, error)),
+    perf: ({ message, detail }) => {
+      const db = this.env.ERRORS;
+      if (!db) return;
+      const report = {
+        kind: 'servidor' as const,
+        message,
+        detail,
+        version: `protocolo ${PROTOCOL_VERSION}`,
+        device: 'servidor Cloudflare',
+        screen: '',
+        room: this.ctx.id.name ?? '',
+        match: '',
+        session: '',
+        uptime: 0,
+      };
+      this.ctx.waitUntil(saveReports(db, [report], 'sala', new Date()).catch(() => undefined));
+    },
   });
 
   override async fetch(request: Request): Promise<Response> {

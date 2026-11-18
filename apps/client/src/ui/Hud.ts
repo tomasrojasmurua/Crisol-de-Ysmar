@@ -16,7 +16,7 @@ import {
   type ResultSummary,
 } from './ResultScreen';
 
-const PHASE_NAMES: Record<RoundPhase, string> = {
+export const PHASE_NAMES: Record<RoundPhase, string> = {
   hunt: 'Caza',
   convergence: 'Convergencia',
   final: 'Duelo final',

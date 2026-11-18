@@ -14,10 +14,24 @@ en qué celular y en qué sala y partida. Así "se me cayó" se convierte en alg
 | `rendimiento` | No es un error: al terminar cada partida en red, el ping (típico, peor 5% y máximo), cuánto tarda en volver confirmado un toque, el colchón, los cortes y el informe de cuadros por segundo y una línea de la partida (magos, rondas, resultado). Sirve para saber de dónde viene el lag sin pedir capturas. |
 | `opinion`     | No es un error: al final de cada partida en red se pregunta "¿Cómo se jugó?" (Fluida, Con tirones, Muy trabada) y, si quieren, "¿Qué mejorarías?". Va con el ping de ese celular. `pnpm errores` lo muestra aparte, en "Qué dijeron los jugadores", y el rendimiento de cada partida en su propia tabla.     |
 
+| `servidor` | No es un error: al terminar cada serie, cómo anduvo la Sala (`apps/server/src/roomPerf.ts`): cuántas veces se atrasó su reloj y cuánto, pasos perdidos, trabajo por vuelta, la carga de la máquina (en Santiago) y el peor atraso de cada 10 s. Lo manda la Sala, no un celular. |
+
+Además, el resumen de `rendimiento` de cada celular trae una **línea de tiempo cada 10 s** de red
+(peor ping, veces que se vació el colchón y silencios de la Sala) y de cuadros (fps, tirones y
+conjuros en pantalla), los tirones por momento de la partida (Caza, Muerte súbita, Entre rondas…)
+y según cuántos conjuros había, y en Chrome para Android por dónde se conecta (wifi o datos
+móviles, y si cambió en plena partida) y la batería al empezar y al terminar. `pnpm errores` junta
+las líneas de tiempo de cada sala, la de la Sala y la de cada celular: si todos se trabaron en el
+mismo tramo fue la Sala o una red compartida; si fue uno solo, su conexión o su celular.
+
 Cada informe lleva: versión del juego (`v79 · abc1234`), celular y navegador resumidos
 (`Android 13 · SM-A145M · Chrome 131 · 8 núcleos · 4 GB`), pantalla, código de sala, partida
 (`red #2 · free4 · ronda 3`), un número al azar por visita (agrupa los informes de una misma vez que
 se abrió el juego) y segundos desde que se abrió la página.
+
+De la conexión, el servidor anota solo **la compañía** por la que llegó el informe (columna
+`network`, la da Cloudflare: "Entel PCS…", "VTR…"). Dice si eran datos móviles o el internet de la
+casa, y si varios jugaban en la misma red, también en iPhone, que no lo dice por sí mismo.
 
 **Sin datos personales:** ni el nombre del jugador, ni la IP, ni el texto completo del navegador,
 ni nada de lo guardado en el celular. Los informes se borran solos a los 30 días.

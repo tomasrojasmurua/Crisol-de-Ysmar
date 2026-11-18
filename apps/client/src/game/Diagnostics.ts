@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { AudioEngine } from '../audio/AudioEngine';
+import { DeviceWatch } from '../platform/DeviceWatch';
 import { FpsMeter } from '../ui/FpsMeter';
 import { type FrameWork, MatchPerfLog, type QualityName, type SceneLoad } from './MatchPerfLog';
 
@@ -16,6 +17,8 @@ interface LongFrameEntry extends PerformanceEntry {
 export class Diagnostics {
   private readonly fpsMeter: FpsMeter;
   private readonly perfLog = new MatchPerfLog();
+  /** Conexión y batería del celular (solo Chrome en Android las dice). */
+  private readonly device = new DeviceWatch();
   private readonly netBadge: HTMLElement;
   private online = false;
   private audioCutsSeen = 0;
@@ -79,6 +82,7 @@ export class Diagnostics {
   /** `screenCapped`: el celular frena la pantalla a 30 cuadros (ver render/ScreenCap.ts). */
   matchStarted(pixelRatio: number, quality: QualityName, screenCapped = false): void {
     this.perfLog.start(pixelRatio, quality, screenCapped);
+    this.device.start();
     this.audioCutsSeen = this.audio.interruptions;
   }
 
@@ -90,7 +94,7 @@ export class Diagnostics {
   }
 
   /** Un cuadro de juego terminado (no se llama en pausa ni con el resultado a la vista). */
-  matchFrame(frameMs: number, simMs: number, load?: SceneLoad): void {
+  matchFrame(frameMs: number, simMs: number, load?: SceneLoad, moment?: string): void {
     const info = this.renderer.info;
     const work: FrameWork = {
       simMs,
@@ -103,7 +107,7 @@ export class Diagnostics {
       textures: info.memory.textures,
       programs: info.programs?.length,
     };
-    this.perfLog.frame(frameMs, work);
+    this.perfLog.frame(frameMs, work, moment);
     this.lastMatchFrameAt = performance.now();
     while (this.audioCutsSeen < this.audio.interruptions) {
       this.audioCutsSeen += 1;
@@ -121,7 +125,11 @@ export class Diagnostics {
 
   /** El informe de la partida aunque los datos estén apagados (para el registro remoto). */
   fullReport(): string[] {
-    return this.perfLog.summary(this.audio.playing);
+    const lines = this.perfLog.summary(this.audio.playing);
+    // La línea de tiempo va al final: es la más larga y la que menos importa si se corta.
+    const last = lines.at(-1);
+    if (last?.startsWith('Cada 10 s')) return [...lines.slice(0, -1), ...this.device.lines(), last];
+    return [...lines, ...this.device.lines()];
   }
 
   /** El informe de la partida, si los datos están activados (si no, nada). */

@@ -8,6 +8,7 @@ import {
   StateEncoder,
 } from '@crisol/protocol';
 import { DuelHost } from './duel';
+import { RoomPerf, type RoomPerfReport } from './roomPerf';
 
 /**
  * Una conexión de un celular, sin importar dónde corra la Sala (Durable Object de Cloudflare o
@@ -27,6 +28,10 @@ export interface RoomHome {
   peers(): readonly Peer[];
   /** Anota un error de la Sala en el registro. */
   report(where: string, error: unknown): void;
+  /** Anota cómo anduvo la Sala en una serie (ver `RoomPerf`). */
+  perf?(report: RoomPerfReport): void;
+  /** Cómo va la máquina ahora ("CPU 6% · atraso p99 2 ms"), si se sabe. */
+  machine?(): string;
 }
 
 /** Mientras no se juega (sala de espera, final), el estado se manda cada tantos pasos. */
@@ -49,6 +54,8 @@ export class RoomHost {
   private lastAway = '';
   /** Lo último que se le mandó a cada conexión, para mandarle solo lo que cambió. */
   private readonly encoders = new Map<Peer, StateEncoder>();
+  /** Cómo anda el reloj en la serie en curso: va al registro al terminar. */
+  private readonly perf = new RoomPerf();
   /** Errores ya anotados: uno que se repite cada paso se guarda una sola vez. */
   private readonly reported = new Set<string>();
 
@@ -246,7 +253,11 @@ export class RoomHost {
     if (!duel) return;
     const now = Date.now();
     let due = Math.floor((now - this.clock) / TICK_MS);
+    // Cuánto después de lo debido sale el primer paso que tocaba (0 si va al día).
+    const late = now - this.clock - TICK_MS;
+    let dropped = 0;
     if (due > MAX_CATCH_UP) {
+      dropped = due - MAX_CATCH_UP;
       this.clock = now - MAX_CATCH_UP * TICK_MS;
       due = MAX_CATCH_UP;
     }
@@ -256,8 +267,15 @@ export class RoomHost {
       if (duel.startedNew) {
         duel.startedNew = false;
         for (const peer of this.home.peers()) this.announceStart(peer);
+        const humans = duel.players.filter((p) => !p.bot).length;
+        this.perf.start(now, { humans, bots: duel.players.length - humans });
       }
       this.broadcastState();
+    }
+    if (due > 0) this.perf.clock(now, late, Date.now() - now, dropped);
+    if (this.perf.running && duel.stageFor(1).kind === 'finished') {
+      const report = this.perf.finish(Date.now(), this.home.machine?.() ?? '');
+      if (report) this.home.perf?.(report);
     }
     // Alguien se quedó callado (sin señal) o volvió a hablar, o cambió quien manda: se avisa.
     const away = `${duel.awayKey}|${duel.hostId}`;

@@ -101,4 +101,20 @@ describe('MatchPerfLog', () => {
       'Memoria gráfica: geometrías 200→209 (máx. 209) · texturas 20→20 · sombreadores 54→54',
     );
   });
+
+  it('dice en qué momento, con cuántos conjuros y en qué tramo de 10 s hubo tirones', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5);
+    const work = (spells: number) => ({ simMs: 0.1, jsMs: 2, calls: 100, triangles: 1, spells });
+    // 20 s de Caza tranquila, luego 20 s de Muerte súbita con 12 conjuros y un tirón por segundo.
+    for (let t = 0; t < 20_000; t += 20) log.frame(20, work(2), 'Caza');
+    for (let s = 0; s < 20; s++) {
+      for (let t = 0; t < 900; t += 20) log.frame(20, work(12), 'Muerte súbita');
+      log.frame(100, work(12), 'Muerte súbita');
+    }
+    const lines = log.summary(true);
+    expect(lines).toContain('Tirones por momento: Caza 0 (0/min) · Muerte súbita 20 (60/min)');
+    expect(lines).toContain('Tirones según conjuros en pantalla: 0 a 4: 0/min · 10 a 14: 60/min');
+    expect(lines.at(-1)).toBe('Cada 10 s (fps/tirones/conjuros): 50/0/2 50/0/2 46/10/12 46/10/12');
+  });
 });
