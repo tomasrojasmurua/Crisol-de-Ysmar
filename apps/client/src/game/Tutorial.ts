@@ -124,8 +124,8 @@ const combo = (id: string): Combo => {
 const CLOSE_CALL = 5;
 
 /**
- * Los hechizos que no se lanzan contra el rival: te mueven, te curan o dejan una zona que solo
- * castiga al que se mueve (y el muñeco está quieto). Para estos basta con lanzarlos; los demás
+ * Los hechizos que no se lanzan contra el rival: te mueven, te curan, te protegen, invocan o
+ * dejan una zona que solo castiga al que se mueve o al que está cerca (y el muñeco está quieto). Para estos basta con lanzarlos; los demás
  * tienen que alcanzar al muñeco.
  */
 const NOT_AIMED_AT_RIVAL: ReadonlySet<SpellId> = new Set<SpellId>([
@@ -135,6 +135,14 @@ const NOT_AIMED_AT_RIVAL: ReadonlySet<SpellId> = new Set<SpellId>([
   'spring',
   'garden',
   'fireRain',
+  'obsidian',
+  'blizzard',
+  'tempest',
+  'iceAge',
+  'mossGuardian',
+  'rootCatapult',
+  'veil',
+  'decoy',
 ]);
 
 /** El objetivo de lanzar un hechizo: si va contra el rival, tiene que alcanzarlo. */

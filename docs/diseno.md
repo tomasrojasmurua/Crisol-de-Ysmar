@@ -38,7 +38,7 @@ es lo vigente.
   tercera; y terreno, detonadores, tiempo, copias, contrahechizos y represalias en la cuarta).
   Algunos Grandes hechizos guardan un hechizo ajeno (Reflejo, Hurto): sale en el próximo
   lanzamiento, tejas lo que tejas.
-  El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga: descansa 3 s después de usarlo, y 4,5 s si fue un doble (Brasa → Brasa, Tormenta → Tormenta…), que gasta un solo elemento y pega más que el básico.
+  El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga y el hechizo no tiene descanso propio: cada elemento descansa según cuántas veces va en el tejido, 3 s si va una vez, 4,5 s si va dos y 6 s si va tres (Brasa → Brasa → Brasa).
 - **Jungla viva:** el Incendio forestal quema árboles y el Brote de árbol los planta; los cambios
   duran hasta el fin de la ronda.
 - **Partida:** mejor de 3 rondas sin reloj (Caza, Convergencia y Duelo final, un minuto cada una, y
@@ -147,19 +147,20 @@ antes del tutorial. El linaje solo destaca 4 hechizos de partida (y Paso) y fija
 inicial, que después se puede cambiar en el Vestidor; no bloquea nada. El Grimorio abre en la
 pestaña del elemento del linaje con la sección "Linaje de X" arriba.
 
-Cada set es autosuficiente: daño, control, curarse o escapar. La regla de balance: Duelistas que
-solo tejen su set, con la Afinidad en su elemento, ganan entre 45% y 55% contra los otros cuatro
-linajes (`pnpm escuelas`). Hoy: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 50%, Raíz ≈ 49%, Umbra ≈ 51%.
-Hay contras duros a propósito (Raíz gana ~72% a Umbra; Umbra ~63% a Marea y Tormenta). Si se toca
-un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
+Cada set cubre lo que pide un duelo: daño, defensa, control y escape (Paso lo tienen todos), cada
+linaje a su manera. La regla de balance: Duelistas que solo tejen su set, con la Afinidad en su
+elemento, ganan entre 45% y 55% contra los otros cuatro linajes (`pnpm escuelas`). Hoy, con 300
+duelos por cruce: Brasa ≈ 54%, Tormenta ≈ 46%, Marea ≈ 50%, Raíz ≈ 54%, Umbra ≈ 46%. Hay contras
+a propósito (Brasa gana ~70% a Umbra). Si se toca un set, la Afinidad o el balance de uno de sus
+hechizos, hay que volver a medir.
 
-| Linaje   | Hechizos                                      | Combo que enseña   |
-| -------- | --------------------------------------------- | ------------------ |
-| Brasa    | Chispa, Bola ígnea, Lluvia de fuego, Meteoro  | Blanco quieto      |
-| Tormenta | Rayo en cadena, Cometa, Pararrayos, Tempestad | Tormenta eléctrica |
-| Marea    | Salpicón, Ventisca, Pararrayos, Era de hielo  | Quiebre            |
-| Raíz     | Savia, Grillete, Manantial, Jardín            | Atado y a salvo    |
-| Umbra    | Zarpa, Drenaje, Ceguera, Esporas              | Hilo a ciegas      |
+| Linaje   | Hechizos                                                          | Combo que enseña   |
+| -------- | ----------------------------------------------------------------- | ------------------ |
+| Brasa    | Bola ígnea, Obsidiana, Cometa, Lluvia de fuego                    | Blanco quieto      |
+| Tormenta | Rayo en cadena, Ventisca, Pararrayos, Tempestad                   | Tormenta eléctrica |
+| Marea    | Géiser, Pararrayos, Era de hielo, Ahogo                           | Quiebre            |
+| Raíz     | Estampida de espinas, Liana, Guardián de musgo, Catapulta de raíz | Liana y guardián   |
+| Umbra    | Drenaje, Ceguera, Velo, Señuelo                                   | Hilo a ciegas      |
 
 ## Historia
 

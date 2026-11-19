@@ -4,9 +4,11 @@ import {
   type ElementId,
   type Intent,
   type MatchState,
+  SPELL_IDS,
   SPELL_WEAVES,
   type SpellId,
   type Vec2,
+  weaveKey,
 } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import { nextLockTarget } from '../input/lockTargets';
@@ -154,8 +156,10 @@ describe('Tutorial por linaje', () => {
           .flatMap((c) => c.steps)
           .flatMap((s) => (s.spell ? [s.spell] : [])),
       );
+      // Su set y Paso, más el básico de su elemento, que abre el capítulo «Tu elemento».
       const school = schoolSpellbook(element);
-      for (const spell of taught) expect(school).toContain(spell);
+      const basic = SPELL_IDS.find((id) => weaveKey(SPELL_WEAVES[id]) === element);
+      for (const spell of taught) expect([...school, basic]).toContain(spell);
       for (const spell of school) expect(taught.has(spell)).toBe(true);
     }
   });
@@ -168,9 +172,9 @@ describe('Tutorial por linaje', () => {
     };
     expect([...(at('moverse') ?? [])]).toEqual([]);
     expect([...(at('elemento') ?? [])].sort()).toEqual(['cast', 'duel', 'marea'].sort());
-    // Ventisca trae Tormenta y Pararrayos trae Raíz: al terminar Tejer ya están.
+    // Géiser trae Brasa y Pararrayos trae Tormenta y Raíz: al terminar Tejer ya están.
     expect([...(at('gran') ?? [])].sort()).toEqual(
-      ['cast', 'duel', 'marea', 'raiz', 'tormenta', 'undo'].sort(),
+      ['brasa', 'cast', 'duel', 'marea', 'raiz', 'tormenta', 'undo'].sort(),
     );
     expect(at('examen')?.has('raiz')).toBe(true);
     expect(at('examen')?.has('umbra')).toBe(true);
@@ -180,10 +184,10 @@ describe('Tutorial por linaje', () => {
 
   it('el elemento nuevo brilla en el paso que lo trae', () => {
     const tejer = MAREA[chapterIndex('tejer')];
-    const blizzard = tejer?.steps.find((s) => s.spell === 'blizzard');
-    expect(blizzard?.reveal).toEqual(['tormenta']);
-    expect(blizzard?.glow).toBe('tormenta');
-    expect(blizzard?.text).toContain('{tormenta}');
+    const rod = tejer?.steps.find((s) => s.spell === 'lightningRod');
+    expect(rod?.reveal).toEqual(['tormenta', 'raiz']);
+    expect(rod?.glow).toBe('tormenta');
+    expect(rod?.text).toContain('{tormenta}');
   });
 
   it('la cámara: mirar llega del celular y el duelo se ve en la partida', () => {
@@ -301,7 +305,7 @@ describe('Tutorial por linaje', () => {
       40,
       1,
     );
-    expect(tutorial.step?.title).toBe('Ventisca');
+    expect(tutorial.step?.title).toBe('Géiser');
     expect(tutorial.progress).toBe('Ese fue Obsidiana');
   });
 
@@ -331,16 +335,16 @@ describe('Tutorial por linaje', () => {
     // descansan (3 s).
     const casts = new Map<number, SpellId>([
       [5, 'obsidian'],
-      [170, 'blizzard'],
+      [170, 'geyser'],
       [275, 'lightningRod'],
     ]);
     const plan = (tick: number, state: MatchState): Intent[] => {
       const spell = casts.get(tick);
       return spell ? castAt(state, spell) : approach(state, 3);
     };
-    expect(play(plan, 'tejer', 60).tutorial.step?.title).toBe('Ventisca');
+    expect(play(plan, 'tejer', 60).tutorial.step?.title).toBe('Géiser');
     const { tutorial, reached } = play(plan, 'tejer', 400);
-    expect(reached).toEqual(['Combinar elementos', 'Ventisca', 'Pararrayos']);
+    expect(reached).toEqual(['Combinar elementos', 'Géiser', 'Pararrayos']);
     expect(tutorial.finished).toEqual(['tejer']);
   });
 
@@ -462,10 +466,10 @@ describe('Tutorial por linaje', () => {
    * descansa el elemento que comparten (3 s, o 2,25 s el de tu Afinidad).
    */
   const SCHOOL_COMBOS: readonly [ElementId, SpellId, SpellId, number][] = [
-    ['brasa', 'fireRain', 'fireball', 95],
+    ['brasa', 'fireRain', 'fireball', 140],
     ['tormenta', 'lightningRod', 'tempest', 95],
     ['marea', 'lightningRod', 'iceAge', 35],
-    ['raiz', 'shackle', 'spring', 70],
+    ['raiz', 'mossGuardian', 'vine', 95],
     ['umbra', 'blinding', 'drain', 70],
   ];
 

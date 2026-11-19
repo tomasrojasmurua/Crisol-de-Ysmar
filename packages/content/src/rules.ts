@@ -21,8 +21,8 @@ export const GAME_RULES: GameRules = {
     // Ningún tejido sale en menos de 0,15 s: el rival alcanza a ver el aviso aunque haya lag.
     castTicksByLength: [5, 9, 18],
     fatigueTicks: 90,
-    // Los dobles (Brasa → Brasa…) cansan su elemento 4,5 s en vez de 3.
-    doubleFatigueTicks: 45,
+    // Cada unidad de más de un elemento en el tejido suma 1,5 s de descanso: 3 s, 4,5 s o 6 s.
+    repeatFatigueTicks: 45,
     // Arrastrando ✦: si el objetivo queda a 2 m del punto elegido, el hechizo cae sobre él.
     aimSnap: 2,
   },

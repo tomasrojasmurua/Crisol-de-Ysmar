@@ -39,7 +39,7 @@ const anyOf = (element: ElementId): ComboStep => ({ element });
 const ANY: ComboStep = { any: true };
 
 /**
- * El catálogo cerrado de combos: 6 reacciones y 82 seguidillas de hechizos. Solo documenta
+ * El catálogo cerrado de combos: 6 reacciones y 83 seguidillas de hechizos. Solo documenta
  * sinergias que ya existen en el juego; acertarlos no da nada extra, el premio es descubrirlos.
  * Ver `claude/crisol-combos-grimorio.md` en el proyecto para las reglas que les dan forma.
  */
@@ -133,6 +133,15 @@ export const COMBOS: readonly Combo[] = [
     steps: [s('lightningRod'), s('tempest')],
     detail:
       'El Pararrayos sigue soltando rayos mientras la Tempestad te lleva de salto en salto alrededor del rival.',
+  },
+  {
+    id: 'liana-y-guardian',
+    name: 'Liana y guardián',
+    level: 1,
+    needed: 3,
+    steps: [s('mossGuardian'), s('vine')],
+    detail:
+      'Tu Guardián de musgo te sigue: la Liana te lleva al rival y lo enraíza, y el guardián llega a pegarle antes de que se suelte.',
   },
   {
     id: 'atado-y-a-salvo',

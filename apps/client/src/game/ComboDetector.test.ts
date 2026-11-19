@@ -124,7 +124,9 @@ describe('ComboDetector en la simulación', () => {
   it.each(simple.map((c) => [c.id, c] as const))('%s sale contra un rival quieto', (_, combo) => {
     const spells = combo.steps.map((s) => ('spell' in s ? s.spell : 'spark'));
     // Prueba distancias y esperas entre pasos (algunos piden que un elemento descanse).
-    const tries = [3, 6, 9, 12].flatMap((d) => [8, 15, 25, 40, 60, 95].map((gap) => [d, gap]));
+    const tries = [3, 6, 9, 12].flatMap((d) =>
+      [8, 15, 25, 40, 60, 95, 140, 185].map((gap) => [d, gap]),
+    );
     const works = tries.some(([distance = 6, gap = 25]) =>
       play(
         distance,
@@ -359,8 +361,8 @@ describe('ComboDetector: combos que piden algo del rival o de un aliado', () => 
         { team: 1, x: 0, z: 6 },
       ],
       {
-        1: { 0: ['vengeance', 2], 110: ['rewind', 2] },
-        2: { 25: ['spark', 1] },
+        1: { 0: ['vengeance', 2], 140: ['rewind', 2] },
+        2: { 70: ['spark', 1] },
       },
     );
     expect(found).toContain('venganza-y-regreso');
@@ -422,7 +424,7 @@ describe('ComboDetector: combos que piden algo del rival o de un aliado', () => 
 
   it('Jaula y respiro: te curas mientras él sigue encerrado en las zarzas', () => {
     const found = scene([me, { team: 1, x: 0, z: 6 }], {
-      1: { 0: ['thornRing', 2], 110: ['sap', 1] },
+      1: { 0: ['thornRing', 2], 140: ['sap', 1] },
     });
     expect(found).toContain('jaula-y-respiro');
   });
