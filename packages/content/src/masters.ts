@@ -17,7 +17,7 @@ export interface MasterLines {
    * los hilos (ver `docs/lore.md`).
    */
   readonly camp: readonly string[];
-  /** Al presentar el último paso del Camino de tu Linaje: el duelo contra él mismo. */
+  /** Su desafío antes de un duelo contra él mismo (era del Camino, que se quitó; queda la voz). */
   readonly challenge: string;
 }
 

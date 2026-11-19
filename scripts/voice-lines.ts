@@ -17,7 +17,7 @@ const GROUPS = [
   ['closeLoss', 'Perdiste en la ronda decisiva'],
   ['draw', 'Empate'],
   ['camp', 'En el menú, al tocar su frase'],
-  ['challenge', 'Al presentar el último paso del Camino'],
+  ['challenge', 'Su desafío antes de un duelo contra él mismo'],
 ] as const;
 
 const out: string[] = [];

@@ -1,4 +1,4 @@
-import { type Combo, ELEMENTS, NO_OMEN, PATH_LENGTH, spellName } from '@crisol/content';
+import { type Combo, ELEMENTS, NO_OMEN, spellName } from '@crisol/content';
 import {
   type ElementId,
   favoriteSpell,
@@ -30,9 +30,7 @@ import { highlightView } from './highlightView';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
 import { masterQuote } from './masterLine';
-import type { PathProgress } from './PathProgress';
 import type { ModeGroup, PlayerStats } from './PlayerStats';
-import { foreignSpell, judgePath } from './pathJudge';
 import type { ReplayClip } from './ReplayRecorder';
 import { TrainingMatch } from './TrainingMatch';
 
@@ -55,8 +53,6 @@ export interface MatchFlowDeps {
   readonly stats: PlayerStats;
   /** Tu Linaje, para que tu maestro comente el resultado (null: aún no eliges). */
   readonly school: () => ElementId | null;
-  /** Los pasos superados del Camino de tu Linaje. */
-  readonly path: PathProgress;
   /** Repite la mejor jugada (o el desenlace) sobre el resultado. */
   readonly replay: (clip: ReplayClip, card: HighlightView | null) => void;
   /** Un combate de la Historia terminó: se guarda y dice cómo sigue (bajo el título). */
@@ -82,8 +78,6 @@ export class MatchFlow {
    * pausa y se perdía si un cuadro lento avanzaba dos pasos de una vez.
    */
   private announcedPause = -1;
-  /** En el Camino, si ya se avisó que la meta de solo tus hechizos se rompió. */
-  private pathBroken = false;
 
   constructor(private readonly deps: MatchFlowDeps) {}
 
@@ -99,7 +93,6 @@ export class MatchFlow {
     this.resultShown = false;
     this.pickerShown = false;
     this.firstFallRound = 0;
-    this.pathBroken = false;
     this.announcedPause = -1;
   }
 
@@ -133,22 +126,6 @@ export class MatchFlow {
       } else if (event.type === 'phase') {
         this.deps.hud.announcePhase(event.phase);
         if (event.phase !== 'hunt') this.deps.audio.say(`voice.crisol.${event.phase}`);
-      }
-      const step = current.options.path;
-      if (
-        step &&
-        !this.pathBroken &&
-        event.type === 'release' &&
-        event.wizardId === me &&
-        foreignSpell(step, event.spell)
-      ) {
-        // Mejor saberlo al tiro que enterarse al final.
-        this.pathBroken = true;
-        this.deps.hud.announce(
-          `${spellName(SPELL_WEAVES[event.spell])} no es de tu Linaje`,
-          'Este duelo ya no cuenta para el Camino',
-          2.6,
-        );
       }
       if (
         event.type === 'defeated' &&
@@ -324,7 +301,7 @@ export class MatchFlow {
         roundsToWin: rules.round.roundsToWin,
         players,
         master,
-        path: story ? this.deps.story(winner === playerTeam) : this.judgePath(current, winner),
+        path: story ? this.deps.story(winner === playerTeam) : undefined,
         highlight: best,
         replay: clip?.highlight != null,
       });
@@ -358,39 +335,6 @@ export class MatchFlow {
       nameOf: (id) => badges.get(id)?.name ?? 'Hechicero',
       colorOf: (id) => badges.get(id)?.color ?? '#d8bf8a',
     });
-  }
-
-  /** En el Camino: si se superó el paso (y se guarda), o por qué no. */
-  private judgePath(current: MatchView, winner: number): ResultPath | undefined {
-    const step = current.options.path;
-    if (!step) return undefined;
-    const own = current.matchSummary()?.stats.find((row) => row.id === current.playerId);
-    const verdict = judgePath(step, {
-      won: winner === current.player.team,
-      roundsLost: current.series.wins.reduce(
-        (sum, wins, team) => sum + (team === current.player.team ? 0 : wins),
-        0,
-      ),
-      spells: own?.spells ?? {},
-    });
-    // Aquí se enchufarán los premios: `add` dice si es la primera vez que se supera.
-    const first = verdict.passed && this.deps.path.add(step.id);
-    const last = step.number >= PATH_LENGTH;
-    const note = !verdict.passed
-      ? verdict.reason
-      : !first
-        ? 'Ya lo habías superado: sigue en el Camino'
-        : last
-          ? 'Completaste el Camino de tu Linaje'
-          : `Se abrió el paso ${step.number + 1}`;
-    return {
-      title: `Paso ${step.number} · ${step.title}`,
-      passed: verdict.passed,
-      status: verdict.passed ? 'superado' : 'sin superar',
-      note,
-      again: 'Otra vez',
-      back: 'Camino',
-    };
   }
 
   /**

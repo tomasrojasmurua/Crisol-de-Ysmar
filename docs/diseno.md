@@ -175,33 +175,6 @@ cuenta pendiente de Vesk y Madre Musgo (los dos rivales se buscan entre ellos: `
 - Por partes: ya están el preludio y los actos 1 y 2 (combates 1 a 9). Faltan el acto 3, el
   Guardián como jefe, los gólems, el mapa del corazón, los finales y las imágenes.
 
-## Camino del Linaje
-
-El modo para un jugador: diez duelos contra la IA, en orden, cada uno con una regla distinta, y el
-último contra tu maestro (`packages/content/src/path.ts`). Sin historia ni reloj: es para volver un
-rato y avanzar un paso. Se abre desde la tarjeta "Camino" del menú (dice cuántos pasos llevas) y
-cada paso lo presenta tu maestro con sus frases. Se avanza en orden; los superados se repiten. Al
-terminar, el resultado dice si se superó el paso y por qué no; "Otra vez" repite el paso y
-"Camino" vuelve a la lista. El avance vive en `crisol.camino` (viaja en el respaldo).
-
-| Paso | Nombre           | Qué cambia                                                         |
-| ---- | ---------------- | ------------------------------------------------------------------ |
-| 1    | Primer duelo     | 1v1 contra un Aprendiz                                             |
-| 2    | Lo que te enseñé | Aprendiz; gana tejiendo solo los hechizos de tu Linaje (y Paso)    |
-| 3    | Sin tus rivales  | Aprendiz; solo aparecen tu elemento y sus dos aliados              |
-| 4    | El otro lado     | Duelista que solo teje el set de tu primer Linaje rival            |
-| 5    | Codo a codo      | 2v2 de Duelistas, con un aliado de la IA                           |
-| 6    | Mal presagio     | Duelista del segundo Linaje rival, con el Presagio de su elemento  |
-| 7    | Mil hilos        | Duelista; gana usando al menos 6 hechizos distintos                |
-| 8    | Todos contra ti  | Todos contra todos de 4, Duelistas                                 |
-| 9    | Sin un rasguño   | Duelista; gana sin perder ninguna ronda                            |
-| 10   | Tu maestro       | 1v1 contra tu maestro (su cara y su nombre), en dificultad Maestro |
-
-El Guardián sigue en pausa, así que el final es tu maestro. Los premios (hechizos o piezas del
-Vestidor por superar pasos) se conversan cuando estén los personajes definitivos: cada paso tiene
-un id fijo y `PathProgress.add` dice cuándo se supera por primera vez, que es donde se enchufan.
-El desafío diario se descartó.
-
 ## Tutorial
 
 En Entrenamiento, por capítulos que se pueden repetir (`apps/client/src/game/Tutorial.ts`), armados
