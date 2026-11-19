@@ -51,6 +51,10 @@ export const MENU_ICONS = {
   /** Rayo: Partida rápida. */
   quick: icon('<path d="M13 2L4 14h7l-1 8 9-12h-7Z"/>'),
   pause: icon('<path d="M9 5v14M15 5v14"/>'),
+  /** Ver la repetición: el triángulo de reproducir dentro de un círculo. */
+  replay: icon('<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5Z"/>'),
+  /** Saltar: dos triángulos y una barra. */
+  skip: icon('<path d="M5 6l7 6-7 6ZM12 6l7 6-7 6ZM20 6v12"/>'),
   /** Perfil: un estandarte con una estrella. */
   profile: icon(
     '<path d="M6 3h12v18l-6-4-6 4Z"/><path d="M12 7l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/>',

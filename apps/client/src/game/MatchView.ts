@@ -10,6 +10,7 @@ import type {
   WizardMatchStats,
 } from '@crisol/core';
 import type { MatchOptions, MatchStage } from './LocalMatch';
+import type { ReplayClip } from './ReplayRecorder';
 
 /** En red, al terminar: la revancha empieza cuando la piden todos los conectados. */
 export interface RematchStatus {
@@ -52,6 +53,8 @@ export interface MatchView {
   interpolated(id: number, current: Vec2, alpha: number): Vec2;
   /** Cómo se ve un mago en este celular, si difiere del estado (en red, tu tejido predicho). */
   present?(wizard: Wizard): Wizard;
+  /** Al terminar la serie: la mejor jugada para repetir (o el desenlace); null si no hay. */
+  replayClip?(): ReplayClip | null;
   /** En red: si la Sala dice que no ves a ese rival. */
   isHidden?(id: number): boolean;
   /** En red: cómo va la revancha; `null` si la serie no terminó. */

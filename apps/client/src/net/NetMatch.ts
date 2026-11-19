@@ -35,6 +35,7 @@ import {
 } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from '../game/LocalMatch';
 import type { MatchSummary, MatchView, RematchStatus } from '../game/MatchView';
+import { type ReplayClip, ReplayRecorder } from '../game/ReplayRecorder';
 import { reportProblem } from '../platform/ErrorReporter';
 import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl, roomsServerName } from './serverUrl';
@@ -326,6 +327,8 @@ export class NetMatch implements MatchView {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   /** Arma cada estado con lo que cambió; uno nuevo por conexión (el primero llega completo). */
   private decoder = new StateDecoder();
+  /** Los últimos segundos recibidos y la mejor jugada, para repetirla al final. */
+  private readonly recorder = new ReplayRecorder();
   /** Rivales que la Sala dice que no ves: no se dibujan aunque lleguen en el estado. */
   private hidden: ReadonlySet<number> = new Set();
   private readonly lag = SIMULATED_LAG;
@@ -460,6 +463,9 @@ export class NetMatch implements MatchView {
     const next = this.buffer.shift();
     if (!next) return;
     this.apply(next);
+    // Para la repetición basta guardar la referencia: cada estado llega nuevo y nadie lo toca.
+    this.recorder.push({ state: next.state, hidden: next.hidden });
+    this.recorder.offer(next.best ?? null);
     if (next.state.tick === this.eventsTick) return;
     this.eventsTick = next.state.tick;
     events.push(...next.state.events);
@@ -491,6 +497,11 @@ export class NetMatch implements MatchView {
   }
 
   /** Al terminar la serie: lo que hizo cada mago, según la Sala. */
+  /** Al terminar: la mejor jugada (o el desenlace) con lo que este celular recibió. */
+  replayClip(): ReplayClip | null {
+    return this.netStage.kind === 'finished' ? this.recorder.clip() : null;
+  }
+
   matchSummary(): MatchSummary | null {
     if (this.netStage.kind !== 'finished') return null;
     return {
@@ -873,6 +884,7 @@ export class NetMatch implements MatchView {
         this.primed = false;
         this.previous.clear();
         this.rematchAsked = false;
+        this.recorder.reset();
         this.summary = new NetSummary();
         this.summary.maxTarget = this.target;
         this.started = true;

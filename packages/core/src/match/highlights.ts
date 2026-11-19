@@ -52,6 +52,8 @@ export interface Highlight {
   readonly spells: readonly SpellId[];
   /** Del primer golpe al último, en pasos. */
   readonly ticks: number;
+  /** El paso (de su ronda) del último golpe: con `ticks`, dónde está la jugada para repetirla. */
+  readonly endTick: number;
   /** Uno de sus derribos terminó la ronda. */
   readonly decisive: boolean;
   readonly score: number;
@@ -211,6 +213,7 @@ function close(tracker: HighlightTracker, play: OpenPlay): void {
     reactions: play.reactions,
     spells,
     ticks: play.lastTick - play.startTick,
+    endTick: play.lastTick,
     decisive: play.decisive,
     score,
   };

@@ -52,6 +52,8 @@ export interface ResultSummary {
   readonly path?: ResultPath | undefined;
   /** La mejor jugada de la partida, sobre los cuadros de cada mago. */
   readonly highlight?: HighlightView | undefined;
+  /** Si se puede volver a ver su repetición (un botón en la franja de la jugada). */
+  readonly replay?: boolean | undefined;
 }
 
 /** Cómo salió el paso del Camino, bajo el título. */
@@ -136,6 +138,8 @@ export class ResultScreen {
   private opinionSink: OpinionSink | null = null;
   private chosen: Opinion | null = null;
   private rematchKey = '';
+  /** Ver la repetición otra vez (lo conecta quien arma la partida). */
+  onReplay: (() => void) | null = null;
 
   constructor(parent: HTMLElement, onRematch: () => void, onMenu: () => void) {
     this.root = el('div', 'hud-result');
@@ -274,11 +278,22 @@ export class ResultScreen {
     );
     this.players.hidden = summary.players.length === 0;
     // Va con los cuadros: sin resumen (entrenamiento) no hay columna donde ponerla.
-    this.highlight.replaceChildren(
-      ...(summary.highlight && summary.players.length > 0
-        ? [highlightCard(summary.highlight, 'result-highlight')]
-        : []),
-    );
+    const strip =
+      summary.highlight && summary.players.length > 0
+        ? highlightCard(summary.highlight, 'result-highlight')
+        : null;
+    if (strip && summary.replay) {
+      // Un botón redondo en la esquina de la franja: así no crece y todo sigue cabiendo.
+      const again = el('button', 'result-highlight-replay') as HTMLButtonElement;
+      again.type = 'button';
+      again.setAttribute('aria-label', 'Ver repetición');
+      again.title = 'Ver repetición';
+      again.innerHTML = MENU_ICONS.replay;
+      again.addEventListener('click', () => this.onReplay?.());
+      strip.classList.add('with-replay');
+      strip.append(again);
+    }
+    this.highlight.replaceChildren(...(strip ? [strip] : []));
     // De a 3 por fila salvo con 2 o 4 magos (1v1 y 2v2: cada bando en su fila).
     const count = summary.players.length;
     const columns = count === 2 || count === 4 ? 2 : Math.min(3, count);
@@ -310,6 +325,11 @@ export class ResultScreen {
     this.rematchKey = '-';
     this.setRematch(null);
     this.root.hidden = false;
+  }
+
+  /** Solo lo saca de la vista (la repetición pasa por encima) o lo devuelve, tal como estaba. */
+  setHidden(hidden: boolean): void {
+    this.root.hidden = hidden;
   }
 
   hide(): void {

@@ -2,7 +2,7 @@ import type { ElementId, Highlight, Intent, MatchState, WizardMatchStats } from 
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -144,6 +144,11 @@ export interface StateFrame {
   readonly seriesWinner: number | null;
   /** Los Glifos de cada mago, por id. */
   readonly glyphs: Readonly<Record<number, readonly string[]>>;
+  /**
+   * La mejor jugada de la partida hasta ahora. Cuando cambia, cada celular aparta de lo que ya
+   * recibió los pasos de esa jugada, para repetirla al final (ver `game/ReplayRecorder.ts`).
+   */
+  readonly best: Highlight | null;
   /**
    * Rivales que no ves (Velo, Bosque maldito, Sombra prestada o tu Ceguera). La Sala no manda
    * dónde están ni qué tejen: llegan quietos donde los viste por última vez y no se dibujan.

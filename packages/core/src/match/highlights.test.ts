@@ -86,6 +86,7 @@ describe('mejor jugada', () => {
       targets: 2,
       spells: ['spark', 'step'],
       ticks: 50,
+      endTick: 70,
       decisive: false,
       score: 75 + 60 + 20,
     });

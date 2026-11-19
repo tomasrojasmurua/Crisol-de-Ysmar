@@ -33,6 +33,7 @@ import { masterQuote } from './masterLine';
 import type { PathProgress } from './PathProgress';
 import type { ModeGroup, PlayerStats } from './PlayerStats';
 import { foreignSpell, judgePath } from './pathJudge';
+import type { ReplayClip } from './ReplayRecorder';
 import { TrainingMatch } from './TrainingMatch';
 
 const elementName = (element: string): string =>
@@ -56,6 +57,8 @@ export interface MatchFlowDeps {
   readonly school: () => ElementId | null;
   /** Los pasos superados del Camino de tu Linaje. */
   readonly path: PathProgress;
+  /** Repite la mejor jugada (o el desenlace) sobre el resultado. */
+  readonly replay: (clip: ReplayClip, card: HighlightView | null) => void;
 }
 
 /**
@@ -297,6 +300,8 @@ export class MatchFlow {
       );
       if (master) this.deps.audio.say(master.voice, true);
       const players = this.resultPlayers(current, badges, winner);
+      const best = this.matchHighlight(current, badges);
+      const clip = current.replayClip?.() ?? null;
       this.deps.hud.showResult({
         outcome,
         detail:
@@ -309,12 +314,15 @@ export class MatchFlow {
         players,
         master,
         path: this.judgePath(current, winner),
-        highlight: this.matchHighlight(current, badges),
+        highlight: best,
+        replay: clip?.highlight != null,
       });
       this.addToProfile(current, outcome);
       this.deps.hud.showPerf(this.deps.diagnostics.report());
       this.reportPerformance(current);
       this.deps.controls.visible = false;
+      // Primero la repetición, sola; el resultado aparece al terminar o al tocar Saltar.
+      if (clip) this.deps.replay(clip, clip.highlight ? (best ?? null) : null);
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
   }

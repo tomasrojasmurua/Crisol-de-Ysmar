@@ -46,6 +46,7 @@ import {
   type Wizard,
 } from '@crisol/core';
 import type { MatchSummary, MatchView } from './MatchView';
+import { type ReplayClip, ReplayRecorder, snapshotState } from './ReplayRecorder';
 
 export const PLAYER_ID = 1;
 
@@ -106,6 +107,8 @@ export class LocalMatch implements MatchView {
   private readonly stats: MatchStats;
   /** La mejor jugada de cada ronda y de la serie. */
   private readonly highlights = createHighlightTracker(HIGHLIGHT_RULES);
+  /** Los últimos segundos y la mejor jugada, para repetirla al final. */
+  private readonly recorder = new ReplayRecorder();
 
   constructor(
     readonly options: MatchOptions,
@@ -135,6 +138,10 @@ export class LocalMatch implements MatchView {
     }
     this.state = this.startRound();
     this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
+  }
+
+  replayClip(): ReplayClip | null {
+    return this.stage.kind === 'finished' ? this.recorder.clip() : null;
   }
 
   matchSummary(): MatchSummary | null {
@@ -184,6 +191,10 @@ export class LocalMatch implements MatchView {
           ? { kind: 'intermission', roundWinner, ticksLeft: INTERMISSION_TICKS, highlight }
           : { kind: 'finished' };
     }
+    // La simulación cambia el estado en su lugar: para repetirlo se guarda una copia liviana
+    // por paso (0,1 ms con el procesador 4 veces más lento; ver docs/arquitectura.md).
+    this.recorder.push({ state: snapshotState(this.state), hidden: [] });
+    this.recorder.offer(this.highlights.matchBest);
     return this.state.events;
   }
 

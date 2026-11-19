@@ -42,6 +42,8 @@ import { PathProgress } from './game/PathProgress';
 import { PlayerStats } from './game/PlayerStats';
 import { Pocket } from './game/Pocket';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
+import type { ReplayClip } from './game/ReplayRecorder';
+import { ReplayView } from './game/ReplayView';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
 import { examSchool, GIFT_CHAPTER, Tutorial, tutorialChapters } from './game/Tutorial';
 import { TutorialProgress } from './game/TutorialProgress';
@@ -71,6 +73,7 @@ import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
 import { GrimoireBook } from './ui/GrimoireBook';
+import type { HighlightView } from './ui/HighlightCard';
 import { Hud, PHASE_NAMES, type WizardBadge } from './ui/Hud';
 import { HurtEdge } from './ui/HurtEdge';
 import { Lobby } from './ui/Lobby';
@@ -80,6 +83,7 @@ import { PathScreen } from './ui/PathScreen';
 import { PauseMenu } from './ui/PauseMenu';
 import { PocketStrip } from './ui/PocketStrip';
 import { ProfileScreen } from './ui/ProfileScreen';
+import { ReplayOverlay } from './ui/ReplayOverlay';
 import { SchoolPicker } from './ui/SchoolPicker';
 import { Screens } from './ui/Screens';
 import { TrainingChooser } from './ui/TrainingChooser';
@@ -296,7 +300,51 @@ const flow = new MatchFlow({
   stats: playerStats,
   school: () => profile.school,
   path: pathProgress,
+  replay: (clip, card) => playReplay(clip, card),
 });
+
+// ---------- Repetición ----------
+
+/** La repetición en curso (se dibuja en vez de la partida terminada) y la última, para "Ver". */
+let replay: ReplayView | null = null;
+let lastReplay: { readonly clip: ReplayClip; readonly card: HighlightView | null } | null = null;
+const replayOverlay = new ReplayOverlay(uiRoot, () => stopReplay(true));
+hud.onReplay = () => {
+  if (lastReplay) playReplay(lastReplay.clip, lastReplay.card);
+};
+
+/** Muestra la repetición sobre el resultado, que vuelve al terminar o al tocar Saltar. */
+function playReplay(clip: ReplayClip, card: HighlightView | null): void {
+  if (!match) return;
+  lastReplay = { clip, card };
+  replay = new ReplayView(clip, match);
+  hud.setResultHidden(true);
+  view.clearSpells();
+  hitFeedback.reset();
+  rig.snap();
+  replayOverlay.show(card);
+}
+
+/** Termina la repetición; con `toResult`, vuelve el resultado (si no, se sale de la partida). */
+function stopReplay(toResult: boolean): void {
+  if (!replay) return;
+  replay = null;
+  replayOverlay.hide();
+  view.clearSpells();
+  if (toResult) hud.setResultHidden(false);
+}
+
+/** Un paso de la repetición: los mismos efectos y sonidos que en la partida. */
+function stepReplay(current: ReplayView): void {
+  const events = current.step();
+  view.effects.onEvents(events, current.state, (id) => view.creatures.positionOf(id));
+  audio.onEvents(events, current.state);
+  if (damageNumbers) hitFeedback.onStep(events, current.state, current.playerId);
+  for (const event of events) {
+    if (event.type === 'combo') comboCallouts.show(event.combo, event.targetId);
+    if (event.type === 'clash') comboCallouts.showClash(event.pos, event.survivorId !== null);
+  }
+}
 const pathScreen = new PathScreen(
   uiRoot,
   (step) => startPathStep(step),
@@ -431,6 +479,8 @@ function showMenu(): void {
   net = null;
   if (location.search) history.replaceState(null, '', location.pathname);
   paused = false;
+  stopReplay(false);
+  lastReplay = null;
   match = null;
   endTutorial();
   useRules(GAME_RULES);
@@ -669,6 +719,8 @@ function startNetMatch(current: NetMatch): void {
 /** Prepara la pantalla para una partida: magos, nombres, colores y HUD. */
 function beginMatch(current: MatchView, other: OtherWizard): void {
   backGuard.arm();
+  stopReplay(false);
+  lastReplay = null;
   match = current;
   matchCount++;
   view.effects.playerId = current.playerId;
@@ -877,7 +929,8 @@ function stepMatch(current: MatchView): void {
 
 renderer.setAnimationLoop((now) => {
   // Fuera de la partida en vivo (menús, pausa contra la IA, resultado) basta la mitad.
-  const live = match !== null && !(paused && match !== net) && !flow.finished;
+  // La repetición se ve como la partida: a cuadros completos.
+  const live = match !== null && !(paused && match !== net) && (!flow.finished || replay !== null);
   const due = limiter.ready(now, live ? PLAY_FPS : CALM_FPS);
   // En los menús el juego casi no trabaja: si la pantalla igual llama cada 33 ms, la frena el
   // celular (ver render/ScreenCap.ts).
@@ -922,11 +975,18 @@ renderer.setAnimationLoop((now) => {
     const { steps, alpha } = clock.advance(frameMs);
     const simStart = performance.now();
     lastAlpha = alpha;
-    for (let i = 0; i < steps; i++) stepMatch(current);
+    for (let i = 0; i < steps; i++) {
+      stepMatch(current);
+      if (replay) stepReplay(replay);
+    }
     simMs = performance.now() - simStart;
     if (current.state.wizards.length > 0) {
       flow.update(current, badges, rules);
-      renderMatch(current, alpha, delta);
+      renderMatch(replay ?? current, alpha, delta);
+    }
+    if (replay) {
+      replayOverlay.setProgress(replay.progress);
+      if (replay.done) stopReplay(true);
     }
   } else if (view.previewing) {
     view.updatePreview(elapsed, delta, rules, wardrobe.stageWidth);
@@ -940,7 +1000,7 @@ renderer.setAnimationLoop((now) => {
     elapsed,
     delta,
     pausedHere ? 0 : delta,
-    current && current.state.wizards.length > 0 ? current.player.pos : null,
+    current && current.state.wizards.length > 0 ? (replay ?? current).player.pos : null,
   );
   if (current && !pausedHere && !flow.finished) {
     const moment =
@@ -976,5 +1036,5 @@ if (isValidRoomCode(invited)) {
 
 // Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
 if (import.meta.env.DEV) {
-  Object.assign(window, { crisol: { match: () => match, view } });
+  Object.assign(window, { crisol: { match: () => match, replay: () => replay, view } });
 }

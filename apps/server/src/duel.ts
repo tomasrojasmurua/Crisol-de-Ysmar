@@ -754,6 +754,7 @@ export class DuelHost {
       seriesWinner: series.seriesWinner,
       glyphs: series.glyphs,
       hidden,
+      best: this.highlights.matchBest,
     };
   }
 
