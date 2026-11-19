@@ -29,25 +29,26 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
     'Atas un hilo a un rival a 7 m: le robas 7 por segundo hasta 3 s. Se corta si se aleja a más de 10 m o pasa tras un árbol.',
   obsidian:
     'Coraza que absorbe 40 por 4 s; al romperse o terminar, estalla en 2,5 m con 15 de daño.',
-  wisp: 'Invoca una llama que persigue al rival más cercano por 6 s y explota al tocarlo (20). Se esquiva o se apaga de un golpe.',
+  wisp: 'Invoca una llama que persigue al rival más cercano por 6 s y explota al tocarlo (16). Se esquiva o se apaga de un golpe.',
   ignite:
-    'Marca al rival 5 s; al terminar, explota con la mitad de todo el daño que recibió en ese tiempo.',
+    'Marca al rival 5 s; al terminar, explota con el 60% de todo el daño que recibió en ese tiempo.',
   blizzard:
     'Torbellino fijo de 3,5 m por 4 s: rivales dentro 40% más lentos y los proyectiles que lo cruzan se desvían.',
   lightningRod:
     'Poste por 8 s que da un rayo de 6 al rival más cercano a 7 m cada segundo. Cae con dos golpes.',
-  shadowStep: 'Apareces detrás de un rival a 6 m y lo silencias 1,2 s: no puede tejer.',
+  shadowStep:
+    'Apareces detrás de un rival a 6 m, lo golpeas con 10 y lo silencias 1,2 s: no puede tejer.',
   current:
     'Río de 10 m por 4 s: tú y tus aliados a favor corren 50% más rápido; los rivales que lo cruzan quedan empapados: muy lentos, y Tormenta o Raíz encima reaccionan.',
   iceWall: 'Muro de 5 m que bloquea paso y proyectiles por 4 s.',
   spring: 'Fuente de 3 m por 5 s que cura 6 por segundo a ti y a tus aliados.',
-  vine: 'Lanzas una liana a 9 m. Si toca un árbol o una roca, vuelas hacia ahí; si toca a un rival, vas hacia él y lo enraízas 0,8 s.',
+  vine: 'Lanzas una liana a 9 m. Si toca un árbol o una roca, vuelas hacia ahí; si toca a un rival, vas hacia él y lo enraízas 1 s.',
   mossGuardian:
     'Invocas por 10 s una criatura de 60 de vida que te sigue, pega de cerca y se pone delante de los proyectiles.',
-  spores: 'Nube de 3 m por 4 s: los rivales dentro quedan Débiles, hacen 30% menos daño por 3 s.',
+  spores: 'Nube de 3 m por 4 s: los rivales dentro quedan Débiles, hacen 40% menos daño por 3 s.',
   decoy: 'Quedas invisible 1,5 s y un doble tuyo corre hacia donde apuntas.',
   blinding:
-    'Proyectil de sombra: el rival tocado solo ve 3 m a su alrededor por 3 s y se le apaga el minimapa.',
+    'Proyectil de sombra: 9 de daño, y el rival tocado solo ve 3 m a su alrededor por 3 s y se le apaga el minimapa.',
   shackle:
     'Atas al rival a su lugar por 4 s. Si se aleja más de 4 m, queda enraizado 1,5 s y recibe 15.',
   meteor: 'Tras 1,5 s de aviso cae en 5 m: 60 de daño.',
@@ -56,7 +57,7 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   emberStride: 'Te teletransportas a cualquier suelo que esté ardiendo a 15 m.',
   darkComet: 'Proyectil que, si acierta, te lleva junto al rival y lo silencia 1 s.',
   skySpear: 'Tras 0,5 s cae un rayo en línea de 14 m: 45 de daño.',
-  tempest: 'Tres destellos de 6 m en 4 s; cada llegada descarga 14 en 2 m.',
+  tempest: 'Tres destellos de 6 m en 4 s; cada llegada descarga 18 en 2 m.',
   hurricane: 'Un tornado avanza lento y levanta por los aires 1 s a quien toca.',
   swap: 'Cambias de lugar con cualquier mago, aliado o rival, que veas a 12 m.',
   erraticOrb: 'Un orbe lento avanza 12 m y da rayos a todo rival a 4 m mientras pasa.',

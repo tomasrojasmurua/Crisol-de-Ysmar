@@ -45,7 +45,7 @@ export function spellOptions(s: Situation): Option[] {
   };
 
   // Defensa.
-  add(['marea', 'umbra'], 'target', health < 0.35 && d < 7 ? 6 : 0);
+  add(['marea', 'umbra'], 'target', health < 0.35 && (threatened || d < 4) ? 6 : 0);
   add(['raiz'], 'target', health < 0.6 && d > 8 ? 3 : 0);
   add(['marea', 'raiz'], 'target', health < 0.55 && d > 6 ? 2.5 : 0);
   add(['umbra', 'brasa'], 'target', health < 0.6 && d < 6.5 ? 3 : 0);
@@ -77,7 +77,8 @@ export function spellOptions(s: Situation): Option[] {
 
   // Pelear según la distancia.
   if (d >= 3.5 && d <= 9) {
-    add(['marea', 'brasa'], 'target', 2.5);
+    // El Géiser avisa antes de brotar: rinde contra quien se mueve lento.
+    add(['marea', 'brasa'], 'target', t.slow || t.soaked || t.root ? 2.5 : 1.2);
     add(['tormenta', 'brasa'], 'target', 2);
     add(['raiz', 'brasa'], 'target', 2);
     add(['brasa', 'brasa'], 'lead', 1.5);
@@ -87,11 +88,13 @@ export function spellOptions(s: Situation): Option[] {
     add(['brasa', 'raiz'], 'target', owns('wisp') ? 0 : 1.5);
     add(['tormenta', 'raiz'], 'target', owns('lightningRod') ? 0 : 1.2);
     add(['raiz', 'marea'], 'target', owns('mossGuardian') || d > 8 ? 0 : 1.2);
-    add(['raiz', 'umbra'], 'target', d <= 6 ? 1.5 : 0);
-    add(['tormenta', 'umbra'], 'target', d <= 6 ? 1 : 0);
+    add(['raiz', 'umbra'], 'target', d <= 5 && !t.weak ? 1 : 0);
+    // Paso sombrío para alcanzar al que escapa con poca vida.
+    add(['tormenta', 'umbra'], 'target', d <= 6 && target.hp / target.maxHp < 0.35 ? 1.5 : 0);
     add(['umbra', 'raiz'], 'target', d <= 8 ? 1.5 : 0);
-    add(['umbra', 'marea'], 'lead', target.statuses.blind ? 0 : 0.8);
-    add(['brasa', 'umbra'], 'target', 1.2);
+    add(['umbra', 'marea'], 'lead', t.blind ? 0 : 0.8);
+    const marked = state.spells.some((e) => e.kind === 'ignite' && e.targetId === target.id);
+    add(['brasa', 'umbra'], 'target', marked ? 0 : 0.6);
     add(['raiz', 'tormenta'], 'target', d > 6 && health > 0.6 ? 1 : 0);
   }
   if (d > 9) {

@@ -150,9 +150,15 @@ pestaña del elemento del linaje con la sección "Linaje de X" arriba.
 Cada set cubre lo que pide un duelo: daño, defensa, control y escape (Paso lo tienen todos), cada
 linaje a su manera. La regla de balance: Duelistas que solo tejen su set, con la Afinidad en su
 elemento, ganan entre 45% y 55% contra los otros cuatro linajes (`pnpm escuelas`). Hoy, con 300
-duelos por cruce: Brasa ≈ 54%, Tormenta ≈ 46%, Marea ≈ 50%, Raíz ≈ 54%, Umbra ≈ 46%. Hay contras
-a propósito (Brasa gana ~70% a Umbra). Si se toca un set, la Afinidad o el balance de uno de sus
-hechizos, hay que volver a medir.
+duelos por cruce: Brasa ≈ 52%, Tormenta ≈ 48%, Marea ≈ 53%, Raíz ≈ 50%, Umbra ≈ 47%. Hay contras
+a propósito (Brasa y Marea ganan ~61% a Umbra). Si se toca un set, la Afinidad o el balance de uno
+de sus hechizos, hay que volver a medir.
+
+Para cada hechizo de 2 elementos, `pnpm valor` mide cuánto suma: un Duelista con los cinco básicos
+y ese hechizo contra otro con los básicos y la Bola ígnea (con `ninguno`, contra solo los básicos).
+Sirve para ver los que rinden muy por encima o por debajo de lo que descansan. Los de defensa,
+escape y engaño (Velo, Señuelo, Ceguera, Ataúd helado) salen bajos porque la IA no sabe sacarles
+todo: para esos manda el informe de uso real.
 
 | Linaje   | Hechizos                                                          | Combo que enseña   |
 | -------- | ----------------------------------------------------------------- | ------------------ |

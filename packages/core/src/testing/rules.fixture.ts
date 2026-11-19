@@ -39,7 +39,7 @@ export const TEST_RULES: GameRules = {
       range: 7,
       intervalTicks: 30,
     },
-    shadowStep: { range: 6, coneDot: 0.6, behind: 1.3 },
+    shadowStep: { range: 6, coneDot: 0.6, behind: 1.3, damage: 0 },
     current: { length: 10, halfWidth: 1.4, durationTicks: 120, soakTicks: 30 },
     iceWall: { distance: 2, halfLength: 2.5, thickness: 0.45, durationTicks: 120 },
     spring: { range: 0, radius: 3, durationTicks: 150, healPerSecond: 6 },
