@@ -1,7 +1,8 @@
 import { applyHit, applyStatus, dealDamage } from '../../combat/hit';
+import { beastStats, damageBeast } from '../../match/beasts';
 import { lineBlocked, placeInArena } from '../../match/obstacles';
-import { isHiddenFromServantsOf, wizardById } from '../../match/queries';
-import type { MatchState, Summon, Wizard } from '../../match/state';
+import { isHiddenFromServantsOf, summonById, wizardById } from '../../match/queries';
+import type { Beast, MatchState, Summon, Wizard } from '../../match/state';
 import { add, distance, normalize, scale, sub, type Vec2 } from '../../math/vec2';
 import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
@@ -16,6 +17,7 @@ import {
   updateSwarm,
   updateWanderingSpark,
 } from './greatSummons';
+import { hitTarget, type SpellTarget, targetPos } from './shared';
 
 /** La invocación rival que toca ese punto, si hay alguna. */
 export function enemySummonAt(
@@ -151,6 +153,52 @@ export function nearestVisibleEnemy(
   return best;
 }
 
+/**
+ * Una bestia que le hace la guerra al equipo de este mago: persigue a uno de los suyos (un mago
+ * o una invocación) o pelea domada por un rival. A las bestias tranquilas no se las toca, para
+ * no despertar un campamento sin querer.
+ */
+export function isHostileBeast(state: MatchState, beast: Beast, owner: Wizard): boolean {
+  if (beast.hp <= 0) return false;
+  if (beast.tamedBy !== null) {
+    const tamer = wizardById(state, beast.tamedBy);
+    return tamer !== undefined && tamer.team !== owner.team;
+  }
+  if (beast.aggroTicks <= 0) return false;
+  const hunted = wizardById(state, beast.targetId) ?? summonById(state, beast.targetId);
+  return hunted !== undefined && hunted.team === owner.team;
+}
+
+/**
+ * Lo más cercano que una invocación debe atacar: un rival a la vista o una bestia que va contra
+ * su equipo.
+ */
+export function nearestFoe(
+  state: MatchState,
+  owner: Wizard,
+  from: Vec2,
+  range: number,
+  rules: GameRules,
+): SpellTarget | undefined {
+  const wizard = nearestVisibleEnemy(state, owner, from, range, rules);
+  let best: SpellTarget | undefined = wizard ? { kind: 'wizard', wizard } : undefined;
+  let bestDistance = wizard ? distance(wizard.pos, from) : range;
+  for (const beast of state.beasts) {
+    if (!isHostileBeast(state, beast, owner)) continue;
+    const d = distance(beast.pos, from);
+    if (d < bestDistance && !lineBlocked(from, beast.pos, rules.map.obstacles)) {
+      best = { kind: 'beast', beast };
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+/** Radio de lo que una invocación tiene al frente, para saber si ya lo alcanza. */
+export function foeRadius(foe: SpellTarget, rules: GameRules): number {
+  return foe.kind === 'wizard' ? rules.wizard.radius : beastStats(foe.beast, rules).radius;
+}
+
 export function move(summon: Summon, dir: Vec2, speed: number, rules: GameRules): void {
   const step = scale(normalize(dir), speed / TICK_RATE);
   if (step.x === 0 && step.z === 0) return;
@@ -161,15 +209,16 @@ export function move(summon: Summon, dir: Vec2, speed: number, rules: GameRules)
 /** Fuego fatuo: flota hacia el rival más cercano y explota al tocarlo. */
 function updateWisp(state: MatchState, wisp: Summon, owner: Wizard, rules: GameRules): boolean {
   const spell = rules.spells.wisp;
-  const prey = nearestVisibleEnemy(state, owner, wisp.pos, spell.seekRange, rules);
+  const prey = nearestFoe(state, owner, wisp.pos, spell.seekRange, rules);
   if (!prey) return true;
-  if (distance(prey.pos, wisp.pos) <= wisp.radius + rules.wizard.radius) {
+  const at = targetPos(prey);
+  if (distance(at, wisp.pos) <= wisp.radius + foeRadius(prey, rules)) {
     state.events.push({ type: 'burst', spell: 'wisp', pos: wisp.pos, radius: 1.2 });
-    applyHit(state, prey, wisp.ownerId, wisp.payload, rules);
+    hitTarget(state, wisp.ownerId, prey, wisp.payload, rules);
     return false;
   }
   // Flota por encima de árboles y rocas: no rodea, va directo.
-  const step = scale(normalize(sub(prey.pos, wisp.pos)), spell.speed / TICK_RATE);
+  const step = scale(normalize(sub(at, wisp.pos)), spell.speed / TICK_RATE);
   wisp.pos = add(wisp.pos, step);
   wisp.facing = normalize(step, wisp.facing);
   return true;
@@ -179,17 +228,20 @@ function updateWisp(state: MatchState, wisp: Summon, owner: Wizard, rules: GameR
 function updateLightningRod(state: MatchState, rod: Summon, owner: Wizard, rules: GameRules): void {
   if (--rod.cooldown > 0) return;
   const spell = rules.spells.lightningRod;
-  const prey = nearestVisibleEnemy(state, owner, rod.pos, spell.range, rules);
+  const prey = nearestFoe(state, owner, rod.pos, spell.range, rules);
   if (!prey) {
     rod.cooldown = 1;
     return;
   }
   rod.cooldown = spell.intervalTicks;
-  state.events.push({ type: 'zap', from: rod.pos, to: prey.pos });
-  applyHit(state, prey, rod.ownerId, rod.payload, rules);
+  state.events.push({ type: 'zap', from: rod.pos, to: targetPos(prey) });
+  hitTarget(state, rod.ownerId, prey, rod.payload, rules);
 }
 
-/** Guardián de musgo: sigue a quien lo invocó y pega al rival que se acerque. */
+/**
+ * Guardián de musgo: sigue a quien lo invocó y pega al rival o a la bestia que se acerque. La
+ * bestia que golpea se enoja con él y deja en paz a su dueño.
+ */
 function updateMossGuardian(
   state: MatchState,
   guardian: Summon,
@@ -198,19 +250,24 @@ function updateMossGuardian(
 ): void {
   const spell = rules.spells.mossGuardian;
   if (guardian.cooldown > 0) guardian.cooldown--;
-  const prey = nearestVisibleEnemy(state, owner, guardian.pos, spell.aggroRange, rules);
+  const prey = nearestFoe(state, owner, guardian.pos, spell.aggroRange, rules);
   if (prey) {
-    const d = distance(prey.pos, guardian.pos);
-    if (d <= spell.attackRange) {
-      guardian.facing = normalize(sub(prey.pos, guardian.pos), guardian.facing);
+    const at = targetPos(prey);
+    const d = distance(at, guardian.pos);
+    if (d <= spell.attackRange + foeRadius(prey, rules) - rules.wizard.radius) {
+      guardian.facing = normalize(sub(at, guardian.pos), guardian.facing);
       if (guardian.cooldown === 0) {
         guardian.cooldown = spell.attackCooldownTicks;
-        state.events.push({ type: 'burst', spell: 'mossGuardian', pos: prey.pos, radius: 0.8 });
-        applyHit(state, prey, guardian.ownerId, guardian.payload, rules);
+        state.events.push({ type: 'burst', spell: 'mossGuardian', pos: at, radius: 0.8 });
+        if (prey.kind === 'beast') {
+          damageBeast(state, prey.beast, guardian.id, guardian.payload.damage, rules);
+        } else {
+          applyHit(state, prey.wizard, guardian.ownerId, guardian.payload, rules);
+        }
       }
       return;
     }
-    move(guardian, sub(prey.pos, guardian.pos), spell.speed, rules);
+    move(guardian, sub(at, guardian.pos), spell.speed, rules);
     return;
   }
   if (distance(owner.pos, guardian.pos) > spell.followDistance) {

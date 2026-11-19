@@ -4,8 +4,9 @@ import { ELEMENT_IDS } from '../elements';
 import { add, distance, length, normalize, scale, sub, type Vec2, ZERO } from '../math/vec2';
 import type { BeastStats, GameRules } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
+import { damageSummon } from '../spells/kit/summons';
 import { placeInArena } from './obstacles';
-import { enemiesOf, isAlive, isHiddenFromServantsOf, wizardById } from './queries';
+import { enemiesOf, isAlive, isHiddenFromServantsOf, summonById, wizardById } from './queries';
 import { withRng } from './random';
 import type { Beast, EntityId, MatchState, Wizard } from './state';
 
@@ -129,8 +130,8 @@ function repopulate(state: MatchState, rules: GameRules): void {
 }
 
 /**
- * Daña a una bestia. Se enoja con quien la atacó; si muere, su Esencia
- * pasa al mago que le dio el último golpe.
+ * Daña a una bestia. Se enoja con quien la atacó (un mago o una invocación); si muere, su
+ * Esencia pasa al mago que le dio el último golpe, o al dueño de la invocación que lo dio.
  */
 export function damageBeast(
   state: MatchState,
@@ -146,7 +147,8 @@ export function damageBeast(
   state.events.push({ type: 'beastHit', beastId: beast.id, sourceId, amount });
   if (beast.hp > 0) return;
 
-  const killer = wizardById(state, sourceId);
+  const killer =
+    wizardById(state, sourceId) ?? wizardById(state, summonById(state, sourceId)?.ownerId ?? null);
   if (killer && isAlive(killer)) {
     // El Guardián da Esencia de todos los elementos; una bestia común, la suya.
     const reward = beast.guardian ? rules.beasts.guardian.essenceReward : 1;
@@ -171,10 +173,12 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
     const config = beastStats(beast, rules);
     if (beast.attackCooldown > 0) beast.attackCooldown--;
     if (beast.tamedBy !== null && updateTamed(state, beast, config, rules)) continue;
-    const target = wizardById(state, beast.targetId);
+    // Persigue a quien la atacó: un mago, o una invocación (el Guardián de musgo se la lleva).
+    const wizard = wizardById(state, beast.targetId);
+    const summon = wizard ? undefined : summonById(state, beast.targetId);
+    const target = wizard && isAlive(wizard) ? wizard : summon;
     const chasing =
       target !== undefined &&
-      isAlive(target) &&
       beast.aggroTicks > 0 &&
       distance(beast.pos, beast.home) <= config.leash;
 
@@ -183,12 +187,14 @@ export function updateBeasts(state: MatchState, rules: GameRules): void {
     if (chasing && target) {
       beast.aggroTicks--;
       goal = target.pos;
-      const reach = config.attackRange + rules.wizard.radius + config.radius;
+      const targetRadius = target === summon ? summon.radius : rules.wizard.radius;
+      const reach = config.attackRange + targetRadius + config.radius;
       if (distance(beast.pos, target.pos) <= reach) {
         goal = beast.pos;
         if (beast.attackCooldown === 0) {
           beast.attackCooldown = config.attackCooldownTicks;
-          dealDamage(state, target, beast.id, config.damage, 'beast');
+          if (wizard) dealDamage(state, wizard, beast.id, config.damage, 'beast');
+          else if (summon) damageSummon(state, summon, config.damage);
         }
       }
     } else {

@@ -8,6 +8,15 @@ export function wizardById(state: MatchState, id: EntityId | null): Wizard | und
   return id === null ? undefined : state.wizards.find((w) => w.id === id);
 }
 
+/** Una invocación viva por su id. */
+export function summonById(state: MatchState, id: EntityId | null): Summon | undefined {
+  if (id === null) return undefined;
+  for (const spell of state.spells) {
+    if (spell.kind === 'summon' && spell.id === id && spell.hp > 0) return spell;
+  }
+  return undefined;
+}
+
 export function enemiesOf(state: MatchState, wizard: Wizard): Wizard[] {
   return state.wizards.filter((w) => w.team !== wizard.team && isAlive(w));
 }
