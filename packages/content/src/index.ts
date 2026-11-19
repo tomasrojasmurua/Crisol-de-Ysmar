@@ -65,3 +65,13 @@ export {
 export { SCHOOLS, type School, schoolOf, schoolSpellbook } from './schools';
 export { blindedFrom, veiledFromTeam, visibleEnemies } from './sight';
 export { SPELL_LORE } from './spellLore';
+export {
+  STORY_CONTINUES,
+  type StoryBeat,
+  type StoryFight,
+  type StoryLine,
+  type StoryLineStyle,
+  type StoryScene,
+  type StorySeat,
+  storyFor,
+} from './story';

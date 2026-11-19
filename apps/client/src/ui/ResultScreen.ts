@@ -48,7 +48,10 @@ export interface ResultSummary {
   readonly master?:
     | { readonly name: string; readonly line: string; readonly color: string }
     | undefined;
-  /** Un paso del Camino de tu Linaje: si lo superaste y la meta. Revancha pasa a "Otra vez". */
+  /**
+   * Un paso del Camino de tu Linaje o un combate de la Historia: cómo salió, bajo el título.
+   * Cambia además lo que dicen Revancha y Menú.
+   */
   readonly path?: ResultPath | undefined;
   /** La mejor jugada de la partida, sobre los cuadros de cada mago. */
   readonly highlight?: HighlightView | undefined;
@@ -56,13 +59,19 @@ export interface ResultSummary {
   readonly replay?: boolean | undefined;
 }
 
-/** Cómo salió el paso del Camino, bajo el título. */
+/** Cómo salió el paso del Camino o el combate de la Historia, bajo el título. */
 export interface ResultPath {
   /** "Paso 4 · El otro lado". */
   readonly title: string;
   readonly passed: boolean;
+  /** "superado", "sin superar"… */
+  readonly status: string;
   /** Superado: qué se abrió; si no, por qué no contó. */
   readonly note: string;
+  /** Lo que dice Revancha ("Otra vez", "Seguir"). */
+  readonly again: string;
+  /** Lo que dice Menú (adónde vuelve: "Camino", "Historia"). */
+  readonly back: string;
 }
 
 /** En red, cómo va la revancha (la empiezan todos los conectados). */
@@ -315,13 +324,12 @@ export class ResultScreen {
     this.path.hidden = !path;
     if (path) {
       this.path.classList.toggle('passed', path.passed);
-      query(this.path, 'strong').textContent =
-        `${path.title} · ${path.passed ? 'superado' : 'sin superar'}`;
+      query(this.path, 'strong').textContent = `${path.title} · ${path.status}`;
       query(this.path, 'span').textContent = path.note;
     }
-    // En el Camino se repite el mismo paso, y Menú vuelve al Camino.
-    this.rematchText = path ? 'Otra vez' : 'Revancha';
-    this.menuLabel.textContent = path ? 'Camino' : 'Menú';
+    // En el Camino y la Historia, Revancha sigue ahí mismo y Menú vuelve a esa pantalla.
+    this.rematchText = path?.again ?? 'Revancha';
+    this.menuLabel.textContent = path?.back ?? 'Menú';
     this.rematchKey = '-';
     this.setRematch(null);
     this.root.hidden = false;

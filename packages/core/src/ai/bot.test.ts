@@ -51,6 +51,32 @@ describe('bots y repetición', () => {
   });
 });
 
+describe('IA con una cuenta pendiente', () => {
+  it('en un todos contra todos de 3 fija primero al mago de su cuenta pendiente', () => {
+    const state = createMatch(
+      modeSetup({ kind: 'ffa', players: 3 }, 4, 'out', TEST_RULES),
+      TEST_RULES,
+    );
+    // El 2 y el 3 tienen una cuenta pendiente; el 1 (el jugador) queda al medio.
+    const bots = new Map([
+      [2, new BotController(11, TEST_RULES, { ...DEFAULT_BOT, focus: 3 })],
+      [3, new BotController(12, TEST_RULES, { ...DEFAULT_BOT, focus: 2 })],
+    ]);
+    const locks = new Map<number, number | null>();
+    for (let tick = 0; tick < 30 * 5; tick++) {
+      const intents = new Map(
+        state.wizards.map((w) => [w.id, bots.get(w.id)?.intentsFor(state, w) ?? []]),
+      );
+      for (const [id, list] of intents) {
+        for (const intent of list) if (intent.kind === 'lockTarget') locks.set(id, intent.targetId);
+      }
+      stepMatch(state, intents, TEST_RULES);
+    }
+    expect(locks.get(2)).toBe(3);
+    expect(locks.get(3)).toBe(2);
+  });
+});
+
 describe('IA: no se congela, esquiva y tiene dificultades', () => {
   const MASTER: BotProfile = {
     ...DEFAULT_BOT,

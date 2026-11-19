@@ -158,6 +158,23 @@ un set, la Afinidad o el balance de uno de sus hechizos, hay que volver a medir.
 | Raíz     | Savia, Grillete, Manantial, Jardín            | Atado y a salvo    |
 | Umbra    | Zarpa, Drenaje, Ceguera, Esporas              | Hilo a ciegas      |
 
+## Historia
+
+El modo arcade para un jugador: escenas de texto entre combates contra la IA, armadas para tu
+Linaje (`packages/content/src/story.ts`; las tablas por aldea y por maestro, en `storyText.ts`).
+El guion completo y aprobado está en el documento de la Historia; el código lo copia tal cual.
+Quién te toca sale del pentágono: el aprendiz que vuelve es de tu primer Linaje rival, Arel del
+primer aliado, y en el acto 2 pasan los maestros de tus dos aliados y tus dos rivales, más la
+cuenta pendiente de Vesk y Madre Musgo (los dos rivales se buscan entre ellos: `focus` del bot).
+
+- Las escenas avanzan de a una línea por toque, sin partida corriendo detrás. Lo ya visto se puede
+  saltar. Antes de cada combate hay una tarjeta con el modo, la IA y las continuaciones.
+- 3 continuaciones por acto: perder gasta una y reintenta el mismo combate; sin ninguna, se vuelve
+  al inicio del acto. Al ganar, "Seguir" lleva a la escena de después.
+- El avance vive en `crisol.historia` (viaja en el respaldo).
+- Por partes: ya están el preludio y los actos 1 y 2 (combates 1 a 9). Faltan el acto 3, el
+  Guardián como jefe, los gólems, el mapa del corazón, los finales y las imágenes.
+
 ## Camino del Linaje
 
 El modo para un jugador: diez duelos contra la IA, en orden, cada uno con una regla distinta, y el

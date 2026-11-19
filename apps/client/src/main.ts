@@ -1,6 +1,7 @@
 import {
   ARCHETYPES,
   DEFAULT_LOOK,
+  DUEL_RULES,
   ELEMENTS,
   GAME_RULES,
   linajePath,
@@ -8,8 +9,11 @@ import {
   NO_OMEN,
   type PathStep,
   rulesForMode,
+  STORY_CONTINUES,
+  type StoryFight,
   schoolOf,
   schoolSpellbook,
+  storyFor,
   WIZARD_NAMES,
 } from '@crisol/content';
 import {
@@ -44,6 +48,7 @@ import { Pocket } from './game/Pocket';
 import { loadProfile, randomAppearance, saveProfile } from './game/Profile';
 import type { ReplayClip } from './game/ReplayRecorder';
 import { ReplayView } from './game/ReplayView';
+import { StoryProgress } from './game/StoryProgress';
 import { DUMMY_ID, SECOND_DUMMY_ID, TrainingMatch } from './game/TrainingMatch';
 import { examSchool, GIFT_CHAPTER, Tutorial, tutorialChapters } from './game/Tutorial';
 import { TutorialProgress } from './game/TutorialProgress';
@@ -84,8 +89,10 @@ import { PauseMenu } from './ui/PauseMenu';
 import { PocketStrip } from './ui/PocketStrip';
 import { ProfileScreen } from './ui/ProfileScreen';
 import { ReplayOverlay } from './ui/ReplayOverlay';
+import type { ResultPath } from './ui/ResultScreen';
 import { SchoolPicker } from './ui/SchoolPicker';
 import { Screens } from './ui/Screens';
+import { StoryScreen } from './ui/StoryScreen';
 import { TrainingChooser } from './ui/TrainingChooser';
 import { TrainingPanel } from './ui/TrainingPanel';
 import { TutorialCard } from './ui/TutorialCard';
@@ -162,6 +169,8 @@ const comboLog = new ComboLog();
 const playerStats = new PlayerStats();
 const pocket = new Pocket();
 const pathProgress = new PathProgress();
+/** Por dónde vas en la Historia de tu Linaje (se arma al elegirlo). */
+let storyProgress: StoryProgress | null = null;
 const obstacles = new UiObstacles(uiRoot);
 const labels = new WorldLabels(uiRoot, obstacles);
 const controls = new TouchControls(uiRoot, input);
@@ -208,6 +217,7 @@ const menu = new Menu(
   (key) => audio.say(key),
 );
 menu.onPath = () => openPath();
+menu.onStory = () => openStory();
 const profileScreen = new ProfileScreen(uiRoot);
 const wardrobe = new Wardrobe(
   uiRoot,
@@ -301,6 +311,7 @@ const flow = new MatchFlow({
   school: () => profile.school,
   path: pathProgress,
   replay: (clip, card) => playReplay(clip, card),
+  story: (won) => storyResult(won),
 });
 
 // ---------- Repetición ----------
@@ -353,6 +364,21 @@ const pathScreen = new PathScreen(
   },
   (key) => audio.say(key),
 );
+const storyScreen = new StoryScreen(uiRoot, {
+  sceneDone: () => {
+    storyProgress?.advance();
+    playStory();
+  },
+  fight: (fight) => startStoryFight(fight),
+  restart: () => {
+    storyProgress?.restart();
+    playStory();
+  },
+  close: () => {
+    refreshStory();
+    menu.visible = true;
+  },
+});
 const pauseMenu = new PauseMenu(
   uiRoot,
   audio.engine,
@@ -486,6 +512,7 @@ function showMenu(): void {
   useRules(GAME_RULES);
   screens.menu(profile, grimoire);
   refreshPath();
+  refreshStory();
   if (fromPath) openPath();
   // De vuelta en el menú (al terminar una partida o el tutorial): se respalda lo nuevo.
   void backup.sync();
@@ -527,6 +554,96 @@ function startPathStep(step: PathStep): void {
   });
 }
 
+/** La Historia de tu Linaje, armada la primera vez que se pide. */
+function story(): StoryProgress | null {
+  const school = profile.school;
+  if (!school) return null;
+  storyProgress ??= new StoryProgress(storyFor(school));
+  return storyProgress;
+}
+
+/** En la tarjeta del menú: por dónde vas. */
+function refreshStory(): void {
+  const run = story();
+  if (!run) {
+    menu.setStory(null);
+    return;
+  }
+  const beat = run.current;
+  menu.setStory(
+    run.finished ? 'Actos 1 y 2' : beat && beat.id !== 'preludio' ? `Acto ${beat.act}` : 'Empezar',
+  );
+}
+
+/** Abre la Historia donde quedaste. */
+function openStory(): void {
+  if (!story()) return;
+  enterImmersive();
+  menu.visible = false;
+  playStory();
+}
+
+/** Muestra lo que toca: una escena, la tarjeta del combate o el final de lo que hay. */
+function playStory(): void {
+  const run = story();
+  if (!run) return;
+  const beat = run.current;
+  if (!beat || run.finished) storyScreen.showEnd();
+  else if (beat.kind === 'scene') storyScreen.showScene(beat, run.wasSeen(beat.id));
+  else storyScreen.showFight(beat, run.continuesLeft, STORY_CONTINUES);
+}
+
+/** Un combate de la Historia: contra la IA, con los personajes del guion. */
+function startStoryFight(fight: StoryFight): void {
+  startMatch({
+    mode: fight.mode,
+    deathRule: 'out',
+    affinity: profile.affinity,
+    botLevel: fight.botLevel,
+    story: fight,
+  });
+}
+
+/** Terminó un combate de la Historia: se guarda y se dice cómo sigue. */
+function storyResult(won: boolean): ResultPath {
+  const run = story();
+  const beat = run?.current;
+  const title = beat?.kind === 'fight' ? `Combate ${beat.number} · ${beat.title}` : 'Historia';
+  if (!run || won) {
+    run?.advance();
+    return {
+      title,
+      passed: true,
+      status: 'ganado',
+      note: 'La historia sigue',
+      again: 'Seguir',
+      back: 'Menú',
+    };
+  }
+  const loss = run.lose();
+  if (loss.kind === 'retry') {
+    return {
+      title,
+      passed: false,
+      status: 'perdido',
+      note:
+        loss.left === 0
+          ? 'Era tu última continuación: si vuelves a perder, empiezas el acto de nuevo'
+          : `Te quedan ${loss.left} ${loss.left === 1 ? 'continuación' : 'continuaciones'}`,
+      again: 'Reintentar',
+      back: 'Menú',
+    };
+  }
+  return {
+    title,
+    passed: false,
+    status: 'perdido',
+    note: `Se acabaron las continuaciones: vuelves al inicio del acto ${loss.act}`,
+    again: 'Volver al acto',
+    back: 'Menú',
+  };
+}
+
 function openWardrobe(): void {
   menu.visible = false;
   wardrobe.show(profile);
@@ -566,6 +683,7 @@ function chooseSchool(school: ElementId): void {
   saveProfile(profile);
   screens.refreshIdentity(profile, grimoire);
   refreshPath();
+  refreshStory();
   if (pendingInvite) {
     menu.visible = true;
     const code = pendingInvite;
@@ -590,7 +708,9 @@ function openLobby(): void {
 function startMatch(options: MatchOptions): void {
   enterImmersive();
   const seed = (Math.random() * 2 ** 32) >>> 0;
-  useRules(rulesForMode(options.mode));
+  // En la Historia, el combate dice si es en la plaza o en la jungla.
+  const arena = options.story?.arena;
+  useRules(arena ? (arena === 'plaza' ? DUEL_RULES : GAME_RULES) : rulesForMode(options.mode));
   const current = new LocalMatch(options, rules, human, seed);
   // Nombres y aspecto de los rivales y aliados, sin repetir, elegidos con la semilla.
   const rng = new SeededRng(seed);
@@ -616,9 +736,29 @@ function startMatch(options: MatchOptions): void {
       others.set(w.id, { name: master.name.split(',')[0] ?? master.name, look });
     }
   }
+  // En la Historia, cada personaje con su nombre; los maestros, además, con su cara.
+  for (const [id, seat] of current.seats) {
+    const before = others.get(id);
+    const master = seat.master && seat.school ? masterOf(seat.school) : null;
+    const face = master ? ARCHETYPES.find((a) => a.id === master.archetype)?.look : undefined;
+    // Un personaje con nombre se ve siempre igual: su aspecto sale de su nombre.
+    const look =
+      face ?? (seat.name ? randomAppearance(new SeededRng(nameSeed(seat.name))) : undefined);
+    others.set(id, {
+      name: seat.name || (before?.name ?? 'Hechicero'),
+      look: look ?? before?.look ?? profile.look,
+    });
+  }
   beginMatch(current, (id) => others.get(id) ?? { name: 'Hechicero', look: profile.look });
   // Un paso que solo deja tejer algunos elementos: los otros botones no aparecen.
   if (step?.elements) controls.reveal(new Set([...step.elements, 'cast', 'undo', 'duel']));
+}
+
+/** Una semilla fija a partir de un nombre. */
+function nameSeed(name: string): number {
+  let hash = 2166136261;
+  for (const char of name) hash = Math.imul(hash ^ (char.codePointAt(0) ?? 0), 16777619);
+  return hash >>> 0;
 }
 
 /**
@@ -752,6 +892,10 @@ function rematch(): void {
   if (net) {
     // El resultado queda a la vista con el botón en espera: Menú sigue a mano si el otro se fue.
     net.requestRematch();
+  } else if (match?.options.story) {
+    // En la Historia, Revancha dice "Seguir" o "Reintentar": se vuelve a la Historia.
+    showMenu();
+    openStory();
   } else startMatch(match?.options ?? menu.options);
 }
 

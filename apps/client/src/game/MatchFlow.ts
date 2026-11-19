@@ -59,6 +59,8 @@ export interface MatchFlowDeps {
   readonly path: PathProgress;
   /** Repite la mejor jugada (o el desenlace) sobre el resultado. */
   readonly replay: (clip: ReplayClip, card: HighlightView | null) => void;
+  /** Un combate de la Historia terminó: se guarda y dice cómo sigue (bajo el título). */
+  readonly story: (won: boolean) => ResultPath;
 }
 
 /**
@@ -291,9 +293,18 @@ export class MatchFlow {
       const ffa = solo(current);
       const outcome: Outcome = winner === playerTeam ? 'win' : winner < 0 ? 'draw' : 'loss';
       const school = this.deps.school();
-      const master = school
-        ? masterQuote(school, outcome, current.series.wins, rules.round.roundsToWin, Math.random())
-        : undefined;
+      // En la Historia, lo que dicen los maestros va en las escenas.
+      const story = current.options.story;
+      const master =
+        school && !story
+          ? masterQuote(
+              school,
+              outcome,
+              current.series.wins,
+              rules.round.roundsToWin,
+              Math.random(),
+            )
+          : undefined;
       // El Crisol dice el resultado y, cuando termina, tu maestro lo comenta.
       this.deps.audio.say(
         `voice.crisol.${outcome === 'win' ? 'victory' : outcome === 'loss' ? 'defeat' : 'draw'}`,
@@ -313,7 +324,7 @@ export class MatchFlow {
         roundsToWin: rules.round.roundsToWin,
         players,
         master,
-        path: this.judgePath(current, winner),
+        path: story ? this.deps.story(winner === playerTeam) : this.judgePath(current, winner),
         highlight: best,
         replay: clip?.highlight != null,
       });
@@ -372,7 +383,14 @@ export class MatchFlow {
         : last
           ? 'Completaste el Camino de tu Linaje'
           : `Se abrió el paso ${step.number + 1}`;
-    return { title: `Paso ${step.number} · ${step.title}`, passed: verdict.passed, note };
+    return {
+      title: `Paso ${step.number} · ${step.title}`,
+      passed: verdict.passed,
+      status: verdict.passed ? 'superado' : 'sin superar',
+      note,
+      again: 'Otra vez',
+      back: 'Camino',
+    };
   }
 
   /**
