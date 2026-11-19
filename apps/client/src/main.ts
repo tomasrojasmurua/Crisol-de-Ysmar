@@ -1008,6 +1008,7 @@ renderer.setAnimationLoop((now) => {
         ? PHASE_NAMES[roundPhase(current.state.tick, rules)]
         : 'Entre rondas';
     diagnostics.matchFrame(frameMs, simMs, view.load, moment);
+    diagnostics.screenRate(limiter.screenIntervalMs);
   }
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;

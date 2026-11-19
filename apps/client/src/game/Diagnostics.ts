@@ -115,6 +115,11 @@ export class Diagnostics {
     }
   }
 
+  /** El ritmo de la pantalla en este cuadro (ms entre llamadas, ver render/FrameLimiter.ts). */
+  screenRate(intervalMs: number): void {
+    this.perfLog.screenRate(intervalMs);
+  }
+
   resolutionChanged(pixelRatio: number): void {
     this.perfLog.resolutionChanged(pixelRatio);
   }

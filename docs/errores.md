@@ -20,7 +20,7 @@ Además, el resumen de `rendimiento` de cada celular trae una **línea de tiempo
 (peor ping, veces que se vació el colchón y silencios de la Sala) y de cuadros (fps, tirones y
 conjuros en pantalla), los tirones por momento de la partida (Caza, Muerte súbita, Entre rondas…)
 y según cuántos conjuros había, y en Chrome para Android por dónde se conecta (wifi o datos
-móviles, y si cambió en plena partida) y la batería al empezar y al terminar. `pnpm errores` junta
+móviles, y si cambió en plena partida) y la batería al empezar y al terminar, y a qué ritmo iba la pantalla (por ejemplo "120 Hz el 70% · 60 Hz el 30%": un celular de 120 Hz que ahorra batería baja a 60 a ratos). `pnpm errores` junta
 las líneas de tiempo de cada sala, la de la Sala y la de cada celular: si todos se trabaron en el
 mismo tramo fue la Sala o una red compartida; si fue uno solo, su conexión o su celular.
 
