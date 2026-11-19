@@ -1146,13 +1146,68 @@ body {
   top: calc(var(--safe-top) + 92px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
   border-radius: 999px;
-  background: rgba(10, 9, 14, 0.7);
+  background: rgba(10, 9, 14, 0.72);
   border: 1px solid var(--panel-edge);
-  font-size: 13px;
   color: #f3e6c8;
   pointer-events: none;
+  max-width: calc(100vw - 2 * (max(var(--safe-left), var(--safe-right)) + min(28vw, 230px) + 10px));
+}
+
+.watch-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 0 6px;
+  line-height: 1.15;
+}
+
+.watch-kicker {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.watch-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--watched, #f3e6c8);
+}
+
+/* Flechas grandes para el pulgar: pasan al mago anterior o al siguiente en pie. */
+.watch-arrow {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--bronze);
+  background: rgba(30, 27, 38, 0.9);
+  color: #f3e6c8;
+  font-size: 24px;
+  line-height: 1;
+  padding: 0 0 3px;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.watch-arrow:active {
+  background: rgba(216, 191, 138, 0.3);
+}
+
+.watch-badge.single .watch-arrow {
+  display: none;
+}
+
+.watch-badge.single {
+  padding: 5px 14px;
 }
 
 /* Bajo el minimapa: arriba al centro está el reloj. */
@@ -1222,6 +1277,11 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Mirando a otro mago tras caer: su nombre va en su color, para que no se confunda con el tuyo. */
+.hud.watching .hud-name {
+  color: var(--watched, var(--player));
 }
 
 .hud-lives {

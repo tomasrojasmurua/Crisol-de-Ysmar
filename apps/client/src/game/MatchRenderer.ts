@@ -76,8 +76,11 @@ const beastName = (beast: Beast): string =>
 export class MatchRenderer {
   private readonly wizardViews = new Map<number, WizardView>();
   private readonly watchBadge: HTMLElement;
+  private readonly watchName: HTMLElement;
   /** A quién mirabas, para no saltar de un rival a otro en cada cuadro. */
   private watchedId = -1;
+  /** Lo último que se dibujó, para pasar al siguiente mago con las flechas. */
+  private lastView: MatchView | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -86,9 +89,37 @@ export class MatchRenderer {
     private readonly audio: GameAudio,
     private readonly input: PlayerInput,
   ) {
+    // Caíste: arriba al centro, a quién miras y dos flechas para pasar a otro mago en pie.
     this.watchBadge = document.createElement('div');
     this.watchBadge.className = 'watch-badge';
     this.watchBadge.hidden = true;
+    const arrow = (label: string, glyph: string, step: 1 | -1): HTMLButtonElement => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'watch-arrow';
+      button.textContent = glyph;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('pointerdown', (event) => {
+        // Que el toque no gire la cámara ni fije a nadie.
+        event.stopPropagation();
+        event.preventDefault();
+        this.cycleWatched(step);
+      });
+      return button;
+    };
+    const text = document.createElement('div');
+    text.className = 'watch-text';
+    const kicker = document.createElement('span');
+    kicker.className = 'watch-kicker';
+    kicker.textContent = 'Caíste · miras a';
+    this.watchName = document.createElement('strong');
+    this.watchName.className = 'watch-name';
+    text.append(kicker, this.watchName);
+    this.watchBadge.append(
+      arrow('Mirar al mago anterior', '‹', -1),
+      text,
+      arrow('Mirar al siguiente mago', '›', 1),
+    );
     parent.append(this.watchBadge);
   }
 
@@ -111,23 +142,38 @@ export class MatchRenderer {
   clear(): void {
     this.clearWizards();
     this.watchBadge.hidden = true;
+    this.watchedId = -1;
+    this.lastView = null;
   }
 
   /**
-   * Si caíste y quedaste fuera, el mago al que miras: primero un aliado en pie y si no, el rival
-   * que siga vivo. Null mientras sigas jugando.
+   * Si caíste y quedaste fuera, el mago al que miras: el que elegiste con las flechas mientras
+   * siga en pie; si no, un aliado en pie y si no, el rival que siga vivo. Null mientras sigas
+   * jugando.
    */
   watchedOf(current: MatchView): Wizard | null {
-    const state = current.state;
-    const player = current.player;
-    if (state.deathRule !== 'out' || !player.fallen) return null;
-    const standing = state.wizards.filter((w) => w.hp > 0 && !w.fallen);
+    const standing = watchable(current);
+    if (standing === null) return null;
     return (
-      standing.find((w) => w.team === player.team) ??
       standing.find((w) => w.id === this.watchedId) ??
+      standing.find((w) => w.team === current.player.team) ??
       standing[0] ??
       null
     );
+  }
+
+  /** Pasa al siguiente (1) o al anterior (-1) mago en pie: primero tus aliados, luego rivales. */
+  cycleWatched(step: 1 | -1): void {
+    const current = this.lastView;
+    if (!current) return;
+    const standing = watchable(current);
+    if (!standing || standing.length < 2) return;
+    const at = standing.findIndex((w) => w.id === this.watchedOf(current)?.id);
+    const next = standing[(Math.max(0, at) + step + standing.length) % standing.length];
+    if (!next) return;
+    this.watchedId = next.id;
+    // La cámara salta al nuevo mago de una vez, sin cruzar la arena volando.
+    this.view.rig.snap();
   }
 
   render(current: MatchView, alpha: number, delta: number, context: FrameContext): void {
@@ -142,15 +188,23 @@ export class MatchRenderer {
       return (member && badges.get(member.id)?.color) ?? '#ffffff';
     };
     // Si caíste, la cámara sigue a quien miras.
+    this.lastView = current;
     const watched = this.watchedOf(current);
     this.watchedId = watched?.id ?? -1;
     // Entre rondas y al final, la pantalla de Glifos o el resultado ocupan el centro.
     setHidden(this.watchBadge, watched === null || covered);
     if (watched) {
-      setText(this.watchBadge, `Caíste · miras a ${badges.get(watched.id)?.name ?? 'otro mago'}`);
+      const badge = badges.get(watched.id);
+      const ally = watched.team === player.team;
+      setText(this.watchName, `${badge?.name ?? 'otro mago'}${ally ? ' · aliado' : ''}`);
+      this.watchName.style.setProperty('--watched', badge?.color ?? '#f3e6c8');
+      // Con uno solo en pie no hay a quién más pasar: las flechas sobran.
+      this.watchBadge.classList.toggle('single', (watchable(current)?.length ?? 0) < 2);
     }
     const focus = watched ?? player;
     const playerPos = current.interpolated(focus.id, focus.pos, alpha);
+    /** El tejido del mago que miras, tal como lo ves tú (con Ilusión, el falso; escondido, nada). */
+    let watchedWeave: Wizard | null = null;
 
     for (const wizard of state.wizards) {
       const wizardView = this.wizardViews.get(wizard.id);
@@ -164,6 +218,7 @@ export class MatchRenderer {
       const base = current.present?.(wizard) ?? wizard;
       const shown =
         base.team !== player.team && base.statuses.disguised ? disguise(base, state.tick) : base;
+      if (wizard.id === watched?.id && !hidden) watchedWeave = shown;
       wizardView.update(shown, pos.x, pos.z, time, delta, rules, hidden);
       audio.watchWeave(shown, pos, hidden);
       if (!hidden) view.effects.aura(wizard, pos.x, pos.z, delta);
@@ -254,11 +309,21 @@ export class MatchRenderer {
     );
 
     ui.controls.render(current.present?.(player) ?? player, rules);
-    // Lo que tejes y tu bolsillo son tuyos: si caíste o algo tapa la arena, no se muestran.
+    // Lo que tejes, abajo al centro: el tuyo, o si caíste, el de quien miras. Tu bolsillo es
+    // tuyo y se guarda al caer. Si algo tapa la arena, ninguno se muestra.
     const own = watched === null && !covered ? me : null;
-    ui.weaveName.render(own);
+    ui.weaveName.render(covered ? null : (own ?? watchedWeave));
     ui.pocketStrip.render(own);
-    ui.hud.update(state, player, current.series, current.roundNumber, badges, rules);
+    // La ficha de vida es de quien miras: tu barra en cero no dice nada mientras miras a otro.
+    ui.hud.update(
+      state,
+      player,
+      current.series,
+      current.roundNumber,
+      badges,
+      rules,
+      watched ?? player,
+    );
     ui.obstacles.refresh();
     ui.labels.updateBeasts(state, camera, beastName, elementColorHex);
     const seen = visibleEnemies(state, player.team, rules);
@@ -276,8 +341,22 @@ export class MatchRenderer {
     );
     view.maps.jungle.setBurned(state.burnedTrees);
     ui.comboCallouts.update(camera, wizardPos, delta);
-    ui.minimap.update(state, player, forward, seen, badges, time);
+    ui.minimap.update(state, player, forward, seen, badges, time, watched ?? player);
   }
+}
+
+/**
+ * Los magos que puedes mirar si caíste y quedaste fuera, en el orden de las flechas: primero
+ * tus aliados en pie y después los rivales. Null si sigues jugando (o la ronda es con vidas).
+ */
+function watchable(current: MatchView): Wizard[] | null {
+  const { state, player } = current;
+  if (state.deathRule !== 'out' || !player.fallen) return null;
+  const standing = state.wizards.filter((w) => w.hp > 0 && !w.fallen);
+  return [
+    ...standing.filter((w) => w.team === player.team),
+    ...standing.filter((w) => w.team !== player.team),
+  ];
 }
 
 /**
