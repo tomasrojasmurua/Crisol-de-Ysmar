@@ -6461,6 +6461,78 @@ body {
   animation: fade-in 0.3s ease both;
 }
 
+/* La ilustración de la escena, con viñeta y más oscura abajo, donde va el texto. */
+.story-backdrop {
+  position: absolute;
+  inset: 0;
+  background: center / cover no-repeat;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  pointer-events: none;
+}
+
+.story-backdrop.shown {
+  opacity: 1;
+}
+
+.story-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 35%, rgba(5, 5, 8, 0.8) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 5, 8, 0.45) 0%,
+      rgba(5, 5, 8, 0.35) 35%,
+      rgba(5, 5, 8, 0.92) 100%
+    );
+}
+
+/* Un murmullo apaga casi todo: es una voz de los que no están. */
+.story.murmuring .story-backdrop.shown {
+  opacity: 0.15;
+}
+
+/* El retrato de quien habla, a la izquierda, fundido con el fondo. */
+.story-portrait {
+  position: absolute;
+  left: var(--safe-left);
+  bottom: 0;
+  height: 88%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  -webkit-mask-image:
+    linear-gradient(90deg, #000 55%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, #000 25%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, #000 55%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, #000 25%);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+
+.story-portrait.shown {
+  animation: story-line-in 0.6s ease both;
+}
+
+.story-top,
+.story-stage,
+.story-hint {
+  position: relative;
+}
+
+/* Con retratos, el texto va a la derecha del retrato. */
+.story.cast .story-stage {
+  justify-self: end;
+  width: min(560px, calc(100% - 66vh));
+}
+
+.story-line {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
 .story-top {
   display: flex;
   justify-content: flex-end;

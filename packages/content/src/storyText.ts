@@ -119,6 +119,8 @@ export type MasterLine =
 
 /** Lo que dice y hace un maestro en la Historia, según el momento. */
 export interface MasterStory {
+  /** Su retrato en las escenas (`public/historia/retratos/<retrato>.webp`). */
+  readonly portrait: string;
   /** "mi maestra" o "mi maestro", para cuando el aprendiz habla de él. */
   readonly mine: string;
   /** Preludio: cómo te despide en la salida de la aldea. */
@@ -141,6 +143,7 @@ export interface MasterStory {
 
 export const MASTER_STORIES: Readonly<Record<ElementId, MasterStory>> = {
   brasa: {
+    portrait: 'vesk',
     mine: 'mi maestra',
     farewell: 'El Crisol llama. Vas tú. No me hagas arrepentirme.',
     dodge: 'No pierdas y no tendrás que saberlo.',
@@ -157,6 +160,7 @@ export const MASTER_STORIES: Readonly<Record<ElementId, MasterStory>> = {
     shaken: [{ say: 'Eso no pasa. Ganó. A los que ganan nunca se los lleva.' }],
   },
   tormenta: {
+    portrait: 'iskel',
     mine: 'mi maestro',
     farewell: 'El Crisol llama y alguien tiene que ir. Felicidades: eres alguien.',
     dodge: 'Vuelven a casa. Más o menos.',
@@ -177,6 +181,7 @@ export const MASTER_STORIES: Readonly<Record<ElementId, MasterStory>> = {
     ],
   },
   marea: {
+    portrait: 'dorn',
     mine: 'mi maestro',
     farewell: 'El Crisol llama. Ya escribí tu nombre. Haz que valga la tinta.',
     dodge: 'Los anoto. Siempre los anoto.',
@@ -203,6 +208,7 @@ export const MASTER_STORIES: Readonly<Record<ElementId, MasterStory>> = {
     ],
   },
   raiz: {
+    portrait: 'musgo',
     mine: 'mi maestra',
     farewell: 'El Crisol llama, mijo. Abrígate. Y vuelve.',
     dodge: 'No vas a perder. No te crié para eso.',
@@ -224,6 +230,7 @@ export const MASTER_STORIES: Readonly<Record<ElementId, MasterStory>> = {
     shaken: [{ say: 'Ven acá.' }, { see: 'Te abraza fuerte, demasiado tiempo.' }],
   },
   umbra: {
+    portrait: 'velado',
     mine: 'mi maestro',
     farewell: 'El Crisol llama. Te elegí antes de que supieras caminar.',
     dodge: 'Guarda esa pregunta. La vas a necesitar.',

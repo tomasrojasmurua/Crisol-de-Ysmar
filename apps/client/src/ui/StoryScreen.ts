@@ -6,6 +6,10 @@ import { MENU_ICONS } from './menuIcons';
 /** Cuántas líneas quedan a la vista: las de más arriba se van apagando. */
 const VISIBLE_LINES = 4;
 
+/** Las ilustraciones y retratos de la Historia: se piden recién al verlos, nunca en combate. */
+const backdropUrl = (name: string): string => `/historia/escenas/${name}.webp`;
+const portraitUrl = (name: string): string => `/historia/retratos/${name}.webp`;
+
 /** Lo que hace la pantalla de la Historia al terminar cada cosa. */
 export interface StoryScreenActions {
   /** Terminó (o se saltó) la escena. */
@@ -40,6 +44,10 @@ export class StoryScreen {
   private readonly skip: HTMLButtonElement;
   private readonly hint: HTMLElement;
   private readonly card: HTMLElement;
+  private readonly backdrop: HTMLElement;
+  private readonly portrait: HTMLImageElement;
+  private backdropName = '';
+  private portraitName = '';
   private lines: readonly StoryLine[] = [];
   private next = 0;
   /** Un título o un murmullo: va solo, al centro, y el siguiente toque limpia la pantalla. */
@@ -52,6 +60,8 @@ export class StoryScreen {
     this.root = el('div', 'story');
     this.root.hidden = true;
     this.root.innerHTML = `
+      <div class="story-backdrop"></div>
+      <img class="story-portrait" alt="" hidden />
       <div class="story-top">
         <button type="button" class="secondary story-skip">Saltar escena</button>
         <button type="button" class="grimoire-card-close story-close" aria-label="Volver al menú">×</button>
@@ -64,6 +74,8 @@ export class StoryScreen {
     this.skip = query(this.root, '.story-skip');
     this.hint = query(this.root, '.story-hint');
     this.card = query(this.root, '.story-card');
+    this.backdrop = query(this.root, '.story-backdrop');
+    this.portrait = query(this.root, '.story-portrait');
     this.skip.addEventListener('click', (event) => {
       event.stopPropagation();
       this.finishScene();
@@ -95,6 +107,14 @@ export class StoryScreen {
     this.stage.replaceChildren();
     this.skip.hidden = !skippable;
     this.hint.hidden = false;
+    this.setBackdrop('');
+    this.setPortrait('');
+    // Con retratos, el texto se corre a la derecha toda la escena (no salta de línea en línea).
+    this.root.classList.toggle(
+      'cast',
+      scene.lines.some((line) => line.portrait),
+    );
+    preload(scene);
     this.advance();
   }
 
@@ -148,6 +168,33 @@ export class StoryScreen {
   private open(): void {
     this.root.hidden = false;
     this.card.hidden = true;
+    this.root.classList.remove('cast', 'murmuring');
+    this.setBackdrop('');
+    this.setPortrait('');
+  }
+
+  /** Cambia la ilustración de fondo, con un fundido; vacío la quita. */
+  private setBackdrop(name: string): void {
+    if (name === this.backdropName) return;
+    this.backdropName = name;
+    this.backdrop.classList.remove('shown');
+    if (!name) return;
+    this.backdrop.style.backgroundImage = `url("${backdropUrl(name)}")`;
+    // Se fuerza el dibujo sin la clase para que el fundido vuelva a empezar.
+    void this.backdrop.offsetWidth;
+    this.backdrop.classList.add('shown');
+  }
+
+  /** Muestra el retrato de quien habla; vacío lo esconde. */
+  private setPortrait(name: string): void {
+    if (name === this.portraitName) return;
+    this.portraitName = name;
+    this.portrait.hidden = !name;
+    if (!name) return;
+    this.portrait.src = portraitUrl(name);
+    this.portrait.classList.remove('shown');
+    void this.portrait.offsetWidth;
+    this.portrait.classList.add('shown');
   }
 
   /** Muestra la línea siguiente; sin más líneas, termina la escena. */
@@ -158,7 +205,12 @@ export class StoryScreen {
       return;
     }
     this.next++;
+    if (line.backdrop !== undefined) this.setBackdrop(line.backdrop);
+    // El retrato se queda mientras hablas tú o se describe algo: es con quien conversas.
+    if (line.portrait) this.setPortrait(line.portrait);
+    this.root.classList.toggle('murmuring', line.style === 'murmur');
     const alone = line.style === 'title' || line.style === 'murmur';
+    if (alone) this.setPortrait('');
     if (alone || this.alone) this.stage.replaceChildren();
     this.alone = alone;
     this.stage.classList.toggle('alone', alone);
@@ -178,6 +230,14 @@ export class StoryScreen {
     this.lines = [];
     this.next = 0;
     this.actions.sceneDone();
+  }
+}
+
+/** Pide de antemano las imágenes de la escena, para que no aparezcan a medio cargar. */
+function preload(scene: StoryScene): void {
+  for (const line of scene.lines) {
+    if (line.backdrop) new Image().src = backdropUrl(line.backdrop);
+    if (line.portrait) new Image().src = portraitUrl(line.portrait);
   }
 }
 

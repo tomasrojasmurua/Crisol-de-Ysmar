@@ -175,8 +175,12 @@ cuenta pendiente de Vesk y Madre Musgo (los dos rivales se buscan entre ellos: `
 - 3 continuaciones por acto: perder gasta una y reintenta el mismo combate; sin ninguna, se vuelve
   al inicio del acto. Al ganar, "Seguir" lleva a la escena de después.
 - El avance vive en `crisol.historia` (viaja en el respaldo).
+- Las ilustraciones (óleo en claroscuro) van de fondo en las escenas y los retratos junto a
+  quien habla: `public/historia/escenas` y `retratos`, en webp de menos de 150 KB. Se piden recién
+  al ver la escena, así que quien no abre la Historia nunca las descarga. Los originales están
+  en los archivos del proyecto (`historia/arte`).
 - Por partes: ya están el preludio y los actos 1 y 2 (combates 1 a 9). Faltan el acto 3, el
-  Guardián como jefe, los gólems, el mapa del corazón, los finales y las imágenes.
+  Guardián como jefe, los gólems, el mapa del corazón y los finales (con sus imágenes).
 
 ## Tutorial
 
