@@ -68,6 +68,10 @@ export class Hud {
   private readonly allyRows = new Map<number, HTMLElement>();
   private lastScoreKey = '';
   private lastHp = -1;
+  /** Tu nombre, para volver a él cuando dejas de mirar a otro mago. */
+  private ownName = 'Tú';
+  /** A quién muestra la ficha de arriba a la izquierda: tú, o el mago que miras tras caer. */
+  private shownId = -1;
 
   constructor(parent: HTMLElement, onRematch: () => void, onMenu: () => void) {
     this.root = el('div', 'hud');
@@ -122,7 +126,9 @@ export class Hud {
   }
 
   setPlayerName(name: string): void {
-    query(this.root, '.hud-player-name').textContent = name || 'Tú';
+    this.ownName = name || 'Tú';
+    if (!this.root.classList.contains('watching'))
+      query(this.root, '.hud-player-name').textContent = this.ownName;
   }
 
   /** Celebra un conjuro que el jugador lanzó por primera vez (o un combo nuevo). */
@@ -202,8 +208,13 @@ export class Hud {
     this.lastEssenceKey = '';
     this.lastHp = -1;
     this.lastPortrait = undefined;
+    this.shownId = -1;
   }
 
+  /**
+   * `player` es tu mago (equipo y marcador). `shown` es el de la ficha de vida: tú mientras
+   * juegas, o el mago que miras si caíste.
+   */
   update(
     state: MatchState,
     player: Wizard,
@@ -211,7 +222,54 @@ export class Hud {
     roundNumber: number,
     badges: ReadonlyMap<number, WizardBadge>,
     rules: GameRules,
+    shown: Wizard = player,
   ): void {
+    this.showWizard(player, shown, badges);
+    this.updateCard(state, shown, rules);
+
+    for (const [id, row] of this.allyRows) {
+      const ally = state.wizards.find((w) => w.id === id);
+      if (!ally) continue;
+      const fill = query(row, '.hud-fill');
+      setStyle(fill, 'width', barWidth(ally.hp, ally.maxHp));
+      row.classList.toggle('down', ally.hp <= 0);
+    }
+
+    setText(this.roundLabel, `Ronda ${roundNumber}`);
+    setText(this.phase, PHASE_NAMES[roundPhase(state.tick, rules)]);
+
+    const scoreKey = `${series.wins.join(',')}|${player.team}`;
+    if (scoreKey !== this.lastScoreKey) {
+      this.lastScoreKey = scoreKey;
+      this.renderScore(series, player.team, badges, state, rules);
+    }
+  }
+
+  /** Cambia la ficha de arriba a la izquierda a otro mago: su nombre y su color. */
+  private showWizard(
+    player: Wizard,
+    shown: Wizard,
+    badges: ReadonlyMap<number, WizardBadge>,
+  ): void {
+    if (shown.id === this.shownId) return;
+    this.shownId = shown.id;
+    const watching = shown.id !== player.id;
+    this.root.classList.toggle('watching', watching);
+    const badge = badges.get(shown.id);
+    query(this.root, '.hud-player-name').textContent = watching
+      ? (badge?.name ?? 'Otro mago')
+      : this.ownName;
+    const head = query(this.root, '.hud-player-head');
+    if (watching && badge) head.style.setProperty('--watched', badge.color);
+    else head.style.removeProperty('--watched');
+    // Otro mago, otra vida: se repinta todo aunque los números coincidan.
+    this.lastHp = -1;
+    this.lastEssenceKey = '';
+    this.lastPortrait = undefined;
+  }
+
+  /** La vida, el medallón de Afinidad, las vidas y la Esencia del mago de la ficha. */
+  private updateCard(state: MatchState, player: Wizard, rules: GameRules): void {
     if (player.hp !== this.lastHp) {
       this.lastHp = player.hp;
       setStyle(this.playerFill, 'width', barWidth(player.hp, player.maxHp));
@@ -244,23 +302,6 @@ export class Hud {
         chip.style.setProperty('--essence', element.color);
         this.essence.append(chip);
       }
-    }
-
-    for (const [id, row] of this.allyRows) {
-      const ally = state.wizards.find((w) => w.id === id);
-      if (!ally) continue;
-      const fill = query(row, '.hud-fill');
-      setStyle(fill, 'width', barWidth(ally.hp, ally.maxHp));
-      row.classList.toggle('down', ally.hp <= 0);
-    }
-
-    setText(this.roundLabel, `Ronda ${roundNumber}`);
-    setText(this.phase, PHASE_NAMES[roundPhase(state.tick, rules)]);
-
-    const scoreKey = `${series.wins.join(',')}|${player.team}`;
-    if (scoreKey !== this.lastScoreKey) {
-      this.lastScoreKey = scoreKey;
-      this.renderScore(series, player.team, badges, state, rules);
     }
   }
 
