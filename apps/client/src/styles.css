@@ -6691,6 +6691,13 @@ body {
   color: var(--gold-bright);
 }
 
+.story-logo {
+  display: block;
+  height: clamp(110px, 38vh, 190px);
+  width: auto;
+  filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.85));
+}
+
 .story-subtitle {
   display: block;
   margin-top: 6px;
