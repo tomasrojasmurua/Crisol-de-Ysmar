@@ -297,6 +297,15 @@ describe('segunda tanda: Tormenta', () => {
     stepMatch(state, new Map([[2, [{ kind: 'weave', element: 'brasa' }]]]), rules);
     expect(rival.weave).toEqual([]);
   });
+  it('el Paso sombrío golpea por la espalda al aparecer', () => {
+    const hits: GameRules = {
+      ...rules,
+      spells: { ...rules.spells, shadowStep: { ...rules.spells.shadowStep, damage: 10 } },
+    };
+    const state = scene([{ x: 0, z: 5 }]);
+    run(state, 10, cast(['tormenta', 'umbra']), hits);
+    expect(wizard(state, 2).hp).toBe(wizard(state, 2).maxHp - 10);
+  });
 });
 
 describe('segunda tanda: Marea', () => {

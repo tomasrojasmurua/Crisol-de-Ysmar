@@ -11,6 +11,8 @@ import type {
   Projectile,
   Shrine,
   Strike,
+  Summon,
+  SummonKind,
   Wizard,
 } from '../match/state';
 import {
@@ -80,6 +82,10 @@ export const DEFAULT_BOT: BotProfile = {
   memoryTicks: 90,
 };
 
+/** Las invocaciones rivales que el bot rompe si las tiene cerca, y a cuántos metros. */
+const PESTS: ReadonlySet<SummonKind> = new Set<SummonKind>(['wisp']);
+const BREAK_RANGE = 6;
+
 /** Hechizos usados hace poco que el bot recuerda para no repetirse. */
 const RECENT_PLANS = 4;
 
@@ -129,7 +135,8 @@ export class BotController implements Controller {
     }
     const intents: Intent[] = [];
     const beast = seen ? this.beastToHunt(state, self, target) : undefined;
-    const lockId = beast ? beast.id : target.id;
+    const pest = seen && !beast ? this.summonToBreak(state, self) : undefined;
+    const lockId = beast?.id ?? pest?.id ?? target.id;
     if (seen && self.lockTarget !== lockId) {
       intents.push({ kind: 'lockTarget', targetId: lockId });
     }
@@ -172,7 +179,7 @@ export class BotController implements Controller {
     if (lineBlocked(self.pos, aimed, obstacles, 0.3)) {
       return intents;
     }
-    if (beast) {
+    if (beast || pest) {
       const hunt = this.huntAction(self);
       if (hunt) intents.push(hunt);
       return intents;
@@ -398,6 +405,30 @@ export class BotController implements Controller {
         best = beast;
         bestDistance = d;
       }
+    }
+    return best;
+  }
+
+  /**
+   * Una invocación rival que conviene romper antes de seguir con el mago: el Fuego fatuo que lo
+   * persigue (cae de un golpe). Como un jugador, la fija y le tira un básico. Se decide una vez
+   * por invocación, según qué tanto esquiva este bot. Al Pararrayos no: perseguirlo con
+   * básicos le cuesta más de lo que le quita.
+   */
+  private summonToBreak(state: Readonly<MatchState>, self: Readonly<Wizard>): Summon | undefined {
+    if (self.weave.length > 0 && self.lockTarget === null) return undefined;
+    let best: Summon | undefined;
+    let bestDistance = BREAK_RANGE;
+    for (const spell of state.spells) {
+      if (spell.kind !== 'summon' || spell.team === self.team || spell.hp <= 0) continue;
+      if (!PESTS.has(spell.summon)) continue;
+      const d = distance(spell.pos, self.pos);
+      if (d > bestDistance || lineBlocked(self.pos, spell.pos, this.rules.map.obstacles, 0.3)) {
+        continue;
+      }
+      if (!this.decide(-spell.id - 1_000_000, this.profile.dodgeProjectiles)) continue;
+      best = spell;
+      bestDistance = d;
     }
     return best;
   }

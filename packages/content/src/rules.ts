@@ -45,7 +45,7 @@ export const GAME_RULES: GameRules = {
     // Paso sombrío: 1,2 segundos sin poder tejer.
     silenced: { ticks: 36 },
     // Esporas: 30% menos de daño por 3 segundos.
-    weak: { ticks: 90, damageMultiplier: 0.7 },
+    weak: { ticks: 90, damageMultiplier: 0.6 },
     // Ceguera: 3 segundos viendo solo 3 m alrededor.
     blind: { ticks: 90, sightRadius: 3 },
     // Corriente: 50% más rápido mientras vas a favor del río.

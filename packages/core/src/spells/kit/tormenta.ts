@@ -132,6 +132,7 @@ export function castShadowStep(ctx: CastContext): void {
     to: caster.pos,
   });
   if (victim.statuses.stasis) return;
+  hitTarget(state, caster.id, target, payloadFor(ctx, spell.damage), rules);
   applyStatus(state, victim, 'silenced', caster.id, rules);
   victim.channel = null;
   victim.weave = [];

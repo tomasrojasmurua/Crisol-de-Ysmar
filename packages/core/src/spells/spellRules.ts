@@ -103,6 +103,8 @@ export interface SpellRules {
     readonly coneDot: number;
     /** Cuánto detrás de él apareces. */
     readonly behind: number;
+    /** El golpe por la espalda al aparecer. */
+    readonly damage: number;
   };
   /** Marea → Tormenta: un río que apura a los aliados a favor y empapa a los rivales. */
   readonly current: {
