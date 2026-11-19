@@ -3,7 +3,7 @@ import type { Intent } from '../controllers/intent';
 import { TICK_RATE } from '../sim/fixedStep';
 import { TEST_RULES } from '../testing/rules.fixture';
 import { createMatch, type WizardSetup } from './createMatch';
-import { modeSetup, playerCount } from './modes';
+import { modeSetup, playerCount, spawnTurn } from './modes';
 import { roundPhase, zoneDamageAt, zoneRadiusAt } from './round';
 import { createSeries, recordRound } from './series';
 import type { DeathRule, MatchState, Wizard } from './state';
@@ -145,6 +145,65 @@ describe('modos', () => {
     expect(new Set(ffa.wizards.map((w) => w.team)).size).toBe(5);
     expect(ffa.wizards[0]?.team).toBe(0);
     expect(playerCount({ kind: 'ffa', players: 9 })).toBe(6);
+  });
+});
+
+describe('punto de partida de cada ronda', () => {
+  const turning = { ...rules, map: { ...rules.map, spawnTurns: 12 } };
+  const angleOf = (p: { x: number; z: number }): number => Math.atan2(p.z, p.x);
+
+  it('dos rondas seguidas nunca repiten giro, ni medio giro, en ninguna partida', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      for (let round = 0; round < 6; round++) {
+        const a = spawnTurn(seed * 7919, round, 12);
+        const b = spawnTurn(seed * 7919, round + 1, 12);
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(a).toBeLessThan(12);
+        expect((b - a + 12) % 6).not.toBe(0);
+      }
+    }
+  });
+
+  it('cada ronda parte en otro lugar, con los equipos siempre en bordes opuestos', () => {
+    const modes = [
+      { kind: 'duel' },
+      { kind: 'teams', size: 3 },
+      { kind: 'ffa', players: 4 },
+    ] as const;
+    for (const mode of modes) {
+      const first = modeSetup(mode, 1, 'out', turning, { matchSeed: 42, index: 0 }).wizards;
+      const second = modeSetup(mode, 2, 'out', turning, { matchSeed: 42, index: 1 }).wizards;
+      const me = (ws: typeof first) => ws[0]?.spawn ?? { x: 0, z: 0 };
+      expect(Math.hypot(me(first).x - me(second).x, me(first).z - me(second).z)).toBeGreaterThan(5);
+      for (const ws of [first, second]) {
+        // Girar no acerca a nadie: las distancias entre todos quedan iguales que sin girar.
+        const still = modeSetup(mode, 1, 'out', rules).wizards;
+        ws.forEach((w, i) => {
+          ws.forEach((v, j) => {
+            const d = Math.hypot(w.spawn.x - v.spawn.x, w.spawn.z - v.spawn.z);
+            const s0 = still[i]?.spawn ?? w.spawn;
+            const s1 = still[j]?.spawn ?? v.spawn;
+            expect(d).toBeCloseTo(Math.hypot(s0.x - s1.x, s0.z - s1.z), 6);
+          });
+          expect(Math.hypot(w.spawn.x, w.spawn.z)).toBeCloseTo(
+            Math.hypot(still[i]?.spawn.x ?? 0, still[i]?.spawn.z ?? 0),
+            6,
+          );
+        });
+      }
+      if (mode.kind !== 'ffa') {
+        const enemy = second.find((w) => w.team === 1)?.spawn ?? { x: 0, z: 0 };
+        const gap = Math.abs(angleOf(me(second)) - angleOf(enemy));
+        expect(Math.min(gap, Math.PI * 2 - gap)).toBeGreaterThan(Math.PI * 0.85);
+      }
+    }
+  });
+
+  it('sin ronda (entrenamiento, pruebas) o sin giros en el mapa, todo queda como antes', () => {
+    const plain = modeSetup({ kind: 'duel' }, 1, 'out', turning).wizards;
+    expect(plain[0]?.spawn.z).toBeLessThan(0);
+    const fixed = modeSetup({ kind: 'duel' }, 1, 'out', rules, { matchSeed: 9, index: 1 });
+    expect(fixed.wizards).toEqual(modeSetup({ kind: 'duel' }, 1, 'out', rules).wizards);
   });
 });
 

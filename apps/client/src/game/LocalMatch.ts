@@ -274,7 +274,11 @@ export class LocalMatch implements MatchView {
   private startRound(): MatchState {
     // Cada ronda tiene su propia semilla, derivada de la de la partida.
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
-    const setup = modeSetup(this.options.mode, roundSeed, this.options.deathRule, this.rules);
+    // Cada ronda se parte desde otro punto del borde (girada entera, sigue siendo pareja).
+    const setup = modeSetup(this.options.mode, roundSeed, this.options.deathRule, this.rules, {
+      matchSeed: this.seed,
+      index: this.series.roundsPlayed,
+    });
     // Cada mago lleva el Presagio de la partida, su Afinidad y sus Glifos.
     const wizards = setup.wizards.map((w, index) => {
       const affinity = this.affinities.get(index + 1) ?? null;

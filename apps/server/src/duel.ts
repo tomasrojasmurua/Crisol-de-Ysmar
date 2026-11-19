@@ -872,7 +872,11 @@ export class DuelHost {
     for (const slot of this.slots.values()) slot.heardAt = this.clock;
     const roundSeed = (this.seed + this.series.roundsPlayed * 0x9e3779b1) >>> 0;
     const deathRule = this.settings.lives ? 'lives' : 'out';
-    const setup = modeSetup(this.settings.mode, roundSeed, deathRule, this.rules);
+    // Cada ronda se parte desde otro punto del borde (girada entera, sigue siendo pareja).
+    const setup = modeSetup(this.settings.mode, roundSeed, deathRule, this.rules, {
+      matchSeed: this.seed,
+      index: this.series.roundsPlayed,
+    });
     const wizards = setup.wizards.map((w, index) => {
       const slot = this.slots.get(index + 1);
       const affinity = slot?.affinity ?? null;

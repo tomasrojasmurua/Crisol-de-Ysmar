@@ -18,6 +18,7 @@ const CAMP_RADIUS = 24;
 const CAMP_CLEARING = 5;
 /** Donde aparecen los magos: el borde del mapa, cada 30 grados. */
 const SPAWN_RADIUS = 32;
+const SPAWN_TURNS = 12;
 const SPAWN_CLEARING = 5;
 /** Un sendero circular une los campamentos con las bases. */
 const RING_PATH = { from: 27.5, to: 30 };
@@ -94,7 +95,9 @@ function distanceToRay(x: number, z: number, angle: number): number {
 function buildMap(): MapLayout {
   const camps = campLayout();
   const obstacles: Obstacle[] = plazaObstacles();
-  const spawnAngles = Array.from({ length: 12 }, (_, i) => deg(-90 + 30 * i));
+  const spawnAngles = Array.from({ length: SPAWN_TURNS }, (_, i) =>
+    deg(-90 + (360 / SPAWN_TURNS) * i),
+  );
   const pathAngles = [...camps.map((c) => Math.atan2(c.z, c.x)), deg(-90), deg(90)];
   const rng = new SeededRng(0x5eed_1a55);
 
@@ -138,7 +141,12 @@ function buildMap(): MapLayout {
     obstacles.push({ x, z, radius, kind });
     obstacles.push({ x: -x, z: -z, radius, kind });
   }
-  return { obstacles, camps, guardianLair: FEATURES.guardian ? { x: 0, z: 0 } : null };
+  return {
+    obstacles,
+    camps,
+    guardianLair: FEATURES.guardian ? { x: 0, z: 0 } : null,
+    spawnTurns: SPAWN_TURNS,
+  };
 }
 
 /** La jungla completa: para 2v2 en adelante (y para el 1v1 si `FEATURES.duelInJungle`). */
@@ -151,7 +159,13 @@ export const MAP: MapLayout = buildMap();
 export const PLAZA_ARENA_RADIUS = 17;
 
 /** El 1v1: solo la plaza, sin jungla, campamentos ni Guardián. Las ruinas sirven de cobertura. */
-export const PLAZA_MAP: MapLayout = { obstacles: plazaObstacles(), camps: [], guardianLair: null };
+export const PLAZA_MAP: MapLayout = {
+  obstacles: plazaObstacles(),
+  camps: [],
+  guardianLair: null,
+  // Las ruinas y los braseros van cada 60 y 36 grados: cada 30 el borde queda libre.
+  spawnTurns: SPAWN_TURNS,
+};
 
 /** Lo que el cliente necesita para dibujar el mapa y que el núcleo no usa: senderos y braseros. */
 export const MAP_DECOR = {

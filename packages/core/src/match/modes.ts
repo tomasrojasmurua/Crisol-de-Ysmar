@@ -27,14 +27,28 @@ export function teamCount(mode: GameMode): number {
 }
 
 /**
+ * Cuánto se gira la ronda `round` (desde 0) de una partida: un múltiplo de la vuelta repartida en
+ * `turns`. Parte de un giro sacado de la semilla de la partida y avanza 5 por ronda (5 no divide
+ * a 12): dos rondas seguidas nunca repiten lugar ni solo cambian de lado o de asiento, así nadie
+ * vuelve a partir frente al mismo campamento.
+ */
+export function spawnTurn(matchSeed: number, round: number, turns: number): number {
+  if (turns <= 1) return 0;
+  const base = Math.imul(matchSeed >>> 0, 0x9e3779b1) >>> 0;
+  return ((((base % turns) + round * 5) % turns) + turns) % turns;
+}
+
+/**
  * Arma la ronda de un modo. El primer mago (id 1) siempre es del equipo 0:
- * en el celular es el jugador.
+ * en el celular es el jugador. Con `round` (la partida y su número de ronda), la ronda entera
+ * se gira alrededor del centro: los equipos siguen en bordes opuestos, pero cada ronda en otros.
  */
 export function modeSetup(
   mode: GameMode,
   seed: number,
   deathRule: DeathRule,
   rules: GameRules,
+  round?: { readonly matchSeed: number; readonly index: number },
 ): MatchSetup {
   const r = rules.arenaRadius;
   const wizards: WizardSetup[] = [];
@@ -59,5 +73,18 @@ export function modeSetup(
       }
     }
   }
-  return { seed, deathRule, wizards };
+  const turns = rules.map.spawnTurns ?? 1;
+  const turn = round ? spawnTurn(round.matchSeed, round.index, turns) : 0;
+  if (turn === 0) return { seed, deathRule, wizards };
+  const angle = (turn / turns) * Math.PI * 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    seed,
+    deathRule,
+    wizards: wizards.map((w) => ({
+      ...w,
+      spawn: { x: w.spawn.x * cos - w.spawn.z * sin, z: w.spawn.x * sin + w.spawn.z * cos },
+    })),
+  };
 }
