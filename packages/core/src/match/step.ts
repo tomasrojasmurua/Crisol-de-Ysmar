@@ -153,10 +153,11 @@ function startChannel(
     if (wizard.hp <= 0) return;
   }
   // El cansancio empieza al lanzar: cada elemento usado descansa antes de volver a tejerse.
-  // Un doble (Brasa → Brasa) descansa más: gasta un solo elemento y no puede salir gratis.
-  const double = weave.length === 2 && weave[0] === weave[1];
-  const ticks = rules.weave.fatigueTicks + (double ? rules.weave.doubleFatigueTicks : 0);
+  // Cada vez que un elemento va en el tejido suma descanso: Brasa → Brasa cansa Brasa más que
+  // una Chispa, y Brasa → Brasa → Brasa más todavía.
   for (const element of weave) {
+    const uses = weave.filter((e) => e === element).length;
+    const ticks = rules.weave.fatigueTicks + (uses - 1) * rules.weave.repeatFatigueTicks;
     wizard.fatigue[element] = Math.round(ticks * wizard.mods.fatigue[element]);
   }
   wizard.channel =

@@ -76,7 +76,7 @@ describe('stepMatch', () => {
     expect(wizard(state, 1).weave).toEqual([]);
   });
 
-  it('un doble cansa su elemento más que el básico; un Gran hechizo, igual que el básico', () => {
+  it('cada unidad de un elemento en el tejido suma descanso', () => {
     const tired = (...elements: ('brasa' | 'tormenta')[]): number => {
       const state = duel();
       run(
@@ -87,9 +87,11 @@ describe('stepMatch', () => {
       return wizard(state, 1).fatigue.brasa;
     };
     const single = tired('brasa');
-    expect(tired('brasa', 'brasa')).toBe(single + rules.weave.doubleFatigueTicks);
+    const extra = rules.weave.repeatFatigueTicks;
     expect(tired('brasa', 'tormenta')).toBe(single);
-    expect(tired('brasa', 'brasa', 'brasa')).toBe(single);
+    expect(tired('brasa', 'brasa')).toBe(single + extra);
+    expect(tired('brasa', 'brasa', 'brasa')).toBe(single + 2 * extra);
+    expect(tired('brasa', 'tormenta', 'brasa')).toBe(single + extra);
   });
 
   it('un tejido de tres elementos tarda más en salir', () => {
