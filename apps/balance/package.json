@@ -7,6 +7,7 @@
   "scripts": {
     "start": "tsx src/main.ts",
     "schools": "tsx src/schools.ts",
+    "uso": "tsx src/usage.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
