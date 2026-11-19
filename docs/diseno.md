@@ -179,6 +179,9 @@ cuenta pendiente de Vesk y Madre Musgo (los dos rivales se buscan entre ellos: `
   quien habla: `public/historia/escenas` y `retratos`, en webp de menos de 150 KB. Se piden recién
   al ver la escena, así que quien no abre la Historia nunca las descarga. Los originales están
   en los archivos del proyecto (`historia/arte`).
+- El arte manda: cada ilustración nueva entra sola, sin texto, por un par de segundos (un toque
+  la adelanta). Encima de una ilustración el diálogo es una franja baja de dos líneas y el
+  retrato va chico junto al nombre; el retrato grande solo aparece sobre negro.
 - Por partes: ya están el preludio y los actos 1 y 2 (combates 1 a 9). Faltan el acto 3, el
   Guardián como jefe, los gólems, el mapa del corazón y los finales (con sus imágenes).
 

@@ -3,8 +3,12 @@ import type { GameMode } from '@crisol/core';
 import { el, query } from './dom';
 import { MENU_ICONS } from './menuIcons';
 
-/** Cuántas líneas quedan a la vista: las de más arriba se van apagando. */
+/** Cuántas líneas quedan a la vista sobre negro: las de más arriba se van apagando. */
 const VISIBLE_LINES = 4;
+/** Sobre una ilustración, menos: el texto va en una franja baja y deja ver el arte. */
+const VISIBLE_LINES_ILLUSTRATED = 2;
+/** Cuánto se ve una ilustración nueva sola, sin texto, antes de su primera línea. */
+const ART_ALONE_MS = 1800;
 
 /** Las ilustraciones y retratos de la Historia: se piden recién al verlos, nunca en combate. */
 const backdropUrl = (name: string): string => `/historia/escenas/${name}.webp`;
@@ -52,6 +56,9 @@ export class StoryScreen {
   private next = 0;
   /** Un título o un murmullo: va solo, al centro, y el siguiente toque limpia la pantalla. */
   private alone = false;
+  /** La línea que espera mientras la ilustración nueva se ve sola. */
+  private held: StoryLine | null = null;
+  private heldTimer = 0;
 
   constructor(
     parent: HTMLElement,
@@ -96,6 +103,7 @@ export class StoryScreen {
 
   hide(): void {
     this.root.hidden = true;
+    this.release(false);
   }
 
   /** Muestra una escena desde su primera línea; con `skippable`, aparece "Saltar escena". */
@@ -104,6 +112,7 @@ export class StoryScreen {
     this.lines = scene.lines;
     this.next = 0;
     this.alone = false;
+    this.release(false);
     this.stage.replaceChildren();
     this.skip.hidden = !skippable;
     this.hint.hidden = false;
@@ -166,6 +175,7 @@ export class StoryScreen {
   }
 
   private open(): void {
+    this.release(false);
     this.root.hidden = false;
     this.card.hidden = true;
     this.root.classList.remove('cast', 'murmuring');
@@ -177,6 +187,7 @@ export class StoryScreen {
   private setBackdrop(name: string): void {
     if (name === this.backdropName) return;
     this.backdropName = name;
+    this.root.classList.toggle('illustrated', !!name);
     this.backdrop.classList.remove('shown');
     if (!name) return;
     this.backdrop.style.backgroundImage = `url("${backdropUrl(name)}")`;
@@ -199,12 +210,40 @@ export class StoryScreen {
 
   /** Muestra la línea siguiente; sin más líneas, termina la escena. */
   private advance(): void {
+    // Un toque mientras la ilustración se ve sola trae su línea de inmediato.
+    if (this.held) {
+      this.release(true);
+      return;
+    }
     const line = this.lines[this.next];
     if (!line) {
       this.finishScene();
       return;
     }
     this.next++;
+    // Una ilustración nueva entra sola y limpia: primero se mira, después se lee.
+    if (line.backdrop && line.backdrop !== this.backdropName) {
+      this.setBackdrop(line.backdrop);
+      this.setPortrait('');
+      this.stage.replaceChildren();
+      this.root.classList.add('viewing');
+      this.held = line;
+      this.heldTimer = window.setTimeout(() => this.release(true), ART_ALONE_MS);
+      return;
+    }
+    this.show(line);
+  }
+
+  /** Suelta la línea que esperaba a la ilustración: la muestra o, al salir, la descarta. */
+  private release(show: boolean): void {
+    window.clearTimeout(this.heldTimer);
+    const line = this.held;
+    this.held = null;
+    this.root.classList.remove('viewing');
+    if (show && line) this.show(line);
+  }
+
+  private show(line: StoryLine): void {
     if (line.backdrop !== undefined) this.setBackdrop(line.backdrop);
     // El retrato se queda mientras hablas tú o se describe algo: es con quien conversas.
     if (line.portrait) this.setPortrait(line.portrait);
@@ -217,16 +256,18 @@ export class StoryScreen {
     this.stage.append(lineElement(line));
     // Las de más arriba se apagan y, pasadas unas cuantas, se van.
     const shown = [...this.stage.children];
-    shown.slice(0, -VISIBLE_LINES).forEach((old) => {
+    const visible = this.backdropName ? VISIBLE_LINES_ILLUSTRATED : VISIBLE_LINES;
+    shown.slice(0, -visible).forEach((old) => {
       old.remove();
     });
-    const kept = shown.slice(-VISIBLE_LINES);
+    const kept = shown.slice(-visible);
     kept.forEach((item, i) => {
       item.classList.toggle('past', i < kept.length - 1);
     });
   }
 
   private finishScene(): void {
+    this.release(false);
     this.lines = [];
     this.next = 0;
     this.actions.sceneDone();
@@ -247,6 +288,13 @@ function lineElement(line: StoryLine): HTMLElement {
     item.append(el('strong', 'story-title', line.text));
     if (line.who) item.append(el('span', 'story-subtitle', line.who));
     return item;
+  }
+  // Sobre una ilustración el retrato va chico, junto al nombre, para no tapar el arte.
+  if (line.portrait) {
+    const face = el('img', 'story-face');
+    face.src = portraitUrl(line.portrait);
+    face.alt = '';
+    item.append(face);
   }
   if (line.who) {
     const who = el('span', 'story-who', line.who);
