@@ -118,6 +118,8 @@ export class MatchPerfLog {
   private readonly qualityChanges: { atMs: number; quality: QualityName }[] = [];
   private load = emptyLoad();
   private screenCapped = false;
+  /** Cuadros dibujados según el ritmo de la pantalla en ese momento (60, 90, 120 Hz…). */
+  private readonly screenRates = new Map<number, number>();
   private pageHitches = 0;
   private pageMs = 0;
   private pageScriptMs = 0;
@@ -131,6 +133,7 @@ export class MatchPerfLog {
 
   start(pixelRatio: number, quality: QualityName = 'alta', screenCapped = false): void {
     this.screenCapped = screenCapped;
+    this.screenRates.clear();
     this.pageHitches = 0;
     this.pageMs = 0;
     this.pageScriptMs = 0;
@@ -200,6 +203,27 @@ export class MatchPerfLog {
   }
 
   /** Suma el cuadro a su tramo de 10 s, a su momento y a su cantidad de conjuros. */
+  /**
+   * El ritmo de la pantalla en un cuadro dibujado (ms entre llamadas). Dice si un celular de
+   * 120 Hz pasó a 60 a ratos (ahorro de batería) y con qué tope se dibujó.
+   */
+  screenRate(intervalMs: number): void {
+    if (intervalMs <= 0) return;
+    const hz = Math.round(1000 / intervalMs / 30) * 30;
+    this.screenRates.set(hz, (this.screenRates.get(hz) ?? 0) + 1);
+  }
+
+  private screenLine(): string | null {
+    let total = 0;
+    for (const count of this.screenRates.values()) total += count;
+    if (total === 0) return null;
+    const parts = [...this.screenRates.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([hz, count]) => `${hz} Hz el ${Math.round((count / total) * 100)}%`);
+    return `Pantalla: ${parts.join(' · ')}`;
+  }
+
   private spans(frameMs: number, spells: number, moment: string | undefined): void {
     const index = Math.floor(this.playedMs / BUCKET_MS);
     const touched: Span[] = [];
@@ -325,6 +349,8 @@ export class MatchPerfLog {
             .map((change) => `${QUALITY_LABEL[change.quality]} en ${clock(change.atMs)}`)
             .join(', ')}`;
     lines.push(quality);
+    const screen = this.screenLine();
+    if (screen) lines.push(screen);
     if (this.screenCapped) {
       lines.push('Pantalla frenada a 30 fps por el celular (¿Modo de bajo consumo?)');
     }

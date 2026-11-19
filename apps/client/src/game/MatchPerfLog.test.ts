@@ -6,6 +6,15 @@ function play(log: MatchPerfLog, frameMs: number, seconds: number): void {
 }
 
 describe('MatchPerfLog', () => {
+  it('anota a qué ritmo iba la pantalla (un 120 Hz que pasa a 60 a ratos)', () => {
+    const log = new MatchPerfLog();
+    log.start(1.5);
+    play(log, 16, 10);
+    for (let i = 0; i < 75; i++) log.screenRate(1000 / 120);
+    for (let i = 0; i < 25; i++) log.screenRate(1000 / 60);
+    expect(log.summary(true)).toContain('Pantalla: 120 Hz el 75% · 60 Hz el 25%');
+  });
+
   it('una partida fluida dice que nunca fue lenta', () => {
     const log = new MatchPerfLog();
     log.start(2);

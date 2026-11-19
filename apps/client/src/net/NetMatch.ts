@@ -62,6 +62,13 @@ const SHRINK_AFTER = 90;
  * siguiente salto, crecía, y así toda la partida (60 a 110 vaciados por partida).
  */
 const MAX_SHRINK_AFTER = 4 * SHRINK_AFTER;
+/**
+ * Un silencio más largo que esto no lo tapa ni el colchón más grande (8 pasos, 267 ms): es un
+ * corte del wifi, no el vaivén de la red. Agrandar el colchón por él no evita el próximo y deja a
+ * los rivales atrasados un buen rato (el 18 de noviembre, dos celulares en el mismo wifi
+ * terminaron con el colchón lleno por tres cortes de medio segundo).
+ */
+const LONG_HOLE_MS = 300;
 /** Si el colchón se pasa de su tamaño por más que esto, se muestran dos pasos por cuadro. */
 const CATCH_UP_SLACK = 2;
 /**
@@ -293,6 +300,8 @@ export class NetMatch implements MatchView {
   private shrinkAfter = SHRINK_AFTER;
   /** Pasos desde la última vez que se achicó el colchón. */
   private sinceShrink = Number.POSITIVE_INFINITY;
+  /** Lo que había antes del último vaciado, por si resulta ser un corte largo (se deshace). */
+  private beforeStall: { target: number; shrinkAfter: number; sinceShrink: number } | null = null;
   /** Lo menos que tuvo el colchón (además del paso que se muestra) desde la última revisión. */
   private calmLow = Number.POSITIVE_INFINITY;
   /** Pasos seguidos con algo de sobra en el colchón. */
@@ -415,6 +424,11 @@ export class NetMatch implements MatchView {
       if (this.netStage.kind === 'playing') {
         this.stalls++;
         this.summary.note('stall');
+        this.beforeStall = {
+          target: this.target,
+          shrinkAfter: this.shrinkAfter,
+          sinceShrink: this.sinceShrink,
+        };
         this.target = Math.min(BUFFER_LIMIT, this.target + 1);
         this.summary.maxTarget = Math.max(this.summary.maxTarget, this.target);
         if (this.sinceShrink < 2 * this.shrinkAfter) {
@@ -963,7 +977,15 @@ export class NetMatch implements MatchView {
       const gap = now - this.lastFrameAt;
       if (gap > HOLE_MS) this.summary.note('hole', gap, now);
       this.summary.longestHole = Math.max(this.summary.longestHole, gap);
+      // El colchón se vació en este silencio y fue un corte largo: crecer no habría servido.
+      if (gap > LONG_HOLE_MS && this.beforeStall && !this.primed) {
+        this.target = this.beforeStall.target;
+        this.shrinkAfter = this.beforeStall.shrinkAfter;
+        this.sinceShrink = this.beforeStall.sinceShrink;
+      }
     }
+    // Llegó algo: el último vaciado ya quedó juzgado.
+    if (playing) this.beforeStall = null;
     this.lastFrameAt = playing ? now : 0;
   }
 

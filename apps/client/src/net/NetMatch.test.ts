@@ -250,6 +250,37 @@ describe('duelo en red: el celular', () => {
     expect(stalls()).toBeLessThanOrEqual(2);
   });
 
+  it('un corte largo del wifi no agranda el colchón; un salto corto sí', () => {
+    let clock = 1000;
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    try {
+      const { net, socket } = joined();
+      const target = (): number => (net as unknown as { target: number }).target;
+      let tick = 0;
+      const arrive = (): void => socket.receive(stateMessage(++tick));
+      arrive();
+      arrive();
+      const play = (steps: number, receiving: boolean): void => {
+        for (let i = 0; i < steps; i++) {
+          clock += 1000 / 30;
+          if (receiving) arrive();
+          net.step();
+        }
+      };
+      play(30, true);
+      // Medio segundo sin nada (un corte del wifi): se vacía, pero el colchón no crece.
+      play(15, false);
+      play(30, true);
+      expect(target()).toBe(2);
+      // Un salto corto (100 ms) sí lo agranda: para ese el colchón sirve.
+      play(3, false);
+      play(30, true);
+      expect(target()).toBe(3);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it('si llegan muchos de golpe, muestra dos por paso hasta alcanzar', () => {
     const { net, socket } = joined();
     for (let tick = 1; tick <= 8; tick++) socket.receive(stateMessage(tick));
