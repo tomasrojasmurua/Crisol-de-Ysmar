@@ -302,6 +302,16 @@ export class Hud {
     this.result.show(summary);
   }
 
+  /** Qué hace el botón "Ver repetición" del resultado. */
+  set onReplay(handler: (() => void) | null) {
+    this.result.onReplay = handler;
+  }
+
+  /** Esconde el resultado sin olvidarlo (mientras se ve la repetición) o lo vuelve a mostrar. */
+  setResultHidden(hidden: boolean): void {
+    this.result.setHidden(hidden);
+  }
+
   hideResult(): void {
     this.result.hide();
   }

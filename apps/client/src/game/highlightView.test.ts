@@ -18,6 +18,7 @@ const BASE: Highlight = {
   reactions: 1,
   spells: ['splash', 'chainLightning'],
   ticks: 74,
+  endTick: 300,
   decisive: false,
   score: 0,
 };

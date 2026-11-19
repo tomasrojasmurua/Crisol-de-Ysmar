@@ -1,3 +1,4 @@
+import type { MatchState } from '@crisol/core';
 import { describe, expect, it } from 'vitest';
 import {
   CHOOSE_TICKS,
@@ -130,6 +131,10 @@ describe('Sala de duelo 1v1', () => {
     expect(pause.highlight).not.toBeNull();
     expect(pause.highlight?.round).toBe(1);
     expect(duel.stageFor(2)).toMatchObject({ highlight: pause.highlight });
+    // Cada estado lleva la mejor de la partida hasta ahora: con ella cada celular guarda su repetición.
+    expect(duel.frameFor(2, structuredClone(duel.state as MatchState)).best).toEqual(
+      pause.highlight,
+    );
     until(duel, () => duel.stageFor(1).kind !== 'intermission', INTERMISSION_TICKS + 1);
     until(duel, () => duel.stageFor(1).kind === 'playing', CHOOSE_TICKS + 1);
     expect(duel.seriesInfo().glyphs[1]).toHaveLength(1);

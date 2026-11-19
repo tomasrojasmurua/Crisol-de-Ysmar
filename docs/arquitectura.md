@@ -112,6 +112,24 @@ tocas ✦.
   Nada empieza solo: quien creó la sala toca "Empezar" y la IA ocupa los puestos libres. Con la
   partida empezada no entra nadie nuevo (sí vuelve quien se cortó, con su pase).
 
+## Repetición de la mejor jugada
+
+Al terminar la partida se repite la mejor jugada (ver `docs/diseno.md`, "La mejor jugada"). No
+se vuelve a simular nada: se recorren estados guardados con el mismo dibujo de siempre.
+
+- `game/ReplayRecorder.ts` guarda los últimos 330 pasos (11 s). En red solo guarda la referencia
+  del estado que llegó: el decodificador arma cada estado nuevo sobre el anterior y comparte lo
+  que no cambió, y nadie lo modifica después, así que no copia nada. Contra la IA la simulación
+  cambia el estado en su lugar y `snapshotState` hace una copia liviana por paso (0,1 ms con el
+  procesador 4 veces más lento; `structuredClone` entero costaba 0,5 ms por las bestias).
+- Cada `StateFrame` lleva `best`, la mejor jugada de la partida hasta ahora según la Sala. Cuando
+  cambia, el celular aparta sus pasos (1,5 s antes del primer golpe a 1,5 s después del último);
+  la jugada se cierra 2 s después de su último golpe, así que todo sigue en lo guardado. Si no
+  están (estabas fuera de la app), se repiten los últimos 5 s de la partida.
+- `game/ReplayView.ts` es un `MatchView` que avanza un paso guardado por paso de reloj; "tu" mago
+  es quien hizo la jugada, así la cámara va sobre su hombro. En red, a quien la Sala no te
+  mostraba tampoco se lo ve en la repetición.
+
 ## Sonido
 
 `apps/client/src/audio` sintetiza todo en vivo con Web Audio y escucha los mismos eventos que los

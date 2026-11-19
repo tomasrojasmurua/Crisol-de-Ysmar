@@ -130,9 +130,11 @@ reacciones, cuánto duró y si cerró la ronda.
   Los números están en `packages/content/src/highlights.ts`; la cuenta, en
   `packages/core/src/match/highlights.ts`.
 - **En red la elige la Sala** y la manda con la pausa y con el resultado: todos ven la misma.
-- Es una tarjeta, no una repetición: repetir el momento en cámara lenta pediría guardar segundos de
-  estado en cada celular (y en red, que la Sala los mande), justo lo que cuesta en un Android de
-  gama media.
+- **Repetición:** al terminar la partida, la jugada de la partida se repite sola (unos 5 a 8 s, la
+  cámara sobre el hombro de quien la hizo, con Saltar); después aparece el resultado, con un botón
+  para verla de nuevo. Si tu celular no alcanzó a guardarla (estabas fuera de la app), se repite el
+  desenlace: los últimos 5 s. Las rondas muestran solo su tarjeta: repetirlas alargaría la pausa
+  de todos. Cómo se guarda sin costo, en `docs/arquitectura.md`, "Repetición".
 
 ## Linajes
 

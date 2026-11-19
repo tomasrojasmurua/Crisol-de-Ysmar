@@ -79,6 +79,7 @@ function stateMessage(tick: number, ack = 0, hidden: number[] = []): StateFrame 
   state.tick = tick;
   return {
     hidden,
+    best: null,
     ack,
     state,
     stage: { kind: 'playing' },
