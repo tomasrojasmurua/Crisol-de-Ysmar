@@ -248,7 +248,7 @@ export class StoryScreen {
     // El retrato se queda mientras hablas tú o se describe algo: es con quien conversas.
     if (line.portrait) this.setPortrait(line.portrait);
     this.root.classList.toggle('murmuring', line.style === 'murmur');
-    const alone = line.style === 'title' || line.style === 'murmur';
+    const alone = line.style === 'title' || line.style === 'logo' || line.style === 'murmur';
     if (alone) this.setPortrait('');
     if (alone || this.alone) this.stage.replaceChildren();
     this.alone = alone;
@@ -284,6 +284,13 @@ function preload(scene: StoryScene): void {
 
 function lineElement(line: StoryLine): HTMLElement {
   const item = el('p', `story-line story-${line.style}`);
+  if (line.style === 'logo') {
+    const logo = el('img', 'story-logo');
+    logo.src = '/logo.webp';
+    logo.alt = line.text;
+    item.append(logo);
+    return item;
+  }
   if (line.style === 'title') {
     item.append(el('strong', 'story-title', line.text));
     if (line.who) item.append(el('span', 'story-subtitle', line.who));

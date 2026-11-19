@@ -40,8 +40,10 @@ export type StoryLineStyle =
   | 'tell'
   /** Un murmullo: sola, pálida, sobre negro. */
   | 'murmur'
-  /** Un título a pantalla completa (el del juego o el de un acto); `who` es el subtítulo. */
-  | 'title';
+  /** Un título a pantalla completa (el de un acto); `who` es el subtítulo. */
+  | 'title'
+  /** El logo del juego, el mismo del menú; `text` es su nombre, para lectores de pantalla. */
+  | 'logo';
 
 export interface StoryLine {
   readonly style: StoryLineStyle;
@@ -312,7 +314,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
         ),
       ),
       crisol('Vengan. Tejan. Que el más fuerte reteje la Trama.'),
-      title('CRISOL DE YSMAR'),
+      { style: 'logo', text: 'Crisol de Ysmar' },
       at('', title('Acto 1', 'El llamado')),
     ]),
 
