@@ -70,6 +70,8 @@ export class Minimap {
     seen: ReadonlySet<number>,
     badges: ReadonlyMap<number, WizardBadge>,
     time: number,
+    /** Dónde va la flecha: tu mago, o si caíste, el que miras. */
+    focus: Wizard = player,
   ): void {
     const now = performance.now();
     if (now - this.drawnAt < MIN_REDRAW_MS) return;
@@ -158,7 +160,7 @@ export class Minimap {
 
     // Magos: aliados siempre; rivales si se ven, y si no, dónde se los vio.
     for (const wizard of state.wizards) {
-      if (wizard.id === player.id) continue;
+      if (wizard.id === focus.id) continue;
       const color = badges.get(wizard.id)?.color ?? '#fff';
       if (wizard.team === player.team) {
         ctx.globalAlpha = wizard.hp > 0 ? 1 : 0.4;
@@ -192,10 +194,10 @@ export class Minimap {
     }
     ctx.globalAlpha = 1;
 
-    // Tú: una flecha que siempre apunta hacia arriba, como la cámara.
+    // Tú (o quien miras): una flecha que siempre apunta hacia arriba, como la cámara.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const sx = half + k * (right.x * player.pos.x + right.z * player.pos.z);
-    const sy = half - k * (forward.x * player.pos.x + forward.z * player.pos.z);
+    const sx = half + k * (right.x * focus.pos.x + right.z * focus.pos.z);
+    const sy = half - k * (forward.x * focus.pos.x + forward.z * focus.pos.z);
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#0b0a10';
     ctx.lineWidth = px;
