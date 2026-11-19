@@ -54,6 +54,10 @@ export function spellOptions(s: Situation): Option[] {
   add(['brasa', 'marea'], 'target', d < 5 && self.shield === 0 ? 2.5 : 0);
   add(['umbra', 'umbra'], 'target', health < 0.5 && d > 7 ? 1.5 : 0);
   add(['umbra', 'tormenta'], 'away', health < 0.4 && d < 8 ? 2 : 0);
+  // Desviar lo que viene o frenar al que se acerca.
+  add(['tormenta', 'marea'], 'target', threatened ? 2.5 : d < 4.5 ? 1.5 : 0);
+  add(['brasa', 'marea'], 'target', threatened && self.shield === 0 ? 2 : 0);
+  add(['umbra', 'umbra'], 'target', threatened && health < 0.7 ? 1.5 : 0);
 
   // Escapar si lo encimaron.
   if (d < 3.5) {
@@ -62,6 +66,8 @@ export function spellOptions(s: Situation): Option[] {
     add(['tormenta'], 'away', 2);
     add(['umbra'], 'target', 1);
     add(['marea', 'tormenta'], 'away', 1.5);
+    add(['brasa', 'tormenta'], 'away', 2);
+    add(['umbra', 'tormenta'], 'away', 1.5);
   }
 
   // Castigar a quien no se puede mover, y cortar un Gran hechizo que le están preparando.
@@ -82,10 +88,9 @@ export function spellOptions(s: Situation): Option[] {
     add(['tormenta', 'raiz'], 'target', owns('lightningRod') ? 0 : 1.2);
     add(['raiz', 'marea'], 'target', owns('mossGuardian') || d > 8 ? 0 : 1.2);
     add(['raiz', 'umbra'], 'target', d <= 6 ? 1.5 : 0);
-    add(['tormenta', 'marea'], 'target', 1);
     add(['tormenta', 'umbra'], 'target', d <= 6 ? 1 : 0);
     add(['umbra', 'raiz'], 'target', d <= 8 ? 1.5 : 0);
-    add(['umbra', 'marea'], 'lead', target.statuses.blind ? 0 : 1.5);
+    add(['umbra', 'marea'], 'lead', target.statuses.blind ? 0 : 0.8);
     add(['brasa', 'umbra'], 'target', 1.2);
     add(['raiz', 'tormenta'], 'target', d > 6 && health > 0.6 ? 1 : 0);
   }
@@ -95,7 +100,7 @@ export function spellOptions(s: Situation): Option[] {
     add(['brasa', 'brasa'], 'lead', d < 14 ? 1 : 0);
     add(['umbra', 'umbra'], 'target', 0.5);
     add(['brasa', 'raiz'], 'target', owns('wisp') ? 0 : 1.5);
-    add(['umbra', 'marea'], 'lead', d < 12 && !target.statuses.blind ? 1 : 0);
+    add(['umbra', 'marea'], 'lead', d < 12 && !target.statuses.blind ? 0.5 : 0);
     add(['marea', 'tormenta'], 'target', health > 0.6 ? 1 : 0);
   }
   greatOptions(s, add, d, health, helpless, bigCast);
@@ -157,6 +162,8 @@ function greatOptions(
   // Escapar o protegerse.
   add(['marea', 'brasa', 'tormenta'], 'target', near ? 2.5 : 0);
   add(['tormenta', 'tormenta', 'tormenta'], 'away', near && health < 0.6 ? 1.5 : 0);
+  add(['tormenta', 'tormenta', 'tormenta'], 'target', d >= 4 && d < 9 && health >= 0.6 ? 1 : 0);
+  add(['raiz', 'tormenta', 'brasa'], 'away', near && health < 0.5 ? 1.5 : 0);
   add(['brasa', 'umbra', 'tormenta'], 'away', near && ownsEmbers ? 2.5 : 0);
   add(['umbra', 'brasa', 'tormenta'], 'away', near && health < 0.35 ? 1.2 : 0);
   add(['umbra', 'tormenta', 'tormenta'], 'away', near && health < 0.4 ? 1 : 0);

@@ -26,7 +26,7 @@ import {
 } from '../math/vec2';
 import type { GameRules } from '../rules';
 import { SeededRng } from '../sim/rng';
-import { SPELL_WEAVES, type SpellId, spellOf } from '../spells/catalog';
+import { type SpellId, spellOf } from '../spells/catalog';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { Navigator } from './navigation';
 import { type AimMode, type Plan, spellOptions } from './spellPlans';
@@ -246,7 +246,7 @@ export class BotController implements Controller {
     // Casi siempre elige un hechizo propio según la situación; a veces improvisa un tejido.
     const spells = spellOptions({ state, self, target, available, threatened });
     const book = this.profile.spellbook;
-    if (book) return this.chooseFromBook(book, spells, available);
+    if (book) return this.chooseFromBook(book, spells);
     if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
       return this.remember(this.pickWeighted(spells));
     }
@@ -291,6 +291,8 @@ export class BotController implements Controller {
     if (this.readsWeave(target)) {
       move = add(move, scale(perpendicular(toTarget), this.strafeSign * 1.6));
     }
+    // Bajo la Lluvia de fuego de un rival, moverse quema: se queda quieto salvo para esquivar.
+    if (underRivalRain(state, self, this.rules)) move = { x: 0, z: 0 };
     return this.keepInZone(state, self, add(move, this.dodge(state, self)));
   }
 
@@ -484,22 +486,17 @@ export class BotController implements Controller {
     return { x: aim.x * cos - aim.z * sin, z: aim.x * sin + aim.z * cos };
   }
 
-  /** Con un set cerrado: lo pensado que esté en el set, o cualquiera del set que se pueda. */
+  /** Con un set cerrado: solo lo pensado para la situación que esté en el set. */
   private chooseFromBook(
     book: readonly SpellId[],
     spells: readonly (Plan & { readonly weight: number })[],
-    available: readonly ElementId[],
   ): Plan | null {
     const inBook = spells.filter((o) => {
       const id = spellOf(o.elements);
       return id !== null && book.includes(id);
     });
-    if (inBook.length > 0) return this.remember(this.pickWeighted(inBook));
-    const ready = book
-      .map((id) => SPELL_WEAVES[id])
-      .filter((weave) => weave.every((e) => available.includes(e)));
-    const weave = ready.length > 0 ? ready[this.rng.int(0, ready.length - 1)] : undefined;
-    return weave ? this.remember({ elements: [...weave], aimMode: 'target' }) : null;
+    // Si ninguno de su set cuadra ahora, espera: lanzar al azar gasta el elemento.
+    return inBook.length > 0 ? this.remember(this.pickWeighted(inBook)) : null;
   }
 
   private pickWeighted(options: readonly (Plan & { readonly weight: number })[]): Plan {
@@ -570,4 +567,13 @@ function outOfStrike(strike: Strike, pos: Vec2, margin: number): Vec2 | null {
   const offset = sub(pos, closest);
   if (length(offset) >= reach) return null;
   return normalize(offset, perpendicular(dir));
+}
+
+/** Si está al alcance de la Lluvia de fuego de un rival. */
+function underRivalRain(state: Readonly<MatchState>, self: Readonly<Wizard>, rules: GameRules) {
+  return state.spells.some((s) => {
+    if (s.kind !== 'fireRain' || s.team === self.team) return false;
+    const owner = wizardById(state as MatchState, s.ownerId);
+    return owner !== undefined && distance(owner.pos, self.pos) <= rules.spells.fireRain.radius;
+  });
 }

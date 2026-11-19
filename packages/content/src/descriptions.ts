@@ -12,12 +12,12 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   splash: 'Cono de 3 m: 6 de daño y 30% más lento por 1,5 s.',
   sap: 'Te curas 15 en 3 s.',
   claw: 'Golpe instantáneo a 6 m: 6 de daño y robas 6.',
-  fireball: 'Proyectil lento y grande que explota en 3 m: 44 de daño y quema.',
+  fireball: 'Proyectil lento y grande que explota en 3 m: 32 de daño y quema.',
   comet: 'Te lanzas 10 m y dejas un rastro de fuego por 3 s que quema a quien lo pise.',
   blink: 'Te teletransportas 7 m al instante, incluso a través de árboles y rocas.',
-  chainLightning: 'Rayo instantáneo a 9 m que salta a dos blancos más cercanos: 18, 12 y 8.',
+  chainLightning: 'Rayo instantáneo a 9 m que salta a dos blancos más cercanos: 24, 16 y 10.',
   geyser:
-    'Marcas un punto a 8 m; tras 0,6 s de aviso brota un géiser hirviente de 2 m que levanta por los aires 1 s a quien esté encima (12).',
+    'Marcas un punto a 8 m; tras 0,6 s de aviso brota un géiser hirviente de 2 m que levanta por los aires 1 s a quien esté encima (18).',
   iceCoffin:
     'Te congelas 1,5 s: no recibes daño ni estados, pero no actúas. Al salir quedas limpio.',
   thornRush:
@@ -26,7 +26,7 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
     'Golpeas el suelo y brota una muralla de 8 m por 5 s, de lado a donde miras. Bloquea paso y proyectiles de todos.',
   veil: 'Invisible 4 s: te ven solo a 2 m o si te pegan. El primer hechizo que lances desde el velo hace 30% más.',
   drain:
-    'Atas un hilo a un rival a 7 m: le robas 8 por segundo hasta 3 s. Se corta si se aleja a más de 10 m o pasa tras un árbol.',
+    'Atas un hilo a un rival a 7 m: le robas 7 por segundo hasta 3 s. Se corta si se aleja a más de 10 m o pasa tras un árbol.',
   obsidian:
     'Coraza que absorbe 40 por 4 s; al romperse o terminar, estalla en 2,5 m con 15 de daño.',
   wisp: 'Invoca una llama que persigue al rival más cercano por 6 s y explota al tocarlo (20). Se esquiva o se apaga de un golpe.',
@@ -35,7 +35,7 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   blizzard:
     'Torbellino fijo de 3,5 m por 4 s: rivales dentro 40% más lentos y los proyectiles que lo cruzan se desvían.',
   lightningRod:
-    'Poste por 8 s que da un rayo de 5 al rival más cercano a 7 m cada segundo. Cae con dos golpes.',
+    'Poste por 8 s que da un rayo de 6 al rival más cercano a 7 m cada segundo. Cae con dos golpes.',
   shadowStep: 'Apareces detrás de un rival a 6 m y lo silencias 1,2 s: no puede tejer.',
   current:
     'Río de 10 m por 4 s: tú y tus aliados a favor corren 50% más rápido; los rivales que lo cruzan quedan empapados: muy lentos, y Tormenta o Raíz encima reaccionan.',
@@ -51,12 +51,12 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   shackle:
     'Atas al rival a su lugar por 4 s. Si se aleja más de 4 m, queda enraizado 1,5 s y recibe 15.',
   meteor: 'Tras 1,5 s de aviso cae en 5 m: 60 de daño.',
-  fireRain: 'Por 4 s cae fuego sobre cada rival que se mueva a 10 m; quedarse quieto lo salva.',
+  fireRain: 'Por 5 s cae fuego sobre cada rival que se mueva a 10 m; quedarse quieto lo salva.',
   blackFlame: 'Proyectil que atraviesa muros, escudos e invocaciones.',
   emberStride: 'Te teletransportas a cualquier suelo que esté ardiendo a 15 m.',
   darkComet: 'Proyectil que, si acierta, te lleva junto al rival y lo silencia 1 s.',
   skySpear: 'Tras 0,5 s cae un rayo en línea de 14 m: 45 de daño.',
-  tempest: 'Tres destellos de 6 m en 4 s; cada llegada descarga 10 en 2 m.',
+  tempest: 'Tres destellos de 6 m en 4 s; cada llegada descarga 14 en 2 m.',
   hurricane: 'Un tornado avanza lento y levanta por los aires 1 s a quien toca.',
   swap: 'Cambias de lugar con cualquier mago, aliado o rival, que veas a 12 m.',
   erraticOrb: 'Un orbe lento avanza 12 m y da rayos a todo rival a 4 m mientras pasa.',
@@ -64,13 +64,13 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   cauldron: 'El suelo en 5 m empieza a hervir; quien siga encima a los 3 s recibe 50.',
   steamJet: 'Te impulsas 7 m hacia atrás y el chorro quema hacia adelante.',
   drown:
-    'Canalizas 2 s sobre un rival a 6 m; si no sale del alcance, queda silenciado 2 s y recibe 30.',
+    'Canalizas 2 s sobre un rival a 6 m; si no sale del alcance, queda silenciado 2 s y recibe 26.',
   mangrove: 'Un muro de manglar de 6 m que frena proyectiles pero deja pasar a los magos.',
   tidalWave: 'Una ola gigante cruza el campo y deja 70% más lento a quien toca.',
   rootCatapult:
     'Una raíz te lanza en arco 12 m por encima de todo; al caer enraízas a quien esté a 3 m.',
   sowing: 'Siembra seis trampas en un área al instante.',
-  thornRing: 'Un anillo de espinas ardientes de 6 m encierra a quien quede adentro por 4 s.',
+  thornRing: 'Un anillo de espinas ardientes de 6 m encierra a quien quede adentro por 5 s.',
   treeStride: 'Entras en un árbol y sales por otro árbol a hasta 20 m.',
   soulPyre: 'Marca hasta 3 rivales; a los 2 s cada uno recibe 25 más 10% de la vida que le falta.',
   portal:
