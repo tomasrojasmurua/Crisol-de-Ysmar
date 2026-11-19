@@ -61,7 +61,10 @@ export function updateZone(state: MatchState, zone: Zone, rules: GameRules): boo
 
 const ZONE_STATUS = { burn: 'burn', blizzard: 'slow', spores: 'weak', mist: 'sluggish' } as const;
 
-/** La Corriente: apura a los aliados que van a favor del río y frena a los rivales dentro. */
+/**
+ * La Corriente: apura a los aliados que van a favor del río y empapa a los rivales dentro (muy
+ * lentos, y Tormenta o Raíz encima reaccionan: Conducción y Lodazal).
+ */
 export function updateCurrent(state: MatchState, current: Current, rules: GameRules): boolean {
   for (const wizard of state.wizards) {
     if (wizard.hp <= 0 || wizard.leap) continue;
@@ -70,7 +73,7 @@ export function updateCurrent(state: MatchState, current: Current, rules: GameRu
     const across = Math.abs(offset.x * current.dir.z - offset.z * current.dir.x);
     if (along < 0 || along > current.length || across > current.halfWidth) continue;
     if (wizard.team !== current.team) {
-      applyStatus(state, wizard, 'slow', current.ownerId, rules);
+      applyStatus(state, wizard, 'soaked', current.ownerId, rules, rules.spells.current.soakTicks);
     } else if (dot(wizard.moveInput, current.dir) > 0.3) {
       applyStatus(state, wizard, 'haste', current.ownerId, rules);
     }

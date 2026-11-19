@@ -31,6 +31,11 @@ const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
  */
 export class TouchControls {
   private readonly elementButtons = new Map<ElementId, HTMLButtonElement>();
+  /**
+   * Con cuánto cansancio empezó cada elemento: un doble (Brasa → Brasa) lo cansa más que los 3 s de
+   * siempre, y el anillo se vacía desde lleno igual.
+   */
+  private readonly fatigueStart = new Map<ElementId, number>();
   private readonly slots: HTMLElement[] = [];
   private readonly keys = new Set<string>();
   private readonly root: HTMLElement;
@@ -130,7 +135,11 @@ export class TouchControls {
     }
     this.applyHex(wizard.statuses.hexed?.power ?? 0);
     for (const [element, button] of this.elementButtons) {
-      const fatigue = wizard.fatigue[element] / rules.weave.fatigueTicks;
+      const left = wizard.fatigue[element];
+      const start = this.fatigueStart.get(element) ?? 0;
+      const total = left > start ? left : start;
+      this.fatigueStart.set(element, left > 0 ? total : 0);
+      const fatigue = left / Math.max(total, rules.weave.fatigueTicks);
       // De a 5%: el anillo de cansancio se ve igual y el botón no se repinta en cada cuadro.
       const value = (Math.ceil(fatigue * 20) / 20).toFixed(2);
       if (button.dataset.fatigue !== value) {

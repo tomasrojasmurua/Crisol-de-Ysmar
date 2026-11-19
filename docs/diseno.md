@@ -35,7 +35,7 @@ es lo vigente.
   tercera; y terreno, detonadores, tiempo, copias, contrahechizos y represalias en la cuarta).
   Algunos Grandes hechizos guardan un hechizo ajeno (Reflejo, Hurto): sale en el próximo
   lanzamiento, tejas lo que tejas.
-  El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga.
+  El tejido es visible para el rival y ninguno sale en menos de 0,17 s, para que se alcance a ver aunque haya lag. Cada elemento tiene su propia fatiga: descansa 3 s después de usarlo, y 4,5 s si fue un doble (Brasa → Brasa, Tormenta → Tormenta…), que gasta un solo elemento y pega más que el básico.
 - **Jungla viva:** el Incendio forestal quema árboles y el Brote de árbol los planta; los cambios
   duran hasta el fin de la ronda.
 - **Partida:** mejor de 3 rondas sin reloj (Caza, Convergencia y Duelo final, un minuto cada una, y
