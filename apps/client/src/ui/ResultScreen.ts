@@ -1,6 +1,7 @@
 import type { Weave } from '@crisol/core';
 import { el, query } from './dom';
 import { weaveOrbs } from './GrimoireBook';
+import { type HighlightView, highlightCard } from './HighlightCard';
 import { MENU_ICONS } from './menuIcons';
 
 export type Outcome = 'win' | 'loss' | 'draw';
@@ -49,6 +50,8 @@ export interface ResultSummary {
     | undefined;
   /** Un paso del Camino de tu Linaje: si lo superaste y la meta. Revancha pasa a "Otra vez". */
   readonly path?: ResultPath | undefined;
+  /** La mejor jugada de la partida, sobre los cuadros de cada mago. */
+  readonly highlight?: HighlightView | undefined;
 }
 
 /** Cómo salió el paso del Camino, bajo el título. */
@@ -114,6 +117,7 @@ export class ResultScreen {
   private readonly master: HTMLElement;
   private readonly card: HTMLElement;
   private readonly players: HTMLElement;
+  private readonly highlight: HTMLElement;
   private readonly rematchNote: HTMLElement;
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
@@ -155,6 +159,7 @@ export class ResultScreen {
         </div>
         </div>
         <div class="hud-result-side">
+        <div class="hud-result-highlight"></div>
         <section class="hud-result-players" aria-label="Resumen de la partida" hidden></section>
         <div class="hud-result-opinion" hidden>
           <p class="hud-result-opinion-ask"><span>¿Cómo se jugó?</span>
@@ -178,6 +183,7 @@ export class ResultScreen {
     this.master = query(this.root, '.hud-result-master');
     this.card = query(this.root, '.hud-result-card');
     this.players = query(this.root, '.hud-result-players');
+    this.highlight = query(this.root, '.hud-result-highlight');
     this.rematchNote = query(this.root, '.hud-result-rematch');
     this.rematchButton = query(this.root, '.rematch');
     this.rematchLabel = query(this.rematchButton, 'span');
@@ -267,9 +273,19 @@ export class ResultScreen {
       ...summary.players.map((player) => playerCard(player, summary.roundsToWin)),
     );
     this.players.hidden = summary.players.length === 0;
+    // Va con los cuadros: sin resumen (entrenamiento) no hay columna donde ponerla.
+    this.highlight.replaceChildren(
+      ...(summary.highlight && summary.players.length > 0
+        ? [highlightCard(summary.highlight, 'result-highlight')]
+        : []),
+    );
     // De a 3 por fila salvo con 2 o 4 magos (1v1 y 2v2: cada bando en su fila).
     const count = summary.players.length;
-    this.players.dataset.columns = String(count === 2 || count === 4 ? 2 : Math.min(3, count));
+    const columns = count === 2 || count === 4 ? 2 : Math.min(3, count);
+    this.players.dataset.columns = String(columns);
+    // Con la jugada y dos filas de cuadros, la columna baja para no quedar bajo Pausa.
+    this.card.classList.toggle('with-highlight', this.highlight.childElementCount > 0);
+    this.card.classList.toggle('two-rows', count > columns);
     this.card.classList.toggle('with-players', count > 0);
     // Por equipos el marcador va además a la izquierda: en celulares bajos se aprieta esa columna.
     this.card.classList.toggle('with-teams', count > 0 && summary.teams.length > 0);

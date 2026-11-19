@@ -102,7 +102,7 @@ function rowOf(stats: MatchStats, id: EntityId): WizardMatchStats | undefined {
 }
 
 /** Si los dos son magos de equipos distintos (las bestias y la zona no son rivales). */
-function rivals(state: MatchState, sourceId: EntityId, targetId: EntityId): boolean {
+export function rivals(state: MatchState, sourceId: EntityId, targetId: EntityId): boolean {
   if (sourceId === targetId) return false;
   let sourceTeam: number | null = null;
   let targetTeam: number | null = null;

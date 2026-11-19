@@ -1,8 +1,8 @@
-import type { ElementId, Intent, MatchState, WizardMatchStats } from '@crisol/core';
+import type { ElementId, Highlight, Intent, MatchState, WizardMatchStats } from '@crisol/core';
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 19;
+export const PROTOCOL_VERSION = 20;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -36,7 +36,13 @@ export interface PlayerInfo {
 export type NetStage =
   | { readonly kind: 'lobby' }
   | { readonly kind: 'playing' }
-  | { readonly kind: 'intermission'; readonly roundWinner: number; readonly ticksLeft: number }
+  /** Pausa tras una ronda: quién la ganó y su mejor jugada (la elige la Sala, igual para todos). */
+  | {
+      readonly kind: 'intermission';
+      readonly roundWinner: number;
+      readonly ticksLeft: number;
+      readonly highlight: Highlight | null;
+    }
   /**
    * Entre rondas: los Glifos que te ofrecen, si ya elegiste (esperas al otro) y cuántos pasos
    * quedan antes de que la Sala elija al azar por quien no eligió.
@@ -57,6 +63,8 @@ export type NetStage =
       readonly rematch: readonly number[];
       readonly seriesId: number;
       readonly stats: readonly WizardMatchStats[];
+      /** La mejor jugada de toda la partida. */
+      readonly highlight: Highlight | null;
     };
 
 /** Del celular a la Sala. */

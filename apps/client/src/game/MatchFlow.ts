@@ -4,8 +4,10 @@ import {
   favoriteSpell,
   type GameEvent,
   type GameRules,
+  type Highlight,
   SPELL_WEAVES,
   spellOf,
+  TICK_RATE,
 } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
@@ -15,6 +17,7 @@ import type { ComboCallouts } from '../ui/ComboCallouts';
 import { comboStepsView } from '../ui/comboSteps';
 import type { GlyphPicker } from '../ui/GlyphPicker';
 import { weaveOrbs } from '../ui/GrimoireBook';
+import type { HighlightView } from '../ui/HighlightCard';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import { intentTag } from '../ui/intentTag';
 import type { Minimap } from '../ui/Minimap';
@@ -23,6 +26,7 @@ import { ComboDetector } from './ComboDetector';
 import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
+import { highlightView } from './highlightView';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
 import { masterQuote } from './masterLine';
@@ -30,9 +34,6 @@ import type { PathProgress } from './PathProgress';
 import type { ModeGroup, PlayerStats } from './PlayerStats';
 import { foreignSpell, judgePath } from './pathJudge';
 import { TrainingMatch } from './TrainingMatch';
-
-/** El anuncio de quién ganó la ronda sale al empezar el entreacto. */
-const INTERMISSION_ANNOUNCE_TICK = 4 * 30 - 1;
 
 const elementName = (element: string): string =>
   ELEMENTS.find((e) => e.id === element)?.name ?? element;
@@ -71,6 +72,11 @@ export class MatchFlow {
   private firstFallRound = 0;
   /** Quién ganó la última ronda: si perdiste, el selector de Glifos lo dice. */
   private lastWinner = -1;
+  /**
+   * La pausa ya anunciada, por rondas jugadas. Antes el aviso salía en un paso exacto de la
+   * pausa y se perdía si un cuadro lento avanzaba dos pasos de una vez.
+   */
+  private announcedPause = -1;
   /** En el Camino, si ya se avisó que la meta de solo tus hechizos se rompió. */
   private pathBroken = false;
 
@@ -89,6 +95,7 @@ export class MatchFlow {
     this.pickerShown = false;
     this.firstFallRound = 0;
     this.pathBroken = false;
+    this.announcedPause = -1;
   }
 
   /** Avisos de la partida según lo que pasó en el paso. */
@@ -210,6 +217,7 @@ export class MatchFlow {
       this.deps.audio.reset();
       this.deps.audio.setMood('hunt');
       this.deps.hud.reset(current.state, current.player, badges);
+      this.deps.hud.hideHighlight();
       this.deps.view.creatures.clear();
       this.deps.minimap.reset();
       this.deps.view.rig.snap();
@@ -238,6 +246,7 @@ export class MatchFlow {
       this.deps.controls.visible = this.deps.renderer.watchedOf(current) === null;
     if (stage.kind === 'choosing' && !this.pickerShown) {
       this.pickerShown = true;
+      this.deps.hud.hideHighlight();
       this.deps.audio.setMood('menu');
       this.deps.controls.visible = false;
       const lost = current.series.roundsPlayed > 0 && this.lastWinner !== playerTeam;
@@ -250,7 +259,16 @@ export class MatchFlow {
     } else if (stage.kind === 'choosing' && stage.secondsLeft !== undefined) {
       this.deps.glyphPicker.setClock(stage.secondsLeft);
     }
-    if (stage.kind === 'intermission' && stage.ticksLeft === INTERMISSION_ANNOUNCE_TICK) {
+    // En la pausa nada se mueve: los botones se guardan y dejan ver la jugada de la ronda.
+    if (stage.kind === 'intermission') this.deps.controls.visible = false;
+    if (stage.kind === 'intermission' && this.announcedPause !== current.series.roundsPlayed) {
+      this.announcedPause = current.series.roundsPlayed;
+      // La mejor jugada de la ronda queda a la vista hasta que termina la pausa.
+      if (stage.highlight)
+        this.deps.hud.showHighlight(
+          this.highlightOf(stage.highlight, false, current, badges),
+          Math.max(1, stage.ticksLeft / TICK_RATE),
+        );
       const winner = stage.roundWinner;
       this.lastWinner = winner;
       if (winner >= 0) this.deps.audio.say('voice.crisol.roundWon');
@@ -291,6 +309,7 @@ export class MatchFlow {
         players,
         master,
         path: this.judgePath(current, winner),
+        highlight: this.matchHighlight(current, badges),
       });
       this.addToProfile(current, outcome);
       this.deps.hud.showPerf(this.deps.diagnostics.report());
@@ -298,6 +317,28 @@ export class MatchFlow {
       this.deps.controls.visible = false;
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /** La mejor jugada de toda la partida, para la pantalla final. */
+  private matchHighlight(
+    current: MatchView,
+    badges: ReadonlyMap<number, WizardBadge>,
+  ): HighlightView | undefined {
+    const best = current.matchSummary()?.highlight;
+    return best ? this.highlightOf(best, true, current, badges) : undefined;
+  }
+
+  private highlightOf(
+    highlight: Highlight,
+    whole: boolean,
+    current: MatchView,
+    badges: ReadonlyMap<number, WizardBadge>,
+  ): HighlightView {
+    return highlightView(highlight, whole, {
+      playerId: current.playerId,
+      nameOf: (id) => badges.get(id)?.name ?? 'Hechicero',
+      colorOf: (id) => badges.get(id)?.color ?? '#d8bf8a',
+    });
   }
 
   /** En el Camino: si se superó el paso (y se guarda), o por qué no. */

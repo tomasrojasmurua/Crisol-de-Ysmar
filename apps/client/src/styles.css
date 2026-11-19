@@ -4134,6 +4134,191 @@ body {
   box-shadow: 0 0 8px var(--element);
 }
 
+/* ---------- Mejor jugada ---------- */
+
+/*
+ * La mejor jugada: en la pausa de fin de ronda va bajo el aviso de quién ganó (los botones del
+ * tejido se guardan en la pausa, así que no tapa nada); en el resultado, sobre los cuadros.
+ * Vidrio ahumado con el filo del color de su bando, como los cuadros del resumen.
+ */
+.highlight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 14px 8px;
+  border: 1px solid rgba(216, 191, 138, 0.28);
+  border-top: 2px solid var(--team);
+  border-radius: 8px;
+  background: rgba(14, 12, 20, 0.82);
+  box-shadow:
+    0 0 18px rgba(243, 223, 176, 0.12),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.highlight-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.highlight-kicker {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.highlight-name {
+  font-family: var(--display);
+  font-size: 17px;
+  color: var(--team);
+  text-shadow: 0 1px 6px #000;
+}
+
+.highlight.own .highlight-name {
+  color: var(--gold-bright);
+  text-shadow: 0 0 12px rgba(243, 223, 176, 0.5);
+}
+
+.highlight-tag {
+  padding: 1px 7px;
+  border: 1px solid rgba(243, 223, 176, 0.4);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+}
+
+.highlight-spells {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.highlight-spell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.highlight-spell .weave-orb {
+  width: 9px;
+  height: 9px;
+}
+
+.highlight-then {
+  color: var(--gold);
+  font-style: normal;
+}
+
+.highlight-facts {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-quiet);
+}
+
+/* Bajo el aviso grande, a media pantalla. HTML quieto: entra con una sola animación. */
+.hud-highlight-slot {
+  position: absolute;
+  top: calc(26% + clamp(28px, 5vw, 48px) + 42px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - var(--safe-left) - var(--safe-right));
+  pointer-events: none;
+}
+
+.hud-highlight {
+  animation: highlight-in 0.5s ease 0.35s both;
+}
+
+@keyframes highlight-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* En el resultado: una franja sobre los cuadros, más apretada y en dos líneas si cabe. */
+.hud-result-highlight {
+  width: 100%;
+}
+
+/*
+ * En un celular bajo, con dos filas de cuadros la columna no cabe centrada sin meterse bajo
+ * Pausa (arriba a la derecha): se apoya justo debajo y los cuadros se aprietan un poco.
+ */
+@media (max-height: 520px) {
+  .hud-result-card.with-highlight.two-rows {
+    align-items: start;
+  }
+
+  .hud-result-card.with-highlight.two-rows .hud-result-main {
+    align-self: center;
+  }
+
+  .hud-result-card.with-highlight.two-rows .hud-result-side {
+    padding-top: 40px;
+  }
+
+  .hud-result-card.with-highlight.two-rows .hud-result-player-stats > div {
+    line-height: 1.15;
+  }
+}
+
+.hud-result-highlight:empty {
+  display: none;
+}
+
+.result-highlight {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1px 10px;
+  margin-bottom: 4px;
+  padding: 4px 10px 5px;
+  animation: fade-in 0.6s ease 0.2s both;
+}
+
+.result-highlight .highlight-head {
+  width: 100%;
+}
+
+.result-highlight .highlight-name {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.result-highlight .highlight-tag {
+  font-size: 9px;
+}
+
+.result-highlight .highlight-spells {
+  gap: 1px 5px;
+  font-size: 11px;
+}
+
+.result-highlight .highlight-facts {
+  font-size: 11px;
+}
+
 /* ---------- Descubrimiento ---------- */
 
 .hud-discovery {

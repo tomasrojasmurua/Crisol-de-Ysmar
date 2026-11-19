@@ -116,6 +116,24 @@ sin chocar.
   chocan con medio metro más de margen que el que tienen para pegarle a un mago
   (`interactions.clash.margin`). No es una reacción ni cuenta para el Grimorio.
 
+## La mejor jugada
+
+Al terminar cada ronda, bajo el aviso de quién la ganó, sale **la jugada de la ronda**; en la
+pantalla final, sobre los cuadros de cada mago, **la jugada de la partida**. Dicen quién, con qué
+hechizos (los últimos antes del último golpe) y qué logró: daño, derribos, a cuántos rivales,
+reacciones, cuánto duró y si cerró la ronda.
+
+- **Qué es una jugada:** una ráfaga de golpes de un mago a magos rivales, sin pausas de más de 2 s y
+  de a lo más 5 s. El daño que gotea (quemaduras, zonas) suma pero no la alarga.
+- **Cómo se elige:** 1 punto por punto de daño, 60 por derribo, 20 por cada rival alcanzado además
+  del primero, 12 por reacción y 25 si su derribo cerró la ronda. En empate, la que pasó antes.
+  Los números están en `packages/content/src/highlights.ts`; la cuenta, en
+  `packages/core/src/match/highlights.ts`.
+- **En red la elige la Sala** y la manda con la pausa y con el resultado: todos ven la misma.
+- Es una tarjeta, no una repetición: repetir el momento en cámara lenta pediría guardar segundos de
+  estado en cada celular (y en red, que la Sala los mande), justo lo que cuesta en un Android de
+  gama media.
+
 ## Linajes
 
 Uno por elemento, con nombre simple: "Linaje de Brasa", "Linaje de Tormenta", etc.

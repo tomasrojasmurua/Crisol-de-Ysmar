@@ -153,7 +153,7 @@ describe('duelo en red: el celular', () => {
     frame.state.events = [{ type: 'defeated', wizardId: 1 }];
     const last: StateFrame = {
       ...frame,
-      stage: { kind: 'finished', rematch: [], seriesId: 1, stats: [] },
+      stage: { kind: 'finished', rematch: [], seriesId: 1, stats: [], highlight: null },
     };
     // La Sala reenvía el último estado de a ratos mientras se ve el resultado.
     for (let i = 0; i < 6; i++) socket.receive(last);

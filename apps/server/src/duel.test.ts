@@ -124,6 +124,12 @@ describe('Sala de duelo 1v1', () => {
     duel.leave(2);
     until(duel, () => duel.stageFor(1).kind === 'intermission');
     expect(duel.seriesInfo().roundsPlayed).toBe(1);
+    // La mejor jugada de la ronda la elige la Sala: los dos ven la misma.
+    const pause = duel.stageFor(1);
+    if (pause.kind !== 'intermission') throw new Error('Debía haber pausa');
+    expect(pause.highlight).not.toBeNull();
+    expect(pause.highlight?.round).toBe(1);
+    expect(duel.stageFor(2)).toMatchObject({ highlight: pause.highlight });
     until(duel, () => duel.stageFor(1).kind !== 'intermission', INTERMISSION_TICKS + 1);
     until(duel, () => duel.stageFor(1).kind === 'playing', CHOOSE_TICKS + 1);
     expect(duel.seriesInfo().glyphs[1]).toHaveLength(1);
@@ -135,6 +141,9 @@ describe('Sala de duelo 1v1', () => {
     expect(finished.stats.map((row) => row.id)).toEqual([1, 2]);
     expect(finished.stats.reduce((sum, row) => sum + row.casts, 0)).toBeGreaterThan(0);
     expect(finished.stats.reduce((sum, row) => sum + row.falls, 0)).toBeGreaterThan(0);
+    // Y la mejor de la partida, al menos tan buena como la de la primera ronda.
+    expect(finished.highlight?.score).toBeGreaterThanOrEqual(pause.highlight?.score ?? 0);
+    expect(duel.stageFor(2)).toMatchObject({ highlight: finished.highlight });
     duel.join({ name: 'A', token: 'token-1' });
     duel.rematch(1);
     expect(duel.stageFor(1).kind).toBe('playing');

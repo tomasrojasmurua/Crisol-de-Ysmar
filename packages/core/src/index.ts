@@ -17,6 +17,14 @@ export {
 } from './elements';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
 export { stateHash } from './match/hash';
+export {
+  createHighlightTracker,
+  finishHighlightRound,
+  type Highlight,
+  type HighlightRules,
+  type HighlightTracker,
+  recordHighlights,
+} from './match/highlights';
 export { isBurned, liveRules } from './match/liveMap';
 export {
   createMatchStats,
