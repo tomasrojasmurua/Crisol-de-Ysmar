@@ -2,7 +2,7 @@ import type { Controller, Intent } from '../controllers/intent';
 import type { ElementId } from '../elements';
 import { ELEMENT_IDS } from '../elements';
 import { lineBlocked } from '../match/obstacles';
-import { currentTarget, isAlive } from '../match/queries';
+import { currentTarget, isAlive, isHiddenFrom, wizardById } from '../match/queries';
 import { roundPhase } from '../match/round';
 import type {
   Beast,
@@ -60,6 +60,11 @@ export interface BotProfile {
    * el balance de los sets de principiante.
    */
   readonly spellbook?: readonly SpellId[];
+  /**
+   * Si está, pelea primero contra este mago mientras siga vivo y a la vista (una cuenta
+   * pendiente en la Historia); después, contra el rival de siempre.
+   */
+  readonly focus?: EntityId;
 }
 
 /** Un bot de nivel medio, para pruebas y para quien no elige dificultad. */
@@ -111,7 +116,9 @@ export class BotController implements Controller {
       this.plan = null;
       return [];
     }
-    const seen = currentTarget(state as MatchState, self as Wizard, this.rules);
+    const seen =
+      this.focusTarget(state, self) ??
+      currentTarget(state as MatchState, self as Wizard, this.rules);
     if (seen) this.lastSeen = { id: seen.id, pos: seen.pos, tick: state.tick };
     // Ciego o con el rival escondido: nunca se queda quieto. Pelea contra donde lo vio por
     // última vez y, si ya no lo recuerda, se mueve esquivando.
@@ -288,6 +295,13 @@ export class BotController implements Controller {
   }
 
   /** El rival que perdió de vista, en el último lugar donde lo vio, mientras lo recuerde. */
+  /** El mago con quien tiene una cuenta pendiente, si sigue vivo, es rival y está a la vista. */
+  private focusTarget(state: Readonly<MatchState>, self: Readonly<Wizard>): Wizard | undefined {
+    const focus = wizardById(state as MatchState, this.profile.focus ?? null);
+    if (!focus || !isAlive(focus) || focus.team === self.team) return undefined;
+    return isHiddenFrom(focus, self as Wizard, this.rules) ? undefined : focus;
+  }
+
   private remembered(state: Readonly<MatchState>): Wizard | undefined {
     const last = this.lastSeen;
     if (!last || state.tick - last.tick > this.profile.memoryTicks) return undefined;

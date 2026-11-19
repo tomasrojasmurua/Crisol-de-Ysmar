@@ -9,6 +9,8 @@ import {
   type Omen,
   omenById,
   type PathStep,
+  type StoryFight,
+  type StorySeat,
   schoolSpellbook,
 } from '@crisol/content';
 import {
@@ -62,6 +64,8 @@ export interface MatchOptions {
   readonly botLevel: BotLevel;
   /** Un paso del Camino de tu Linaje: fija el Presagio, los rivales y su forma de tejer. */
   readonly path?: PathStep | undefined;
+  /** Un combate de la Historia: fija el Presagio y quién es cada mago de la IA. */
+  readonly story?: StoryFight | undefined;
 }
 
 export type MatchStage =
@@ -100,6 +104,10 @@ export class LocalMatch implements MatchView {
   readonly glyphs = new Map<number, Glyph[]>();
   /** Afinidad de cada mago, por id: la del jugador y una al azar para cada bot. */
   readonly affinities = new Map<number, ElementId | null>();
+  /** En la Historia, quién es cada mago de la IA (por id). */
+  readonly seats = new Map<number, StorySeat>();
+  /** En la Historia, los ids de los rivales en el orden del guion. */
+  private readonly foeIds: number[] = [];
   private readonly rng: SeededRng;
   private bots = new Map<number, BotController>();
   private readonly previous = new Map<number, Vec2>();
@@ -120,8 +128,10 @@ export class LocalMatch implements MatchView {
     this.rng = new SeededRng(seed ^ 0x2545f491);
     const randomOmen = OMENS[this.rng.int(0, OMENS.length - 1)] ?? (OMENS[0] as Omen);
     const path = options.path;
-    // En el Camino el Presagio es parte del reto: el del paso, o ninguno.
-    this.omen = path ? (path.omenId ? omenById(path.omenId) : NO_OMEN) : randomOmen;
+    const story = options.story;
+    // En el Camino y en la Historia el Presagio es parte del reto: el fijado, o ninguno.
+    const fixedOmen = path ? path.omenId : story ? story.omenId : undefined;
+    this.omen = fixedOmen === undefined ? randomOmen : fixedOmen ? omenById(fixedOmen) : NO_OMEN;
     const total = playerCount(options.mode);
     for (let id = 1; id <= total; id++) {
       const random = ELEMENT_IDS[this.rng.int(0, ELEMENT_IDS.length - 1)] ?? null;
@@ -136,8 +146,31 @@ export class LocalMatch implements MatchView {
         if (w.team !== 0) this.affinities.set(index + 1, rivalAffinity);
       });
     }
+    if (story) this.seatStory(story, seed);
     this.state = this.startRound();
     this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
+  }
+
+  /**
+   * Sienta a los personajes de un combate de la Historia: tus aliados en tu equipo y los demás
+   * en orden, cada uno con la Afinidad de su Linaje. Los rivales con ventaja empiezan con Glifos.
+   */
+  private seatStory(story: StoryFight, seed: number): void {
+    const { wizards } = modeSetup(this.options.mode, seed, this.options.deathRule, this.rules);
+    const allies = [...story.allies];
+    const foes = [...story.foes];
+    wizards.forEach((w, index) => {
+      const id = index + 1;
+      if (id === PLAYER_ID) return;
+      const seat = w.team === 0 ? allies.shift() : foes.shift();
+      if (!seat) return;
+      this.seats.set(id, seat);
+      if (seat.school) this.affinities.set(id, seat.school);
+      if (w.team !== 0) {
+        this.foeIds.push(id);
+        for (const glyph of this.glyphOptions(id, story.foeGlyphs)) this.glyphsOf(id).push(glyph);
+      }
+    });
   }
 
   replayClip(): ReplayClip | null {
@@ -280,7 +313,7 @@ export class LocalMatch implements MatchView {
           new BotController(
             (roundSeed ^ Math.imul(w.id, 0x5bd1e995)) >>> 0,
             this.rules,
-            this.botProfile(w.team !== playerTeam),
+            this.botProfile(w.id, w.team !== playerTeam),
           ),
         ]),
     );
@@ -288,11 +321,32 @@ export class LocalMatch implements MatchView {
     return state;
   }
 
-  /** Cómo juega un bot: en un paso con Linaje rival, los rivales solo tejen el set de ese Linaje. */
-  private botProfile(rival: boolean): BotProfile {
+  /**
+   * Cómo juega un bot: en un paso con Linaje rival, los rivales solo tejen el set de ese Linaje;
+   * en la Historia, cada personaje teje el de su Linaje y los de una cuenta pendiente se buscan.
+   */
+  private botProfile(id: number, rival: boolean): BotProfile {
     const base = BOT_PROFILES[this.options.botLevel];
+    const story = this.options.story;
+    if (story) {
+      const school = this.seats.get(id)?.school;
+      const focus = story.feud ? this.feudOf(id) : undefined;
+      return {
+        ...base,
+        ...(school ? { spellbook: schoolSpellbook(school) } : {}),
+        ...(focus !== undefined ? { focus } : {}),
+      };
+    }
     const school = this.options.path?.rivalSchool;
     return rival && school ? { ...base, spellbook: schoolSpellbook(school) } : base;
+  }
+
+  /** En una cuenta pendiente, los dos primeros rivales se buscan entre ellos. */
+  private feudOf(id: number): number | undefined {
+    const [first, second] = this.foeIds;
+    if (id === first) return second;
+    if (id === second) return first;
+    return undefined;
   }
 
   private controllerOf(wizard: Wizard): Controller {

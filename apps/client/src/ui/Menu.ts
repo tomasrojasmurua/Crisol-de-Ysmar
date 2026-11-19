@@ -136,6 +136,11 @@ export class Menu {
   private readonly pathCount: HTMLElement;
   /** Al tocar el Camino. */
   onPath: () => void = () => {};
+  /** La Historia (se ve una vez elegido el Linaje). */
+  private readonly storyCard: HTMLElement;
+  private readonly storyState: HTMLElement;
+  /** Al tocar la Historia. */
+  onStory: () => void = () => {};
   /** El último tamaño elegido en cada pestaña, para volver a él. */
   private readonly lastSize = new Map<string, string>();
 
@@ -184,7 +189,12 @@ export class Menu {
         </div>
       </section>
       <aside class="menu-side">
-        <button type="button" class="menu-card menu-grimoire">
+        <button type="button" class="menu-card menu-grimoire menu-story" hidden>
+          ${MENU_ICONS.story}
+          <span class="menu-grimoire-text"><strong>Historia</strong><span class="menu-story-state"></span></span>
+          ${MENU_ICONS.chevron}
+        </button>
+        <button type="button" class="menu-card menu-grimoire menu-book">
           ${MENU_ICONS.grimoire}
           <span class="menu-grimoire-text"><strong>Grimorio</strong><span class="menu-grimoire-count"></span></span>
           ${MENU_ICONS.chevron}
@@ -219,7 +229,10 @@ export class Menu {
     query(this.root, '.menu-wardrobe').addEventListener('click', onWardrobe);
     query(this.root, '.menu-profile').addEventListener('click', onProfile);
     this.portrait.addEventListener('click', onWardrobe);
-    query(this.root, '.menu-grimoire:not(.menu-path)').addEventListener('click', onGrimoire);
+    query(this.root, '.menu-book').addEventListener('click', onGrimoire);
+    this.storyCard = query(this.root, '.menu-story');
+    this.storyState = query(this.root, '.menu-story-state');
+    this.storyCard.addEventListener('click', () => this.onStory());
     this.pathCard = query(this.root, '.menu-path');
     this.pathCount = query(this.root, '.menu-path-count');
     this.pathCard.addEventListener('click', () => this.onPath());
@@ -322,6 +335,12 @@ export class Menu {
     this.pathCard.hidden = done === null;
     this.pathCount.textContent =
       done === null ? '' : done >= total ? 'Completo' : `${done} de ${total}`;
+  }
+
+  /** Por dónde vas en la Historia ("Acto 1"); null la esconde (sin Linaje todavía). */
+  setStory(state: string | null): void {
+    this.storyCard.hidden = state === null;
+    this.storyState.textContent = state ?? '';
   }
 
   /** Dónde va el mago en 3D, o null si el menú no está a la vista. */

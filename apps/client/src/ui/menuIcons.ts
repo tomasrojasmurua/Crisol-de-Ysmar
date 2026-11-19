@@ -64,6 +64,10 @@ export const MENU_ICONS = {
   path: icon(
     '<path d="M6 21c0-3 3-4 6-5s5-3 3-5-6-1-6-4 2-3 3-3"/><path d="M12 4V1.5l4.5 1.6L12 4.8"/>',
   ),
+  /** La Historia: un pergamino enrollado con dos líneas escritas. */
+  story: icon(
+    '<path d="M8 4h11v12a4 4 0 0 1-4 4H7a3 3 0 0 1-3-3v-1h10v1a3 3 0 0 0 3 3"/><path d="M8 4a2 2 0 0 0-2 2v10"/><path d="M11 8h5M11 12h5"/>',
+  ),
   /** Un celular con un signo más: agregar el juego a la pantalla de inicio. */
   keep: icon('<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 8v6M9 11h6"/>'),
   /** Estrella de cuatro puntas, sólida: adorna el botón principal. */
