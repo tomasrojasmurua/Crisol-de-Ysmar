@@ -229,6 +229,26 @@ describe('duelo en red: el celular', () => {
     expect(tick - net.state.tick).toBe(2);
   });
 
+  it('si la red tiene saltos que se repiten, el colchón no se achica para volver a vaciarse', () => {
+    const { net, socket } = joined();
+    const stalls = (): number => (net as unknown as { stalls: number }).stalls;
+    let tick = 0;
+    for (let i = 0; i < 2; i++) socket.receive(stateMessage(++tick));
+    // Un minuto de red: cada 3,3 s un hueco corto (un estado tarde) y cada 8 s uno largo (dos).
+    const late = (step: number): number => {
+      if (step % 240 === 0 || step % 240 === 1) return 2;
+      return step % 100 === 0 ? 1 : 0;
+    };
+    for (let step = 1; step <= 1800; step++) {
+      // Lo atrasado llega junto con lo siguiente.
+      while (tick < step + 1 - late(step)) socket.receive(stateMessage(++tick));
+      net.step();
+    }
+    // Antes se achicaba tras 3 s con solo huecos cortos y el próximo largo lo vaciaba: una vez
+    // cada 8 s. Ahora se queda con el colchón que aguanta los dos.
+    expect(stalls()).toBeLessThanOrEqual(2);
+  });
+
   it('si llegan muchos de golpe, muestra dos por paso hasta alcanzar', () => {
     const { net, socket } = joined();
     for (let tick = 1; tick <= 8; tick++) socket.receive(stateMessage(tick));

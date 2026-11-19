@@ -47,7 +47,7 @@ const MAX_CATCH_UP = 4;
  */
 export class RoomHost {
   private host: DuelHost | null = null;
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
   private clock = 0;
   private sentTicks = 0;
   private lastStage = '';
@@ -223,12 +223,23 @@ export class RoomHost {
   private ensureClock(): void {
     if (this.timer) return;
     this.clock = Date.now();
-    this.timer = setInterval(() => this.onClock(), TICK_MS);
+    this.scheduleClock();
   }
 
   private stopClock(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+  }
+
+  /**
+   * Cada vuelta se agenda para cuando toca el próximo paso, no cada 33 ms fijos. Antes era un
+   * `setInterval` de 33,3 ms que el servidor redondea a 33: el reloj se iba corriendo y cada 3 o 4
+   * segundos salía un hueco de 66 ms sin estado (o dos estados juntos). Ese hueco vaciaba el
+   * colchón de los celulares una y otra vez: los rivales se quedaban quietos un instante.
+   */
+  private scheduleClock(): void {
+    const wait = Math.max(0, Math.ceil(this.clock + TICK_MS - Date.now()));
+    this.timer = setTimeout(() => this.onClock(), wait);
   }
 
   private onClock(): void {
@@ -237,6 +248,9 @@ export class RoomHost {
     } catch (error) {
       this.report('paso', error);
       throw error;
+    } finally {
+      // Si en la vuelta se fueron todos, `stopClock` ya dejó el reloj en null: no se reagenda.
+      if (this.timer) this.scheduleClock();
     }
   }
 

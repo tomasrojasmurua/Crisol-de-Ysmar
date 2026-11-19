@@ -9,6 +9,7 @@
  * `POST /api/errors`.
  */
 import { randomFillSync } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage } from 'node:http';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
@@ -66,6 +67,14 @@ loopDelay.enable();
 let load = { cpu: 0, lagP99: 0, lagMax: 0, memoryMb: 0 };
 let lastCpu = process.cpuUsage();
 let lastCpuAt = performance.now();
+/**
+ * Lo peor de los últimos 10 minutos (una muestra cada 5 s). El informe de la Sala sale al final de
+ * la serie: si solo dijera cómo va la máquina en ese momento, un atraso de un minuto a mitad de
+ * partida no dejaría rastro (pasó el 18 de noviembre: 70 s de atraso y "CPU 4%" al final).
+ */
+const RECENT_SAMPLES = 120;
+const recent: { lagMax: number; steal: number; cpu: number }[] = [];
+let lastProcStat = readProcStat();
 setInterval(() => {
   const now = performance.now();
   const cpu = process.cpuUsage(lastCpu);
@@ -75,10 +84,46 @@ setInterval(() => {
     lagMax: Math.round(loopDelay.max / 1e5) / 10,
     memoryMb: Math.round(process.memoryUsage().rss / 1048576),
   };
+  const procStat = readProcStat();
+  recent.push({ lagMax: load.lagMax, steal: stealPercent(lastProcStat, procStat), cpu: load.cpu });
+  if (recent.length > RECENT_SAMPLES) recent.shift();
+  lastProcStat = procStat;
   lastCpu = process.cpuUsage();
   lastCpuAt = now;
   loopDelay.reset();
 }, 5000).unref();
+
+/**
+ * Los contadores de CPU de la máquina entera (Linux). El octavo es la CPU "robada": el tiempo que
+ * Google le dio a otra máquina del mismo equipo. Las e2-micro son compartidas: si se acaba su
+ * ráfaga, el reloj de las Salas se atrasa aunque nuestro proceso casi no use CPU.
+ */
+function readProcStat(): number[] | null {
+  try {
+    const line = readFileSync('/proc/stat', 'utf8').split('\n')[0] ?? '';
+    if (!line.startsWith('cpu ')) return null;
+    return line.trim().split(/\s+/).slice(1).map(Number);
+  } catch {
+    return null;
+  }
+}
+
+/** Qué parte del tiempo de CPU fue robada entre dos lecturas, en %. */
+function stealPercent(before: number[] | null, after: number[] | null): number {
+  if (!before || !after) return 0;
+  const total = after.reduce((sum, value, i) => sum + value - (before[i] ?? 0), 0);
+  const steal = (after[7] ?? 0) - (before[7] ?? 0);
+  return total > 0 ? Math.round((steal / total) * 100) : 0;
+}
+
+/** Lo peor de los últimos 10 minutos, para el informe de la Sala. */
+function recentWorst(): string {
+  if (recent.length === 0) return '';
+  const lag = Math.max(...recent.map((sample) => sample.lagMax));
+  const steal = Math.max(...recent.map((sample) => sample.steal));
+  const cpu = Math.max(...recent.map((sample) => sample.cpu));
+  return ` · peor en 10 min: CPU ${cpu}% · atraso máx ${lag} ms · CPU robada ${steal}%`;
+}
 
 /** Salas con el reloj corriendo (alguien conectado). */
 function activeRooms(): number {
@@ -106,7 +151,7 @@ function roomFor(code: string): Room {
         report: (where, error) => reportError(code, where, error),
         perf: (summary) => sendReport({ kind: 'servidor', room: code, ...summary }),
         machine: () =>
-          `Santiago · CPU ${load.cpu}% · atraso p99 ${load.lagP99} ms · máx ${load.lagMax} ms · ${activeRooms()} salas jugando · ${load.memoryMb} MB`,
+          `Santiago · CPU ${load.cpu}% · atraso p99 ${load.lagP99} ms · máx ${load.lagMax} ms · ${activeRooms()} salas jugando · ${load.memoryMb} MB${recentWorst()}`,
       }),
     };
     rooms.set(code, room);

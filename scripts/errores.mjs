@@ -232,7 +232,7 @@ if (servers.length > 0) {
   print('| ---- | ---- | ----- | -------- | ------- | ----- | ------- |');
   for (const r of servers) {
     print(
-      `| ${chileTime(r.at)} | ${cell(r.room)} | ${cell(r.device)} | ${cell(r.message)} | ${cell(lineOf(r.detail, 'Sala:'))} | ${cell(lineOf(r.detail, 'Reloj:'))} | ${cell(lineOf(r.detail, 'Máquina:'))} |`,
+      `| ${chileTime(r.at)} | ${cell(r.room)} | ${cell(r.device)} | ${cell(r.message)} | ${cell(lineOf(r.detail, 'Sala:'))} | ${cell([lineOf(r.detail, 'Reloj:'), lineOf(r.detail, 'Trabajo por vuelta:')].filter(Boolean).join(' · '))} | ${cell(lineOf(r.detail, 'Máquina:'))} |`,
     );
   }
   print();
