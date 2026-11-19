@@ -26,6 +26,9 @@ es lo vigente.
 - **Campamentos:** dos bestias cada uno; un campamento vacío se vuelve a poblar a los 45 segundos
   (si sigue dentro de la zona). El **Guardián del Crisol** (despierta en la plaza a los 40 s de
   Caza y da una Esencia de cada elemento) está en pausa hasta probar con gente.
+- **Invocaciones y bestias:** las invocaciones atacan a la bestia que persigue a su dueño o a un
+  aliado (o que pelea domada por un rival); a las tranquilas no las tocan. La bestia que golpea el
+  Guardián de musgo lo persigue a él. Si una invocación mata una bestia, la Esencia es de su dueño.
 - **Elementos:** Brasa, Tormenta, Marea, Raíz y Umbra, en un pentágono: cada uno combina con sus
   vecinos y choca con los dos de enfrente.
 - **Tejido:** de 1 a 3 elementos, el orden importa, 155 conjuros base. Cada tejido es un hechizo

@@ -8,8 +8,8 @@ import type { GameRules } from '../../rules';
 import { TICK_RATE } from '../../sim/fixedStep';
 import { type CastContext, nextId, payloadFor, summon } from './context';
 import { sweeper } from './greatTormenta';
-import { hitArea, placedAt, targetInCone } from './shared';
-import { move, nearestVisibleEnemy } from './summons';
+import { hitArea, hitTarget, placedAt, targetInCone, targetPos } from './shared';
+import { foeRadius, move, nearestFoe, nearestVisibleEnemy } from './summons';
 
 /** Ave de ceniza: va hasta el final de su vuelo y vuelve, quemando en cada pasada. */
 export function castAshBird(ctx: CastContext): void {
@@ -130,7 +130,10 @@ export function summonGone(state: MatchState, gone: Summon, rules: GameRules): v
   }
 }
 
-/** Una Chispa errante gira a tu alrededor; si un rival se acerca, sale disparada hacia él. */
+/**
+ * Una Chispa errante gira a tu alrededor; si un rival (o una bestia que va contra tu equipo) se
+ * acerca, sale disparada hacia él.
+ */
 export function updateWanderingSpark(
   state: MatchState,
   spark: Summon,
@@ -140,9 +143,9 @@ export function updateWanderingSpark(
   const spell = rules.spells.wanderingSparks;
   spark.pos = orbitPoint(state, owner, spark.slot, spell.count, spell.orbitRadius);
   if (spark.cooldown > 0) spark.cooldown--;
-  const prey = nearestVisibleEnemy(state, owner, owner.pos, spell.seekRange, rules);
+  const prey = nearestFoe(state, owner, owner.pos, spell.seekRange, rules);
   if (!prey || spark.cooldown > 0) return true;
-  const dir = normalize(sub(prey.pos, spark.pos), owner.facing);
+  const dir = normalize(sub(targetPos(prey), spark.pos), owner.facing);
   shoot(state, spark, dir, spell.speed, spell.seekRange + 3, spark.payload);
   // Las que quedan esperan su turno.
   for (const other of state.spells) {
@@ -177,7 +180,7 @@ function shoot(
   });
 }
 
-/** El Gólem de magma se queda entre su mago y el rival más cercano. */
+/** El Gólem de magma se queda entre su mago y el rival (o la bestia enojada) más cercano. */
 export function updateMagmaGolem(
   state: MatchState,
   golem: Summon,
@@ -185,8 +188,8 @@ export function updateMagmaGolem(
   rules: GameRules,
 ): void {
   const spell = rules.spells.magmaGolem;
-  const threat = nearestVisibleEnemy(state, owner, owner.pos, 18, rules);
-  const toward = threat ? normalize(sub(threat.pos, owner.pos), owner.facing) : owner.facing;
+  const threat = nearestFoe(state, owner, owner.pos, 18, rules);
+  const toward = threat ? normalize(sub(targetPos(threat), owner.pos), owner.facing) : owner.facing;
   const post = add(owner.pos, scale(toward, spell.guardDistance));
   if (distance(post, golem.pos) > 0.3) move(golem, sub(post, golem.pos), spell.speed, rules);
 }
@@ -199,20 +202,23 @@ export function updateGlacier(
   rules: GameRules,
 ): boolean {
   const spell = rules.spells.glacier;
-  const prey = nearestVisibleEnemy(state, owner, glacier.pos, spell.seekRange, rules);
+  const prey = nearestFoe(state, owner, glacier.pos, spell.seekRange, rules);
   if (!prey) return true;
-  if (distance(prey.pos, glacier.pos) <= glacier.radius + rules.wizard.radius + 0.1) {
-    state.events.push({ type: 'burst', spell: 'glacier', pos: prey.pos, radius: 1.2 });
-    applyHit(state, prey, glacier.ownerId, glacier.payload, rules);
-    applyStatus(state, prey, 'frozen', glacier.ownerId, rules);
-    if (prey.statuses.frozen) {
-      prey.channel = null;
-      prey.leap = null;
+  const at = targetPos(prey);
+  if (distance(at, glacier.pos) <= glacier.radius + foeRadius(prey, rules) + 0.1) {
+    state.events.push({ type: 'burst', spell: 'glacier', pos: at, radius: 1.2 });
+    hitTarget(state, glacier.ownerId, prey, glacier.payload, rules);
+    if (prey.kind === 'wizard') {
+      applyStatus(state, prey.wizard, 'frozen', glacier.ownerId, rules);
+      if (prey.wizard.statuses.frozen) {
+        prey.wizard.channel = null;
+        prey.wizard.leap = null;
+      }
     }
     state.events.push({ type: 'summonGone', summon: 'glacier', pos: glacier.pos });
     return false;
   }
-  move(glacier, sub(prey.pos, glacier.pos), spell.speed, rules);
+  move(glacier, sub(at, glacier.pos), spell.speed, rules);
   return true;
 }
 
@@ -284,19 +290,20 @@ export function updateShadowTwin(
 ): void {
   const spell = rules.spells.shadowTwin;
   if (twin.cooldown > 0) twin.cooldown--;
-  const prey = nearestVisibleEnemy(state, owner, twin.pos, 20, rules);
+  const prey = nearestFoe(state, owner, twin.pos, 20, rules);
   if (!prey) {
     if (distance(owner.pos, twin.pos) > 2) move(twin, sub(owner.pos, twin.pos), spell.speed, rules);
     return;
   }
-  const gap = distance(prey.pos, twin.pos);
+  const at = targetPos(prey);
+  const gap = distance(at, twin.pos);
   if (gap > spell.keepDistance) {
-    move(twin, sub(prey.pos, twin.pos), spell.speed, rules);
+    move(twin, sub(at, twin.pos), spell.speed, rules);
   } else {
-    twin.facing = normalize(sub(prey.pos, twin.pos), twin.facing);
+    twin.facing = normalize(sub(at, twin.pos), twin.facing);
   }
   if (twin.cooldown > 0 || gap > spell.boltRange) return;
-  if (lineBlocked(twin.pos, prey.pos, rules.map.obstacles)) return;
+  if (lineBlocked(twin.pos, at, rules.map.obstacles)) return;
   twin.cooldown = spell.intervalTicks;
   shoot(state, twin, twin.facing, spell.boltSpeed, spell.boltRange + 1, twin.payload);
 }
