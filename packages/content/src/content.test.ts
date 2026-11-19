@@ -95,6 +95,28 @@ describe('mapa', () => {
     }
   });
 
+  it('cualquier giro de la ronda deja a todos en un claro, nunca encima de un campamento', () => {
+    const turns = MAP.spawnTurns ?? 1;
+    expect(turns).toBeGreaterThan(1);
+    for (let index = 0; index < turns; index++) {
+      const round = { matchSeed: 0, index };
+      const turned = [
+        ...modeSetup({ kind: 'ffa', players: 6 }, 1, 'out', GAME_RULES, round).wizards,
+        ...modeSetup({ kind: 'ffa', players: 4 }, 1, 'out', GAME_RULES, round).wizards,
+        ...modeSetup({ kind: 'teams', size: 3 }, 1, 'out', GAME_RULES, round).wizards,
+      ];
+      for (const { spawn } of turned) {
+        expect(obstacleAt(spawn, 1.5, MAP.obstacles), `${spawn.x},${spawn.z}`).toBeUndefined();
+        for (const camp of MAP.camps) {
+          expect(Math.hypot(spawn.x - camp.x, spawn.z - camp.z)).toBeGreaterThan(5);
+        }
+      }
+      for (const { spawn } of modeSetup({ kind: 'duel' }, 1, 'out', DUEL_RULES, round).wizards) {
+        expect(obstacleAt(spawn, 1.5, PLAZA_MAP.obstacles)).toBeUndefined();
+      }
+    }
+  });
+
   it('deja libres las bases, los campamentos y la plaza', () => {
     for (const p of [...spawns, ...MAP.camps]) {
       expect(obstacleAt(p, 1.5, MAP.obstacles), `${p.x},${p.z}`).toBeUndefined();

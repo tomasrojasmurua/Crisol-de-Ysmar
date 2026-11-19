@@ -188,6 +188,12 @@ export interface MapLayout {
   readonly camps: readonly Camp[];
   /** Donde despierta el Guardián; sin guarida no hay Guardián. */
   readonly guardianLair: Vec2 | null;
+  /**
+   * En cuántos giros iguales se puede rotar la ronda entera sin que nadie aparezca en la jungla:
+   * cada ronda empieza girada a uno distinto, así no se parte siempre frente al mismo campamento.
+   * Sin este dato (o con 1) siempre se aparece en el mismo lugar.
+   */
+  readonly spawnTurns?: number;
 }
 
 export interface GameRules {

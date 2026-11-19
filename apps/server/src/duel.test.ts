@@ -197,12 +197,13 @@ describe('Sala de duelo: celular de fondo y sin señal', () => {
     expect(duel.wantsState(2)).toBe(true);
     expect(duel.players[0]?.away).toBe(true);
     // Lo que llegue mientras tanto no mueve al mago: lo controla la IA.
-    const start = duel.state?.wizards[0]?.pos.x ?? 0;
+    // (La ronda puede partir en cualquier punto del borde: se mira lo que mueve al mago, no
+    // hacia dónde fue.)
     for (let i = 0; i < 30; i++) {
       duel.intents(1, [{ kind: 'move', x: 1, z: 0 }]);
       duel.tick();
     }
-    expect(duel.state?.wizards[0]?.pos.x ?? 0).toBeLessThan(start + 3);
+    expect(duel.state?.wizards[0]?.moveInput).not.toEqual({ x: 1, z: 0 });
     duel.setAway(1, false);
     expect(duel.players[0]?.away).toBe(false);
     expect(duel.wantsState(1)).toBe(true);
