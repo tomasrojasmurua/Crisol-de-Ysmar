@@ -55,6 +55,12 @@ const BUFFER_LIMIT = 8;
  * extra duraba casi un minuto.
  */
 const SHRINK_AFTER = 90;
+/**
+ * Si el colchón se vacía al poco de achicarse, la red tiene saltos que se repiten: la próxima
+ * revisión espera el doble, hasta este tope (12 s). Antes se achicaba a los 3 s, se vaciaba al
+ * siguiente salto, crecía, y así toda la partida (60 a 110 vaciados por partida).
+ */
+const MAX_SHRINK_AFTER = 4 * SHRINK_AFTER;
 /** Si el colchón se pasa de su tamaño por más que esto, se muestran dos pasos por cuadro. */
 const CATCH_UP_SLACK = 2;
 /**
@@ -282,6 +288,10 @@ export class NetMatch implements MatchView {
   private eventsTick = -1;
   private target = BUFFER_MIN;
   private calmSteps = 0;
+  /** Cuántos pasos tranquilos hacen falta para achicar el colchón (crece si achicar sale mal). */
+  private shrinkAfter = SHRINK_AFTER;
+  /** Pasos desde la última vez que se achicó el colchón. */
+  private sinceShrink = Number.POSITIVE_INFINITY;
   /** Lo menos que tuvo el colchón (además del paso que se muestra) desde la última revisión. */
   private calmLow = Number.POSITIVE_INFINITY;
   /** Pasos seguidos con algo de sobra en el colchón. */
@@ -404,6 +414,10 @@ export class NetMatch implements MatchView {
         this.summary.note('stall');
         this.target = Math.min(BUFFER_LIMIT, this.target + 1);
         this.summary.maxTarget = Math.max(this.summary.maxTarget, this.target);
+        if (this.sinceShrink < 2 * this.shrinkAfter) {
+          this.shrinkAfter = Math.min(MAX_SHRINK_AFTER, this.shrinkAfter * 2);
+        }
+        this.sinceShrink = Number.POSITIVE_INFINITY;
         this.calmSteps = 0;
         this.calmLow = Number.POSITIVE_INFINITY;
       }
@@ -427,8 +441,14 @@ export class NetMatch implements MatchView {
     this.rememberPositions();
     this.consume(events);
     this.calmLow = Math.min(this.calmLow, this.buffer.length);
-    if (++this.calmSteps >= SHRINK_AFTER) {
-      if (this.target > BUFFER_MIN && this.calmLow >= 1) this.target--;
+    this.sinceShrink++;
+    if (++this.calmSteps >= this.shrinkAfter) {
+      // Se achica solo si siempre sobraron dos: con uno, el mismo salto de red que se vio en
+      // estos segundos lo dejaría vacío apenas achicado.
+      if (this.target > BUFFER_MIN && this.calmLow >= 2) {
+        this.target--;
+        this.sinceShrink = 0;
+      }
       this.calmSteps = 0;
       this.calmLow = Number.POSITIVE_INFINITY;
     }
