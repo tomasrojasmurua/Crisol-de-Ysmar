@@ -131,11 +131,6 @@ export class Menu {
   private campFor: ElementId | null = null;
   /** La columna derecha (Grimorio, Sonido…), para sumarle tarjetas desde afuera. */
   readonly side: HTMLElement;
-  /** El Camino de tu Linaje (se ve una vez elegido el Linaje). */
-  private readonly pathCard: HTMLElement;
-  private readonly pathCount: HTMLElement;
-  /** Al tocar el Camino. */
-  onPath: () => void = () => {};
   /** La Historia (se ve una vez elegido el Linaje). */
   private readonly storyCard: HTMLElement;
   private readonly storyState: HTMLElement;
@@ -199,11 +194,6 @@ export class Menu {
           <span class="menu-grimoire-text"><strong>Grimorio</strong><span class="menu-grimoire-count"></span></span>
           ${MENU_ICONS.chevron}
         </button>
-        <button type="button" class="menu-card menu-grimoire menu-path" hidden>
-          ${MENU_ICONS.path}
-          <span class="menu-grimoire-text"><strong>Camino</strong><span class="menu-path-count"></span></span>
-          ${MENU_ICONS.chevron}
-        </button>
         <div class="menu-card menu-sound">
           <div class="menu-sound-head">${MENU_ICONS.soundAll}<strong>Sonido</strong></div>
           <div class="menu-sound-options"></div>
@@ -233,9 +223,6 @@ export class Menu {
     this.storyCard = query(this.root, '.menu-story');
     this.storyState = query(this.root, '.menu-story-state');
     this.storyCard.addEventListener('click', () => this.onStory());
-    this.pathCard = query(this.root, '.menu-path');
-    this.pathCount = query(this.root, '.menu-path-count');
-    this.pathCard.addEventListener('click', () => this.onPath());
 
     const soundOptions = query(this.root, '.menu-sound-options');
     for (const choice of SOUND_CHOICES) {
@@ -328,13 +315,6 @@ export class Menu {
       affinity: this.affinity,
       botLevel: this.botLevel,
     };
-  }
-
-  /** Cuántos pasos del Camino llevas; null lo esconde (sin Linaje todavía). */
-  setPath(done: number | null, total: number): void {
-    this.pathCard.hidden = done === null;
-    this.pathCount.textContent =
-      done === null ? '' : done >= total ? 'Completo' : `${done} de ${total}`;
   }
 
   /** Por dónde vas en la Historia ("Acto 1"); null la esconde (sin Linaje todavía). */

@@ -49,7 +49,7 @@ export interface ResultSummary {
     | { readonly name: string; readonly line: string; readonly color: string }
     | undefined;
   /**
-   * Un paso del Camino de tu Linaje o un combate de la Historia: cómo salió, bajo el título.
+   * Un combate de la Historia: cómo salió, bajo el título.
    * Cambia además lo que dicen Revancha y Menú.
    */
   readonly path?: ResultPath | undefined;
@@ -59,18 +59,18 @@ export interface ResultSummary {
   readonly replay?: boolean | undefined;
 }
 
-/** Cómo salió el paso del Camino o el combate de la Historia, bajo el título. */
+/** Cómo salió el combate de la Historia, bajo el título. */
 export interface ResultPath {
-  /** "Paso 4 · El otro lado". */
+  /** "Combate 2 · La ronda". */
   readonly title: string;
   readonly passed: boolean;
-  /** "superado", "sin superar"… */
+  /** "ganado", "perdido"… */
   readonly status: string;
-  /** Superado: qué se abrió; si no, por qué no contó. */
+  /** Cómo sigue la historia, o cuántas continuaciones quedan. */
   readonly note: string;
-  /** Lo que dice Revancha ("Otra vez", "Seguir"). */
+  /** Lo que dice Revancha ("Seguir", "Reintentar"). */
   readonly again: string;
-  /** Lo que dice Menú (adónde vuelve: "Camino", "Historia"). */
+  /** Lo que dice Menú. */
   readonly back: string;
 }
 
@@ -132,7 +132,7 @@ export class ResultScreen {
   private readonly rematchNote: HTMLElement;
   private readonly rematchButton: HTMLButtonElement;
   private readonly rematchLabel: HTMLElement;
-  /** Lo que dice Revancha cuando no se espera a nadie ("Otra vez" en el Camino). */
+  /** Lo que dice Revancha cuando no se espera a nadie ("Seguir" en la Historia). */
   private rematchText = 'Revancha';
   private readonly menuLabel: HTMLElement;
   private readonly path: HTMLElement;
@@ -327,7 +327,7 @@ export class ResultScreen {
       query(this.path, 'strong').textContent = `${path.title} · ${path.status}`;
       query(this.path, 'span').textContent = path.note;
     }
-    // En el Camino y la Historia, Revancha sigue ahí mismo y Menú vuelve a esa pantalla.
+    // En la Historia, Revancha sigue ahí mismo.
     this.rematchText = path?.again ?? 'Revancha';
     this.menuLabel.textContent = path?.back ?? 'Menú';
     this.rematchKey = '-';

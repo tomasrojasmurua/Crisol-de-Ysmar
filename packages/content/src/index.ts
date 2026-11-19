@@ -51,7 +51,6 @@ export { INTENT_HINTS, INTENT_NAMES, SPELL_INTENTS, type SpellIntent } from './i
 export { MAP, MAP_DECOR, MAP_RADIUS, PLAZA_ARENA_RADIUS, PLAZA_MAP } from './map';
 export { MASTERS, type Master, type MasterLines, masterOf } from './masters';
 export { WIZARD_NAMES } from './names';
-export { goalText, linajePath, PATH_LENGTH, type PathGoal, type PathStep } from './path';
 export { REACTION_TEXT } from './reactions';
 export { RECIPE_RULE, SECOND_ELEMENT_ROLES } from './recipes';
 export { DUEL_RULES, GAME_RULES, rulesForMode, rulesForRoom, withRoundLength } from './rules';

@@ -60,10 +60,6 @@ export const MENU_ICONS = {
     '<path d="M6 3h12v18l-6-4-6 4Z"/><path d="M12 7l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/>',
   ),
   chevron: icon('<path d="M9 6l6 6-6 6"/>'),
-  /** El Camino de tu Linaje: un sendero que sube hasta una bandera. */
-  path: icon(
-    '<path d="M6 21c0-3 3-4 6-5s5-3 3-5-6-1-6-4 2-3 3-3"/><path d="M12 4V1.5l4.5 1.6L12 4.8"/>',
-  ),
   /** La Historia: un pergamino enrollado con dos líneas escritas. */
   story: icon(
     '<path d="M8 4h11v12a4 4 0 0 1-4 4H7a3 3 0 0 1-3-3v-1h10v1a3 3 0 0 0 3 3"/><path d="M8 4a2 2 0 0 0-2 2v10"/><path d="M11 8h5M11 12h5"/>',

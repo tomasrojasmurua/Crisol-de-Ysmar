@@ -191,8 +191,8 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 
 ## Cosas pendientes o en pausa (no olvidarlas)
 
-- **Camino del Linaje** (10 duelos contra la IA, ver `docs/diseno.md`): los premios por superar
-  pasos esperan a los personajes definitivos; el desafío diario se descartó.
+- **Camino del Linaje** se quitó: la Historia es el modo para un jugador. Su avance guardado
+  (`crisol.camino`) se borra al abrir el juego.
 - **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.
 - **Familiares, maestría por elemento, desafíos, rivalidades, hechizos secretos, lore dentro del
   juego:** no existen. Esperan a después de la prueba con amigos.
