@@ -1,5 +1,6 @@
 import {
   type BotLevel,
+  ELEMENT_IDS,
   type ElementId,
   type GameMode,
   neighborsOf,
@@ -47,6 +48,13 @@ export interface StoryLine {
   readonly text: string;
   readonly who?: string;
   readonly color?: string;
+  /** El retrato de quien habla o canta (`public/historia/retratos/<retrato>.webp`). */
+  readonly portrait?: string;
+  /**
+   * Desde esta línea, la ilustración de fondo (`public/historia/escenas/<fondo>.webp`); vacío
+   * la quita. Cada escena empieza sin fondo.
+   */
+  readonly backdrop?: string;
 }
 
 /** Un mago de un combate de la Historia. */
@@ -96,6 +104,13 @@ export const STORY_CONTINUES = 3;
 
 const GOLD = '#d8bf8a';
 const PALE = '#b9b2a4';
+
+/** Quién aparece en cada ilustración de fondo: su retrato no se muestra encima. */
+const BACKDROP_CAST: Readonly<Record<string, readonly string[]>> = {
+  '04-posada': ['cantor'],
+  '05-arel-pajaro': ['arel'],
+  '09-libros-rival': ['rival'],
+};
 
 const DUEL: GameMode = { kind: 'duel' };
 const PAIRS: GameMode = { kind: 'teams', size: 2 };
@@ -157,6 +172,9 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
     ...(sub ? { who: sub } : {}),
   });
 
+  /** Cambia la ilustración de fondo desde esta línea. */
+  const at = (backdrop: string, line: StoryLine): StoryLine => ({ ...line, backdrop });
+
   const you = (text: string): StoryLine => say('Tú', colorOf(school), text);
   const crisol = (text: string): StoryLine => say('Crisol', GOLD, text);
   const cantor = (text: string): StoryLine => say('Cantor', PALE, text);
@@ -173,7 +191,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
           ? see(line.see)
           : 'you' in line
             ? you(line.you)
-            : sing(STORY_VILLAGES[element].stanza),
+            : sing(STORY_VILLAGES[element].stanza, shortName(element), colorOf(element)),
     );
 
   const apprentice = (name: string, element: ElementId | null): StorySeat => ({
@@ -236,18 +254,44 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
   const ally = STORY_VILLAGES[ally2];
   const allySays = (text: string): StoryLine => say('Aliado', colorOf(ally2), text);
 
-  return [
+  // Quién tiene retrato: el Cantor, el aprendiz que vuelve, Arel y los maestros.
+  const portraits = new Map<string, string>([
+    ['Cantor', 'cantor'],
+    [rival, 'rival'],
+    ['Arel', 'arel'],
+    ...ELEMENT_IDS.map((element): [string, string] => [
+      shortName(element),
+      MASTER_STORIES[element].portrait,
+    ]),
+  ]);
+  // Si quien habla ya está en la ilustración de fondo, no se repite su retrato.
+  const withPortraits = (beat: StoryBeat): StoryBeat => {
+    if (beat.kind !== 'scene') return beat;
+    let backdrop = '';
+    const lines = beat.lines.map((line) => {
+      backdrop = line.backdrop ?? backdrop;
+      const portrait = line.who ? portraits.get(line.who) : undefined;
+      const shown = portrait && !BACKDROP_CAST[backdrop]?.includes(portrait);
+      return shown ? { ...line, portrait } : line;
+    });
+    return { ...beat, lines };
+  };
+
+  const beats: StoryBeat[] = [
     // ---------- Preludio ----------
     scene('preludio', 1, [
-      see(
-        'Negro. Un nudo de luz palpita en la oscuridad. Una figura joven, de espaldas, lo mira. Detrás de ella, una voz de niño:',
+      at(
+        '01-huida',
+        see(
+          'Negro. Un nudo de luz palpita en la oscuridad. Una figura joven, de espaldas, lo mira. Detrás de ella, una voz de niño:',
+        ),
       ),
       say('Voz', PALE, 'Vete. Yo sostengo.'),
       see('La figura corre. No se le ve la cara.'),
       see('Cinco hilos de colores cruzan el cielo, tensos.'),
       tell('Ysmar cuelga de cinco hilos.'),
       tell('Nadie recuerda quién los tejió.'),
-      see(`{aldea}, al amanecer. ${home.custom}`),
+      at('02-ronda', see(`{aldea}, al amanecer. ${home.custom}`)),
       see('En la plaza, unos niños juegan a la ronda y cantan:'),
       sing(home.stanza),
       sing(SONG_CHORUS),
@@ -261,12 +305,15 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       master(school, own.farewell),
       you('¿Qué pasa con los que pierden?'),
       master(school, own.dodge),
-      see(
-        'El Crisol a lo lejos: un anillo de piedra en un valle negro, con cinco luces que suben al cielo.',
+      at(
+        '03-crisol-afuera',
+        see(
+          'El Crisol a lo lejos: un anillo de piedra en un valle negro, con cinco luces que suben al cielo.',
+        ),
       ),
       crisol('Vengan. Tejan. Que el más fuerte reteje la Trama.'),
       title('CRISOL DE YSMAR'),
-      title('Acto 1', 'El llamado'),
+      at('', title('Acto 1', 'El llamado')),
     ]),
 
     // ---------- Acto 1 · El llamado ----------
@@ -286,8 +333,11 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       see('Se va. A medio camino se da vuelta, como si fuera a preguntar algo. No pregunta.'),
     ]),
     scene('la-posada', 1, [
-      see(
-        'Esa noche. Una posada de piedra a las puertas del Crisol, llena de aprendices de las cinco aldeas que no se hablan entre ellos.',
+      at(
+        '04-posada',
+        see(
+          'Esa noche. Una posada de piedra a las puertas del Crisol, llena de aprendices de las cinco aldeas que no se hablan entre ellos.',
+        ),
       ),
       see('En un rincón, un viejo con un laúd gastado canta para nadie:'),
       sing(SONG_OPENING, 'Cantor', PALE),
@@ -298,7 +348,10 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       cantor('Una canción que nadie termina es una deuda. Alguien tiene que cobrarla.'),
     ]),
     scene('combate-2-antes', 1, [
-      see(`Arel, ${arel.from}, te enseña un pájaro de madera tallado a mano.`),
+      at(
+        '05-arel-pajaro',
+        see(`Arel, ${arel.from}, te enseña un pájaro de madera tallado a mano.`),
+      ),
       say(
         'Arel',
         colorOf(ally1),
@@ -342,7 +395,10 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       murmur('No me acuerdo de mi cara.'),
     ]),
     scene('combate-4-antes', 1, [
-      see('Cuatro aprendices en la jungla. Uno es {rival}, que canta para burlarse de ti.'),
+      at(
+        '06-criba',
+        see('Cuatro aprendices en la jungla. Uno es {rival}, que canta para burlarse de ti.'),
+      ),
       crisol('La criba. Quedan los que deban quedar.'),
       sing(rivalVillage.stanza, rival, colorOf(rival1)),
       rivalSays('¿Tampoco te la sabías? En mi aldea la saben hasta los niños.'),
@@ -364,12 +420,15 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       murmur('¿Alguien vio mi cinta? Era de mi color.'),
     ]),
     scene('el-libro', 1, [
-      see(
-        'Esa misma noche, {maestro} abre el libro de tu campamento, con los nombres de esta temporada. Dos se están borrando mientras miras. Uno es Arel.',
+      at(
+        '07-libro',
+        see(
+          'Esa misma noche, {maestro} abre el libro de tu campamento, con los nombres de esta temporada. Dos se están borrando mientras miras. Uno es Arel.',
+        ),
       ),
       you('¿Qué le pasa a tu libro?'),
       ...masterLines(school, own.book),
-      title('Acto 2', 'Las cinco versiones'),
+      at('08-maestros', title('Acto 2', 'Las cinco versiones')),
     ]),
 
     // ---------- Acto 2 · Las cinco versiones ----------
@@ -380,16 +439,22 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       master(ally1, 'Dile a {maestro} que todavía me debe una.'),
       you('¿Conoces a {mimaestro}?'),
       master(ally1, 'Desde antes de las canas. Anda, que se hace tarde.'),
-      see(
-        'Esa noche, en la posada, el Cantor te pide la estrofa que acabas de oír. La anota en el cuero de su laúd, junto a otras.',
+      at(
+        '04-posada',
+        see(
+          'Esa noche, en la posada, el Cantor te pide la estrofa que acabas de oír. La anota en el cuero de su laúd, junto a otras.',
+        ),
       ),
     ]),
     scene('combate-6-antes', 2, duelBefore(rival1, true)),
     fight(6, 2, shortName(rival1), DUEL, 'master', { foes: [masterSeat(rival1)] }),
     scene('combate-6-despues', 2, [
       ...duelAfter(rival1),
-      see(
-        `${shortName(rival1)} se va sin despedirse. En la posada, le cuentas al Cantor las versiones que llevas.`,
+      at(
+        '04-posada',
+        see(
+          `${shortName(rival1)} se va sin despedirse. En la posada, le cuentas al Cantor las versiones que llevas.`,
+        ),
       ),
       cantor('Cada aldea dice que ella era suya.'),
       cantor('Eso solo se dice de los muertos que uno dejó solos.'),
@@ -398,23 +463,32 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       murmur('Mamá, ya voy. Ya voy.'),
     ]),
     scene('la-posada-mas-tarde', 2, [
-      see(
-        'Más tarde, {rival} entra empapado y se sienta frente a ti sin pedir permiso. Trae la cinta amarrada en la muñeca.',
+      at(
+        '04-posada',
+        see(
+          'Más tarde, {rival} entra empapado y se sienta frente a ti sin pedir permiso. Trae la cinta amarrada en la muñeca.',
+        ),
       ),
       rivalSays('Cada campamento tiene un libro con los nombres.'),
       rivalSays('A mí no me dejan mirarlos. A ti sí.'),
       you('¿Por qué yo?'),
       rivalSays('Porque tú todavía preguntas. Yo ya solo busco.'),
-      see(
-        'Esa noche recorren juntos los campamentos dormidos. En cada libro hay nombres que se borran. El de Mara no está en ninguno.',
+      at(
+        '09-libros-rival',
+        see(
+          'Esa noche recorren juntos los campamentos dormidos. En cada libro hay nombres que se borran. El de Mara no está en ninguno.',
+        ),
       ),
       see('Al amanecer, {rival} se ríe de cansancio, no de burla.'),
       rivalSays('Mañana sigo solo. No te acostumbres.'),
       see('Esta vez lo dice sin creérselo.'),
     ]),
     scene('combate-7-antes', 2, [
-      see(
-        'La plaza del Crisol, de noche. Vesk y Madre Musgo llegan por lados opuestos. Ninguna te mira a ti.',
+      at(
+        '10-cuenta-pendiente',
+        see(
+          'La plaza del Crisol, de noche. Vesk y Madre Musgo llegan por lados opuestos. Ninguna te mira a ti.',
+        ),
       ),
       crisol('Tres en la arena. Que la Trama mire.'),
       master(vesk, 'Treinta años sin cruzarnos. Y nos junta un aprendiz.'),
@@ -436,7 +510,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       { feud: true, arena: 'plaza' },
     ),
     scene('combate-7-despues', 2, [
-      see('Las dos quedan de rodillas, sin aire.'),
+      at('10-cuenta-pendiente', see('Las dos quedan de rodillas, sin aire.')),
       master(musgo, 'Tú cortaste.'),
       master(vesk, 'Y tú no hiciste nada.'),
       master(musgo, 'Tiré de él hasta que me sangraron las manos.'),
@@ -504,4 +578,5 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       tell('El acto 3 llega pronto.'),
     ]),
   ];
+  return beats.map(withPortraits);
 }
