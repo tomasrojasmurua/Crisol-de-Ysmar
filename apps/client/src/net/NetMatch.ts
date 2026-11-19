@@ -473,7 +473,11 @@ export class NetMatch implements MatchView {
   /** Al terminar la serie: lo que hizo cada mago, según la Sala. */
   matchSummary(): MatchSummary | null {
     if (this.netStage.kind !== 'finished') return null;
-    return { id: `red-${this.code}-${this.netStage.seriesId}`, stats: this.netStage.stats };
+    return {
+      id: `red-${this.code}-${this.netStage.seriesId}`,
+      stats: this.netStage.stats,
+      highlight: this.netStage.highlight ?? null,
+    };
   }
 
   /** Al terminar la serie: cuántos piden revancha, cuántos hacen falta y si ya la pediste. */
@@ -1055,6 +1059,7 @@ function toStage(stage: NetStage, previous: MatchStage): MatchStage {
         kind: 'intermission',
         roundWinner: stage.roundWinner,
         ticksLeft: INTERMISSION_ANNOUNCE_TICK + 1,
+        highlight: stage.highlight ?? null,
       };
     case 'choosing':
       if (stage.chosen) return { kind: 'waiting' };

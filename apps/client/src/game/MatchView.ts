@@ -2,6 +2,7 @@ import type { Glyph, Omen } from '@crisol/content';
 import type {
   ElementId,
   GameEvent,
+  Highlight,
   MatchState,
   SeriesState,
   Vec2,
@@ -23,6 +24,8 @@ export interface MatchSummary {
   /** Distingue la partida: en red, si vuelves tras un corte no se suma dos veces a tu perfil. */
   readonly id: string;
   readonly stats: readonly WizardMatchStats[];
+  /** La mejor jugada de toda la partida (null si nadie golpeó a un rival). */
+  readonly highlight: Highlight | null;
 }
 
 /**

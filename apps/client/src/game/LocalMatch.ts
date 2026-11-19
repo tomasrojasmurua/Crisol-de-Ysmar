@@ -3,6 +3,7 @@ import {
   BOT_PROFILES,
   GLYPHS,
   type Glyph,
+  HIGHLIGHT_RULES,
   NO_OMEN,
   OMENS,
   type Omen,
@@ -17,19 +18,23 @@ import {
   type BotProfile,
   type Controller,
   combineMods,
+  createHighlightTracker,
   createMatch,
   createMatchStats,
   createSeries,
   type DeathRule,
   ELEMENT_IDS,
   type ElementId,
+  finishHighlightRound,
   type GameEvent,
   type GameMode,
   type GameRules,
+  type Highlight,
   type MatchState,
   type MatchStats,
   modeSetup,
   playerCount,
+  recordHighlights,
   recordMatchStats,
   recordRound,
   SeededRng,
@@ -60,7 +65,13 @@ export interface MatchOptions {
 
 export type MatchStage =
   | { readonly kind: 'playing' }
-  | { readonly kind: 'intermission'; readonly roundWinner: number; ticksLeft: number }
+  /** Pausa tras una ronda: quién la ganó y su mejor jugada (null si nadie golpeó a un rival). */
+  | {
+      readonly kind: 'intermission';
+      readonly roundWinner: number;
+      ticksLeft: number;
+      readonly highlight: Highlight | null;
+    }
   /**
    * Entre rondas: el jugador elige un Glifo entre estas opciones. En red, `secondsLeft` es lo
    * que falta para que la Sala elija al azar; contra la IA no hay apuro.
@@ -93,6 +104,8 @@ export class LocalMatch implements MatchView {
   private readonly previous = new Map<number, Vec2>();
   /** Lo que hace cada mago en la serie, para el resumen del final. */
   private readonly stats: MatchStats;
+  /** La mejor jugada de cada ronda y de la serie. */
+  private readonly highlights = createHighlightTracker(HIGHLIGHT_RULES);
 
   constructor(
     readonly options: MatchOptions,
@@ -126,7 +139,7 @@ export class LocalMatch implements MatchView {
 
   matchSummary(): MatchSummary | null {
     if (this.stage.kind !== 'finished') return null;
-    return { id: `ia-${this.seed}`, stats: this.stats };
+    return { id: `ia-${this.seed}`, stats: this.stats, highlight: this.highlights.matchBest };
   }
 
   get player(): Wizard {
@@ -160,13 +173,15 @@ export class LocalMatch implements MatchView {
     );
     stepMatch(this.state, intents, this.rules);
     recordMatchStats(this.stats, this.state);
+    recordHighlights(this.highlights, this.state);
 
     const roundWinner = this.state.winnerTeam;
     if (roundWinner !== null) {
       recordRound(this.series, roundWinner, this.rules.round);
+      const highlight = finishHighlightRound(this.highlights);
       this.stage =
         this.series.winnerTeam === null
-          ? { kind: 'intermission', roundWinner, ticksLeft: INTERMISSION_TICKS }
+          ? { kind: 'intermission', roundWinner, ticksLeft: INTERMISSION_TICKS, highlight }
           : { kind: 'finished' };
     }
     return this.state.events;

@@ -5,6 +5,7 @@ import {
   cleanLook,
   GLYPHS,
   type Glyph,
+  HIGHLIGHT_RULES,
   NO_OMEN,
   OMENS,
   type Omen,
@@ -17,20 +18,25 @@ import {
   affinityPatch,
   BotController,
   combineMods,
+  createHighlightTracker,
   createMatch,
   createMatchStats,
   createSeries,
   ELEMENT_IDS,
   type ElementId,
+  finishHighlightRound,
   type GameEvent,
   type GameMode,
   type GameRules,
+  type Highlight,
+  type HighlightTracker,
   type Intent,
   isElementId,
   type MatchState,
   type MatchStats,
   modeSetup,
   playerCount,
+  recordHighlights,
   recordMatchStats,
   recordRound,
   SeededRng,
@@ -170,6 +176,9 @@ export class DuelHost {
   private series: SeriesState = createSeries(2);
   /** Lo que hizo cada mago en la serie en curso: sale en el resumen del final. */
   private stats: MatchStats = [];
+  /** La mejor jugada de cada ronda y de la partida: la Sala la elige y la manda a todos. */
+  private highlights: HighlightTracker = createHighlightTracker(HIGHLIGHT_RULES);
+  private roundHighlight: Highlight | null = null;
   private omen: Omen = OMENS[0] as Omen;
   private bots = new Map<number, BotController>();
   /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
@@ -678,6 +687,7 @@ export class DuelHost {
           kind: 'intermission',
           roundWinner: this.stage.roundWinner,
           ticksLeft: this.stage.ticksLeft,
+          highlight: this.roundHighlight,
         };
       case 'choosing':
         return {
@@ -692,6 +702,7 @@ export class DuelHost {
           rematch: [...this.slots.values()].filter((s) => s.rematch).map((s) => s.id),
           seriesId: this.seed,
           stats: this.stats,
+          highlight: this.highlights.matchBest,
         };
     }
   }
@@ -778,6 +789,8 @@ export class DuelHost {
     }
     this.state = this.startRound();
     this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
+    this.highlights = createHighlightTracker(HIGHLIGHT_RULES);
+    this.roundHighlight = null;
     this.stage = { kind: 'playing' };
     this.startedNew = true;
   }
@@ -798,8 +811,10 @@ export class DuelHost {
     }
     stepMatch(state, intents, this.rules);
     recordMatchStats(this.stats, state);
+    recordHighlights(this.highlights, state);
     const roundWinner = state.winnerTeam;
     if (roundWinner !== null) {
+      this.roundHighlight = finishHighlightRound(this.highlights);
       recordRound(this.series, roundWinner, this.rules.round);
       this.stage =
         this.series.winnerTeam === null

@@ -8,6 +8,7 @@ import {
   type Wizard,
 } from '@crisol/core';
 import { barWidth, el, query, setStyle, setText } from './dom';
+import { type HighlightView, highlightCard } from './HighlightCard';
 import { CAST_ICON, elementIcon } from './icons';
 import {
   type OpinionSink,
@@ -59,6 +60,9 @@ export class Hud {
   private readonly bannerSubtitle: HTMLElement;
   private readonly result: ResultScreen;
   private bannerTimer: number | undefined;
+  /** Bajo el aviso de fin de ronda: la mejor jugada de la ronda. */
+  private readonly highlightSlot: HTMLElement;
+  private highlightTimer: number | undefined;
   private discoveryTimer: number | undefined;
   private readonly discovery: HTMLElement;
   private readonly allyRows = new Map<number, HTMLElement>();
@@ -96,6 +100,7 @@ export class Hud {
         <div class="hud-banner-title"></div>
         <div class="hud-banner-subtitle"></div>
       </div>
+      <div class="hud-highlight-slot"></div>
 `;
     parent.append(this.root);
     this.playerFill = query(this.root, '.hud-fill');
@@ -112,6 +117,7 @@ export class Hud {
     this.banner = query(this.root, '.hud-banner');
     this.bannerTitle = query(this.root, '.hud-banner-title');
     this.bannerSubtitle = query(this.root, '.hud-banner-subtitle');
+    this.highlightSlot = query(this.root, '.hud-highlight-slot');
     this.result = new ResultScreen(this.root, onRematch, onMenu);
   }
 
@@ -272,6 +278,18 @@ export class Hud {
     }, seconds * 1000);
   }
 
+  /** La mejor jugada de la ronda bajo el aviso de quién ganó; se va sola. */
+  showHighlight(view: HighlightView, seconds: number): void {
+    this.highlightSlot.replaceChildren(highlightCard(view, 'hud-highlight'));
+    window.clearTimeout(this.highlightTimer);
+    this.highlightTimer = window.setTimeout(() => this.hideHighlight(), seconds * 1000);
+  }
+
+  hideHighlight(): void {
+    window.clearTimeout(this.highlightTimer);
+    if (this.highlightSlot.firstChild) this.highlightSlot.replaceChildren();
+  }
+
   announcePhase(phase: RoundPhase): void {
     this.announce(PHASE_NAMES[phase], PHASE_HINTS[phase]);
   }
@@ -280,6 +298,7 @@ export class Hud {
     // Un aviso que quedaba ("Caíste") no se transparenta bajo el resultado.
     window.clearTimeout(this.bannerTimer);
     this.banner.hidden = true;
+    this.hideHighlight();
     this.result.show(summary);
   }
 
