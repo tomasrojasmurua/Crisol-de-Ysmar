@@ -104,11 +104,13 @@ export interface SpellRules {
     /** Cuánto detrás de él apareces. */
     readonly behind: number;
   };
-  /** Marea → Tormenta: un río que apura a los aliados a favor y frena a los rivales. */
+  /** Marea → Tormenta: un río que apura a los aliados a favor y empapa a los rivales. */
   readonly current: {
     readonly length: number;
     readonly halfWidth: number;
     readonly durationTicks: number;
+    /** Cuánto dura empapado el rival después de salir del río. */
+    readonly soakTicks: number;
   };
   /** Marea → Marea: muro corto que solo frena a los rivales y sus proyectiles. */
   readonly iceWall: {

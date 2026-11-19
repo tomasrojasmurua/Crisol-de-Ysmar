@@ -206,6 +206,12 @@ export interface GameRules {
     /** Pasos que un elemento queda cansado después de usarlo. */
     readonly fatigueTicks: number;
     /**
+     * Pasos de más que descansa el elemento de un hechizo doble (Brasa → Brasa, Tormenta →
+     * Tormenta…): gasta un solo elemento y pega más que el básico, así que no sale gratis. Los
+     * Grandes hechizos no lo pagan: ya tardan más en salir y el rival los ve venir.
+     */
+    readonly doubleFatigueTicks: number;
+    /**
      * Al elegir a mano dónde cae un hechizo (arrastrando ✦), si el objetivo queda a esta distancia
      * del punto elegido, cae justo sobre él: ayuda a apuntar con el pulgar.
      */

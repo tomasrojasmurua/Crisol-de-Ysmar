@@ -9,7 +9,7 @@ export const TEST_RULES: GameRules = {
   map: { obstacles: [], camps: [], guardianLair: null },
   wizard: { maxHp: 100, moveSpeed: 6, radius: 0.5, channelMoveMultiplier: 0.5 },
   aim: { range: 14, lockRange: 20, frontWeight: 0.6 },
-  weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90, aimSnap: 2 },
+  weave: { castTicksByLength: [3, 9, 18], fatigueTicks: 90, doubleFatigueTicks: 45, aimSnap: 2 },
   spells: {
     spark: { damage: 10, speed: 20, range: 14, radius: 0.25 },
     step: { distance: 4, durationTicks: 4 },
@@ -40,7 +40,7 @@ export const TEST_RULES: GameRules = {
       intervalTicks: 30,
     },
     shadowStep: { range: 6, coneDot: 0.6, behind: 1.3 },
-    current: { length: 10, halfWidth: 1.4, durationTicks: 120 },
+    current: { length: 10, halfWidth: 1.4, durationTicks: 120, soakTicks: 30 },
     iceWall: { distance: 2, halfLength: 2.5, thickness: 0.45, durationTicks: 120 },
     spring: { range: 0, radius: 3, durationTicks: 150, healPerSecond: 6 },
     vine: { range: 9, speed: 24, rootTicks: 24 },

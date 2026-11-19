@@ -12,8 +12,8 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   splash: 'Cono de 3 m: 6 de daño y 30% más lento por 1,5 s.',
   sap: 'Te curas 15 en 3 s.',
   claw: 'Golpe instantáneo a 6 m: 6 de daño y robas 6.',
-  fireball: 'Proyectil lento y grande que explota en 3 m: 30 de daño y quema.',
-  comet: 'Te lanzas 8 m y dejas un rastro de fuego por 3 s que quema a quien lo pise.',
+  fireball: 'Proyectil lento y grande que explota en 3 m: 44 de daño y quema.',
+  comet: 'Te lanzas 10 m y dejas un rastro de fuego por 3 s que quema a quien lo pise.',
   blink: 'Te teletransportas 7 m al instante, incluso a través de árboles y rocas.',
   chainLightning: 'Rayo instantáneo a 9 m que salta a dos blancos más cercanos: 18, 12 y 8.',
   geyser:
@@ -21,24 +21,24 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   iceCoffin:
     'Te congelas 1,5 s: no recibes daño ni estados, pero no actúas. Al salir quedas limpio.',
   thornRush:
-    'Cinco brotes de espinas avanzan en línea 10 m, uno cada 0,1 s; cada uno golpea 2 m alrededor (8 cada uno).',
+    'Cinco brotes de espinas avanzan en línea 10 m, uno cada 0,1 s; cada uno golpea 2 m alrededor (13 cada uno).',
   rootWall:
     'Golpeas el suelo y brota una muralla de 8 m por 5 s, de lado a donde miras. Bloquea paso y proyectiles de todos.',
   veil: 'Invisible 4 s: te ven solo a 2 m o si te pegan. El primer hechizo que lances desde el velo hace 30% más.',
   drain:
-    'Atas un hilo a un rival a 7 m: le robas 8 por segundo hasta 3 s. Se corta si se aleja a más de 9 m o pasa tras un árbol.',
+    'Atas un hilo a un rival a 7 m: le robas 8 por segundo hasta 3 s. Se corta si se aleja a más de 10 m o pasa tras un árbol.',
   obsidian:
     'Coraza que absorbe 40 por 4 s; al romperse o terminar, estalla en 2,5 m con 15 de daño.',
   wisp: 'Invoca una llama que persigue al rival más cercano por 6 s y explota al tocarlo (20). Se esquiva o se apaga de un golpe.',
   ignite:
-    'Marca al rival 3 s; al terminar, explota con el 40% de todo el daño que recibió en ese tiempo.',
+    'Marca al rival 5 s; al terminar, explota con la mitad de todo el daño que recibió en ese tiempo.',
   blizzard:
     'Torbellino fijo de 3,5 m por 4 s: rivales dentro 40% más lentos y los proyectiles que lo cruzan se desvían.',
   lightningRod:
     'Poste por 8 s que da un rayo de 5 al rival más cercano a 7 m cada segundo. Cae con dos golpes.',
   shadowStep: 'Apareces detrás de un rival a 6 m y lo silencias 1,2 s: no puede tejer.',
   current:
-    'Río de 10 m por 4 s: tú y tus aliados a favor corren 50% más rápido; los rivales que lo cruzan van lentos.',
+    'Río de 10 m por 4 s: tú y tus aliados a favor corren 50% más rápido; los rivales que lo cruzan quedan empapados: muy lentos, y Tormenta o Raíz encima reaccionan.',
   iceWall: 'Muro de 5 m que bloquea paso y proyectiles por 4 s.',
   spring: 'Fuente de 3 m por 5 s que cura 6 por segundo a ti y a tus aliados.',
   vine: 'Lanzas una liana a 9 m. Si toca un árbol o una roca, vuelas hacia ahí; si toca a un rival, vas hacia él y lo enraízas 0,8 s.',

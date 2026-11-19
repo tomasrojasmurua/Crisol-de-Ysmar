@@ -16,9 +16,9 @@ export const SPELL_RULES: GameRules['spells'] = {
   // Umbra · Zarpa: golpe instantáneo que devuelve todo el daño como vida.
   claw: { damage: 6, range: 6, coneDot: 0.7, lifesteal: 1 },
   // Brasa → Brasa · Bola ígnea: lenta, grande y explota en 3 m.
-  fireball: { damage: 30, speed: 10, range: 14, radius: 0.55, blastRadius: 3 },
-  // Brasa → Tormenta · Cometa: 8 m envuelto en llamas; el rastro arde 3 s.
-  comet: { distance: 8, durationTicks: 10, trailRadius: 0.9, trailTicks: 90, trailEvery: 2 },
+  fireball: { damage: 44, speed: 10, range: 14, radius: 0.55, blastRadius: 3 },
+  // Brasa → Tormenta · Cometa: 10 m envuelto en llamas, el escape más largo; el rastro arde 3 s.
+  comet: { distance: 10, durationTicks: 12, trailRadius: 0.9, trailTicks: 90, trailEvery: 2 },
   // Tormenta → Tormenta · Destello: 7 m al instante, también a través de árboles.
   blink: { distance: 7 },
   // Tormenta → Brasa · Rayo en cadena: 18, 12 y 8 de daño.
@@ -27,20 +27,21 @@ export const SPELL_RULES: GameRules['spells'] = {
   geyser: { damage: 12, range: 8, radius: 2, delayTicks: 18 },
   // Marea → Umbra · Ataúd helado: la duración la da el estado `stasis`.
   iceCoffin: {},
-  // Raíz → Brasa · Estampida de espinas: 5 brotes de 8 en línea, uno cada 0,1 s.
-  thornRush: { damage: 8, bursts: 5, spacing: 2, radius: 1.4, intervalTicks: 3 },
+  // Raíz → Brasa · Estampida de espinas: 5 brotes de 13 en línea, uno cada 0,1 s.
+  thornRush: { damage: 13, bursts: 5, spacing: 2, radius: 1.4, intervalTicks: 3 },
   // Raíz → Raíz · Muralla de raíces: 8 m de largo por 5 s.
   rootWall: { distance: 2.5, halfLength: 4, thickness: 0.4, durationTicks: 150 },
   // Umbra → Umbra · Velo: sus números están en el estado `veiled`.
   veil: {},
-  // Umbra → Brasa · Drenaje: 8 por segundo hasta 3 s.
-  drain: { damagePerSecond: 8, range: 7, coneDot: 0.7, breakRange: 9, durationTicks: 90 },
+  // Umbra → Brasa · Drenaje: 8 por segundo hasta 3 s; se corta a 10 m.
+  drain: { damagePerSecond: 8, range: 7, coneDot: 0.7, breakRange: 10, durationTicks: 90 },
   // Brasa → Marea · Obsidiana: absorbe 40 por 4 s y estalla en 2,5 m con 15.
   obsidian: { shield: 40, durationTicks: 120, damage: 15, blastRadius: 2.5 },
   // Brasa → Raíz · Fuego fatuo: persigue 6 s, explota con 20; un golpe lo apaga.
   wisp: { hp: 1, radius: 0.4, durationTicks: 180, damage: 20, speed: 4.6, seekRange: 14 },
-  // Brasa → Umbra · Ignición: 3 s después devuelve el 40% de lo que recibió.
-  ignite: { fraction: 0.4, range: 9, coneDot: 0.75, durationTicks: 90 },
+  // Brasa → Umbra · Ignición: 5 s después devuelve el 50% de lo que recibió. Dura más que el
+  // cansancio de Brasa, para que alcances a pegarle con ella antes de que estalle.
+  ignite: { fraction: 0.5, range: 9, coneDot: 0.75, durationTicks: 150 },
   // Tormenta → Marea · Ventisca: torbellino de 3,5 m por 4 s.
   blizzard: { range: 6, radius: 3.5, durationTicks: 120, deflectAngle: 1 },
   // Tormenta → Raíz · Pararrayos: 8 s, un rayo de 5 por segundo a 7 m; cae con dos golpes.
@@ -55,8 +56,8 @@ export const SPELL_RULES: GameRules['spells'] = {
   },
   // Tormenta → Umbra · Paso sombrío: detrás del rival a 6 m (el silencio lo da `silenced`).
   shadowStep: { range: 6, coneDot: 0.6, behind: 1.3 },
-  // Marea → Tormenta · Corriente: río de 10 m por 4 s.
-  current: { length: 10, halfWidth: 1.4, durationTicks: 120 },
+  // Marea → Tormenta · Corriente: río de 10 m por 4 s; el rival que lo cruza queda empapado 1 s.
+  current: { length: 10, halfWidth: 1.4, durationTicks: 120, soakTicks: 30 },
   // Marea → Marea · Muro de hielo: 5 m por 4 s; solo frena a los rivales.
   iceWall: { distance: 2, halfLength: 2.5, thickness: 0.45, durationTicks: 120 },
   // Marea → Raíz · Manantial: fuente de 3 m por 5 s que cura 6 por segundo.

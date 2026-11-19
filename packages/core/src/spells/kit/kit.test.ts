@@ -300,13 +300,13 @@ describe('segunda tanda: Tormenta', () => {
 });
 
 describe('segunda tanda: Marea', () => {
-  it('la Corriente apura a quien va a favor y frena a los rivales', () => {
+  it('la Corriente apura a quien va a favor y empapa a los rivales', () => {
     const state = scene([{ x: 0.5, z: 5 }]);
     run(state, 10, cast(['marea', 'tormenta']));
     const forward = new Map([[1, [{ kind: 'move', x: 0, z: 1 } as Intent]]]);
     stepMatch(state, forward, rules);
     expect(wizard(state, 1).statuses.haste).toBeDefined();
-    expect(wizard(state, 2).statuses.slow).toBeDefined();
+    expect(wizard(state, 2).statuses.soaked).toBeDefined();
   });
 
   it('el Muro de hielo deja pasar a los aliados pero no a los rivales', () => {
