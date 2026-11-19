@@ -1,0 +1,33 @@
+name: Uso de hechizos
+
+# Cuánto se usa cada hechizo, sumando el historial de todos los respaldos (sin mostrar a nadie en
+# particular). Se corre a mano: Actions → Uso de hechizos → Run workflow. El resultado queda en el
+# resumen de la ejecución.
+on:
+  workflow_dispatch:
+    inputs:
+      dias:
+        description: "Solo respaldos guardados en los últimos N días (0: todos)"
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  leer:
+    name: Sumar los respaldos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Sumar el uso
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DIAS: ${{ inputs.dias }}
+        run: pnpm --filter @crisol/balance uso --dias "$DIAS"

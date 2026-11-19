@@ -74,3 +74,11 @@ el historial son la base, pero no lo hacen todavía.
 | `apps/client/src/ui/BackupSheet.ts`   | La tarjeta del menú y la ventana del código.                 |
 | `apps/client/src/game/PlayerStats.ts` | Tu historial de partidas (`crisol.estadisticas`).            |
 | `apps/client/src/ui/ProfileScreen.ts` | La ventana Perfil del menú.                                  |
+
+## Uso de hechizos
+
+Cada respaldo trae el historial del jugador (`crisol.estadisticas`), con cuántas veces lanzó cada
+hechizo. Actions → **Uso de hechizos** → Run workflow suma todos los respaldos y deja en el resumen
+cuánto se usa cada hechizo, sin mostrar a nadie en particular. Sirve para el balance: un hechizo que
+casi nadie usa necesita un momento en que convenga. A mano: `pnpm --filter @crisol/balance uso`
+(con `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`; `--dias 30` mira solo respaldos recientes).
