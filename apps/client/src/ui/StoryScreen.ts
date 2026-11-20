@@ -14,6 +14,32 @@ const ART_ALONE_MS = 1800;
 const backdropUrl = (name: string): string => `/historia/escenas/${name}.webp`;
 const portraitUrl = (name: string): string => `/historia/retratos/${name}.webp`;
 
+/** Hacia dónde se mueve la cámara, muy lento, sobre la ilustración. */
+type Drift = 'in' | 'out' | 'left' | 'right';
+/** Lo que flota encima: brasas que suben, polvo dorado o motas de luz de la Trama. */
+type Particles = 'embers' | 'dust' | 'motes';
+
+/**
+ * El movimiento de cada ilustración: la cámara va hacia lo importante de la imagen y las
+ * partículas siguen su luz (el fuego de la posada, el polvo del atardecer, los hilos).
+ * Lo que no esté aquí se acerca despacio, sin partículas.
+ */
+const BACKDROP_MOTION: Readonly<Record<string, { drift: Drift; particles?: Particles }>> = {
+  '01-huida': { drift: 'in', particles: 'motes' },
+  '02-ronda': { drift: 'right', particles: 'dust' },
+  '03-crisol-afuera': { drift: 'in', particles: 'embers' },
+  '04-posada': { drift: 'left', particles: 'embers' },
+  '05-arel-pajaro': { drift: 'in', particles: 'dust' },
+  '06-criba': { drift: 'out', particles: 'dust' },
+  '07-libro': { drift: 'in', particles: 'motes' },
+  '08-maestros': { drift: 'out', particles: 'embers' },
+  '09-libros-rival': { drift: 'left', particles: 'motes' },
+  '10-cuenta-pendiente': { drift: 'in', particles: 'embers' },
+};
+
+/** Cuántas partículas hay a la vez: pocas, para que el celular ni lo note. */
+const PARTICLE_COUNT = 16;
+
 /** Lo que hace la pantalla de la Historia al terminar cada cosa. */
 export interface StoryScreenActions {
   /** Terminó (o se saltó) la escena. */
@@ -50,6 +76,7 @@ export class StoryScreen {
   private readonly card: HTMLElement;
   private readonly backdrop: HTMLElement;
   private readonly portrait: HTMLImageElement;
+  private readonly particles: HTMLElement;
   private backdropName = '';
   private portraitName = '';
   private lines: readonly StoryLine[] = [];
@@ -68,6 +95,7 @@ export class StoryScreen {
     this.root.hidden = true;
     this.root.innerHTML = `
       <div class="story-backdrop"></div>
+      <div class="story-particles"></div>
       <img class="story-portrait" alt="" hidden />
       <div class="story-top">
         <button type="button" class="secondary story-skip">Saltar escena</button>
@@ -83,6 +111,8 @@ export class StoryScreen {
     this.card = query(this.root, '.story-card');
     this.backdrop = query(this.root, '.story-backdrop');
     this.portrait = query(this.root, '.story-portrait');
+    this.particles = query(this.root, '.story-particles');
+    this.particles.append(...particleSpans());
     this.skip.addEventListener('click', (event) => {
       event.stopPropagation();
       this.finishScene();
@@ -189,7 +219,10 @@ export class StoryScreen {
     this.backdropName = name;
     this.root.classList.toggle('illustrated', !!name);
     this.backdrop.classList.remove('shown');
+    const motion = BACKDROP_MOTION[name];
+    this.particles.dataset.kind = motion?.particles ?? '';
     if (!name) return;
+    this.backdrop.dataset.drift = motion?.drift ?? 'in';
     this.backdrop.style.backgroundImage = `url("${backdropUrl(name)}")`;
     // Se fuerza el dibujo sin la clase para que el fundido vuelva a empezar.
     void this.backdrop.offsetWidth;
@@ -272,6 +305,23 @@ export class StoryScreen {
     this.next = 0;
     this.actions.sceneDone();
   }
+}
+
+/**
+ * Las partículas, cada una con su lugar, tamaño, ritmo y desvío. Salen de una fórmula fija y
+ * no al azar: así se reparten parejas por la pantalla y nunca se amontonan.
+ */
+function particleSpans(): HTMLElement[] {
+  return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+    const dot = el('span', 'story-particle');
+    const spread = (i * 37) % 100;
+    dot.style.setProperty('--x', `${4 + spread * 0.92}%`);
+    dot.style.setProperty('--size', `${2 + (i % 3)}px`);
+    dot.style.setProperty('--time', `${9 + ((i * 7) % 8)}s`);
+    dot.style.setProperty('--delay', `-${(i * 5) % 14}s`);
+    dot.style.setProperty('--wander', `${((i * 13) % 9) - 4}vw`);
+    return dot;
+  });
 }
 
 /** Pide de antemano las imágenes de la escena, para que no aparezcan a medio cargar. */
