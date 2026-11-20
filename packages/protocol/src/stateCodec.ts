@@ -40,8 +40,10 @@ const MAX_STRINGS = 4096;
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json | undefined };
 
+/** Se reusa entre cuadros: la Sala no pide memoria nueva 30 veces por segundo por cada celular. */
 class Writer {
   private buffer = new Uint8Array(4096);
+  private view = new DataView(this.buffer.buffer);
   length = 0;
 
   private ensure(extra: number): void {
@@ -51,6 +53,25 @@ class Writer {
     const bigger = new Uint8Array(size);
     bigger.set(this.buffer.subarray(0, this.length));
     this.buffer = bigger;
+    this.view = new DataView(bigger.buffer);
+  }
+
+  /** Mete una referencia a la tabla de textos en `at`, corriendo lo que ya estaba escrito. */
+  insertStringRef(at: number, id: number): void {
+    let size = 2;
+    for (let v = id; v >= 128; v = Math.floor(v / 128)) size++;
+    this.ensure(size);
+    this.buffer.copyWithin(at + size, at, this.length);
+    const end = this.length + size;
+    this.length = at;
+    this.byte(T_STR_REF);
+    this.uint(id);
+    this.length = end;
+  }
+
+  /** ¿Lo escrito desde `mark` es solo "igual que antes"? */
+  onlySameSince(mark: number): boolean {
+    return this.length === mark + 1 && this.buffer[mark] === T_SAME;
   }
 
   byte(value: number): void {
@@ -76,7 +97,7 @@ class Writer {
 
   double(value: number): void {
     this.ensure(8);
-    new DataView(this.buffer.buffer).setFloat64(this.length, value, true);
+    this.view.setFloat64(this.length, value, true);
     this.length += 8;
   }
 
@@ -86,8 +107,11 @@ class Writer {
     this.length += data.length;
   }
 
-  result(): Uint8Array {
-    return this.buffer.slice(0, this.length);
+  /** Copia lo escrito y deja el escritor listo para el próximo cuadro. */
+  take(): Uint8Array {
+    const out = this.buffer.slice(0, this.length);
+    this.length = 0;
+    return out;
   }
 }
 
@@ -153,6 +177,19 @@ class StringTable {
       this.ids.set(text, this.list.length);
       this.list.push(text);
     }
+  }
+
+  idOf(text: string): number | undefined {
+    return this.ids.get(text);
+  }
+
+  /** Para deshacer lo escrito: un campo que al final no cambió no deja textos en la tabla. */
+  mark(): number {
+    return this.list.length;
+  }
+
+  rewind(mark: number): void {
+    while (this.list.length > mark) this.ids.delete(this.list.pop() as string);
   }
 
   readNew(r: Reader): string {
@@ -273,7 +310,11 @@ function writeNumber(w: Writer, value: number): void {
   w.double(value);
 }
 
-/** Escribe cómo pasar de `prev` a `next`. */
+/**
+ * Escribe cómo pasar de `prev` a `next`, en una sola pasada: cada parte se escribe y, si resultó
+ * igual que antes, se borra y queda un "igual". Antes se comparaba cada campo a fondo y después se
+ * volvía a recorrer para escribirlo: el mismo árbol se visitaba una vez por cada nivel de hondura.
+ */
 function writeDiff(w: Writer, strings: StringTable, prev: unknown, next: unknown): void {
   if (prev === next) {
     w.byte(T_SAME);
@@ -284,24 +325,26 @@ function writeDiff(w: Writer, strings: StringTable, prev: unknown, next: unknown
     return;
   }
   if (Array.isArray(prev) && Array.isArray(next)) {
-    if (keyedById(next) && keyedById(prev)) {
-      const before = new Map<number, unknown>();
-      for (const item of prev) before.set((item as { id: number }).id, item);
-      w.byte(T_ARRAY_ID_DIFF);
-      w.uint(next.length);
-      for (const item of next) {
-        const id = (item as { id: number }).id;
-        w.int(id);
-        const old = before.get(id);
-        if (old === undefined) writeValue(w, strings, item);
-        else writeDiff(w, strings, old, item);
-      }
+    if (prev.length === 0 && next.length === 0) {
+      w.byte(T_SAME);
+      return;
+    }
+    if (keyedById(next)) {
+      writeIdArrayDiff(w, strings, prev, next);
       return;
     }
     if (prev.length === next.length && next.length > 0) {
+      const mark = w.length;
+      const stringsMark = strings.mark();
       w.byte(T_ARRAY_DIFF);
       w.uint(next.length);
-      for (let i = 0; i < next.length; i++) writeDiff(w, strings, prev[i], next[i]);
+      let same = true;
+      for (let i = 0; i < next.length; i++) {
+        const at = w.length;
+        writeDiff(w, strings, prev[i], next[i]);
+        if (same && !w.onlySameSince(at)) same = false;
+      }
+      if (same) rewindToSame(w, strings, mark, stringsMark);
       return;
     }
   }
@@ -312,52 +355,97 @@ function writeDiff(w: Writer, strings: StringTable, prev: unknown, next: unknown
   writeValue(w, strings, next);
 }
 
+/** Listas de entidades: se siguen por id aunque nazcan, mueran o cambien de orden. */
+function writeIdArrayDiff(
+  w: Writer,
+  strings: StringTable,
+  prev: readonly unknown[],
+  next: readonly unknown[],
+): void {
+  // Igual que el celular: solo los objetos, y si un id se repite vale el último.
+  const before = new Map<number, unknown>();
+  for (const item of prev) if (isObject(item)) before.set(item.id as number, item);
+  const mark = w.length;
+  const stringsMark = strings.mark();
+  w.byte(T_ARRAY_ID_DIFF);
+  w.uint(next.length);
+  let same = prev.length === next.length;
+  for (let i = 0; i < next.length; i++) {
+    const item = next[i] as { id: number };
+    w.int(item.id);
+    const old = before.get(item.id);
+    if (old === undefined) {
+      writeValue(w, strings, item);
+      same = false;
+      continue;
+    }
+    const at = w.length;
+    writeDiff(w, strings, old, item);
+    if (same && (old !== prev[i] || !w.onlySameSince(at))) same = false;
+  }
+  if (same) rewindToSame(w, strings, mark, stringsMark);
+}
+
 function writeObjectDiff(
   w: Writer,
   strings: StringTable,
   prev: Record<string, Json | undefined>,
   next: Record<string, Json | undefined>,
 ): void {
-  const changed: string[] = [];
-  for (const key of Object.keys(next)) {
-    const value = next[key];
-    if (value === undefined) continue;
-    if (!unchanged(prev[key], value)) changed.push(key);
-  }
-  const removed = Object.keys(prev).filter(
-    (key) => prev[key] !== undefined && next[key] === undefined,
-  );
-  if (changed.length === 0 && removed.length === 0) {
-    w.byte(T_SAME);
-    return;
-  }
+  const mark = w.length;
+  const stringsMark = strings.mark();
   w.byte(T_OBJECT_DIFF);
-  w.uint(changed.length);
-  for (const key of changed) {
-    strings.write(w, key);
-    writeDiff(w, strings, prev[key], next[key]);
+  let changed = 0;
+  for (const key in next) {
+    const value = next[key];
+    const before = prev[key];
+    if (value === undefined || value === before) continue;
+    if (typeof value === 'number' && typeof before === 'number' && sameNumber(before, value)) {
+      continue;
+    }
+    const id = strings.idOf(key);
+    const at = w.length;
+    if (id === undefined) {
+      // Campo nunca visto: su nombre va antes que los textos nuevos de adentro, como lo lee el
+      // celular.
+      const atStrings = strings.mark();
+      strings.write(w, key);
+      const valueAt = w.length;
+      writeDiff(w, strings, before, value);
+      if (w.onlySameSince(valueAt)) rewindTo(w, strings, at, atStrings);
+      else changed++;
+      continue;
+    }
+    // Lo común: el nombre ya está en la tabla y se escribe solo si el valor cambió.
+    writeDiff(w, strings, before, value);
+    if (w.onlySameSince(at)) {
+      w.length = at;
+      continue;
+    }
+    w.insertStringRef(at, id);
+    changed++;
   }
-  w.uint(removed.length);
-  for (const key of removed) strings.write(w, key);
+  // Fin de los campos cambiados: ningún texto empieza con esta etiqueta.
+  w.byte(T_SAME);
+  let removed = 0;
+  for (const key in prev) if (prev[key] !== undefined && next[key] === undefined) removed++;
+  w.uint(removed);
+  if (removed > 0) {
+    for (const key in prev) {
+      if (prev[key] !== undefined && next[key] === undefined) strings.write(w, key);
+    }
+  }
+  if (changed === 0 && removed === 0) rewindToSame(w, strings, mark, stringsMark);
 }
 
-/** Igualdad profunda barata, para no mandar campos que no cambiaron. */
-function unchanged(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a === 'number' && typeof b === 'number') return sameNumber(a, b);
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) if (!unchanged(a[i], b[i])) return false;
-    return true;
-  }
-  if (isObject(a) && isObject(b)) {
-    const keysA = Object.keys(a).filter((k) => a[k] !== undefined);
-    const keysB = Object.keys(b).filter((k) => b[k] !== undefined);
-    if (keysA.length !== keysB.length) return false;
-    for (const key of keysA) if (!unchanged(a[key], b[key])) return false;
-    return true;
-  }
-  return false;
+function rewindTo(w: Writer, strings: StringTable, mark: number, stringsMark: number): void {
+  w.length = mark;
+  strings.rewind(stringsMark);
+}
+
+function rewindToSame(w: Writer, strings: StringTable, mark: number, stringsMark: number): void {
+  rewindTo(w, strings, mark, stringsMark);
+  w.byte(T_SAME);
 }
 
 /** Dos números que el celular vería iguales (mismas milésimas). */
@@ -406,8 +494,7 @@ function readValue(r: Reader, strings: StringTable, tag: number = r.byte()): unk
   }
 }
 
-function readString(r: Reader, strings: StringTable): string {
-  const tag = r.byte();
+function readString(r: Reader, strings: StringTable, tag: number = r.byte()): string {
   if (tag === T_STR_NEW) return strings.readNew(r);
   if (tag === T_STR_REF) return strings.ref(r.uint());
   throw new Error('Se esperaba un texto');
@@ -422,9 +509,8 @@ function readDiff(r: Reader, strings: StringTable, prev: unknown): unknown {
     case T_OBJECT_DIFF: {
       const base = isObject(prev) ? prev : {};
       const next: Record<string, unknown> = { ...base };
-      const changed = r.uint();
-      for (let i = 0; i < changed; i++) {
-        const key = readString(r, strings);
+      for (let tag = r.byte(); tag !== T_SAME; tag = r.byte()) {
+        const key = readString(r, strings, tag);
         next[key] = readDiff(r, strings, base[key]);
       }
       const removed = r.uint();
@@ -460,6 +546,7 @@ function readDiff(r: Reader, strings: StringTable, prev: unknown): unknown {
 export class StateEncoder {
   private previous: unknown = undefined;
   private strings = new StringTable();
+  private readonly writer = new Writer();
 
   /** Olvida lo mandado: el próximo cuadro va completo (conexión nueva). */
   reset(): void {
@@ -468,7 +555,7 @@ export class StateEncoder {
   }
 
   encode(frame: unknown): Uint8Array {
-    const w = new Writer();
+    const w = this.writer;
     if (this.previous === undefined) {
       w.byte(FRAME_FULL);
       writeValue(w, this.strings, frame);
@@ -477,7 +564,7 @@ export class StateEncoder {
       writeDiff(w, this.strings, this.previous, frame);
     }
     this.previous = frame;
-    return w.result();
+    return w.take();
   }
 }
 

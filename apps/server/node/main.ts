@@ -11,7 +11,7 @@
 import { randomFillSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage } from 'node:http';
-import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { monitorEventLoopDelay, PerformanceObserver } from 'node:perf_hooks';
 import { isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
 import { WebSocket, WebSocketServer } from 'ws';
 import { generateRoomCode } from '../src/roomCode';
@@ -73,8 +73,20 @@ let lastCpuAt = performance.now();
  * partida no dejaría rastro (pasó el 18 de noviembre: 70 s de atraso y "CPU 4%" al final).
  */
 const RECENT_SAMPLES = 120;
-const recent: { lagMax: number; steal: number; cpu: number }[] = [];
+const recent: { lagMax: number; steal: number; cpu: number; machineCpu: number; gcMax: number }[] =
+  [];
 let lastProcStat = readProcStat();
+
+/**
+ * Las pausas para ordenar la memoria (recolector de basura). Mientras corren, todo el proceso se
+ * detiene: si una vuelta de la Sala tarda 200 ms en armar los estados sin que el núcleo pese,
+ * esto dice si fue una de ellas.
+ */
+let gcMax = 0;
+new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) gcMax = Math.max(gcMax, entry.duration);
+}).observe({ entryTypes: ['gc'] });
+
 setInterval(() => {
   const now = performance.now();
   const cpu = process.cpuUsage(lastCpu);
@@ -85,7 +97,14 @@ setInterval(() => {
     memoryMb: Math.round(process.memoryUsage().rss / 1048576),
   };
   const procStat = readProcStat();
-  recent.push({ lagMax: load.lagMax, steal: stealPercent(lastProcStat, procStat), cpu: load.cpu });
+  recent.push({
+    lagMax: load.lagMax,
+    steal: stealPercent(lastProcStat, procStat),
+    cpu: load.cpu,
+    machineCpu: busyPercent(lastProcStat, procStat),
+    gcMax: Math.round(gcMax),
+  });
+  gcMax = 0;
   if (recent.length > RECENT_SAMPLES) recent.shift();
   lastProcStat = procStat;
   lastCpu = process.cpuUsage();
@@ -116,13 +135,24 @@ function stealPercent(before: number[] | null, after: number[] | null): number {
   return total > 0 ? Math.round((steal / total) * 100) : 0;
 }
 
+/** Qué parte del tiempo la máquina entera estuvo ocupada (todos los procesos), en %. */
+function busyPercent(before: number[] | null, after: number[] | null): number {
+  if (!before || !after) return 0;
+  const total = after.reduce((sum, value, i) => sum + value - (before[i] ?? 0), 0);
+  // Cuarto y quinto contador: sin hacer nada y esperando el disco.
+  const idle = (after[3] ?? 0) - (before[3] ?? 0) + (after[4] ?? 0) - (before[4] ?? 0);
+  return total > 0 ? Math.round(((total - idle) / total) * 100) : 0;
+}
+
 /** Lo peor de los últimos 10 minutos, para el informe de la Sala. */
 function recentWorst(): string {
   if (recent.length === 0) return '';
   const lag = Math.max(...recent.map((sample) => sample.lagMax));
   const steal = Math.max(...recent.map((sample) => sample.steal));
   const cpu = Math.max(...recent.map((sample) => sample.cpu));
-  return ` · peor en 10 min: CPU ${cpu}% · atraso máx ${lag} ms · CPU robada ${steal}%`;
+  const machineCpu = Math.max(...recent.map((sample) => sample.machineCpu));
+  const gc = Math.max(...recent.map((sample) => sample.gcMax));
+  return ` · peor en 10 min: CPU ${cpu}% (máquina ${machineCpu}%) · atraso máx ${lag} ms · CPU robada ${steal}% · pausa de memoria ${gc} ms`;
 }
 
 /** Salas con el reloj corriendo (alguien conectado). */

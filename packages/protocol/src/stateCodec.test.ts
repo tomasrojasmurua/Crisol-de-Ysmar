@@ -101,6 +101,26 @@ describe('estado por la red', () => {
     expect(decoder.decode(encoder.encode(b))).toEqual(b);
   });
 
+  it('los campos nuevos con textos nuevos adentro y los que no cambiaron llegan bien', () => {
+    const encoder = new StateEncoder();
+    const decoder = new StateDecoder();
+    const frames: unknown[] = [
+      { a: { x: 1 }, b: 'uno', list: [] },
+      { a: { x: 1, nuevo: { hondo: 'texto nuevo' } }, b: 'uno', list: [] },
+      { a: { x: 2, nuevo: { hondo: 'texto nuevo', otro: 'más' } }, list: [{ id: 5, k: 'z' }] },
+      { a: { x: 2, nuevo: { hondo: 'texto nuevo', otro: 'más' } }, list: [{ id: 5, k: 'z' }] },
+      {
+        a: { x: 2 },
+        b: 'dos',
+        list: [
+          { id: 5, k: 'y' },
+          { id: 6, k: 'texto nuevo' },
+        ],
+      },
+    ];
+    for (const sent of frames) expect(decoder.decode(encoder.encode(sent))).toEqual(sent);
+  });
+
   it('lo que no cambió se comparte con el cuadro anterior', () => {
     const encoder = new StateEncoder();
     const decoder = new StateDecoder();
