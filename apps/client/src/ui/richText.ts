@@ -79,11 +79,3 @@ function appendWithCast(fragment: DocumentFragment, text: string): void {
     if (rest) fragment.append(rest);
   }
 }
-
-/** El mismo texto sin marcas, para lectores de pantalla y pruebas: `{brasa}` → Brasa. */
-export function plainText(text: string): string {
-  return text.replace(
-    /\{(\w+)\}/g,
-    (_, id: string) => BUTTONS[id]?.label ?? ELEMENTS.find((e) => e.id === id)?.name ?? id,
-  );
-}

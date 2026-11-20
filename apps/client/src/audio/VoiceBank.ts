@@ -50,12 +50,6 @@ export class VoiceBank {
     return true;
   }
 
-  /** Calla lo que suena y lo que esperaba turno. */
-  silence(): void {
-    this.queue.length = 0;
-    this.stop();
-  }
-
   private start(buffer: AudioBuffer): void {
     const ctx = this.engine.ctx;
     const dest = this.engine.sfx;

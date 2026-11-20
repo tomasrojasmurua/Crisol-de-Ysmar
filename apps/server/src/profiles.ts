@@ -70,7 +70,7 @@ export async function saveProfile(
     .run();
 }
 
-export async function readProfile(
+async function readProfile(
   db: D1Database,
   code: string,
 ): Promise<{ entries: BackupEntries; savedAt: string } | null> {

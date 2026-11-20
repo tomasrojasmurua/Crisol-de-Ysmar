@@ -1,7 +1,4 @@
 export {
-  BACKUP_CODE_ALPHABET,
-  BACKUP_CODE_LENGTH,
-  BACKUP_KEY_PREFIX,
   BACKUP_LIMITS,
   type BackupEntries,
   formatBackupCode,
@@ -11,11 +8,9 @@ export {
 } from './backup';
 export { decodeClientMessage, decodeServerMessage, encode } from './codec';
 export {
-  cleanReport,
   describeDevice,
   type ErrorReport,
   parseReports,
-  REPORT_KINDS,
   REPORT_LIMITS,
   type ReportKind,
 } from './errorReport';
@@ -26,7 +21,6 @@ export {
   type PlayerInfo,
   type PlayerLook,
   PROTOCOL_VERSION,
-  ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   type RoomServer,
   randomRoomCode,
@@ -45,4 +39,4 @@ export {
   type RoomSettings,
   sameMode,
 } from './settings';
-export { FRAME_DELTA, FRAME_FULL, StateDecoder, StateEncoder } from './stateCodec';
+export { StateDecoder, StateEncoder } from './stateCodec';

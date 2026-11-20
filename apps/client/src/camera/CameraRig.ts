@@ -75,11 +75,6 @@ export class CameraRig {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
-  /** Si la cámara está en duelo con alguien. */
-  get inDuel(): boolean {
-    return this.dueling;
-  }
-
   /** Vista del menú: la cámara gira despacio alrededor del Crisol. */
   orbit(timeSeconds: number, deltaSeconds: number): void {
     const angle = timeSeconds * 0.06;

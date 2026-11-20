@@ -177,11 +177,7 @@ const ZERO: Vec2 = { x: 0, z: 0 };
  * Una invocación rival que el mago fijó tocándola, si sigue en pie y a `lockRange`. Solo se
  * apunta a ellas si se fijan a mano: el disparo automático sigue prefiriendo magos y bestias.
  */
-export function lockedSummon(
-  state: MatchState,
-  wizard: Wizard,
-  rules: GameRules,
-): Summon | undefined {
+function lockedSummon(state: MatchState, wizard: Wizard, rules: GameRules): Summon | undefined {
   if (wizard.lockTarget === null) return undefined;
   const summon = state.spells.find(
     (s): s is Summon => s.kind === 'summon' && s.id === wizard.lockTarget,

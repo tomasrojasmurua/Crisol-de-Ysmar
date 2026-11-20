@@ -1,7 +1,7 @@
 import type { GameEvent, MatchState, StatusId } from '@crisol/core';
 
 /** La palabra de cada estado que se nota en el rival (los que no son daño). */
-export const STATUS_WORDS: Readonly<Partial<Record<StatusId, string>>> = {
+const STATUS_WORDS: Readonly<Partial<Record<StatusId, string>>> = {
   root: 'Atrapado',
   frozen: 'Congelado',
   asleep: 'Dormido',
