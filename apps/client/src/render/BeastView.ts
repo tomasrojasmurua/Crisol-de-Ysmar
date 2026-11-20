@@ -42,46 +42,96 @@ export class BeastView {
   ) {
     const color = elementColor(element);
     this.skin = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#3a3631').lerp(color, 0.3),
+      color: new THREE.Color('#4a453f').lerp(color, 0.2),
       roughness: 0.8,
+      // Lomo claro y panza oscura (ver `shadeByHeight`): se lee el volumen sin luces nuevas.
+      vertexColors: true,
     });
     const glowMaterial = new THREE.MeshBasicMaterial({ color: glow(color, 2.4) });
 
-    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), this.skin);
-    torso.scale.set(0.9, 0.7, 1.25);
-    torso.position.y = 0.7;
-    torso.castShadow = true;
-    this.body.add(torso);
-
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), this.skin);
-    head.position.set(0, 0.85, 0.65);
-    head.scale.set(1, 0.85, 1.1);
-    head.castShadow = true;
-    this.body.add(head);
-
-    const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 6);
+    // Cuerpo de depredador: pecho alto, lomo que baja hacia las ancas, cuello y cabeza con
+    // hocico y mandíbula. Todo lo quieto se funde después en una sola malla.
+    const part = (
+      geometry: THREE.BufferGeometry,
+      position: readonly [number, number, number],
+      scale: readonly [number, number, number] = [1, 1, 1],
+      rotation: readonly [number, number, number] = [0, 0, 0],
+      material: THREE.Material = this.skin,
+    ): THREE.Mesh => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(...position);
+      mesh.scale.set(...scale);
+      mesh.rotation.set(...rotation);
+      mesh.castShadow = true;
+      this.body.add(mesh);
+      return mesh;
+    };
+    const ball = new THREE.SphereGeometry(0.5, 12, 8);
+    part(ball, [0, 0.78, 0.22], [0.88, 0.78, 0.82]); // pecho
+    part(ball, [0, 0.68, -0.32], [0.72, 0.62, 0.78]); // ancas
+    part(new THREE.CylinderGeometry(0.14, 0.2, 0.42, 8), [0, 0.98, 0.5], [1, 1, 1], [0.9, 0, 0]); // cuello
+    part(ball, [0, 1.06, 0.72], [0.5, 0.44, 0.56]); // cráneo
+    part(new THREE.BoxGeometry(0.22, 0.14, 0.3), [0, 1.0, 0.98], [1, 1, 1], [0.15, 0, 0]); // hocico
+    part(new THREE.BoxGeometry(0.18, 0.06, 0.26), [0, 0.9, 0.93], [1, 1, 1], [0.35, 0, 0]); // mandíbula
+    const ear = new THREE.ConeGeometry(0.07, 0.24, 5);
     for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(eyeGeometry, glowMaterial);
-      eye.position.set(side * 0.12, 0.92, 0.88);
-      this.body.add(eye);
+      part(ear, [side * 0.14, 1.28, 0.62], [1, 1, 1], [-0.5, 0, side * -0.35]);
+    }
+    // Cola: tres conos que se afinan hacia atrás (la de Umbra es de humo; Marea no tiene).
+    if (element !== 'umbra' && element !== 'marea') {
+      const tail = new THREE.ConeGeometry(0.1, 0.7, 6);
+      part(tail, [0, 0.82, -0.82], [1, 1, 1], [-2.0, 0, 0]);
+    }
+
+    // Ojos grandes y rasgados: lo primero que se ve de una bestia en la oscuridad.
+    const eyeGeometry = new THREE.SphereGeometry(0.075, 8, 6);
+    for (const side of [-1, 1]) {
+      part(
+        eyeGeometry,
+        [side * 0.12, 1.1, 0.92],
+        [1.3, 0.6, 0.8],
+        [0, 0, side * 0.35],
+        glowMaterial,
+      );
+    }
+
+    // Vetas de luz en los flancos, del color de su elemento: marcan la silueta en la noche.
+    const stripe = new THREE.BoxGeometry(0.03, 0.05, 0.26);
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        part(
+          stripe,
+          [side * (0.4 - i * 0.03), 0.88 - i * 0.02, 0.3 - i * 0.24],
+          [1, 1, 1 - i * 0.15],
+          [0.5 + i * 0.1, side * 0.15, 0],
+          glowMaterial,
+        );
+      }
     }
 
     // El núcleo: una grieta de luz en el lomo.
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.16), glowMaterial);
-    core.position.set(0, 1.05, 0);
-    core.scale.set(1, 0.6, 1.8);
-    this.body.add(core);
+    part(
+      new THREE.OctahedronGeometry(0.16),
+      [0, 1.1, 0.05],
+      [1, 0.6, 1.8],
+      [0, 0, 0],
+      glowMaterial,
+    );
 
-    const legGeometry = new THREE.CylinderGeometry(0.07, 0.05, 0.5, 6);
-    legGeometry.translate(0, -0.25, 0);
+    // Patas: muslo grueso que se afina, con una pata ancha al final (una sola pieza animada).
+    const legGeometry = mergeGeometries([
+      new THREE.CylinderGeometry(0.11, 0.06, 0.5, 7).translate(0, -0.25, 0),
+      new THREE.SphereGeometry(0.09, 6, 4).scale(1, 0.55, 1.4).translate(0, -0.5, 0.04),
+    ]) as THREE.BufferGeometry;
+    shadeByHeight(legGeometry, -0.55, 0, 0.35, 0.8);
     for (const [x, z] of [
       [-0.3, 0.35],
       [0.3, 0.35],
-      [-0.3, -0.35],
-      [0.3, -0.35],
+      [-0.27, -0.38],
+      [0.27, -0.38],
     ] as const) {
       const leg = new THREE.Mesh(legGeometry, this.skin);
-      leg.position.set(x, 0.5, z);
+      leg.position.set(x, 0.55, z);
       leg.castShadow = true;
       this.legs.push(leg);
       this.body.add(leg);
@@ -98,13 +148,13 @@ export class BeastView {
     const skinParts = still.filter((mesh) => mesh.material === this.skin);
     const glowMesh = fuse(glowParts, glowMaterial);
     if (glowMesh) this.body.add(glowMesh);
-    const skinMesh = fuse(skinParts, this.skin);
+    const skinMesh = shadeFused(fuse(skinParts, this.skin));
     if (skinMesh) {
       skinMesh.castShadow = true;
       this.body.add(skinMesh);
       this.nearSkin.push(skinMesh, ...this.legs);
     }
-    this.farSkin = fuse([...skinParts, ...this.legs], this.skin, false);
+    this.farSkin = shadeFused(fuse([...skinParts, ...this.legs], this.skin, false));
     if (this.farSkin) {
       this.farSkin.castShadow = true;
       this.farSkin.visible = false;
@@ -203,11 +253,13 @@ export class BeastView {
     switch (element) {
       case 'brasa': {
         // Cresta de brasas a lo largo del lomo.
-        const spike = new THREE.ConeGeometry(0.07, 0.3, 5);
-        for (let i = 0; i < 5; i++) {
+        const spike = new THREE.ConeGeometry(0.07, 0.34, 5);
+        for (let i = 0; i < 6; i++) {
           const cone = new THREE.Mesh(spike, glowMaterial);
-          cone.position.set(0, 1.0 + Math.sin((i / 4) * Math.PI) * 0.08, 0.45 - i * 0.22);
-          cone.rotation.x = -0.4;
+          // Más altas sobre los hombros, más bajas hacia la cola.
+          cone.position.set(0, 1.17 - i * 0.04, 0.38 - i * 0.18);
+          cone.scale.setScalar(1.15 - i * 0.12);
+          cone.rotation.x = -0.5;
           this.body.add(cone);
         }
         return;
@@ -230,7 +282,7 @@ export class BeastView {
         });
         for (const side of [-1, 1]) {
           const wing = new THREE.Mesh(geometry, material);
-          wing.position.set(side * 0.25, 0.95, 0);
+          wing.position.set(side * 0.25, 1.12, 0.15);
           wing.rotation.x = -Math.PI / 2;
           wing.scale.x = side;
           wing.userData.side = side;
@@ -251,8 +303,8 @@ export class BeastView {
             emissiveIntensity: 0.25,
           }),
         );
-        shell.position.y = 0.72;
-        shell.scale.set(1, 0.8, 1.2);
+        shell.position.set(0, 0.78, -0.02);
+        shell.scale.set(1, 0.75, 1.25);
         shell.castShadow = true;
         this.body.add(shell);
         return;
@@ -262,18 +314,24 @@ export class BeastView {
         const antler = new THREE.CylinderGeometry(0.025, 0.04, 0.5, 5);
         for (const side of [-1, 1]) {
           const main = new THREE.Mesh(antler, this.skin);
-          main.position.set(side * 0.15, 1.2, 0.6);
+          main.position.set(side * 0.2, 1.42, 0.62);
           main.rotation.z = side * -0.5;
           this.body.add(main);
+          // Una rama hacia adelante en cada asta.
+          const branch = new THREE.Mesh(antler, this.skin);
+          branch.position.set(side * 0.24, 1.5, 0.72);
+          branch.scale.setScalar(0.55);
+          branch.rotation.set(0.9, 0, side * -0.3);
+          this.body.add(branch);
           const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), glowMaterial);
-          tip.position.set(side * 0.28, 1.43, 0.6);
+          tip.position.set(side * 0.33, 1.65, 0.62);
           this.body.add(tip);
         }
         const moss = new THREE.Mesh(
           new THREE.SphereGeometry(0.3, 8, 6),
           new THREE.MeshStandardMaterial({ color: '#2f4a26', roughness: 1 }),
         );
-        moss.position.set(0, 0.98, -0.15);
+        moss.position.set(0, 1.08, -0.05);
         moss.scale.set(1.3, 0.5, 1.4);
         this.body.add(moss);
         return;
@@ -298,6 +356,33 @@ export class BeastView {
       }
     }
   }
+}
+
+/**
+ * Pinta la malla con un degradado de abajo (`dark`) hacia arriba (`light`), entre las alturas
+ * `bottom` y `top`. Va en colores por vértice: no agrega luces ni llamadas de dibujo.
+ */
+function shadeByHeight(
+  geometry: THREE.BufferGeometry,
+  bottom: number,
+  top: number,
+  dark: number,
+  light: number,
+): THREE.BufferGeometry {
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(position.count * 3);
+  for (let i = 0; i < position.count; i++) {
+    const t = THREE.MathUtils.clamp((position.getY(i) - bottom) / (top - bottom), 0, 1);
+    colors.fill(dark + (light - dark) * t * t, i * 3, i * 3 + 3);
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+/** El cuerpo fundido, con la panza en sombra y el lomo que recibe la luna. */
+function shadeFused(mesh: THREE.Mesh | null): THREE.Mesh | null {
+  if (mesh) shadeByHeight(mesh.geometry, 0.35, 1.3, 0.3, 1.55);
+  return mesh;
 }
 
 /**
