@@ -130,7 +130,7 @@ export async function receiveReports(
  * La compañía por la que llegó el celular ("Entel PCS Telecomunicaciones S.A."), sin la IP. La
  * da Cloudflare en `request.cf`; fuera de Cloudflare (pruebas) no hay.
  */
-export function networkOf(request: Request): string {
+function networkOf(request: Request): string {
   const cf = (request as { cf?: { asOrganization?: unknown } }).cf;
   const name = cf?.asOrganization;
   return typeof name === 'string' ? name.slice(0, REPORT_LIMITS.short) : '';

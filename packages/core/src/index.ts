@@ -3,12 +3,10 @@ export {
   BotController,
   type BotLevel,
   type BotProfile,
-  DEFAULT_BOT,
 } from './ai/bot';
 export { canAct, canWeave } from './combat/statuses';
 export type { Controller, Intent } from './controllers/intent';
 export {
-  ELEMENT_COUNT,
   ELEMENT_IDS,
   type ElementId,
   isElementId,
@@ -16,7 +14,6 @@ export {
   opposingOf,
 } from './elements';
 export { createMatch, duelSetup, type MatchSetup, type WizardSetup } from './match/createMatch';
-export { stateHash } from './match/hash';
 export {
   createHighlightTracker,
   finishHighlightRound,
@@ -35,12 +32,11 @@ export {
 } from './match/matchStats';
 export {
   type GameMode,
-  MAX_PLAYERS,
   modeSetup,
   playerCount,
   teamCount,
 } from './match/modes';
-export { lineBlocked, obstacleAt, placeInArena, pushOutOfObstacles } from './match/obstacles';
+export { lineBlocked, obstacleAt, placeInArena } from './match/obstacles';
 export {
   type AimTarget,
   autoTarget,
@@ -112,7 +108,7 @@ export { type IntentsByWizard, stepMatch } from './match/step';
 export { walkTarget } from './match/walk';
 export type { Vec2 } from './math/vec2';
 export * as vec2 from './math/vec2';
-export { affinityPatch, combineMods, type ModsPatch, NEUTRAL_MODS, type WizardMods } from './mods';
+export { affinityPatch, combineMods, type ModsPatch, type WizardMods } from './mods';
 export type {
   BeastRules,
   BeastStats,
@@ -132,13 +128,9 @@ export { STATUS_IDS } from './rules';
 export { FixedStepClock, TICK_MS, TICK_RATE } from './sim/fixedStep';
 export { SeededRng } from './sim/rng';
 export { SPELL_IDS, SPELL_WEAVES, type SpellId, spellOf } from './spells/catalog';
-export { empowerPayload } from './spells/payload';
 export { PLACED_SPELLS, placedShape } from './spells/placed';
 export type { SpellRules } from './spells/spellRules';
 export {
-  addToWeave,
-  baseSpellCount,
-  EMPTY_WEAVE,
   MAX_WEAVE_LENGTH,
   SPELL_FORM_BY_ELEMENT,
   type SpellForm,

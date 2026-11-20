@@ -7,10 +7,10 @@ import type { MatchView } from './MatchView';
 import { type Appearance, lookColor, type Profile } from './Profile';
 
 /** Cómo se ven los magos del Vestidor y del menú (sin bando). */
-export const NEUTRAL_TEAM_COLOR = '#e8d7a8';
+const NEUTRAL_TEAM_COLOR = '#e8d7a8';
 
 /** El aspecto de un mago en pantalla: sus piezas, su Afinidad y el color de su bando. */
-export function lookOf(
+function lookOf(
   look: Appearance,
   affinity: ElementId | null,
   teamColor: string,

@@ -10,7 +10,6 @@ export {
   FOCI,
   fitsFace,
   HEADWEAR,
-  LOOK_OPTIONS,
   type LookIds,
   type LookOption,
   MASKS,
@@ -53,13 +52,10 @@ export { MASTERS, type Master, type MasterLines, masterOf } from './masters';
 export { WIZARD_NAMES } from './names';
 export { REACTION_TEXT } from './reactions';
 export { RECIPE_RULE, SECOND_ELEMENT_ROLES } from './recipes';
-export { DUEL_RULES, GAME_RULES, rulesForMode, rulesForRoom, withRoundLength } from './rules';
-export {
-  type AffinityRules,
-  affinityRulesSchema,
-  type ElementData,
-  elementDataSchema,
-  elementIdSchema,
+export { DUEL_RULES, GAME_RULES, rulesForMode, rulesForRoom } from './rules';
+export type {
+  AffinityRules,
+  ElementData,
 } from './schema';
 export { SCHOOLS, type School, schoolOf, schoolSpellbook } from './schools';
 export { blindedFrom, veiledFromTeam, visibleEnemies } from './sight';

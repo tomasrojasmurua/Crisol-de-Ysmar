@@ -535,7 +535,7 @@ const EXTRA_CHAPTERS: readonly TutorialChapter[] = [
 ];
 
 /** Los capítulos que se recorren de corrido (sin Más técnicas). */
-export const mainChapters = (chapters: readonly TutorialChapter[]): number =>
+const mainChapters = (chapters: readonly TutorialChapter[]): number =>
   chapters.filter((c) => !c.extra).length;
 
 /** El capítulo que entrega el combo del linaje al terminarse. */

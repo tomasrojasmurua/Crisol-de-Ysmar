@@ -17,8 +17,6 @@ export interface MasterLines {
    * los hilos (ver `docs/lore.md`).
    */
   readonly camp: readonly string[];
-  /** Su desafío antes de un duelo contra él mismo (era del Camino, que se quitó; queda la voz). */
-  readonly challenge: string;
 }
 
 /**
@@ -70,7 +68,6 @@ export const MASTERS: readonly Master[] = [
         'Los de Anvel lloran cada árbol que quemo. Que planten menos.',
         'El Crisol no te debe nada. Gánatelo.',
       ],
-      challenge: 'Basta de muñecos y aprendices. Ahora quémame a mí, si puedes.',
     },
   },
   {
@@ -106,7 +103,6 @@ export const MASTERS: readonly Master[] = [
         'Raíz quiere un lugar para todos. Yo, que nadie tenga uno fijo.',
         'Paso no es huir. Bueno, sí es huir. Pero con estilo.',
       ],
-      challenge: 'Último paso: atrápame. Nadie lo ha logrado. Bueno, casi nadie.',
     },
   },
   {
@@ -143,7 +139,6 @@ export const MASTERS: readonly Master[] = [
         'El orden importa al tejer. También al recordar.',
         'Algunos nombres se borran solos de mi libro. No debería pasar.',
       ],
-      challenge: 'Ahora tú y yo. Anotaré el resultado, sea cual sea.',
     },
   },
   {
@@ -179,7 +174,6 @@ export const MASTERS: readonly Master[] = [
         'Tormenta corre de todo. Algún día va a tener que quedarse.',
         'Los hilos crujen de noche. Antes no crujían.',
       ],
-      challenge: 'Ahora conmigo, mijo. Y no te voy a dejar ganar.',
     },
   },
   {
@@ -209,7 +203,6 @@ export const MASTERS: readonly Master[] = [
         'Tormenta grita libertad. Nosotros la tenemos, en silencio.',
         'El Crisol tiene hambre. ¿Nunca te preguntaste de qué?',
       ],
-      challenge: 'Ahora contra mí. Yo ya sé cómo termina. ¿Y tú?',
     },
   },
 ];

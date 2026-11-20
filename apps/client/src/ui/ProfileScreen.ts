@@ -19,7 +19,7 @@ const winsOf = (wins: number, played: number): string =>
   played === 0 ? '—' : `${wins} de ${played}`;
 
 /** El elemento que más tejes, contando cada elemento de cada hechizo lanzado. */
-export function favoriteElement(spells: Partial<Record<SpellId, number>>): ElementId | null {
+function favoriteElement(spells: Partial<Record<SpellId, number>>): ElementId | null {
   const totals = new Map<ElementId, number>();
   for (const [spell, count] of Object.entries(spells) as [SpellId, number][]) {
     for (const element of SPELL_WEAVES[spell] ?? []) {

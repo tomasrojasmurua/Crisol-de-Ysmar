@@ -16,8 +16,8 @@ export interface ReplayClip {
 /** Pasos que se guardan: una jugada larga (5 s), la pausa que la cierra (2 s) y lo de antes. */
 export const REPLAY_CAPACITY = 330;
 /** La repetición empieza 1,5 s antes del primer golpe y termina 1,5 s después del último. */
-export const REPLAY_LEAD_TICKS = 45;
-export const REPLAY_TAIL_TICKS = 45;
+const REPLAY_LEAD_TICKS = 45;
+const REPLAY_TAIL_TICKS = 45;
 /** Sin la mejor jugada guardada, se repiten los últimos 5 s de la partida. */
 export const ENDING_TICKS = 150;
 /** Menos que esto no alcanza a contar nada. */

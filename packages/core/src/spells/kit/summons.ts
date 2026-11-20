@@ -158,7 +158,7 @@ export function nearestVisibleEnemy(
  * o una invocación) o pelea domada por un rival. A las bestias tranquilas no se las toca, para
  * no despertar un campamento sin querer.
  */
-export function isHostileBeast(state: MatchState, beast: Beast, owner: Wizard): boolean {
+function isHostileBeast(state: MatchState, beast: Beast, owner: Wizard): boolean {
   if (beast.hp <= 0) return false;
   if (beast.tamedBy !== null) {
     const tamer = wizardById(state, beast.tamedBy);
