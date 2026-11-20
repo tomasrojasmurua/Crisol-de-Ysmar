@@ -33,6 +33,8 @@ export class FrameLimiter {
   private currentMin = 0;
   /** Cuadros de pantalla desde el último dibujado. */
   private elapsed = 0;
+  /** De cuántos cuadros de pantalla se dibujó uno en la última llamada (1: todos). */
+  every = 1;
 
   /** Cada cuánto llama la pantalla (ms); 0 si aún no se sabe. */
   get screenIntervalMs(): number {
@@ -50,9 +52,11 @@ export class FrameLimiter {
     const screenMs = this.screenIntervalMs;
     if (screenMs <= 0 || !counted) {
       this.elapsed = 0;
+      this.every = 1;
       return true;
     }
     const every = Math.max(1, Math.floor(1000 / screenMs / fps + ROUNDING));
+    this.every = every;
     this.elapsed += Math.max(1, Math.round(gap / screenMs));
     if (this.elapsed < every) return false;
     this.elapsed = 0;
@@ -68,5 +72,37 @@ export class FrameLimiter {
       this.windowStart = now;
     }
     this.currentMin = this.currentMin === 0 ? gap : Math.min(this.currentMin, gap);
+  }
+}
+
+/** Cuánto se mide con el tope puesto antes de juzgarlo. */
+const GUARD_WINDOW_MS = 20_000;
+/** Tirones (cuadros de más de 50 ms) por minuto desde los que el tope hace más mal que bien. */
+const GUARD_HITCHES_PER_MIN = 12;
+const HITCH_MS = 50;
+
+/**
+ * Vigila el tope de 60 en pantallas rápidas. En un Galaxy A35 (Chrome, 120 Hz) dibujar uno de
+ * cada dos cuadros daba 35 a 80 tirones por minuto, y en los ratos en que su pantalla bajaba sola
+ * a 60 Hz iba perfecto (19-11). Sin tope, el 17-11, eran 23. Si con el tope el juego se traba,
+ * se quita por el resto de la visita: la fluidez manda sobre el calor.
+ */
+export class CapGuard {
+  private measuredMs = 0;
+  private hitches = 0;
+  released = false;
+
+  /** Un cuadro dibujado. `capped`: si se saltaron cuadros de pantalla para llegar a él. */
+  sample(frameMs: number, capped: boolean): boolean {
+    if (this.released || !capped) return false;
+    this.measuredMs += frameMs;
+    if (frameMs > HITCH_MS) this.hitches++;
+    if (this.measuredMs < GUARD_WINDOW_MS) return false;
+    const perMinute = (this.hitches * 60_000) / this.measuredMs;
+    this.measuredMs = 0;
+    this.hitches = 0;
+    if (perMinute < GUARD_HITCHES_PER_MIN) return false;
+    this.released = true;
+    return true;
   }
 }

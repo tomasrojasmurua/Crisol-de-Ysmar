@@ -120,6 +120,8 @@ export class MatchPerfLog {
   private screenCapped = false;
   /** Cuadros dibujados según el ritmo de la pantalla en ese momento (60, 90, 120 Hz…). */
   private readonly screenRates = new Map<number, number>();
+  /** Cuándo se quitó el tope de 60 (null si no). */
+  private capReleasedAt: number | null = null;
   private pageHitches = 0;
   private pageMs = 0;
   private pageScriptMs = 0;
@@ -134,6 +136,7 @@ export class MatchPerfLog {
   start(pixelRatio: number, quality: QualityName = 'alta', screenCapped = false): void {
     this.screenCapped = screenCapped;
     this.screenRates.clear();
+    this.capReleasedAt = null;
     this.pageHitches = 0;
     this.pageMs = 0;
     this.pageScriptMs = 0;
@@ -213,6 +216,10 @@ export class MatchPerfLog {
     this.screenRates.set(hz, (this.screenRates.get(hz) ?? 0) + 1);
   }
 
+  capReleased(): void {
+    this.capReleasedAt = this.playedMs;
+  }
+
   private screenLine(): string | null {
     let total = 0;
     for (const count of this.screenRates.values()) total += count;
@@ -221,7 +228,9 @@ export class MatchPerfLog {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([hz, count]) => `${hz} Hz el ${Math.round((count / total) * 100)}%`);
-    return `Pantalla: ${parts.join(' · ')}`;
+    const cap =
+      this.capReleasedAt === null ? '' : ` · tope de 60 quitado en ${clock(this.capReleasedAt)}`;
+    return `Pantalla: ${parts.join(' · ')}${cap}`;
   }
 
   private spans(frameMs: number, spells: number, moment: string | undefined): void {

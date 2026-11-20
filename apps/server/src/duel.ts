@@ -181,6 +181,8 @@ export class DuelHost {
   private roundHighlight: Highlight | null = null;
   private omen: Omen = OMENS[0] as Omen;
   private bots = new Map<number, BotController>();
+  /** Lo que tardó la IA en decidir en el último paso (ms), para el informe de la Sala. */
+  botMs = 0;
   /** Dónde vio cada jugador por última vez a cada rival (para los que ahora no ve). */
   private readonly lastSeen = new Map<string, Vec2>();
   private seed: number;
@@ -800,6 +802,7 @@ export class DuelHost {
     const state = this.state;
     if (!state) return;
     const intents = new Map<number, Intent[]>();
+    this.botMs = 0;
     for (const wizard of state.wizards) {
       const slot = this.slots.get(wizard.id);
       if (slot?.connected && !this.isAway(slot)) {
@@ -807,7 +810,9 @@ export class DuelHost {
         slot.pending = [];
         slot.acked = slot.received;
       } else {
+        const started = performance.now();
         intents.set(wizard.id, [...(this.bots.get(wizard.id)?.intentsFor(state, wizard) ?? [])]);
+        this.botMs += performance.now() - started;
       }
     }
     stepMatch(state, intents, this.rules);

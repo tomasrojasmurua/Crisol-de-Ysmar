@@ -64,7 +64,7 @@ import { startErrorReports } from './platform/ErrorReporter';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { AutoQuality } from './render/AutoQuality';
-import { CALM_FPS, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
+import { CALM_FPS, CapGuard, FrameLimiter, PLAY_FPS } from './render/FrameLimiter';
 import { GameScene } from './render/GameScene';
 import { MenuPortrait } from './render/MenuPortrait';
 import { readQuality, saveQuality } from './render/Quality';
@@ -822,6 +822,8 @@ function beginMatch(current: MatchView, other: OtherWizard): void {
   resolution.restart();
   autoQuality.restart();
   diagnostics.matchStarted(resolution.pixelRatio, quality, screenCap.capped);
+  // Si el tope ya se quitó en una partida anterior, el informe de esta también lo dice.
+  if (capGuard.released) diagnostics.capReleased();
   capNoticeAt = elapsed + CAP_NOTICE_DELAY_S;
 }
 
@@ -951,6 +953,7 @@ function describeMatch(): string {
 const clock = new FixedStepClock();
 /** Tope de cuadros por segundo: menos calor y batería sin que se note. */
 const limiter = new FrameLimiter();
+const capGuard = new CapGuard();
 let lastFrame = performance.now();
 let elapsed = 0;
 let lastAlpha = 1;
@@ -1013,7 +1016,8 @@ renderer.setAnimationLoop((now) => {
   // Fuera de la partida en vivo (menús, pausa contra la IA, resultado) basta la mitad.
   // La repetición se ve como la partida: a cuadros completos.
   const live = match !== null && !(paused && match !== net) && (!flow.finished || replay !== null);
-  const due = limiter.ready(now, live ? PLAY_FPS : CALM_FPS);
+  const playFps = capGuard.released ? Number.POSITIVE_INFINITY : PLAY_FPS;
+  const due = limiter.ready(now, live ? playFps : CALM_FPS);
   // En los menús el juego casi no trabaja: si la pantalla igual llama cada 33 ms, la frena el
   // celular (ver render/ScreenCap.ts).
   if (match === null) screenCap.sample(limiter.screenIntervalMs);
@@ -1091,6 +1095,7 @@ renderer.setAnimationLoop((now) => {
         : 'Entre rondas';
     diagnostics.matchFrame(frameMs, simMs, view.load, moment);
     diagnostics.screenRate(limiter.screenIntervalMs);
+    if (capGuard.sample(frameMs, limiter.every > 1)) diagnostics.capReleased();
   }
   // Tu mago en la tarjeta del menú, encima de la arena, solo mientras el menú está a la vista.
   const portraitRect = menu.portraitRect;

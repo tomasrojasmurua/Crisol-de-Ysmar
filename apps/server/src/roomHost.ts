@@ -1,4 +1,4 @@
-import { TICK_MS } from '@crisol/core';
+import { type MatchState, TICK_MS } from '@crisol/core';
 import {
   type ClientMessage,
   decodeClientMessage,
@@ -275,18 +275,30 @@ export class RoomHost {
       this.clock = now - MAX_CATCH_UP * TICK_MS;
       due = MAX_CATCH_UP;
     }
+    const parts = { stepMs: 0, botMs: 0, sendMs: 0 };
     for (let i = 0; i < due; i++) {
       this.clock += TICK_MS;
+      const stepStart = performance.now();
+      duel.botMs = 0;
       duel.tick();
+      const stepEnd = performance.now();
+      parts.stepMs += stepEnd - stepStart - duel.botMs;
+      parts.botMs += duel.botMs;
       if (duel.startedNew) {
         duel.startedNew = false;
         for (const peer of this.home.peers()) this.announceStart(peer);
         const humans = duel.players.filter((p) => !p.bot).length;
         this.perf.start(now, { humans, bots: duel.players.length - humans });
       }
+      const sendStart = performance.now();
       this.broadcastState();
+      parts.sendMs += performance.now() - sendStart;
     }
-    if (due > 0) this.perf.clock(now, late, Date.now() - now, dropped);
+    if (due > 0) {
+      const work = Date.now() - now;
+      this.perf.clock(now, late, work, dropped);
+      if (this.perf.isSlowest(work)) this.perf.slowest(now, work, parts, sceneOf(duel.state));
+    }
     if (this.perf.running && duel.stageFor(1).kind === 'finished') {
       const report = this.perf.finish(Date.now(), this.home.machine?.() ?? '');
       if (report) this.home.perf?.(report);
@@ -361,4 +373,18 @@ function trySend(peer: Peer, data: string | Uint8Array): void {
   } catch {
     // El socket se está cerrando: lo resuelve el aviso de cierre.
   }
+}
+
+/** Lo que había en la arena, en pocas palabras: para saber qué se puso pesado. */
+function sceneOf(state: MatchState | null): string {
+  if (!state) return 'sin partida';
+  const kinds = new Map<string, number>();
+  for (const spell of state.spells) kinds.set(spell.kind, (kinds.get(spell.kind) ?? 0) + 1);
+  const top = [...kinds.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([kind, count]) => `${kind} ${count}`)
+    .join(', ');
+  const alive = state.wizards.filter((w) => w.hp > 0).length;
+  return `${alive} de ${state.wizards.length} magos en pie · ${state.spells.length} hechizos${top ? ` (${top})` : ''} · ${state.beasts.length} bestias · ${state.burnedTrees.length} árboles quemados`;
 }

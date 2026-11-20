@@ -120,6 +120,11 @@ export class Diagnostics {
     this.perfLog.screenRate(intervalMs);
   }
 
+  /** Se quitó el tope de 60 porque con él había tirones (ver render/FrameLimiter.ts). */
+  capReleased(): void {
+    this.perfLog.capReleased();
+  }
+
   resolutionChanged(pixelRatio: number): void {
     this.perfLog.resolutionChanged(pixelRatio);
   }
