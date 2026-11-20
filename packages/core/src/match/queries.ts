@@ -101,7 +101,7 @@ export interface AimTarget {
 
 /**
  * El blanco del disparo automático, el mismo que marca el suelo:
- * 1. lo fijado a mano (mago o bestia), mientras siga vivo, a la vista y a `lockRange`;
+ * 1. lo fijado a mano (mago o bestia), mientras siga vivo, a la vista y a `keepLockRange`;
  * 2. si no, el rival visible a `range` mejor puesto (cerca y delante);
  * 3. si no hay rivales a tiro, la bestia mejor puesta a `range`;
  * 4. si no hay nada, null (se dispara hacia donde se mira).
@@ -109,7 +109,7 @@ export interface AimTarget {
  * salía hacia un rival lejano.
  */
 export function autoTarget(state: MatchState, wizard: Wizard, rules: GameRules): AimTarget | null {
-  const { range, lockRange, frontWeight } = rules.aim;
+  const { range, keepLockRange, frontWeight } = rules.aim;
   const moveSpeed = rules.wizard.moveSpeed;
   const asWizard = (w: Wizard): AimTarget => ({
     id: w.id,
@@ -125,12 +125,12 @@ export function autoTarget(state: MatchState, wizard: Wizard, rules: GameRules):
       isAlive(locked) &&
       locked.team !== wizard.team &&
       !isHiddenFrom(locked, wizard, rules) &&
-      distance(locked.pos, wizard.pos) <= lockRange
+      distance(locked.pos, wizard.pos) <= keepLockRange
     ) {
       return asWizard(locked);
     }
     const beast = state.beasts.find((b) => b.id === wizard.lockTarget && b.hp > 0);
-    if (beast && distance(beast.pos, wizard.pos) <= lockRange) {
+    if (beast && distance(beast.pos, wizard.pos) <= keepLockRange) {
       return { id: beast.id, kind: 'beast', pos: beast.pos, velocity: beast.velocity };
     }
     const summon = lockedSummon(state, wizard, rules);
@@ -174,7 +174,7 @@ export function autoTarget(state: MatchState, wizard: Wizard, rules: GameRules):
 const ZERO: Vec2 = { x: 0, z: 0 };
 
 /**
- * Una invocación rival que el mago fijó tocándola, si sigue en pie y a `lockRange`. Solo se
+ * Una invocación rival que el mago fijó tocándola, si sigue en pie y a `keepLockRange`. Solo se
  * apunta a ellas si se fijan a mano: el disparo automático sigue prefiriendo magos y bestias.
  */
 function lockedSummon(state: MatchState, wizard: Wizard, rules: GameRules): Summon | undefined {
@@ -183,7 +183,7 @@ function lockedSummon(state: MatchState, wizard: Wizard, rules: GameRules): Summ
     (s): s is Summon => s.kind === 'summon' && s.id === wizard.lockTarget,
   );
   if (!summon || summon.team === wizard.team || summon.hp <= 0) return undefined;
-  return distance(summon.pos, wizard.pos) <= rules.aim.lockRange ? summon : undefined;
+  return distance(summon.pos, wizard.pos) <= rules.aim.keepLockRange ? summon : undefined;
 }
 
 function tamedByAlly(state: MatchState, wizard: Wizard, tamer: EntityId | null): boolean {

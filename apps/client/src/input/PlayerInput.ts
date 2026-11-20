@@ -27,6 +27,11 @@ export class PlayerInput {
   aimPreview: ScreenVector | null = null;
   /** Hasta dónde llegaría un hechizo de suelo si se suelta ahora (null: como siempre). */
   reachPreview: number | null = null;
+  /**
+   * Giro de la cámara con ✦ sin tejido, en radianes por segundo (0: quieta). Lo aplica cada
+   * cuadro quien dibuja la partida, porque el dedo puede quedarse quieto y seguir girando.
+   */
+  lookRate = 0;
   private queue: PlayerAction[] = [];
   private readonly listeners: ((action: PlayerAction) => void)[] = [];
 

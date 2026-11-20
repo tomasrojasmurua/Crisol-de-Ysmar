@@ -273,6 +273,8 @@ export class MatchRenderer {
             ? { id: aimed.id, pos: targetPos, kind: 'watch' }
             : null
         : null;
+    // ✦ sin tejido usado como palanca: gira mientras el dedo siga corrido.
+    if (this.input.lookRate !== 0) rig.rotate(this.input.lookRate * delta);
     rig.update(playerPos, cameraFocus, delta, view.effects.shake);
     ui.controls.dueling = duel;
     const forward = rig.forward();

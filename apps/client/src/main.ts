@@ -189,22 +189,20 @@ const hitFeedback = new HitFeedback({
   damage: (amount, targetId) => comboCallouts.showDamage(amount, targetId),
   status: (word, targetId) => comboCallouts.showStatus(word, targetId),
 });
-// Arrastrar para mirar a los lados suelta el duelo: la cámara queda libre.
-const cameraDrag = new CameraDrag(
-  canvas,
-  (radians) => rig.rotate(radians),
-  () => {
-    if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
-      input.push({ type: 'lock', targetId: null });
-    }
-    tutorialCard.collapse();
-    if (tutorial?.signal('look')) {
-      stepDone();
-      afterTutorialAdvance();
-      tutorialCard.render();
-    }
-  },
-);
+// Mirar a los lados (arrastrando en la pantalla o con ✦ sin tejido) suelta el duelo: la cámara
+// queda libre.
+function startLooking(): void {
+  if (match && (match.present?.(match.player) ?? match.player).lockTarget !== null) {
+    input.push({ type: 'lock', targetId: null });
+  }
+  tutorialCard.collapse();
+  if (tutorial?.signal('look')) {
+    stepDone();
+    afterTutorialAdvance();
+    tutorialCard.render();
+  }
+}
+const cameraDrag = new CameraDrag(canvas, (radians) => rig.rotate(radians), startLooking);
 const screenAwake = new ScreenAwake();
 const hud = new Hud(uiRoot, rematch, () => showMenu());
 const weaveName = new WeaveName(hud.layer, (weave) => grimoire.has(weave));
@@ -443,6 +441,7 @@ const tapToLock = new TapToLock(
 );
 controls.onDuelButton = () => tapToLock.cycle();
 controls.onTap = (x, y) => tapToLock.tapAt(x, y);
+controls.onLookStart = startLooking;
 
 // ---------- Reacciones a lo que toca el jugador ----------
 

@@ -2,7 +2,7 @@ import type { ElementId, Highlight, Intent, MatchState, WizardMatchStats } from 
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 22;
+export const PROTOCOL_VERSION = 23;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {

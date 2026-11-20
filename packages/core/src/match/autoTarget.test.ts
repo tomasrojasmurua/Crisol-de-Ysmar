@@ -61,7 +61,7 @@ describe('apuntado automático', () => {
     expect(autoTarget(state, me, rules)?.id).toBe(ahead?.id);
   });
 
-  it('lo fijado a mano manda, pero se suelta si se aleja demasiado', () => {
+  it('lo fijado a mano manda, aguanta al retroceder y se suelta si se aleja demasiado', () => {
     const state = scene([
       { x: 0, z: 4 },
       { x: 0, z: 12 },
@@ -71,7 +71,10 @@ describe('apuntado automático', () => {
     if (!far) throw new Error('falta el rival');
     me.lockTarget = far.id;
     expect(autoTarget(state, me, rules)?.id).toBe(far.id);
-    far.pos = { x: 0, z: 25 };
+    // Más allá de lo que se puede fijar, pero dentro de lo que aguanta un duelo: sigue fijado.
+    far.pos = { x: 0, z: (rules.aim.lockRange + rules.aim.keepLockRange) / 2 };
+    expect(autoTarget(state, me, rules)?.id).toBe(far.id);
+    far.pos = { x: 0, z: rules.aim.keepLockRange + 2 };
     expect(autoTarget(state, me, rules)?.id).not.toBe(far.id);
   });
 
