@@ -31,6 +31,18 @@ const PHASE_HINTS: Record<RoundPhase, string> = {
   sudden: 'La Trama se cierra del todo',
 };
 
+/** Un aviso corto de lo que pasó en la partida, para la franja bajo la ronda. */
+export interface FeedLine {
+  readonly text: string;
+  /** Dorado para lo tuyo o lo de tu equipo, carmesí para lo que te hicieron, neutro el resto. */
+  readonly tone: 'own' | 'foe' | 'neutral';
+  /** Más grande: dobles y triples derribos, y quedar último en pie. */
+  readonly big: boolean;
+}
+
+/** Cuántos avisos caben a la vez bajo la ronda. */
+const FEED_MAX = 2;
+
 /** Lo que el HUD necesita saber de cada mago para dibujarlo. */
 export interface WizardBadge {
   readonly name: string;
@@ -65,6 +77,8 @@ export class Hud {
   private highlightTimer: number | undefined;
   private discoveryTimer: number | undefined;
   private readonly discovery: HTMLElement;
+  /** Avisos cortos bajo la ronda: quién derribó a quién, dobles derribos, último en pie. */
+  private readonly feed: HTMLElement;
   private readonly allyRows = new Map<number, HTMLElement>();
   private lastScoreKey = '';
   private lastHp = -1;
@@ -93,6 +107,7 @@ export class Hud {
         <div class="hud-phase"></div>
         <div class="hud-score"></div>
       </div>
+      <div class="hud-feed" aria-live="polite"></div>
       <div class="hud-discovery" hidden>
         <span class="hud-discovery-kicker">Nuevo conjuro</span>
         <span class="hud-discovery-orbs"></span>
@@ -115,6 +130,7 @@ export class Hud {
     this.omen = query(this.root, '.hud-omen');
     this.allies = query(this.root, '.hud-allies');
     this.discovery = query(this.root, '.hud-discovery');
+    this.feed = query(this.root, '.hud-feed');
     this.roundLabel = query(this.root, '.hud-round-label');
     this.phase = query(this.root, '.hud-phase');
     this.score = query(this.root, '.hud-score');
@@ -129,6 +145,19 @@ export class Hud {
     this.ownName = name || 'Tú';
     if (!this.root.classList.contains('watching'))
       query(this.root, '.hud-player-name').textContent = this.ownName;
+  }
+
+  /**
+   * Suma avisos a la franja bajo la ronda. Caben dos a la vez (el más nuevo abajo) para no
+   * bajar hasta el aviso de descubrimiento; cada uno se va solo a los pocos segundos.
+   */
+  pushFeed(lines: readonly FeedLine[]): void {
+    for (const line of lines) {
+      const row = el('div', `hud-feed-line ${line.tone}${line.big ? ' big' : ''}`, line.text);
+      row.addEventListener('animationend', () => row.remove());
+      this.feed.append(row);
+    }
+    while (this.feed.children.length > FEED_MAX) this.feed.firstElementChild?.remove();
   }
 
   /** Celebra un conjuro que el jugador lanzó por primera vez (o un combo nuevo). */
@@ -190,6 +219,7 @@ export class Hud {
 
   /** Prepara la lista de aliados para una ronda nueva. */
   reset(state: MatchState, player: Wizard, badges: ReadonlyMap<number, WizardBadge>): void {
+    this.feed.replaceChildren();
     this.allies.replaceChildren();
     this.allyRows.clear();
     for (const ally of state.wizards) {

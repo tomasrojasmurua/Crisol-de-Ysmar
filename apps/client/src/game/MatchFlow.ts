@@ -27,6 +27,8 @@ import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
 import { highlightView } from './highlightView';
+import { MatchFeed } from './MatchFeed';
+import { MatchMoments } from './MatchMoments';
 import type { MatchRenderer } from './MatchRenderer';
 import type { MatchView } from './MatchView';
 import { masterQuote } from './masterLine';
@@ -78,6 +80,12 @@ export class MatchFlow {
    * pausa y se perdía si un cuadro lento avanzaba dos pasos de una vez.
    */
   private announcedPause = -1;
+  /** Quién derribó a quién y otros avisos cortos, arriba al centro. */
+  private readonly feed = new MatchFeed();
+  /** Los momentos del tejido que se cuentan para el informe de la partida. */
+  private readonly moments = new MatchMoments();
+  /** El último paso visto de la ronda en curso, para medir cuánto duró. */
+  private roundTick = 0;
 
   constructor(private readonly deps: MatchFlowDeps) {}
 
@@ -94,6 +102,9 @@ export class MatchFlow {
     this.pickerShown = false;
     this.firstFallRound = 0;
     this.announcedPause = -1;
+    this.feed.reset();
+    this.moments.reset();
+    this.roundTick = 0;
   }
 
   /** Avisos de la partida según lo que pasó en el paso. */
@@ -105,9 +116,21 @@ export class MatchFlow {
   ): void {
     const me = current.playerId;
     this.detectCombos(events, current);
+    if (!(current instanceof TrainingMatch)) {
+      // Solo la ronda ya anunciada: el primer paso de la siguiente no pisa la duración de esta.
+      if (current.stage.kind === 'playing' && current.roundNumber === this.shownRound)
+        this.roundTick = current.state.tick;
+      this.moments.onStep(events, me);
+      const lines = this.feed.onStep(events, current.state, {
+        playerId: me,
+        nameOf: (id) => badges.get(id)?.name ?? 'Hechicero',
+      });
+      if (lines.length > 0) this.deps.hud.pushFeed(lines);
+    }
     for (const event of events) {
       if (event.type === 'cast' && event.wizardId === me) {
         if (this.deps.grimoire.discover(event.weave)) {
+          this.moments.discovered();
           this.deps.audio.discover();
           this.deps.audio.say('voice.crisol.discover');
           const spell = spellOf(event.weave);
@@ -196,6 +219,9 @@ export class MatchFlow {
     const stage = current.stage;
     if (stage.kind === 'playing' && current.roundNumber !== this.shownRound) {
       this.shownRound = current.roundNumber;
+      if (this.shownRound > 1) this.moments.roundEnded(this.roundTick);
+      this.roundTick = 0;
+      this.feed.reset();
       this.deps.audio.reset();
       this.deps.audio.setMood('hunt');
       this.deps.hud.reset(current.state, current.player, badges);
@@ -349,7 +375,13 @@ export class MatchFlow {
     const winner = series.winnerTeam ?? -1;
     const result = winner < 0 ? 'empate' : winner === current.player.team ? 'ganó' : 'perdió';
     const game = `Partida: ${current.state.wizards.length} magos · ${series.roundsPlayed} rondas · ${result} · marcador ${series.wins.join('-')}`;
-    const lines = [...network, game, ...this.deps.diagnostics.fullReport()];
+    this.moments.roundEnded(this.roundTick);
+    const lines = [
+      ...network,
+      game,
+      ...this.moments.report(),
+      ...this.deps.diagnostics.fullReport(),
+    ];
     reportProblem('rendimiento', network[0] ?? 'Resumen de la partida', lines.join('\n'));
     // Y se pregunta a cada uno cómo se jugó: lo que sintió junto a lo que midió su celular.
     const ping = network[0] ?? '';
@@ -377,6 +409,7 @@ export class MatchFlow {
    */
   private countCombo(combo: Combo, current: MatchView): void {
     if (current instanceof TrainingMatch) return;
+    this.moments.combo();
     const unlocked = this.deps.comboLog.record(combo.id);
     if (!unlocked) return;
     this.deps.audio.discover();

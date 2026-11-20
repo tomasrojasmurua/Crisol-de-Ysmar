@@ -180,7 +180,7 @@ export class ResultScreen {
           <div class="hud-result-opinion-options"></div>
           <form class="hud-result-opinion-more" hidden>
             <input maxlength="280" enterkeyhint="send" autocomplete="off"
-              placeholder="¿Qué mejorarías?" aria-label="Qué mejorarías" />
+              placeholder="¿Qué fue lo mejor? ¿Qué mejorarías?" aria-label="Qué fue lo mejor y qué mejorarías" />
             <button type="submit" class="secondary">Enviar</button>
           </form>
           <p class="hud-result-opinion-thanks" hidden>¡Gracias! Lo vemos para la próxima versión.</p>

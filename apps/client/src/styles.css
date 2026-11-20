@@ -4512,6 +4512,81 @@ body {
 
 /* ---------- Descubrimiento ---------- */
 
+/* Avisos cortos bajo la ronda: quién derribó a quién, dobles derribos, último en pie.
+   Dos líneas a lo más, entre la cinta de la ronda y el aviso de descubrimiento. */
+.hud-feed {
+  position: absolute;
+  top: calc(var(--safe-top) + 46px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 46%;
+  pointer-events: none;
+}
+
+.hud-feed-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: rgba(14, 12, 18, 0.62);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  animation: feed-line 3.6s ease both;
+}
+
+.hud-feed-line.own {
+  color: #f3dfb0;
+}
+
+.hud-feed-line.foe {
+  color: #ff8a80;
+}
+
+.hud-feed-line.big {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  animation-duration: 4.2s;
+}
+
+@keyframes feed-line {
+  0% {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+  8%,
+  80% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .hud-feed {
+    top: calc(var(--safe-top) + 52px);
+  }
+
+  .hud-feed-line {
+    font-size: 11px;
+  }
+
+  .hud-feed-line.big {
+    font-size: 12px;
+  }
+}
+
 .hud-discovery {
   position: absolute;
   top: calc(var(--safe-top) + 92px);
