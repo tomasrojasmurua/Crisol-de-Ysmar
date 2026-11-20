@@ -1797,7 +1797,8 @@ body {
   min-height: 20px;
 }
 
-#ui .hud-result-opinion-change {
+#ui .hud-result-opinion-change,
+#ui .hud-result-opinion-skip {
   padding: 2px 4px;
   border: 0;
   background: none;
@@ -1807,6 +1808,18 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
   touch-action: manipulation;
+}
+
+/* En red, la pregunta brilla mientras la revancha espera la respuesta (o el Saltar). */
+.hud-result-opinion.asking {
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(243, 223, 176, 0.45),
+    0 0 14px rgba(243, 223, 176, 0.25);
+}
+
+#ui .hud-result-actions .rematch.locked {
+  opacity: 0.5;
 }
 
 /* El "¡Gracias!" toma la fila del comentario para que nada salte. */
