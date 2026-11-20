@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { addRimLight } from './rim';
+import { addRimLight, addSurfaceShading } from './rim';
 
 /** Altura del centro de la cabeza en los linajes de cabeza redonda. */
 export const HEAD_Y = 1.74;
@@ -28,6 +28,13 @@ export class ModelKit {
   readonly dark: THREE.MeshBasicMaterial;
   /** Runas pintadas: brillan suave, del color del bando. */
   readonly paint: THREE.MeshBasicMaterial;
+  /**
+   * Adornos, piel, hueso, cuerno, madera, pelo, barba, tela clara y huecos oscuros se dibujan
+   * juntos con este material: cada vértice lleva su color, su aspereza, su brillo metálico y
+   * cuánto contorno de bando recibe. Así un mago con diez piezas de cinco materiales distintos
+   * cuesta una llamada de dibujo (y una de sombra) en vez de cinco.
+   */
+  readonly surface = new THREE.MeshStandardMaterial({ vertexColors: true });
   readonly solids: THREE.Mesh[] = [];
 
   constructor(
@@ -83,9 +90,39 @@ export class ModelKit {
       this.fur,
       this.hair,
       this.beard,
+      this.surface,
     ]) {
       addRimLight(material, color, strength);
     }
+    addSurfaceShading(this.surface);
+  }
+
+  /** Cómo se ve una pieza dentro de `surface`, o `null` si conserva su propio material. */
+  private surfaceLook(material: THREE.Material): SurfaceLook | null {
+    if (material === this.dark)
+      return { color: this.dark.color, roughness: 1, metalness: 0, rim: 0 };
+    if (
+      material instanceof THREE.MeshStandardMaterial &&
+      [
+        this.trim,
+        this.skin,
+        this.cloth,
+        this.bone,
+        this.horn,
+        this.wood,
+        this.fur,
+        this.hair,
+        this.beard,
+      ].includes(material)
+    ) {
+      return {
+        color: material.color,
+        roughness: material.roughness,
+        metalness: material.metalness,
+        rim: 1,
+      };
+    }
+    return null;
   }
 
   /** Una pieza opaca del cuerpo. */
@@ -140,42 +177,78 @@ export class ModelKit {
   }
 
   /**
-   * Junta en una sola malla todas las piezas del cuerpo que comparten material (sin tocar el
-   * foco, que se mueve aparte). Devuelve las mallas opacas que quedaron, para el humo del Velo.
+   * Junta en una sola malla las piezas de `group` que comparten material, y en otra todas las
+   * que van en `surface`. Las piezas marcadas con `userData.keep` quedan sueltas.
    */
-  merge(): THREE.Mesh[] {
-    this.body.updateMatrixWorld(true);
-    const inverse = this.body.matrixWorld.clone().invert();
+  fuse(group: THREE.Group): void {
     const groups = new Map<THREE.Material, THREE.Mesh[]>();
-    for (const child of [...this.body.children]) {
+    for (const child of [...group.children]) {
       if (!(child instanceof THREE.Mesh) || child.userData.keep) continue;
-      const material = child.material as THREE.Material;
+      const own = child.material as THREE.Material;
+      const material = this.surfaceLook(own) ? this.surface : own;
       const list = groups.get(material) ?? [];
       list.push(child);
       groups.set(material, list);
     }
-    const solids: THREE.Mesh[] = this.solids.filter((m) => m.parent === this.staff);
     for (const [material, meshes] of groups) {
+      if (meshes.length < 2 && material !== this.surface) continue;
+      const painted = material === this.surface;
       const geometries = meshes.map((mesh) => {
-        const matrix = inverse.clone().multiply(mesh.matrixWorld);
+        mesh.updateMatrix();
         const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
         for (const name of Object.keys(geometry.attributes)) {
-          if (name !== 'position' && name !== 'normal' && name !== 'uv')
+          if (name !== 'position' && name !== 'normal' && (painted || name !== 'uv'))
             geometry.deleteAttribute(name);
         }
-        return geometry.applyMatrix4(matrix);
+        const look = painted ? this.surfaceLook(mesh.material as THREE.Material) : null;
+        if (look) paintSurface(geometry, look);
+        return geometry.applyMatrix4(mesh.matrix);
       });
       const merged = mergeGeometries(geometries, false);
+      for (const geometry of geometries) geometry.dispose();
       if (!merged) continue;
-      for (const mesh of meshes) mesh.removeFromParent();
-      const mesh = new THREE.Mesh(merged, material);
       const opaque = meshes.some((m) => this.solids.includes(m));
+      for (const mesh of meshes) {
+        mesh.removeFromParent();
+        const at = this.solids.indexOf(mesh);
+        if (at >= 0) this.solids.splice(at, 1);
+      }
+      const mesh = new THREE.Mesh(merged, material);
       mesh.castShadow = opaque;
-      this.body.add(mesh);
-      if (opaque) solids.push(mesh);
+      if (opaque) this.solids.push(mesh);
+      group.add(mesh);
     }
-    return solids;
   }
+
+  /**
+   * Junta las piezas del cuerpo (sin tocar el foco, que se mueve aparte y se junta con
+   * `fuse(staff)`). Devuelve las mallas opacas que quedaron, para el humo del Velo.
+   */
+  merge(): THREE.Mesh[] {
+    this.fuse(this.body);
+    return this.solids.filter((mesh) => !mesh.userData.keep);
+  }
+}
+
+interface SurfaceLook {
+  readonly color: THREE.Color;
+  readonly roughness: number;
+  readonly metalness: number;
+  /** Cuánto contorno de bando recibe (0 en los huecos oscuros). */
+  readonly rim: number;
+}
+
+/** Escribe en cada vértice el color y el acabado de la pieza (ver `addSurfaceShading`). */
+function paintSurface(geometry: THREE.BufferGeometry, look: SurfaceLook): void {
+  const count = geometry.getAttribute('position').count;
+  const colors = new Float32Array(count * 3);
+  const surface = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    colors.set([look.color.r, look.color.g, look.color.b], i * 3);
+    surface.set([look.roughness, look.metalness, look.rim], i * 3);
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('surface', new THREE.BufferAttribute(surface, 3));
 }
 
 function place(
