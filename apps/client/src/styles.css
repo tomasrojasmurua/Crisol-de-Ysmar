@@ -6652,6 +6652,142 @@ body {
   opacity: 0.35;
 }
 
+/*
+ * La cámara se mueve muy lento sobre la ilustración, como en un documental: se acerca, se
+ * aleja o recorre de lado. Solo transform, que el celular mueve sin redibujar la imagen.
+ */
+.story-backdrop.shown[data-drift] {
+  animation: story-drift-in 28s ease-in-out infinite alternate;
+}
+
+.story-backdrop.shown[data-drift="out"] {
+  animation-name: story-drift-out;
+}
+
+.story-backdrop.shown[data-drift="left"] {
+  animation-name: story-drift-left;
+}
+
+.story-backdrop.shown[data-drift="right"] {
+  animation-name: story-drift-right;
+}
+
+@keyframes story-drift-in {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.12) translateY(-1.5%);
+  }
+}
+
+@keyframes story-drift-out {
+  from {
+    transform: scale(1.13) translateY(-1%);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes story-drift-left {
+  from {
+    transform: scale(1.1) translateX(3%);
+  }
+  to {
+    transform: scale(1.1) translateX(-3%);
+  }
+}
+
+@keyframes story-drift-right {
+  from {
+    transform: scale(1.1) translateX(-3%);
+  }
+  to {
+    transform: scale(1.1) translateX(3%);
+  }
+}
+
+/* Lo que flota sobre la ilustración: sube despacio, se mece y se apaga arriba. */
+.story-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.story-particles:not([data-kind="embers"], [data-kind="dust"], [data-kind="motes"]) {
+  display: none;
+}
+
+.story-particles span {
+  position: absolute;
+  left: var(--x);
+  bottom: -4%;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  opacity: 0;
+  animation: story-float var(--time) linear var(--delay) infinite;
+}
+
+/* Brasas: naranjas, con brillo, y suben más rápido. */
+.story-particles[data-kind="embers"] span {
+  background: #ffb35c;
+  box-shadow: 0 0 6px 1px rgba(255, 120, 40, 0.8);
+  animation-duration: calc(var(--time) * 0.7);
+}
+
+/* Polvo: dorado, chico y lento, como en la luz del atardecer. */
+.story-particles[data-kind="dust"] span {
+  background: rgba(255, 226, 170, 0.75);
+  box-shadow: 0 0 3px rgba(255, 210, 140, 0.5);
+  animation-duration: calc(var(--time) * 1.5);
+}
+
+/* Motas de la Trama: claras y difusas, como luz que se suelta de los hilos. */
+.story-particles[data-kind="motes"] span {
+  background: rgba(225, 235, 255, 0.85);
+  box-shadow: 0 0 8px 2px rgba(170, 190, 255, 0.55);
+  animation-duration: calc(var(--time) * 1.2);
+}
+
+@keyframes story-float {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(var(--wander), -55vh);
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--wander) * -0.5), -105vh);
+  }
+}
+
+/* Durante un murmullo, y mientras no hay ilustración, no flota nada. */
+.story.murmuring .story-particles,
+.story:not(.illustrated) .story-particles {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-backdrop.shown[data-drift] {
+    animation: none;
+  }
+
+  .story-particles {
+    display: none;
+  }
+}
+
 /* Un murmullo apaga casi todo: es una voz de los que no están. */
 .story.murmuring .story-backdrop.shown {
   opacity: 0.15;

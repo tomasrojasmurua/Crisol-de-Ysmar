@@ -189,6 +189,10 @@ cuenta pendiente de Vesk y Madre Musgo (los dos rivales se buscan entre ellos: `
 - El arte manda: cada ilustración nueva entra sola, sin texto, por un par de segundos (un toque
   la adelanta). Encima de una ilustración el diálogo es una franja baja de dos líneas y el
   retrato va chico junto al nombre; el retrato grande solo aparece sobre negro.
+- Las ilustraciones se mueven: la cámara se acerca, se aleja o recorre de lado muy lento, y
+  encima flotan brasas, polvo o motas de la Trama según la escena (`BACKDROP_MOTION` en
+  `StoryScreen.ts`). Es solo CSS (transform y opacidad), no pesa nada, y con "reducir
+  movimiento" en el celular queda quieto.
 - Por partes: ya están el preludio y los actos 1 y 2 (combates 1 a 9). Faltan el acto 3, el
   Guardián como jefe, los gólems, el mapa del corazón y los finales (con sus imágenes).
 
