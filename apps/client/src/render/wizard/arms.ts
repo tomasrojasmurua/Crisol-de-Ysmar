@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { FLOATING_FOCI } from './foci';
 import type { ModelKit } from './kit';
 
@@ -102,42 +101,9 @@ export function buildArms(kit: ModelKit, focus: string): void {
 }
 
 /**
- * Junta las piezas del foco que comparten material en una sola malla cada una. Con la manga y
- * la mano el foco tenía hasta 8 piezas sueltas (una llamada de dibujo cada una); así quedan 3 o 4.
+ * Junta las piezas del foco por material. Con la manga y la mano el foco tenía hasta 8 piezas
+ * sueltas (una llamada de dibujo cada una); así quedan 2 o 3.
  */
 export function mergeStaff(kit: ModelKit): void {
-  const { staff } = kit;
-  const groups = new Map<THREE.Material, THREE.Mesh[]>();
-  for (const child of [...staff.children]) {
-    if (!(child instanceof THREE.Mesh)) continue;
-    const material = child.material as THREE.Material;
-    const list = groups.get(material) ?? [];
-    list.push(child);
-    groups.set(material, list);
-  }
-  for (const [material, meshes] of groups) {
-    if (meshes.length < 2) continue;
-    const geometries = meshes.map((mesh) => {
-      mesh.updateMatrix();
-      const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
-      for (const name of Object.keys(geometry.attributes)) {
-        if (name !== 'position' && name !== 'normal' && name !== 'uv')
-          geometry.deleteAttribute(name);
-      }
-      return geometry.applyMatrix4(mesh.matrix);
-    });
-    const merged = mergeGeometries(geometries, false);
-    for (const geometry of geometries) geometry.dispose();
-    if (!merged) continue;
-    const opaque = meshes.some((m) => kit.solids.includes(m));
-    for (const mesh of meshes) {
-      mesh.removeFromParent();
-      const at = kit.solids.indexOf(mesh);
-      if (at >= 0) kit.solids.splice(at, 1);
-    }
-    const mesh = new THREE.Mesh(merged, material);
-    mesh.castShadow = opaque;
-    if (opaque) kit.solids.push(mesh);
-    staff.add(mesh);
-  }
+  kit.fuse(kit.staff);
 }
