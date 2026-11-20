@@ -1772,106 +1772,87 @@ body {
   color: var(--trama);
 }
 
-/* En red: "¿Cómo se jugó?" bajo los botones; va al registro para saber qué mejorar. */
+/*
+ * En red: "¿Cómo se jugó?" en un cuadro grande al centro, sobre el resultado. Va al registro para
+ * saber qué mejorar; se salta con un toque y, mientras está abierto, la revancha espera.
+ */
 .hud-result-opinion {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px var(--safe-right) 12px var(--safe-left);
+  background: rgba(5, 4, 9, 0.62);
+  pointer-events: auto;
+  animation: opinion-in 0.25s ease both;
+}
+
+@keyframes opinion-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.hud-result-opinion-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin-top: 12px;
+  gap: 10px;
+  width: min(480px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 20px 12px;
+  border: 1px solid rgba(243, 223, 176, 0.55);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(34, 28, 40, 0.97), rgba(14, 12, 20, 0.97));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 32px rgba(243, 223, 176, 0.22);
+  text-align: center;
 }
 
-.hud-result-opinion-ask,
+.hud-result-opinion-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+}
+
+.hud-result-opinion-hint,
 .hud-result-opinion-thanks {
   margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 13px;
+  letter-spacing: 0.03em;
   color: var(--ink-quiet);
 }
 
-/* La pregunta y, ya elegida la respuesta, "Cambiar" para volver a las tres opciones. */
-.hud-result-opinion-ask {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 20px;
-}
-
-#ui .hud-result-opinion-change,
-#ui .hud-result-opinion-skip {
-  padding: 2px 4px;
-  border: 0;
-  background: none;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--gold);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  touch-action: manipulation;
-}
-
-/* En red, la pregunta brilla mientras la revancha espera la respuesta (o el Saltar). */
-.hud-result-opinion.asking {
-  border-radius: 8px;
-  box-shadow:
-    0 0 0 1px rgba(243, 223, 176, 0.45),
-    0 0 14px rgba(243, 223, 176, 0.25);
-  animation: opinion-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes opinion-pulse {
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(243, 223, 176, 0.85),
-      0 0 22px rgba(243, 223, 176, 0.5);
-  }
-}
-
-/* Tocar Revancha con la pregunta pendiente: el marco late fuerte un par de veces. */
-.hud-result-opinion.asking.nudge {
-  animation: opinion-nudge 0.35s ease-in-out 3;
-}
-
-@keyframes opinion-nudge {
-  50% {
-    scale: 1.04;
-    box-shadow:
-      0 0 0 2px rgba(243, 223, 176, 1),
-      0 0 28px rgba(243, 223, 176, 0.7);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hud-result-opinion.asking {
-    animation: none;
-  }
-}
-
-#ui .hud-result-actions .rematch.locked {
-  opacity: 0.5;
-}
-
-/* El "¡Gracias!" toma la fila del comentario para que nada salte. */
 .hud-result-opinion-thanks {
+  min-height: 44px;
   display: flex;
   align-items: center;
-  min-height: 36px;
+  font-size: 15px;
+  color: var(--gold-bright);
 }
 
 .hud-result-opinion-options,
 .hud-result-opinion-more {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
+  width: 100%;
 }
 
 #ui .hud-result-opinion-chip {
-  min-height: 36px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  border: 1px solid rgba(216, 191, 138, 0.3);
-  background: rgba(14, 12, 20, 0.88);
+  flex: 1;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  border: 1px solid rgba(216, 191, 138, 0.4);
+  background: rgba(14, 12, 20, 0.9);
   color: var(--ink);
   touch-action: manipulation;
 }
@@ -1883,22 +1864,55 @@ body {
 }
 
 .hud-result-opinion-more input {
-  width: min(320px, 50vw);
-  min-height: 36px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
   padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(216, 191, 138, 0.3);
-  background: rgba(7, 7, 12, 0.8);
+  border-radius: 8px;
+  border: 1px solid rgba(216, 191, 138, 0.4);
+  background: rgba(7, 7, 12, 0.85);
   color: var(--ink);
   /* 16px: así iOS no agranda la página al escribir. */
   font-family: inherit;
   font-size: 16px;
 }
 
-#ui .hud-result-opinion-more .secondary {
-  min-height: 36px;
-  padding: 6px 14px;
-  font-size: 12px;
+#ui .hud-result-opinion-more .primary {
+  flex: none;
+  min-height: 44px;
+  padding: 6px 18px;
+  font-size: 13px;
+}
+
+.hud-result-opinion-foot {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+#ui .hud-result-opinion-change,
+#ui .hud-result-opinion-skip {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  touch-action: manipulation;
+}
+
+@media (max-height: 380px) {
+  .hud-result-opinion-card {
+    gap: 7px;
+    padding: 12px 16px 8px;
+  }
+
+  .hud-result-opinion-title {
+    font-size: 19px;
+  }
 }
 
 .hud-result-perf {
@@ -1996,14 +2010,6 @@ body {
 #ui .hud-result-card.with-players .hud-result-actions .primary,
 #ui .hud-result-card.with-players .hud-result-actions .secondary {
   min-width: 128px;
-}
-
-.hud-result-card.with-players .hud-result-opinion {
-  margin-top: 10px;
-}
-
-.hud-result-card.with-players .hud-result-opinion-more input {
-  width: min(260px, 32vw);
 }
 
 /*
@@ -2136,15 +2142,48 @@ body {
   color: var(--ink);
 }
 
-/* Quien hizo más daño en la partida: su cifra brilla en oro. */
+/* La mejor cifra de la partida en cada fila (empates incluidos): una franja de oro y la cifra
+   más grande, para que se vea de un vistazo quién destacó en qué. */
+.hud-result-player-stats .best {
+  margin: 0 -5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(216, 191, 138, 0.04), rgba(216, 191, 138, 0.2));
+}
+
+.hud-result-player-stats .best dt {
+  color: var(--gold);
+}
+
 .hud-result-player-stats .best dd {
+  font-weight: 700;
   color: var(--gold-bright);
-  text-shadow: 0 0 8px rgba(243, 223, 176, 0.5);
+  text-shadow: 0 0 8px rgba(243, 223, 176, 0.55);
 }
 
 .hud-result-player-stats .best dd::before {
   content: "✦ ";
   font-size: 9px;
+}
+
+/* La figura de la partida (más daño y derribos): marco dorado y su sello junto al nombre. */
+.hud-result-player.mvp {
+  border-color: rgba(243, 223, 176, 0.75);
+  box-shadow: 0 0 16px rgba(243, 223, 176, 0.3);
+}
+
+.hud-result-player-mvp {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f3dfb0, #b8955a);
+  font-family: var(--display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 15px;
+  text-transform: uppercase;
+  color: #1a1410;
 }
 
 .hud-result-player-fav {

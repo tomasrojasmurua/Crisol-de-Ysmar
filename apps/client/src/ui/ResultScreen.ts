@@ -145,7 +145,9 @@ export class ResultScreen {
   private readonly path: HTMLElement;
   private readonly perf: HTMLElement;
   private readonly opinion: HTMLElement;
-  private readonly opinionAsk: HTMLElement;
+  private readonly opinionTitle: HTMLElement;
+  private readonly opinionHint: HTMLElement;
+  private closeTimer: number | undefined;
   private readonly opinionChange: HTMLButtonElement;
   private readonly opinionOptions: HTMLElement;
   private readonly opinionMore: HTMLFormElement;
@@ -181,19 +183,24 @@ export class ResultScreen {
         <div class="hud-result-side">
         <div class="hud-result-highlight"></div>
         <section class="hud-result-players" aria-label="Resumen de la partida" hidden></section>
-        <div class="hud-result-opinion" hidden>
-          <p class="hud-result-opinion-ask"><span>¿Cómo se jugó?</span>
-            <button type="button" class="hud-result-opinion-change" hidden>Cambiar</button>
-            <button type="button" class="hud-result-opinion-skip" hidden>Saltar</button></p>
+        <ul class="hud-result-perf" hidden></ul>
+        </div>
+      </div>
+      <div class="hud-result-opinion" hidden>
+        <div class="hud-result-opinion-card" role="dialog" aria-label="Cómo se jugó">
+          <h3 class="hud-result-opinion-title">¿Cómo se jugó?</h3>
+          <p class="hud-result-opinion-hint"></p>
           <div class="hud-result-opinion-options"></div>
           <form class="hud-result-opinion-more" hidden>
             <input maxlength="280" enterkeyhint="send" autocomplete="off"
               placeholder="¿Qué fue lo mejor? ¿Qué mejorarías?" aria-label="Qué fue lo mejor y qué mejorarías" />
-            <button type="submit" class="secondary">Enviar</button>
+            <button type="submit" class="primary">Enviar</button>
           </form>
           <p class="hud-result-opinion-thanks" hidden>¡Gracias! Lo vemos para la próxima versión.</p>
-        </div>
-        <ul class="hud-result-perf" hidden></ul>
+          <div class="hud-result-opinion-foot">
+            <button type="button" class="hud-result-opinion-change" hidden>Cambiar</button>
+            <button type="button" class="hud-result-opinion-skip">Saltar</button>
+          </div>
         </div>
       </div>`;
     parent.append(this.root);
@@ -212,22 +219,15 @@ export class ResultScreen {
     this.path = query(this.root, '.hud-result-path');
     this.perf = query(this.root, '.hud-result-perf');
     this.rematchButton.addEventListener('click', () => {
-      // Con la pregunta pendiente, tocar Revancha señala la pregunta en vez de seguir.
-      if (this.opinionPending) this.nudgeOpinion();
-      else onRematch();
+      if (!this.opinionPending) onRematch();
     });
     query(this.root, '.to-menu').addEventListener('click', onMenu);
     this.opinion = query(this.root, '.hud-result-opinion');
-    this.opinionAsk = query(this.root, '.hud-result-opinion-ask span');
+    this.opinionTitle = query(this.root, '.hud-result-opinion-title');
+    this.opinionHint = query(this.root, '.hud-result-opinion-hint');
     this.opinionChange = query(this.root, '.hud-result-opinion-change') as HTMLButtonElement;
     this.opinionSkip = query(this.root, '.hud-result-opinion-skip') as HTMLButtonElement;
-    this.opinion.addEventListener('animationend', (event) => {
-      if (event.animationName === 'opinion-nudge') this.opinion.classList.remove('nudge');
-    });
-    this.opinionSkip.addEventListener('click', () => {
-      this.opinion.hidden = true;
-      this.releaseRematch();
-    });
+    this.opinionSkip.addEventListener('click', () => this.closeOpinion());
     this.opinionOptions = query(this.root, '.hud-result-opinion-options');
     this.opinionMore = query(this.root, '.hud-result-opinion-more') as HTMLFormElement;
     this.opinionInput = query(this.opinionMore, 'input') as HTMLInputElement;
@@ -245,9 +245,12 @@ export class ResultScreen {
       this.opinionInput.blur();
       this.opinionMore.hidden = true;
       this.opinionChange.hidden = true;
-      this.opinionAsk.textContent = this.chosen ? `Se jugó: ${this.chosen}` : '';
+      this.opinionSkip.hidden = true;
+      this.opinionHint.hidden = true;
       this.opinionThanks.hidden = false;
-      this.releaseRematch();
+      // El "¡Gracias!" se alcanza a leer y el cuadro se va solo.
+      window.clearTimeout(this.closeTimer);
+      this.closeTimer = window.setTimeout(() => this.closeOpinion(), 1300);
     });
     // Volver a las tres opciones, por si tocó la que no era.
     this.opinionChange.addEventListener('click', () => this.showOptions());
@@ -256,8 +259,9 @@ export class ResultScreen {
   }
 
   /**
-   * En red: pregunta cómo se jugó. La respuesta sale al tocarla (por si cierran la app) y el
-   * comentario, si lo escriben, sale aparte.
+   * En red: pregunta cómo se jugó, en un cuadro al centro sobre el resultado. La respuesta sale
+   * al tocarla (por si cierran la app) y el comentario, si lo escriben, sale aparte. Se puede
+   * saltar; mientras está abierto, la revancha espera.
    */
   askOpinion(sink: OpinionSink): void {
     this.opinionSink = sink;
@@ -265,37 +269,30 @@ export class ResultScreen {
     for (const chip of this.opinionOptions.children) chip.classList.remove('selected');
     this.opinionInput.value = '';
     this.opinionThanks.hidden = true;
+    window.clearTimeout(this.closeTimer);
     this.showOptions();
     this.opinion.hidden = false;
     this.opinionPending = true;
-    this.opinionSkip.hidden = false;
-    this.opinion.classList.add('asking');
     this.renderRematch();
   }
 
-  /** Un latido fuerte del marco de la pregunta: ahí hay que responder (o saltar). */
-  private nudgeOpinion(): void {
-    this.opinion.classList.remove('nudge');
-    void this.opinion.offsetWidth;
-    this.opinion.classList.add('nudge');
-  }
-
-  /** Respondió o saltó la pregunta: la revancha queda libre. */
-  private releaseRematch(): void {
+  /** Respondió o saltó la pregunta: el cuadro se va y la revancha queda libre. */
+  private closeOpinion(): void {
+    window.clearTimeout(this.closeTimer);
+    this.opinionInput.blur();
+    this.opinion.hidden = true;
     if (!this.opinionPending) return;
     this.opinionPending = false;
-    this.opinionSkip.hidden = true;
-    this.opinion.classList.remove('asking');
     this.renderRematch();
   }
 
-  /**
-   * Las opciones y el comentario ocupan la misma fila, uno a la vez: así la pregunta cabe entera
-   * bajo los cuadros en un celular en horizontal.
-   */
   private showOptions(): void {
-    this.opinionAsk.textContent = '¿Cómo se jugó?';
+    this.opinionTitle.textContent = '¿Cómo se jugó?';
+    this.opinionHint.textContent = 'Tu opinión nos ayuda a mejorar el Crisol.';
+    this.opinionHint.hidden = false;
     this.opinionChange.hidden = true;
+    this.opinionSkip.hidden = false;
+    this.opinionSkip.textContent = 'Saltar';
     this.opinionOptions.hidden = false;
     this.opinionMore.hidden = true;
   }
@@ -307,11 +304,12 @@ export class ResultScreen {
         chip.classList.toggle('selected', chip.textContent === opinion);
       this.opinionSink?.(opinion, '');
     }
-    this.opinionAsk.textContent = `${opinion}. ¿Algo que mejorar?`;
+    this.opinionTitle.textContent = `Se jugó: ${opinion}`;
+    this.opinionHint.textContent = 'Si quieres, cuéntanos qué fue lo mejor y qué mejorarías.';
     this.opinionChange.hidden = false;
+    this.opinionSkip.textContent = 'Listo';
     this.opinionOptions.hidden = true;
-    this.opinionMore.hidden = !this.opinionThanks.hidden;
-    this.releaseRematch();
+    this.opinionMore.hidden = false;
   }
 
   show(summary: ResultSummary): void {
@@ -325,7 +323,12 @@ export class ResultScreen {
     );
     this.score.hidden = summary.teams.length === 0;
     this.players.replaceChildren(
-      ...summary.players.map((player) => playerCard(player, summary.roundsToWin)),
+      ...(() => {
+        const bests = matchBests(summary.players);
+        return summary.players.map((player, i) =>
+          playerCard(player, summary.roundsToWin, bests, i === bests.mvp),
+        );
+      })(),
     );
     this.players.hidden = summary.players.length === 0;
     // Va con los cuadros: sin resumen (entrenamiento) no hay columna donde ponerla.
@@ -389,7 +392,7 @@ export class ResultScreen {
     this.opinion.hidden = true;
     this.opinionSink = null;
     this.opinionPending = false;
-    this.opinion.classList.remove('asking');
+    window.clearTimeout(this.closeTimer);
   }
 
   /** Informe de rendimiento bajo el resultado; vacío lo oculta. */
@@ -411,13 +414,10 @@ export class ResultScreen {
     const status = this.lastRematch;
     const waiting = status?.mine ?? false;
     this.rematchButton.disabled = waiting;
-    this.rematchButton.classList.toggle('locked', this.opinionPending);
     this.rematchLabel.textContent = waiting ? 'Esperando' : this.rematchText;
     const othersAsked = status ? status.asked - (status.mine ? 1 : 0) : 0;
     this.rematchButton.classList.toggle('called', !waiting && othersAsked > 0);
     this.rematchNote.textContent = status ? rematchText(status, othersAsked) : '';
-    if (this.opinionPending && this.rematchNote.textContent === '')
-      this.rematchNote.textContent = 'Antes, cuéntanos cómo se jugó (o sáltalo)';
     this.rematchNote.hidden = this.rematchNote.textContent === '';
   }
 
@@ -444,23 +444,70 @@ function roundPips(wins: number, roundsToWin: number): HTMLElement {
   return pips;
 }
 
-function playerCard(player: ResultPlayer, roundsToWin: number): HTMLElement {
+/** Lo mejor de la partida en cada cifra, y quién fue la figura (índice en la lista). */
+interface MatchBests {
+  readonly damage: number;
+  readonly knockouts: number;
+  /** Menos caídas; null si todos cayeron lo mismo (no destaca a nadie). */
+  readonly falls: number | null;
+  readonly casts: number;
+  readonly mvp: number;
+}
+
+/** Peso de un derribo frente al daño para elegir la figura, como en la mejor jugada. */
+const MVP_KNOCKOUT = 60;
+
+function matchBests(players: readonly ResultPlayer[]): MatchBests {
+  const max = (pick: (p: ResultPlayer) => number): number =>
+    players.reduce((top, p) => Math.max(top, pick(p)), 0);
+  const falls = players.map((p) => p.falls);
+  const fewest = Math.min(...falls);
+  let mvp = -1;
+  let best = 0;
+  players.forEach((p, i) => {
+    const score = p.damage + MVP_KNOCKOUT * p.knockouts;
+    if (score > best) {
+      best = score;
+      mvp = i;
+    }
+  });
+  return {
+    damage: max((p) => p.damage),
+    knockouts: max((p) => p.knockouts),
+    falls: players.length > 1 && fewest !== Math.max(...falls) ? fewest : null,
+    casts: max((p) => p.casts),
+    mvp: players.length > 1 ? mvp : -1,
+  };
+}
+
+function playerCard(
+  player: ResultPlayer,
+  roundsToWin: number,
+  bests: MatchBests,
+  mvp: boolean,
+): HTMLElement {
   const winner = player.rounds?.winner ?? false;
   const card = el(
     'article',
-    `hud-result-player${player.own ? ' own' : ''}${winner ? ' winner' : ''}`,
+    `hud-result-player${player.own ? ' own' : ''}${winner ? ' winner' : ''}${mvp ? ' mvp' : ''}`,
   );
   card.style.setProperty('--team', player.color);
   const head = el('header', 'hud-result-player-head');
   // Tu cuadro dice "Tú" (tu nombre ya lo conoces) y así cabe junto a tus rondas.
   head.append(el('span', 'hud-result-player-name', player.own ? 'Tú' : player.name));
+  if (mvp) head.append(el('span', 'hud-result-player-mvp', 'Figura'));
   if (player.rounds) head.append(roundPips(player.rounds.wins, roundsToWin));
   const list = el('dl', 'hud-result-player-stats');
+  // Cada cifra que es la mejor de la partida brilla en oro (empates incluidos).
   const rows: [string, string, boolean][] = [
-    ['Daño', formatNumber(player.damage), player.top],
-    ['Derribos', String(player.knockouts), false],
-    ['Caídas', String(player.falls), false],
-    ['Hechizos', String(player.casts), false],
+    ['Daño', formatNumber(player.damage), bests.damage > 0 && player.damage === bests.damage],
+    [
+      'Derribos',
+      String(player.knockouts),
+      bests.knockouts > 0 && player.knockouts === bests.knockouts,
+    ],
+    ['Caídas', String(player.falls), bests.falls !== null && player.falls === bests.falls],
+    ['Hechizos', String(player.casts), bests.casts > 0 && player.casts === bests.casts],
   ];
   for (const [label, value, best] of rows) {
     const row = el('div', best ? 'best' : '');
