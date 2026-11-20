@@ -313,7 +313,7 @@ export class StoryScreen {
  */
 function particleSpans(): HTMLElement[] {
   return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-    const dot = el('span', '');
+    const dot = el('span', 'story-particle');
     const spread = (i * 37) % 100;
     dot.style.setProperty('--x', `${4 + spread * 0.92}%`);
     dot.style.setProperty('--size', `${2 + (i % 3)}px`);
