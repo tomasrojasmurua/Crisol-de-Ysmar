@@ -58,6 +58,37 @@ function seeThrough(material: THREE.Material, uniforms: SeeThroughUniforms): voi
   };
 }
 
+/**
+ * Pinta la malla con un degradado de abajo hacia arriba (colores por vértice): la base queda en
+ * sombra y la punta recibe la luna. No agrega luces ni llamadas de dibujo.
+ */
+function shadeByHeight(
+  geometry: THREE.BufferGeometry,
+  bottom: number,
+  top: number,
+  moss?: { readonly color: THREE.Color; readonly amount: number },
+): THREE.BufferGeometry {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox as THREE.Box3;
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const colors = new Float32Array(position.count * 3);
+  const color = new THREE.Color();
+  for (let i = 0; i < position.count; i++) {
+    const t = (position.getY(i) - box.min.y) / Math.max(1e-3, box.max.y - box.min.y);
+    const light = bottom + (top - bottom) * t * t;
+    color.setRGB(light, light, light);
+    // El musgo cubre lo que mira hacia arriba.
+    if (moss && normal) color.lerp(moss.color, Math.max(0, normal.getY(i)) * moss.amount);
+    color.toArray(colors, i * 3);
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+/** Tres verdes de copa: así el bosque no parece un solo árbol copiado. */
+const CROWN_TINTS = ['#ffffff', '#c9e6b0', '#a9d6d2'].map((c) => new THREE.Color(c));
+
 /** Muchas copias de una malla en una sola llamada de dibujo. */
 function instanced(
   geometry: THREE.BufferGeometry,
@@ -111,9 +142,9 @@ export class JungleView {
     const up = new THREE.Vector3(0, 1, 0);
 
     // Árboles: tronco oscuro y copa en capas, verde muy apagado para que la magia resalte.
-    const trunk = new THREE.CylinderGeometry(0.16, 0.3, 2.6, 7);
+    const trunk = shadeByHeight(new THREE.CylinderGeometry(0.16, 0.3, 2.6, 7), 0.45, 1.15);
     trunk.translate(0, 1.3, 0);
-    const bark = matte({ color: '#4a3b2c' });
+    const bark = matte({ color: '#5a4836', vertexColors: true });
     this.trees = trees;
     this.group.add(
       instanced(trunk, bark, trees, (o, m) => {
@@ -122,27 +153,32 @@ export class JungleView {
         m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, 0.9 + hash(o, 2) * 0.5, s));
       }),
     );
-    const crown = new THREE.ConeGeometry(1.5, 2.4, 7);
+    const crown = shadeByHeight(new THREE.ConeGeometry(1.5, 2.4, 7), 0.3, 1.6);
     crown.translate(0, 3.4, 0);
-    const crownTop = new THREE.ConeGeometry(1.05, 1.9, 7);
+    const crownTop = shadeByHeight(new THREE.ConeGeometry(1.05, 1.9, 7), 0.5, 1.9);
     crownTop.translate(0, 4.6, 0);
-    const leaves = matte({ color: '#3b5e46', flatShading: true });
+    const leaves = matte({ color: '#3f6a4c', flatShading: true, vertexColors: true });
     for (const geometry of [crown, crownTop]) {
-      this.group.add(
-        this.track(
-          instanced(geometry, leaves, trees, (o, m) => {
-            const s = (o.radius / 0.7) * (0.85 + hash(o, 3) * 0.35);
-            const h = 0.9 + hash(o, 2) * 0.5;
-            quaternion.setFromAxisAngle(up, hash(o, 4) * Math.PI * 2);
-            m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, h, s));
-          }),
-        ),
-      );
+      const mesh = instanced(geometry, leaves, trees, (o, m) => {
+        const s = (o.radius / 0.7) * (0.85 + hash(o, 3) * 0.35);
+        const h = 0.9 + hash(o, 2) * 0.5;
+        quaternion.setFromAxisAngle(up, hash(o, 4) * Math.PI * 2);
+        m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, h, s));
+      });
+      trees.forEach((o, i) => {
+        const tint = CROWN_TINTS[Math.floor(hash(o, 12) * CROWN_TINTS.length)] as THREE.Color;
+        mesh.setColorAt(i, tint);
+      });
+      this.group.add(this.track(mesh));
     }
 
     // Rocas: piedras facetadas, achatadas y giradas.
-    const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
-    const stone = matte({ color: '#4a4744', flatShading: true });
+    const mossColor = new THREE.Color('#7f9a5a');
+    const rockGeometry = shadeByHeight(new THREE.DodecahedronGeometry(1, 0), 0.55, 1.1, {
+      color: mossColor,
+      amount: 0.7,
+    });
+    const stone = matte({ color: '#5a5650', flatShading: true, vertexColors: true });
     this.group.add(
       instanced(rockGeometry, stone, rocks, (o, m) => {
         const tilt = new THREE.Euler(hash(o, 5) * 0.4, hash(o, 6) * Math.PI * 2, hash(o, 7) * 0.4);
@@ -153,9 +189,9 @@ export class JungleView {
     );
 
     // Ruinas: columnas quebradas de la ciudad antigua, de distinta altura.
-    const column = new THREE.CylinderGeometry(0.8, 0.9, 1, 10);
+    const column = shadeByHeight(new THREE.CylinderGeometry(0.8, 0.9, 1, 10), 0.5, 1.1);
     column.translate(0, 0.5, 0);
-    const ruinStone = matte({ color: '#5a544d' });
+    const ruinStone = matte({ color: '#6a635a', vertexColors: true });
     this.group.add(
       instanced(column, ruinStone, ruins, (o, m) => {
         quaternion.setFromAxisAngle(up, hash(o, 9) * Math.PI);
@@ -163,7 +199,10 @@ export class JungleView {
         m.compose(position.set(o.x, 0, o.z), quaternion, scale.set(s, 1.4 + hash(o, 10) * 3.2, s));
       }),
     );
-    const capital = new THREE.BoxGeometry(2.1, 0.35, 2.1);
+    const capital = shadeByHeight(new THREE.BoxGeometry(2.1, 0.35, 2.1), 1, 1, {
+      color: mossColor,
+      amount: 0.6,
+    });
     this.group.add(
       instanced(capital, ruinStone, ruins, (o, m) => {
         const h = 1.4 + hash(o, 10) * 3.2;
