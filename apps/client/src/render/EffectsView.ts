@@ -1,10 +1,17 @@
 import type { ElementId, GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import {
+  createColumnFadeTexture,
+  createColumnTexture,
+  createScorchTexture,
+  createShockwaveTexture,
+} from './effectTextures';
+import { ELEMENT_SHAPE } from './elementParticles';
 import { fourthBlink } from './FourthSpellEffects';
 import { greatBlink, lineStrike } from './GreatSpellEffects';
 import type { Particles } from './Particles';
-import { elementColor, formColor, glow } from './palette';
+import { elementColor, elementOfForm, formColor, glow } from './palette';
 import {
   blinked,
   chainLightning,
@@ -48,6 +55,8 @@ const SHAKERS: ReadonlySet<SpellId> = new Set([
 ]);
 
 const WHITE = new THREE.Color('#ffffff');
+/** Marcas en el suelo a la vez, como máximo. */
+const MAX_SCORCHES = 10;
 
 /**
  * Lo que dura un instante: estallidos, ondas, rayos de la marca y columnas al revivir.
@@ -65,7 +74,26 @@ export class EffectsView {
     size: number;
   }[] = [];
   private readonly flashTexture = createGlowTexture();
-  private readonly ringGeometry = new THREE.RingGeometry(0.85, 1, 48);
+  /** Onda de choque: un borde encendido que se difumina hacia adentro (ver la textura). */
+  private readonly ringGeometry = new THREE.RingGeometry(0.55, 1, 48);
+  private readonly ringTexture = createShockwaveTexture();
+  /** Hebras que suben por las columnas, y el degradado que las apaga hacia arriba. */
+  private readonly columnTexture = createColumnTexture();
+  private readonly columnFade = createColumnFadeTexture();
+  /**
+   * Marcas en el suelo que dejan las explosiones: pocas y recicladas (la más vieja se reusa),
+   * se apagan solas en unos segundos.
+   */
+  private readonly scorches: Timed[] = [];
+  private readonly scorchGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private readonly scorchMaterial = new THREE.MeshBasicMaterial({
+    map: createScorchTexture(),
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -6,
+  });
   private readonly beamGeometry: THREE.CylinderGeometry;
   private readonly columnGeometry = new THREE.CylinderGeometry(0.7, 0.7, 6, 24, 1, true);
   /** Sacudida de cámara pendiente, de 0 a 1. */
@@ -88,6 +116,7 @@ export class EffectsView {
       6 + weave.length * 4,
       2,
       0.3,
+      ELEMENT_SHAPE[first],
     );
   }
 
@@ -179,14 +208,26 @@ export class EffectsView {
           // Los daños por segundo (quemadura, maldición) no generan estallido.
           if (event.amount < 1) break;
           const color = event.form === 'beast' ? ZONE_COLOR : formColor(event.form);
+          // Rayas que salen disparadas y, entre ellas, la chispa propia del elemento.
           this.particles.burst(
             target.pos.x,
             HIT_HEIGHT,
             target.pos.z,
             glow(color, 1.8),
-            18,
-            5,
-            0.45,
+            12,
+            6,
+            0.5,
+            'spark',
+          );
+          this.particles.burst(
+            target.pos.x,
+            HIT_HEIGHT,
+            target.pos.z,
+            glow(color, 1.6),
+            8,
+            3,
+            0.55,
+            event.form === 'beast' ? 'star' : ELEMENT_SHAPE[elementOfForm(event.form)],
           );
           // Destello y onda en el suelo: el golpe se siente, más fuerte cuanto más daño.
           this.flash(
@@ -691,6 +732,14 @@ export class EffectsView {
       beam.mesh.scale.x = width;
       beam.mesh.scale.y = width;
     }
+    for (const scorch of this.scorches) {
+      if (!advance(scorch, deltaSeconds)) continue;
+      const t = scorch.age / scorch.duration;
+      // Queda firme y se apaga en el último tercio.
+      (scorch.mesh.material as THREE.MeshBasicMaterial).opacity = t < 0.66 ? 1 : (1 - t) / 0.34;
+    }
+    // Las hebras de las columnas suben.
+    this.columnTexture.offset.y -= deltaSeconds * 1.6;
     for (const column of this.columns) {
       if (!advance(column, deltaSeconds)) continue;
       const t = column.age / column.duration;
@@ -731,8 +780,30 @@ export class EffectsView {
     flash.sprite.material.color.copy(glow(color.clone().lerp(WHITE, 0.35), 2.6));
   }
 
+  /** Una mancha quemada o mojada en el suelo, de `size` metros de ancho. */
+  scorch(x: number, z: number, size: number, duration = 4): void {
+    let item = this.scorches.find((s) => !s.mesh.visible);
+    if (!item) {
+      if (this.scorches.length < MAX_SCORCHES) {
+        const mesh = new THREE.Mesh(this.scorchGeometry, this.scorchMaterial.clone());
+        mesh.renderOrder = 1;
+        this.scene.add(mesh);
+        item = { mesh, age: 0, duration };
+        this.scorches.push(item);
+      } else {
+        item = this.scorches.reduce((a, b) => (a.age > b.age ? a : b));
+      }
+    }
+    item.age = 0;
+    item.duration = duration;
+    item.mesh.visible = true;
+    item.mesh.position.set(x, 0.035, z);
+    item.mesh.rotation.y = Math.random() * Math.PI * 2;
+    item.mesh.scale.set(size, 1, size);
+  }
+
   ring(x: number, z: number, color: THREE.Color, size: number, duration: number): void {
-    const ring = this.take(this.rings, this.ringGeometry, duration);
+    const ring = this.take(this.rings, this.ringGeometry, duration, this.ringTexture);
     ring.mesh.position.set(x, 0.06, z);
     ring.mesh.userData.size = size;
     (ring.mesh.material as THREE.MeshBasicMaterial).color.copy(glow(color, 1.8));
@@ -756,18 +827,25 @@ export class EffectsView {
   }
 
   column(x: number, z: number, color: THREE.Color, duration: number, width = 1): void {
-    const column = this.take(this.columns, this.columnGeometry, duration);
+    const column = this.take(this.columns, this.columnGeometry, duration, this.columnTexture);
     column.mesh.position.set(x, 3, z);
     column.mesh.userData.width = width;
     (column.mesh.material as THREE.MeshBasicMaterial).color.copy(glow(color, 1.5));
   }
 
-  private take(pool: Timed[], geometry: THREE.BufferGeometry, duration: number): Timed {
+  private take(
+    pool: Timed[],
+    geometry: THREE.BufferGeometry,
+    duration: number,
+    map: THREE.Texture | null = null,
+  ): Timed {
     let item = pool.find((p) => !p.mesh.visible);
     if (!item) {
       const mesh = new THREE.Mesh(
         geometry,
         new THREE.MeshBasicMaterial({
+          map,
+          alphaMap: map === this.columnTexture ? this.columnFade : null,
           transparent: true,
           depthWrite: false,
           blending: THREE.AdditiveBlending,

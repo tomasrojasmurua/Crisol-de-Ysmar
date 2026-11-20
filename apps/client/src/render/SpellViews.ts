@@ -2,6 +2,7 @@ import type { GameRules, SpellEntity, Summon, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
 import { disposeTree, shared } from './dispose';
+import { ELEMENT_SHAPE, trailMotion } from './elementParticles';
 import { createField, createGuidedBolt, updateField, updateGuidedBolt } from './FourthSpellViews';
 import {
   createDrown,
@@ -57,6 +58,10 @@ import type { WizardView } from './WizardView';
 type Position = { x: number; z: number };
 
 const ORIGIN: Position = { x: 0, z: 0 };
+
+/** Los proyectiles de sombra: su núcleo es oscuro, y la luz sumada no puede oscurecer. */
+const DARK_CORES = new Set(['blinding', 'blackFlame', 'darkComet']);
+const WHITE = new THREE.Color('#ffffff');
 
 /** El Señuelo, el Gemelo sombrío y las copias del Espejismo se dibujan como su mago. */
 function isDouble(summon: Summon): boolean {
@@ -229,12 +234,28 @@ export class SpellViews {
     // La Llama negra arde en negro y violeta; el Cometa negro, en sombra con borde de fuego.
     if (spell.payload.spell === 'blackFlame') color = new THREE.Color('#5a1f7a');
     if (spell.payload.spell === 'darkComet') color = new THREE.Color('#7a3a2a');
-    const core = new THREE.Mesh(
-      this.coreGeometry,
-      new THREE.MeshBasicMaterial({ color: glow(color, 3) }),
-    );
-    core.scale.setScalar(size * 0.8);
-    group.add(core);
+    if (DARK_CORES.has(spell.payload.spell)) {
+      const core = new THREE.Mesh(
+        this.coreGeometry,
+        new THREE.MeshBasicMaterial({ color: glow(color, 3) }),
+      );
+      core.scale.setScalar(size * 0.8);
+      group.add(core);
+    } else {
+      // Un centro casi blanco que se funde con su color: la magia brilla, no es una bola sólida.
+      const core = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.glowTexture,
+          color: glow(color.clone().lerp(WHITE, 0.55), 2.6),
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+        }),
+      );
+      core.scale.setScalar(size * 2.6);
+      core.userData.pulse = true;
+      group.add(core);
+    }
     const halo = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: this.glowTexture,
@@ -426,20 +447,37 @@ export class SpellViews {
       Math.max(0.12, spell.radius * 0.75),
       element === 'tormenta',
     );
-    // Estela de chispas detrás del proyectil.
-    this.particles.emit({
-      x: pos.x + (Math.random() - 0.5) * 0.15,
-      y: 1.3 + (Math.random() - 0.5) * 0.15,
-      z: pos.z + (Math.random() - 0.5) * 0.15,
-      vy: 0.3,
-      color:
-        spell.payload.spell === 'blinding' || spell.payload.spell === 'blackFlame'
-          ? glow(color, 2.5)
-          : glow(color, 1.4),
-      life: 0.35,
-      size: 0.45,
-    });
+    // Estela con la chispa propia del elemento: el fuego deja lenguas que apuntan hacia
+    // atrás, el agua gotea, el rayo chisporrotea, la raíz suelta hojas y la sombra humo.
+    const dark = DARK_CORES.has(spell.payload.spell);
+    const shape = dark ? 'smoke' : ELEMENT_SHAPE[element];
+    const speed = Math.hypot(spell.velocity.x, spell.velocity.z) || 1;
+    for (let i = 0; i < 2; i++) {
+      const motion = trailMotion(dark ? 'umbra' : element);
+      // Las lenguas de fuego salen hacia atrás para que se orienten como la cola de un cometa.
+      const back = element === 'brasa' && !dark ? 2.2 : 0;
+      this.particles.emit({
+        x: pos.x + (Math.random() - 0.5) * 0.2,
+        y: 1.3 + (Math.random() - 0.5) * 0.2,
+        z: pos.z + (Math.random() - 0.5) * 0.2,
+        vx: motion.vx - (spell.velocity.x / speed) * back,
+        vy: motion.vy,
+        vz: motion.vz - (spell.velocity.z / speed) * back,
+        gravity: motion.gravity,
+        color: dark ? glow(color, 2.5) : glow(color, 1.5),
+        life: motion.life,
+        size: motion.size * Math.max(0.8, spell.radius * 2.2),
+        shape,
+      });
+    }
     view.children.forEach((child) => {
+      if (child.userData.pulse) {
+        // El centro late rápido, como una llama.
+        const beat =
+          1 + 0.12 * Math.sin(timeSeconds * 31 + spell.id) + 0.06 * Math.sin(timeSeconds * 53);
+        child.scale.setScalar(spell.radius * 2.6 * beat);
+        return;
+      }
       const phase = child.userData.phase as number | undefined;
       if (phase === undefined) return;
       const angle = timeSeconds * 18 + phase;

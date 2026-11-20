@@ -106,7 +106,9 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
     case 'meteor':
       fx.ring(x, z, FIRE, r * 1.4, 0.7);
       fx.column(x, z, FIRE, 0.4, r / 0.7);
-      particles.burst(x, 1, z, glow(FIRE, 2.2), 110, 9, 0.8);
+      fx.scorch(x, z, r * 2.2, 6);
+      particles.burst(x, 1, z, glow(FIRE, 2.2), 70, 10, 0.8, 'spark');
+      particles.burst(x, 1, z, glow(FIRE, 2), 40, 5, 1, 'ember');
       particles.burst(x, 0.5, z, new THREE.Color('#3a2a22'), 40, 4, 1.2);
       return true;
     case 'cauldron':
