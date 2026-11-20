@@ -60,7 +60,8 @@ import { openRoom } from './net/openRoom';
 import { chooseRoomServer, newRoomServer, quickMatchUrls, warmUpRooms } from './net/serverUrl';
 import { BackGuard } from './platform/BackGuard';
 import { ProfileBackup } from './platform/backup';
-import { startErrorReports } from './platform/ErrorReporter';
+import { confirmBoot } from './platform/bootGuard';
+import { reportProblem, startErrorReports } from './platform/ErrorReporter';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { AutoQuality } from './render/AutoQuality';
@@ -101,6 +102,9 @@ import { WorldLabels } from './ui/WorldLabels';
 
 // Lo primero: si algo falla de aquí en adelante, queda en el registro (ver docs/errores.md).
 startErrorReports(() => ({ room: net?.code ?? '', match: describeMatch() }));
+// Avisa al guardia de `index.html` que el código llegó; si antes tuvo que recargar, queda anotado.
+const rebooted = confirmBoot();
+if (rebooted) reportProblem('error', `Arranque: ${rebooted}; se recargó y ahora sí arrancó`);
 blockBrowserGestures();
 // Abierto desde el ícono recién agregado a inicio: trae el progreso que tenía Safari.
 adoptCarriedProgress();

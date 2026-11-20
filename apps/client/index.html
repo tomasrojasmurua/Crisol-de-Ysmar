@@ -7,6 +7,59 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#07070c" />
+    <script>
+      // Guardia de arranque (la otra mitad está en src/platform/bootGuard.ts). Si el código del
+      // juego no llega, la pantalla queda negra: pasa cuando el ícono de inicio del iPhone abre
+      // una copia vieja de esta página que pide un archivo de una versión que ya no existe.
+      // Entonces se recarga una vez pidiendo la página nueva; si tampoco llega, se explica.
+      (() => {
+        const KEY = 'crisol.arranque';
+        let handled = false;
+        const fresh = () => {
+          const url = new URL(location.href);
+          url.searchParams.set('recarga', Date.now().toString(36));
+          location.replace(url.href);
+        };
+        const explain = () => {
+          const box = document.createElement('div');
+          box.setAttribute('style', 'position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#07070c;color:#e9d9b0;font:16px/1.4 Georgia,serif;text-align:center');
+          box.innerHTML = '<strong style="font-size:20px">No se pudo cargar el Crisol</strong><span>Revisa la conexión y vuelve a intentar.</span>';
+          const again = document.createElement('button');
+          again.textContent = 'Reintentar';
+          again.setAttribute('style', 'padding:12px 28px;border:1px solid #c9a55a;border-radius:8px;background:#1a1520;color:#e9d9b0;font:inherit');
+          again.onclick = fresh;
+          box.appendChild(again);
+          document.body.appendChild(box);
+        };
+        const retry = (reason) => {
+          if (handled || window.crisolBooted === true) return;
+          handled = true;
+          try {
+            // Ya se recargó una vez en esta visita y tampoco llegó: se explica.
+            if (sessionStorage.getItem(KEY)) return explain();
+            sessionStorage.setItem(KEY, reason);
+          } catch {
+            return explain();
+          }
+          fresh();
+        };
+        // Un archivo del juego que no llegó (los errores de carga no suben: se escuchan al bajar).
+        window.addEventListener(
+          'error',
+          (event) => {
+            var tag = event.target && event.target.tagName;
+            if (tag === 'SCRIPT') retry('no llegó el código');
+          },
+          true,
+        );
+        // La página terminó de cargar y el juego no arrancó.
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            retry('cargó sin arrancar');
+          }, 1500);
+        });
+      })();
+    </script>
     <!-- Agregado a la pantalla de inicio, se abre a pantalla completa y en horizontal. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
