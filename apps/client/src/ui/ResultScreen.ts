@@ -211,12 +211,19 @@ export class ResultScreen {
     this.menuLabel = query(this.root, '.to-menu-label');
     this.path = query(this.root, '.hud-result-path');
     this.perf = query(this.root, '.hud-result-perf');
-    this.rematchButton.addEventListener('click', onRematch);
+    this.rematchButton.addEventListener('click', () => {
+      // Con la pregunta pendiente, tocar Revancha señala la pregunta en vez de seguir.
+      if (this.opinionPending) this.nudgeOpinion();
+      else onRematch();
+    });
     query(this.root, '.to-menu').addEventListener('click', onMenu);
     this.opinion = query(this.root, '.hud-result-opinion');
     this.opinionAsk = query(this.root, '.hud-result-opinion-ask span');
     this.opinionChange = query(this.root, '.hud-result-opinion-change') as HTMLButtonElement;
     this.opinionSkip = query(this.root, '.hud-result-opinion-skip') as HTMLButtonElement;
+    this.opinion.addEventListener('animationend', (event) => {
+      if (event.animationName === 'opinion-nudge') this.opinion.classList.remove('nudge');
+    });
     this.opinionSkip.addEventListener('click', () => {
       this.opinion.hidden = true;
       this.releaseRematch();
@@ -264,6 +271,13 @@ export class ResultScreen {
     this.opinionSkip.hidden = false;
     this.opinion.classList.add('asking');
     this.renderRematch();
+  }
+
+  /** Un latido fuerte del marco de la pregunta: ahí hay que responder (o saltar). */
+  private nudgeOpinion(): void {
+    this.opinion.classList.remove('nudge');
+    void this.opinion.offsetWidth;
+    this.opinion.classList.add('nudge');
   }
 
   /** Respondió o saltó la pregunta: la revancha queda libre. */
@@ -396,7 +410,7 @@ export class ResultScreen {
   private renderRematch(): void {
     const status = this.lastRematch;
     const waiting = status?.mine ?? false;
-    this.rematchButton.disabled = waiting || this.opinionPending;
+    this.rematchButton.disabled = waiting;
     this.rematchButton.classList.toggle('locked', this.opinionPending);
     this.rematchLabel.textContent = waiting ? 'Esperando' : this.rematchText;
     const othersAsked = status ? status.asked - (status.mine ? 1 : 0) : 0;
