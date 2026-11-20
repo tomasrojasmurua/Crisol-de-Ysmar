@@ -134,6 +134,13 @@ export class ResultScreen {
   private readonly rematchLabel: HTMLElement;
   /** Lo que dice Revancha cuando no se espera a nadie ("Seguir" en la Historia). */
   private rematchText = 'Revancha';
+  /**
+   * En red, la revancha espera a que respondas "¿Cómo se jugó?" o la saltes: así todos la ven
+   * antes de seguir jugando, sin obligar a nadie.
+   */
+  private opinionPending = false;
+  private lastRematch: RematchView | null = null;
+  private readonly opinionSkip: HTMLButtonElement;
   private readonly menuLabel: HTMLElement;
   private readonly path: HTMLElement;
   private readonly perf: HTMLElement;
@@ -176,7 +183,8 @@ export class ResultScreen {
         <section class="hud-result-players" aria-label="Resumen de la partida" hidden></section>
         <div class="hud-result-opinion" hidden>
           <p class="hud-result-opinion-ask"><span>¿Cómo se jugó?</span>
-            <button type="button" class="hud-result-opinion-change" hidden>Cambiar</button></p>
+            <button type="button" class="hud-result-opinion-change" hidden>Cambiar</button>
+            <button type="button" class="hud-result-opinion-skip" hidden>Saltar</button></p>
           <div class="hud-result-opinion-options"></div>
           <form class="hud-result-opinion-more" hidden>
             <input maxlength="280" enterkeyhint="send" autocomplete="off"
@@ -203,11 +211,23 @@ export class ResultScreen {
     this.menuLabel = query(this.root, '.to-menu-label');
     this.path = query(this.root, '.hud-result-path');
     this.perf = query(this.root, '.hud-result-perf');
-    this.rematchButton.addEventListener('click', onRematch);
+    this.rematchButton.addEventListener('click', () => {
+      // Con la pregunta pendiente, tocar Revancha señala la pregunta en vez de seguir.
+      if (this.opinionPending) this.nudgeOpinion();
+      else onRematch();
+    });
     query(this.root, '.to-menu').addEventListener('click', onMenu);
     this.opinion = query(this.root, '.hud-result-opinion');
     this.opinionAsk = query(this.root, '.hud-result-opinion-ask span');
     this.opinionChange = query(this.root, '.hud-result-opinion-change') as HTMLButtonElement;
+    this.opinionSkip = query(this.root, '.hud-result-opinion-skip') as HTMLButtonElement;
+    this.opinion.addEventListener('animationend', (event) => {
+      if (event.animationName === 'opinion-nudge') this.opinion.classList.remove('nudge');
+    });
+    this.opinionSkip.addEventListener('click', () => {
+      this.opinion.hidden = true;
+      this.releaseRematch();
+    });
     this.opinionOptions = query(this.root, '.hud-result-opinion-options');
     this.opinionMore = query(this.root, '.hud-result-opinion-more') as HTMLFormElement;
     this.opinionInput = query(this.opinionMore, 'input') as HTMLInputElement;
@@ -227,6 +247,7 @@ export class ResultScreen {
       this.opinionChange.hidden = true;
       this.opinionAsk.textContent = this.chosen ? `Se jugó: ${this.chosen}` : '';
       this.opinionThanks.hidden = false;
+      this.releaseRematch();
     });
     // Volver a las tres opciones, por si tocó la que no era.
     this.opinionChange.addEventListener('click', () => this.showOptions());
@@ -246,6 +267,26 @@ export class ResultScreen {
     this.opinionThanks.hidden = true;
     this.showOptions();
     this.opinion.hidden = false;
+    this.opinionPending = true;
+    this.opinionSkip.hidden = false;
+    this.opinion.classList.add('asking');
+    this.renderRematch();
+  }
+
+  /** Un latido fuerte del marco de la pregunta: ahí hay que responder (o saltar). */
+  private nudgeOpinion(): void {
+    this.opinion.classList.remove('nudge');
+    void this.opinion.offsetWidth;
+    this.opinion.classList.add('nudge');
+  }
+
+  /** Respondió o saltó la pregunta: la revancha queda libre. */
+  private releaseRematch(): void {
+    if (!this.opinionPending) return;
+    this.opinionPending = false;
+    this.opinionSkip.hidden = true;
+    this.opinion.classList.remove('asking');
+    this.renderRematch();
   }
 
   /**
@@ -270,6 +311,7 @@ export class ResultScreen {
     this.opinionChange.hidden = false;
     this.opinionOptions.hidden = true;
     this.opinionMore.hidden = !this.opinionThanks.hidden;
+    this.releaseRematch();
   }
 
   show(summary: ResultSummary): void {
@@ -330,6 +372,7 @@ export class ResultScreen {
     // En la Historia, Revancha sigue ahí mismo.
     this.rematchText = path?.again ?? 'Revancha';
     this.menuLabel.textContent = path?.back ?? 'Menú';
+    this.opinionPending = false;
     this.rematchKey = '-';
     this.setRematch(null);
     this.root.hidden = false;
@@ -345,6 +388,8 @@ export class ResultScreen {
     this.perf.hidden = true;
     this.opinion.hidden = true;
     this.opinionSink = null;
+    this.opinionPending = false;
+    this.opinion.classList.remove('asking');
   }
 
   /** Informe de rendimiento bajo el resultado; vacío lo oculta. */
@@ -358,12 +403,21 @@ export class ResultScreen {
     const key = status ? `${status.asked}/${status.needed}/${status.mine}` : '';
     if (key === this.rematchKey) return;
     this.rematchKey = key;
+    this.lastRematch = status;
+    this.renderRematch();
+  }
+
+  private renderRematch(): void {
+    const status = this.lastRematch;
     const waiting = status?.mine ?? false;
     this.rematchButton.disabled = waiting;
+    this.rematchButton.classList.toggle('locked', this.opinionPending);
     this.rematchLabel.textContent = waiting ? 'Esperando' : this.rematchText;
     const othersAsked = status ? status.asked - (status.mine ? 1 : 0) : 0;
     this.rematchButton.classList.toggle('called', !waiting && othersAsked > 0);
     this.rematchNote.textContent = status ? rematchText(status, othersAsked) : '';
+    if (this.opinionPending && this.rematchNote.textContent === '')
+      this.rematchNote.textContent = 'Antes, cuéntanos cómo se jugó (o sáltalo)';
     this.rematchNote.hidden = this.rematchNote.textContent === '';
   }
 

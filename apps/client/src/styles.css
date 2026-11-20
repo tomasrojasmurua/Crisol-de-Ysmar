@@ -1797,7 +1797,8 @@ body {
   min-height: 20px;
 }
 
-#ui .hud-result-opinion-change {
+#ui .hud-result-opinion-change,
+#ui .hud-result-opinion-skip {
   padding: 2px 4px;
   border: 0;
   background: none;
@@ -1807,6 +1808,47 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
   touch-action: manipulation;
+}
+
+/* En red, la pregunta brilla mientras la revancha espera la respuesta (o el Saltar). */
+.hud-result-opinion.asking {
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(243, 223, 176, 0.45),
+    0 0 14px rgba(243, 223, 176, 0.25);
+  animation: opinion-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes opinion-pulse {
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(243, 223, 176, 0.85),
+      0 0 22px rgba(243, 223, 176, 0.5);
+  }
+}
+
+/* Tocar Revancha con la pregunta pendiente: el marco late fuerte un par de veces. */
+.hud-result-opinion.asking.nudge {
+  animation: opinion-nudge 0.35s ease-in-out 3;
+}
+
+@keyframes opinion-nudge {
+  50% {
+    scale: 1.04;
+    box-shadow:
+      0 0 0 2px rgba(243, 223, 176, 1),
+      0 0 28px rgba(243, 223, 176, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-result-opinion.asking {
+    animation: none;
+  }
+}
+
+#ui .hud-result-actions .rematch.locked {
+  opacity: 0.5;
 }
 
 /* El "¡Gracias!" toma la fila del comentario para que nada salte. */
