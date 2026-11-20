@@ -1816,6 +1816,21 @@ body {
   box-shadow:
     0 0 0 1px rgba(243, 223, 176, 0.45),
     0 0 14px rgba(243, 223, 176, 0.25);
+  animation: opinion-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes opinion-pulse {
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(243, 223, 176, 0.85),
+      0 0 22px rgba(243, 223, 176, 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-result-opinion.asking {
+    animation: none;
+  }
 }
 
 #ui .hud-result-actions .rematch.locked {
