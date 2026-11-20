@@ -36,11 +36,11 @@ export function spellReleased(
       fx.ring(x, z, STORM, 1.6, 0.3);
       break;
     case 'iceCoffin':
-      particles.burst(x, 1.2, z, glow(ICE, 1.6), 36, 3, 0.6);
+      particles.burst(x, 1.2, z, glow(ICE, 1.6), 36, 3, 0.6, 'shard');
       fx.ring(x, z, WATER, 2.2, 0.5);
       break;
     case 'sap':
-      particles.burst(x, 1, z, glow(ROOT, 1.5), 20, 2, 0.6);
+      particles.burst(x, 1, z, glow(ROOT, 1.5), 20, 2, 0.6, 'leaf');
       break;
     case 'veil':
       particles.burst(x, 1, z, SHADOW.clone().multiplyScalar(0.7), 40, 2.5, 0.8);
@@ -104,8 +104,10 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
   switch (event.spell) {
     case 'fireball':
       fx.ring(x, z, FIRE, r * 1.1, 0.5);
-      particles.burst(x, 1, z, glow(FIRE, 2), 70, 7, 0.6);
-      particles.burst(x, 0.4, z, new THREE.Color('#3a2a22'), 20, 2, 1);
+      fx.scorch(x, z, r * 1.8);
+      particles.burst(x, 1, z, glow(FIRE, 2), 40, 8, 0.6, 'spark');
+      particles.burst(x, 1, z, glow(FIRE, 1.8), 30, 4, 0.9, 'ember');
+      particles.burst(x, 0.4, z, new THREE.Color('#3a2a22'), 20, 2, 1.4, 'smoke');
       break;
     case 'geyser':
       fx.column(x, z, WATER, 0.9, r / 0.7);
@@ -122,8 +124,9 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
           vz: Math.sin(angle) * 1.5,
           color: glow(i % 3 === 0 ? ICE : WATER, 1.7),
           life: 0.9,
-          size: 0.5,
+          size: 0.6,
           gravity: -14,
+          shape: 'drop',
         });
       }
       break;
@@ -140,8 +143,9 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
           vz: Math.sin(angle) * 0.8,
           color: glow(i % 2 === 0 ? ROOT : new THREE.Color('#6b4a2a'), 1.4),
           life: 0.45,
-          size: 0.4,
+          size: 0.5,
           gravity: -12,
+          shape: i % 2 === 0 ? 'leaf' : 'shard',
         });
       }
       break;
@@ -158,14 +162,16 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
           vz: Math.sin(angle) * 2,
           color: glow(WATER, 1.6),
           life: 0.45,
-          size: 0.35,
+          size: 0.45,
           gravity: -8,
+          shape: 'drop',
         });
       }
       break;
     case 'obsidian':
       // La coraza estalla en esquirlas negras y brasas.
       fx.ring(x, z, FIRE, r, 0.45);
+      fx.scorch(x, z, r * 1.6);
       particles.burst(x, 1.1, z, new THREE.Color('#3a2418'), 40, 6, 0.6);
       particles.burst(x, 1.1, z, glow(FIRE, 2), 40, 6, 0.5);
       break;

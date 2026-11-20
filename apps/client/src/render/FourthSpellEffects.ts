@@ -110,6 +110,7 @@ export function fourthBurst(fx: EffectsView, particles: Particles, event: Burst)
       const color =
         event.spell === 'pollen' ? POLLEN : event.spell === 'solarGrenade' ? GOLD : FIRE;
       fx.ring(x, z, color, r * 1.1, 0.5);
+      if (event.spell !== 'pollen') fx.scorch(x, z, r * 1.6);
       particles.burst(x, 1, z, glow(color, 2), 60, 6, 0.6);
       particles.burst(x, 0.4, z, new THREE.Color('#3a2a22'), 16, 2, 0.9);
       return true;
