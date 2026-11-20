@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CALM_FPS, FrameLimiter, PLAY_FPS } from './FrameLimiter';
+import { CALM_FPS, CapGuard, FrameLimiter, PLAY_FPS } from './FrameLimiter';
 
 /** Cuántos cuadros se dibujan en el segundo segundo de una pantalla de `hz` (con algo de vaivén). */
 function drawn(hz: number, fps: number): number {
@@ -90,5 +90,34 @@ describe('FrameLimiter con cuadros caros', () => {
       if (limiter.ready(2000 + (i * 1000) / 60, PLAY_FPS)) drawnCount++;
     }
     expect(drawnCount).toBe(60);
+  });
+});
+
+describe('CapGuard', () => {
+  it('quita el tope si con él hay muchos tirones', () => {
+    const guard = new CapGuard();
+    let released = false;
+    // 20 s a 60 fps con un tirón por segundo (como el Galaxy A35 a 120 Hz).
+    for (let i = 0; i < 1200 && !released; i++)
+      released = guard.sample(i % 60 === 0 ? 70 : 16.7, true);
+    expect(released).toBe(true);
+    expect(guard.released).toBe(true);
+  });
+
+  it('lo deja si va fluido, o si no se está saltando cuadros', () => {
+    const smooth = new CapGuard();
+    for (let i = 0; i < 2400; i++) smooth.sample(i % 600 === 0 ? 70 : 16.7, true);
+    expect(smooth.released).toBe(false);
+    const uncapped = new CapGuard();
+    for (let i = 0; i < 2400; i++) uncapped.sample(i % 60 === 0 ? 70 : 16.7, false);
+    expect(uncapped.released).toBe(false);
+  });
+
+  it('el limitador dice de cuántos cuadros dibuja uno', () => {
+    const limiter = new FrameLimiter();
+    for (let i = 0; i < 240; i++) limiter.ready(1000 + (i * 1000) / 120, PLAY_FPS);
+    expect(limiter.every).toBe(2);
+    for (let i = 0; i < 240; i++) limiter.ready(3000 + (i * 1000) / 120, Number.POSITIVE_INFINITY);
+    expect(limiter.every).toBe(1);
   });
 });

@@ -33,3 +33,19 @@ describe('RoomPerf: cómo anduvo la Sala en una serie', () => {
     expect(perf.finish(30_000)).toBeNull();
   });
 });
+
+describe('RoomPerf: la vuelta más lenta', () => {
+  it('dice cuándo fue, en qué se fue el tiempo y qué había en la arena', () => {
+    const perf = new RoomPerf();
+    perf.start(0, { humans: 3, bots: 1 });
+    perf.clock(1000, 2, 3);
+    expect(perf.isSlowest(5)).toBe(false);
+    expect(perf.isSlowest(268)).toBe(true);
+    perf.slowest(525_000, 268, { stepMs: 20, botMs: 230, sendMs: 18 }, '2 de 4 magos en pie');
+    perf.clock(525_000, 200, 268);
+    const report = perf.finish(530_000);
+    expect(report?.detail).toContain(
+      'Vuelta más lenta: 268 ms a los 8:45 (núcleo 20 ms · IA 230 ms · estados 18 ms) · vueltas de más de 50 ms: 1 · 2 de 4 magos en pie',
+    );
+  });
+});

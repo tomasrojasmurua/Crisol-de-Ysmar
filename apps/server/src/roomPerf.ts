@@ -7,6 +7,13 @@ const BUCKET_MS = 10_000;
 /** Una partida muy larga no hace crecer el informe sin fin (unos 20 minutos). */
 const MAX_BUCKETS = 120;
 
+/** En qué se fue una vuelta del reloj (ms). */
+export interface LoopParts {
+  readonly stepMs: number;
+  readonly botMs: number;
+  readonly sendMs: number;
+}
+
 /** Lo que la Sala manda al registro al terminar cada serie. */
 export interface RoomPerfReport {
   readonly message: string;
@@ -36,6 +43,9 @@ export class RoomPerf {
   private workTotal = 0;
   private maxWork = 0;
   private buckets: number[] = [];
+  /** La vuelta más lenta de la serie: cuándo, cuánto tardó cada parte y qué había en la arena. */
+  private worst: { atMs: number; work: number; parts: LoopParts; scene: string } | null = null;
+  private slowLoops = 0;
 
   get running(): boolean {
     return this.startedAt !== null;
@@ -52,6 +62,8 @@ export class RoomPerf {
     this.workTotal = 0;
     this.maxWork = 0;
     this.buckets = [];
+    this.worst = null;
+    this.slowLoops = 0;
   }
 
   /**
@@ -75,6 +87,19 @@ export class RoomPerf {
     this.buckets[index] = Math.max(this.buckets[index] ?? 0, late);
   }
 
+  /** Si una vuelta de este trabajo sería la más lenta de la serie (y vale la pena anotarla). */
+  isSlowest(workMs: number): boolean {
+    if (this.startedAt === null) return false;
+    if (workMs > LATE_MS) this.slowLoops += 1;
+    return workMs > 10 && workMs > (this.worst?.work ?? 0);
+  }
+
+  /** Anota la vuelta más lenta: lo que tardó el núcleo, la IA y armar los estados. */
+  slowest(now: number, workMs: number, parts: LoopParts, scene: string): void {
+    if (this.startedAt === null) return;
+    this.worst = { atMs: now - this.startedAt, work: workMs, parts, scene };
+  }
+
   /** Termina la serie y arma el informe (nada si no se jugó). `machine`: cómo va la máquina. */
   finish(now: number, machine = ''): RoomPerfReport | null {
     const startedAt = this.startedAt;
@@ -90,6 +115,13 @@ export class RoomPerf {
       `Reloj: atraso típico ${this.percentile(0.5)} ms · peor 1% ${this.percentile(0.99)} ms · máx ${Math.round(this.maxLate)} ms · más de ${LATE_MS} ms: ${this.lateCount} · pasos perdidos ${this.dropped}`,
       `Trabajo por vuelta: promedio ${(this.workTotal / this.samples).toFixed(1)} ms · máx ${Math.round(this.maxWork)} ms`,
     ];
+    const worst = this.worst;
+    if (worst) {
+      const { stepMs, botMs, sendMs } = worst.parts;
+      lines.push(
+        `Vuelta más lenta: ${Math.round(worst.work)} ms a los ${clock(worst.atMs)} (núcleo ${Math.round(stepMs)} ms · IA ${Math.round(botMs)} ms · estados ${Math.round(sendMs)} ms) · vueltas de más de ${LATE_MS} ms: ${this.slowLoops} · ${worst.scene}`,
+      );
+    }
     if (machine) lines.push(`Máquina: ${machine}`);
     lines.push(
       `Cada 10 s, peor atraso (ms): ${this.buckets.map((late) => Math.round(late)).join(' ')}`,
