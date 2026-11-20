@@ -6,6 +6,7 @@ import { disposeTree } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 import { WeaveHalo } from './WeaveHalo';
+import { SHOULDER_Y } from './wizard/arms';
 import { buildWizardModel } from './wizard/build';
 import { FLOATING_FOCI } from './wizard/foci';
 import { ModelKit } from './wizard/kit';
@@ -302,7 +303,7 @@ export class WizardView {
     if (st.panther) this.body.scale.set(1.15, 0.65, 1.3);
     else this.body.scale.set(1, 1, 1);
     this.staff.rotation.z = Math.sin(this.stride) * 0.06 * moving;
-    if (this.floatingFocus) this.staff.position.y = Math.sin(timeSeconds * 2.2) * 0.05;
+    const bob = this.floatingFocus ? Math.sin(timeSeconds * 2.2) * 0.05 : 0;
 
     // Al canalizar, el báculo se levanta.
     const channel = wizard.channel;
@@ -313,7 +314,11 @@ export class WizardView {
     this.wasChanneling = channel !== null;
     this.recoil = Math.max(0, this.recoil - deltaSeconds * 4);
     const kick = this.recoil * this.recoil;
-    this.staff.rotation.x = channel ? -0.6 * Math.min(1, progress * 3) : 0.7 * kick;
+    // El foco gira desde el hombro (ver `wizard/arms.ts`): al canalizar, el brazo lo sube y lo
+    // echa un poco atrás; al soltar, lo empuja hacia adelante.
+    const raise = channel ? Math.min(1, progress * 3) : 0;
+    this.staff.rotation.x = channel ? -0.3 * raise : 0.55 * kick;
+    this.staff.position.y = SHOULDER_Y + bob + 0.28 * raise;
     this.body.rotation.x -= 0.18 * kick;
 
     const weave: readonly ElementId[] = channel ? channel.weave : wizard.weave;
