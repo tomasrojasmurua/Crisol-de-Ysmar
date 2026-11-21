@@ -189,6 +189,13 @@ sombras. Reglas que lo sostienen:
   efectos fuera de la escena y se compilan sin bloquear (`compileAsync`); queda una pieza por
   sombreador para sostenerlos. Medido en la jungla: de 6 a 12 compilaciones en los primeros 45 s
   de partida (cada una, un tirón en un Android de gama media) a ninguna.
+- **Una textura que se repite distinto que su atlas vive siempre** (`primeFlow` en
+  `render/vfxTextures.ts`). three.js guarda en la tarjeta una copia por cada forma de repetir una
+  imagen y la borra al liberar la última vista que la usa. Las estelas que corren por el Huracán,
+  la Ola, el Volcán y la Granada solar se repiten a lo largo: cada uno volvía a subir 512 × 640 y
+  sus mipmaps al aparecer (medido: una subida por lanzamiento). Ahora una vista fija se sube en el
+  menú y ninguna se vuelve a subir en la partida. Lo mismo las texturas dibujadas en código de los
+  efectos (destello, onda, columna): se suben al crearse, no con el primer golpe.
 - **La preparación compila para donde se dibuja de verdad** (`compileFor` en
   `render/ShaderWarmup.ts`). Con calidad Alta la escena va a la textura del resplandor (color lineal
   y sin tono) y no a la pantalla: compilar para la pantalla daba otros sombreadores y cada hechizo
