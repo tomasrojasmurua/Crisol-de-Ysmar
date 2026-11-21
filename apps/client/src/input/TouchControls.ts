@@ -19,6 +19,19 @@ const DRAG_THRESHOLD = 22;
 const HOLD_TO_PLACE_MS = 260;
 /** Arrastre (en px) que lleva un hechizo de suelo hasta lo más lejos que alcanza. */
 const FULL_REACH_DRAG = 120;
+/**
+ * ✦ sin tejido es una palanca para mirar: corrido de lado, la cámara gira mientras se mantenga.
+ * A `FULL_LOOK_DRAG` px del punto de partida gira a `MAX_LOOK_RATE` (radianes por segundo, ~150°):
+ * media vuelta en poco más de un segundo. ✦ está en la esquina y no hay lugar para arrastrar
+ * mucho hacia la derecha; por eso es palanca y no arrastre como en la pantalla.
+ */
+const FULL_LOOK_DRAG = 80;
+const MAX_LOOK_RATE = 2.6;
+/**
+ * Un elemento recién tocado tarda un paso de simulación en aparecer en el tejido. Si ✦ se
+ * arrastra en ese rato, se apunta (no se mira): así tejer rápido y apuntar nunca gira la cámara.
+ */
+const FRESH_WEAVE_MS = 250;
 /** Lo que dura el destello de un botón cuando no hay un `pointerup` que lo apague. */
 const PRESS_MS = 140;
 const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
@@ -26,7 +39,8 @@ const KEY_ELEMENTS = ['1', '2', '3', '4', '5'] as const;
 /**
  * Controles en pantalla. Pulgar izquierdo: joystick que aparece donde tocas.
  * Pulgar derecho: arco de elementos para tejer y botón central para lanzar
- * (tocar apunta solo al rival, arrastrar elige la dirección), Deshacer y el botón de duelo.
+ * (tocar apunta solo al rival, arrastrar elige la dirección; sin tejido, arrastrar mira),
+ * Deshacer y el botón de duelo.
  * También acepta teclado para probar en computador (Q es el botón de duelo).
  */
 export class TouchControls {
@@ -52,6 +66,12 @@ export class TouchControls {
    * la arena, así que el toque se pasa para fijar al rival que esté ahí (lo conecta main).
    */
   onTap: (screenX: number, screenY: number) => void = () => {};
+  /** Se empezó a mirar con ✦ sin tejido: suelta el duelo, igual que arrastrar en la pantalla (lo conecta main). */
+  onLookStart: () => void = () => {};
+  /** Si hay tejido listo para lanzar: decide si arrastrar ✦ apunta o mira. */
+  private armed = false;
+  /** Cuándo se tocó el último elemento (ver `FRESH_WEAVE_MS`). */
+  private lastWeaveAt = Number.NEGATIVE_INFINITY;
   private lastWeaveKey = '';
   /** Cuántos lugares rotó el Mal de ojo los botones de elementos (0: en su lugar). */
   private shift = 0;
@@ -77,6 +97,7 @@ export class TouchControls {
       this.input.move = { right: 0, up: 0 };
       this.input.aimPreview = null;
       this.input.reachPreview = null;
+      this.input.lookRate = 0;
     }
   }
 
@@ -148,6 +169,8 @@ export class TouchControls {
         button.classList.toggle('tired', fatigue > 0);
       }
     }
+    // Solo el tejido sin lanzar arma ✦: mientras sale un conjuro, ✦ no lanza nada y puede mirar.
+    this.armed = wizard.weave.length > 0;
     const weave = wizard.channel?.weave ?? wizard.weave;
     const key = weave.join('>') + (wizard.channel ? '*' : '');
     if (key !== this.lastWeaveKey) {
@@ -262,6 +285,7 @@ export class TouchControls {
       button.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         this.input.push({ type: 'weave', element: element.id });
+        this.lastWeaveAt = performance.now();
         flash(button);
         navigator.vibrate?.(8);
       });
@@ -316,11 +340,20 @@ export class TouchControls {
     }
   }
 
+  /**
+   * ✦ con tejido: tocar apunta solo, arrastrar elige la dirección y mantener y arrastrar elige
+   * hasta dónde cae un hechizo de suelo. ✦ sin tejido: tocar sigue lanzando (te lleva a tu
+   * Sombra, si hay una) y arrastrar lo vuelve palanca para girar la cámara. Qué hace el
+   * arrastre se decide cuando el dedo empieza a moverse, no al tocar: el elemento tocado justo
+   * antes ya cuenta.
+   */
   private bindCast(button: HTMLButtonElement): void {
     let pointerId: number | null = null;
     let startX = 0;
     let startY = 0;
     let startTime = 0;
+    /** null mientras el dedo no se movió; después, si el arrastre apunta o mira. */
+    let mode: 'aim' | 'look' | null = null;
     /** El alcance elegido, si se mantuvo lo suficiente y se arrastró. */
     const reachOf = (event: PointerEvent): number | null => {
       if (performance.now() - startTime < HOLD_TO_PLACE_MS) return null;
@@ -334,6 +367,15 @@ export class TouchControls {
       const len = Math.hypot(dx, dy);
       return len < DRAG_THRESHOLD ? null : { right: dx / len, up: -dy / len };
     };
+    /** Palanca: solo cuenta lo corrido de lado; la cámara gira hacia el mismo lado que el dedo. */
+    const lookRateOf = (event: PointerEvent): number => {
+      const dx = event.clientX - startX;
+      const amount = Math.min(
+        1,
+        Math.max(0, Math.abs(dx) - DRAG_THRESHOLD) / (FULL_LOOK_DRAG - DRAG_THRESHOLD),
+      );
+      return Math.sign(dx) * amount * MAX_LOOK_RATE;
+    };
     button.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       pointerId = event.pointerId;
@@ -341,10 +383,20 @@ export class TouchControls {
       startX = event.clientX;
       startY = event.clientY;
       startTime = performance.now();
+      mode = null;
       button.classList.add('pressed');
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== pointerId) return;
+      if (mode === null && dragOf(event)) {
+        const armed = this.armed || performance.now() - this.lastWeaveAt < FRESH_WEAVE_MS;
+        mode = armed ? 'aim' : 'look';
+        if (mode === 'look') this.onLookStart();
+      }
+      if (mode === 'look') {
+        this.input.lookRate = lookRateOf(event);
+        return;
+      }
       this.input.aimPreview = dragOf(event);
       this.input.reachPreview = reachOf(event);
     });
@@ -354,6 +406,9 @@ export class TouchControls {
       button.classList.remove('pressed');
       this.input.aimPreview = null;
       this.input.reachPreview = null;
+      this.input.lookRate = 0;
+      // Mirar no lanza nada al soltar.
+      if (mode === 'look') return;
       const cancelled = event.type === 'pointercancel';
       const aim = cancelled ? null : dragOf(event);
       const reach = cancelled || !aim ? null : reachOf(event);

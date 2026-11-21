@@ -418,8 +418,13 @@ export interface GameRules {
   readonly aim: {
     /** Hasta dónde se busca un blanco (magos y bestias), en metros. */
     readonly range: number;
-    /** Un blanco fijado a mano se sigue usando hasta este alcance; más lejos, se suelta. */
+    /** Hasta dónde se puede fijar un blanco a mano (tocándolo o con el botón de duelo). */
     readonly lockRange: number;
+    /**
+     * Un blanco ya fijado se mantiene hasta este alcance, más largo que `lockRange`: así
+     * retroceder para tomar distancia no suelta el duelo. Más lejos, se suelta.
+     */
+    readonly keepLockRange: number;
     /**
      * Cuánto pesa estar delante: con 0 gana el más cercano; con 1, uno a tu espalda cuenta
      * como si estuviera al doble de distancia.

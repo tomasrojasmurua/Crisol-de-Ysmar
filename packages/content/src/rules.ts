@@ -226,7 +226,7 @@ export const GAME_RULES: GameRules = {
     suddenDeath: { shrinkTicks: 20 * 30, damageRampPerSecond: 4 },
   },
   // Los proyectiles básicos llegan a 14 m: más allá no tiene sentido apuntar solo.
-  aim: { range: 14, lockRange: 20, frontWeight: 0.6 },
+  aim: { range: 14, lockRange: 20, keepLockRange: 30, frontWeight: 0.6 },
   death: {
     lives: 3,
     // 4 segundos para reaparecer en el borde.
