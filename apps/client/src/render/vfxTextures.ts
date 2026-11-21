@@ -46,13 +46,21 @@ export type GreatArt = (typeof GREAT_ART)[number];
 export const TRAIL_ORDER: readonly ElementId[] = SEAL_ORDER;
 
 const loaded = new Map<string, THREE.Texture>();
+/**
+ * Vistas de una imagen que la tarjeta gráfica guarda aparte (se repiten distinto que el atlas):
+ * se suben junto con la imagen, apenas baja.
+ */
+const companions = new Map<string, THREE.Texture[]>();
 /** Cada casilla pedida, armada una sola vez y compartida por todas las vistas. */
 const cells = new Map<string, THREE.Texture>();
 
 function load(url: string, colorSpace: THREE.ColorSpace): THREE.Texture {
   let texture = loaded.get(url);
   if (!texture) {
-    const created = new THREE.TextureLoader().load(url, () => uploadEarly(created));
+    const created = new THREE.TextureLoader().load(url, () => {
+      uploadEarly(created);
+      for (const view of companions.get(url) ?? []) uploadEarly(view);
+    });
     created.colorSpace = colorSpace;
     created.anisotropy = 2;
     texture = created;
@@ -142,12 +150,30 @@ export function trailAtlas(): THREE.Texture {
  * tarjeta gráfica la guarda aparte porque se repite distinto, pero mide lo mismo (640 kB).
  */
 export function flowTexture(element: ElementId): THREE.Texture {
+  primeFlow();
   const row = TRAIL_ORDER.indexOf(element);
   const texture = textureView(trailAtlas());
   texture.wrapS = THREE.RepeatWrapping;
   texture.repeat.set(1, 1 / TRAIL_ORDER.length);
   texture.offset.set(0, 1 - (row + 1) / TRAIL_ORDER.length);
   return texture;
+}
+
+/**
+ * Una vista de las estelas repetidas que vive siempre y se sube en el menú. three.js guarda una
+ * copia en la tarjeta por cada forma de repetir la imagen y la borra cuando se libera la última
+ * vista que la usa: sin esta, cada Huracán, Ola, Volcán o Granada solar volvía a subir las
+ * estelas enteras (512 × 640 y sus mipmaps) al aparecer, un tirón en plena pelea.
+ */
+let flowPrimer: THREE.Texture | null = null;
+function primeFlow(): void {
+  if (flowPrimer) return;
+  const primer = textureView(trailAtlas());
+  primer.wrapS = THREE.RepeatWrapping;
+  flowPrimer = shared(primer);
+  const atlas = trailAtlas();
+  if (atlas.image) uploadEarly(primer);
+  else companions.set(trailsUrl, [...(companions.get(trailsUrl) ?? []), primer]);
 }
 
 /** Una forma del atlas de chispas, como textura suelta para un sprite (destellos, orbes). */
@@ -168,4 +194,5 @@ export function preloadVfxTextures(): void {
   load(greatsUrl, THREE.NoColorSpace);
   load(marksUrl, THREE.SRGBColorSpace);
   trailAtlas();
+  primeFlow();
 }
