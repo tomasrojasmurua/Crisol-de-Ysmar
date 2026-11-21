@@ -177,10 +177,14 @@ sombras. Reglas que lo sostienen:
   en los menús (la pantalla llama cada 33 ms aunque el juego casi no trabaje). Con el freno, 30
   cuadros por segundo cuentan como ir a tope: la resolución y la calidad automáticas no bajan por
   eso, se avisa una vez en partida y el informe de rendimiento lo anota.
-- **Si el colchón de red se vacía, todo se queda quieto** hasta que llega el estado siguiente
-  (`NetMatch.hold`). Antes el dibujo volvía a recorrer el último paso en cada cuadro de espera y
-  los rivales y sus hechizos saltaban atrás y adelante. El informe de red anota los silencios de
-  la Sala (más de 100 ms sin estado jugando y el más largo).
+- **Si el colchón de red se vacía, los rivales siguen de largo** (`NetMatch.hold` y `coast`),
+  como en los juegos en línea grandes: magos, bestias y proyectiles siguen en la dirección que
+  llevaban hasta 200 ms (6 pasos) y después se quedan donde llegaron. Al volver los estados, lo
+  dibujado de más se absorbe en el doble de pasos (al menos 4): el rival solo camina más lento un
+  instante, nunca hacia atrás. Antes todo se congelaba en cada hipo de la red (en la prueba del 21
+  de noviembre, 83 veces en un iPhone con datos móviles); y antes de eso, el dibujo volvía a
+  recorrer el último paso y los rivales caminaban "de a jalones". El informe de red anota los
+  silencios de la Sala (más de 100 ms sin estado jugando y el más largo).
 - **Los eventos de un paso se muestran una sola vez.** Entre rondas y en el resultado la Sala
   reenvía el estado quieto de a ratos: la Sala vacía sus eventos y `NetMatch` ignora los de un
   paso que ya mostró (antes el golpe final y sus sonidos se repetían detrás del resultado).
