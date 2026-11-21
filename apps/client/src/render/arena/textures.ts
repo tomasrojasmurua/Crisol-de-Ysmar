@@ -208,7 +208,7 @@ function ring(ctx: CanvasRenderingContext2D, c: number, r: number, x = c, y = c)
  * Suelo de la jungla: tierra oscura con manchas de musgo y hojarasca. La textura se repite
  * sin costuras: cada mancha se dibuja también del otro lado del borde.
  */
-export function createGroundTexture(): THREE.Texture {
+export function createGroundTexture(finalSize = 512): THREE.Texture {
   const size = 512;
   const [element, ctx] = canvas(size);
   const random = seeded(11);
@@ -244,7 +244,14 @@ export function createGroundTexture(): THREE.Texture {
       warm ? 'rgba(110, 82, 52, 0.35)' : 'rgba(70, 90, 60, 0.3)',
     );
   }
-  const texture = new THREE.CanvasTexture(element);
+  // Más grande solo cuando una imagen la va a reemplazar (ver `floorTextures.ts`).
+  let result = element;
+  if (finalSize !== size) {
+    const [bigger, big] = canvas(finalSize);
+    big.drawImage(element, 0, 0, finalSize, finalSize);
+    result = bigger;
+  }
+  const texture = new THREE.CanvasTexture(result);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;

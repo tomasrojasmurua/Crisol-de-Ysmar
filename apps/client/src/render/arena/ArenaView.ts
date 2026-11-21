@@ -4,6 +4,14 @@ import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
 import { textureView } from '../vfxTextures';
 import { Ambience } from './Ambience';
+import {
+  addMossPatches,
+  addStoneDetail,
+  FLOOR_IMAGE_SIZE,
+  jungleGround,
+  mossGround,
+  stoneDetail,
+} from './floorTextures';
 import { createGroundDecals } from './groundDecals';
 import { matte } from './matte';
 import {
@@ -67,24 +75,23 @@ export class ArenaView {
 
     // La plaza: losas en anillos alrededor del círculo rúnico.
     const plaza = MAP_DECOR.plazaRadius;
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(plaza + 1.2, 96),
-      matte({ map: createFloorTexture(plaza, plaza + 1.2) }),
-    );
+    const floorMaterial = matte({ map: createFloorTexture(plaza, plaza + 1.2) });
+    // La piedra ilustrada, repetida cada ~3 m sobre las losas.
+    addStoneDetail(floorMaterial, stoneDetail(), ((plaza + 1.2) * 2) / 3);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(plaza + 1.2, 96), floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0.02;
     floor.receiveShadow = true;
     scene.add(floor);
 
     // La jungla: tierra con musgo que se pierde en la niebla.
-    const groundTexture = createGroundTexture();
+    const groundTexture = jungleGround(createGroundTexture(FLOOR_IMAGE_SIZE));
     this.groundTexture = groundTexture;
     const groundSize = 2 * (arenaRadius + 60);
-    groundTexture.repeat.set(groundSize / 9, groundSize / 9);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(groundSize, groundSize),
-      matte({ map: groundTexture }),
-    );
+    groundTexture.repeat.set(groundSize / 7, groundSize / 7);
+    const groundMaterial = matte({ map: groundTexture });
+    addMossPatches(groundMaterial, mossGround());
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(groundSize, groundSize), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
@@ -461,7 +468,7 @@ function createPaths(arenaRadius: number, groundTexture: THREE.Texture): THREE.G
   const dirt = (repeatX: number, repeatY: number): THREE.MeshLambertMaterial => {
     // Sin volver a subir la imagen a la tarjeta gráfica (ver `textureView`).
     const texture = textureView(groundTexture);
-    texture.repeat.set(repeatX / 9, repeatY / 9);
+    texture.repeat.set(repeatX / 7, repeatY / 7);
     return matte({
       map: texture,
       color: '#c4ae92',
