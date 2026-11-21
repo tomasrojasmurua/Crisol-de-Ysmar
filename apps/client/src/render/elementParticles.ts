@@ -7,7 +7,16 @@ export const ELEMENT_SHAPE: Readonly<Record<ElementId, ParticleShape>> = {
   marea: 'drop',
   tormenta: 'spark',
   raiz: 'leaf',
-  umbra: 'smoke',
+  umbra: 'shadow',
+};
+
+/** El dibujo grande que deja cada elemento donde pega. */
+export const ELEMENT_IMPACT: Readonly<Record<ElementId, ParticleShape>> = {
+  brasa: 'ember',
+  marea: 'splash',
+  tormenta: 'bolt',
+  raiz: 'thorns',
+  umbra: 'shadow',
 };
 
 /**

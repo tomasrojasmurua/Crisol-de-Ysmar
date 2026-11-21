@@ -4,10 +4,9 @@ import { createGlowTexture } from './arena/textures';
 import {
   createColumnFadeTexture,
   createColumnTexture,
-  createScorchTexture,
   createShockwaveTexture,
 } from './effectTextures';
-import { ELEMENT_SHAPE } from './elementParticles';
+import { ELEMENT_IMPACT, ELEMENT_SHAPE } from './elementParticles';
 import { fourthBlink } from './FourthSpellEffects';
 import { greatBlink, lineStrike } from './GreatSpellEffects';
 import type { Particles } from './Particles';
@@ -22,6 +21,7 @@ import {
   vine,
   zap,
 } from './SpellEffects';
+import { decalTexture } from './vfxTextures';
 
 interface Timed {
   readonly mesh: THREE.Mesh;
@@ -87,7 +87,9 @@ export class EffectsView {
   private readonly scorches: Timed[] = [];
   private readonly scorchGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   private readonly scorchMaterial = new THREE.MeshBasicMaterial({
-    map: createScorchTexture(),
+    map: decalTexture('ceniza'),
+    // Sin luz propia: se oscurece para no verse más clara que las losas.
+    color: '#7a7480',
     transparent: true,
     depthWrite: false,
     polygonOffset: true,
@@ -229,6 +231,28 @@ export class EffectsView {
             0.55,
             event.form === 'beast' ? 'star' : ELEMENT_SHAPE[elementOfForm(event.form)],
           );
+          // El estallido dibujado: un destello de puntas y la marca del elemento (rayo,
+          // salpicadura, espinas, sombra o llama), quietos donde pegó.
+          this.particles.emit({
+            x: target.pos.x,
+            y: HIT_HEIGHT,
+            z: target.pos.z,
+            color: glow(color, 1.5),
+            life: 0.24,
+            size: 1 + Math.min(1.2, event.amount / 25),
+            shape: 'star',
+          });
+          if (event.form !== 'beast') {
+            this.particles.emit({
+              x: target.pos.x,
+              y: HIT_HEIGHT,
+              z: target.pos.z,
+              color: glow(color, 1.3),
+              life: 0.4,
+              size: 1.3 + Math.min(0.8, event.amount / 30),
+              shape: ELEMENT_IMPACT[elementOfForm(event.form)],
+            });
+          }
           // Destello y onda en el suelo: el golpe se siente, más fuerte cuanto más daño.
           this.flash(
             target.pos.x,
