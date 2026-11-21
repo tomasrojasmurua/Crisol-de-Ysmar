@@ -153,15 +153,13 @@ export function createStrike(strike: Strike): THREE.Object3D {
       }),
     );
     rock.add(halo(glow(FIRE, 1.8), 4));
-    // La cola de fuego del meteoro: la cabeza de la imagen (abajo a la derecha) va en la roca.
-    const tail = artSprite('meteoro', glow(FIRE, 1.6), 7, [0.8, 0.2]);
-    group.add(tail);
-    group.userData.tail = tail;
     group.add(rock);
     group.userData.rock = rock;
   }
   return group;
 }
+
+const rockAt = new THREE.Vector3();
 
 export function updateStrike(
   view: THREE.Object3D,
@@ -198,8 +196,20 @@ export function updateStrike(
   if (rock) {
     rock.position.set(-6 * (1 - progress), 0.6 + 22 * (1 - progress), 0);
     rock.rotation.set(time * 3, time * 2, 0);
-    // La cola sigue a la roca; como sprite, no gira con ella.
-    (view.userData.tail as THREE.Sprite).position.copy(rock.position);
+    // La cola de fuego: lenguas de llama que la roca va soltando al caer.
+    rock.getWorldPosition(rockAt);
+    for (let i = 0; i < 2; i++) {
+      particles.emit({
+        x: rockAt.x + (Math.random() - 0.5) * 0.8,
+        y: rockAt.y + (Math.random() - 0.5) * 0.8,
+        z: rockAt.z + (Math.random() - 0.5) * 0.8,
+        vy: 4,
+        color: glow(FIRE, 2),
+        life: 0.5,
+        size: 1.1,
+        shape: 'ember',
+      });
+    }
   }
   const art = view.userData.art as THREE.Mesh | undefined;
   if (art) {
@@ -231,27 +241,28 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
   const group = new THREE.Group();
   if (sweeper.mode === 'tornado') {
     // Un embudo de viento que gira: anillos que se ensanchan hacia arriba, abiertos y tenues.
+    // Por cada anillo corre el trazo de la tormenta, así el viento se ve pasar.
+    const flow = flowTexture('tormenta');
+    group.userData.flow = flow;
     for (let i = 0; i < 7; i++) {
       const t = i / 6;
+      const material = additive(glow(i % 2 === 0 ? STORM : ICE, 1.6), 0.6 - t * 0.25);
+      material.map = flow;
       const band = new THREE.Mesh(
         new THREE.TorusGeometry(
           0.3 + t * sweeper.radius * 1.3,
-          0.05 + t * 0.06,
+          0.08 + t * 0.1,
           6,
           24,
           Math.PI * 1.4,
         ),
-        additive(glow(i % 2 === 0 ? STORM : ICE, 1.2), 0.45 - t * 0.2),
+        material,
       );
       band.rotation.x = Math.PI / 2;
       band.position.y = 0.2 + t * 3.6;
       band.userData.twist = 6 - t * 3;
       group.add(band);
     }
-    // El embudo pintado: un tornado que se apoya en el suelo y late.
-    const funnel = artSprite('huracan', glow(STORM, 1.3), sweeper.radius * 2.8, [0.5, 0.02]);
-    funnel.userData.sway = sweeper.radius * 2.8;
-    group.add(funnel);
   } else if (sweeper.mode === 'orb') {
     const core = new THREE.Mesh(
       new THREE.IcosahedronGeometry(sweeper.radius * 0.7, 2),
@@ -384,11 +395,6 @@ export function updateSweeper(
     const flicker = child.userData.flicker as number | undefined;
     if (flicker !== undefined)
       child.scale.y = 0.8 + 0.5 * Math.abs(Math.sin(time * 9 + flicker * 1.3));
-    const sway = child.userData.sway as number | undefined;
-    if (sway !== undefined) {
-      const beat = 1 + 0.06 * Math.sin(time * 7 + child.position.x);
-      child.scale.set(sway * (2 - beat), sway * beat, 1);
-    }
     const gallop = child.userData.gallop as number | undefined;
     if (gallop !== undefined)
       child.position.y = Math.abs(Math.sin(time * 12 + gallop * 1.7)) * 0.25;
@@ -466,7 +472,25 @@ export function updateSweeper(
     return;
   }
   if (sweeper.mode === 'tornado') {
+    const flow = view.userData.flow as THREE.Texture | undefined;
+    if (flow) flow.offset.x -= delta * 2.2;
     const angle = time * 9;
+    // Polvo y hojas que el embudo levanta y hace girar.
+    if (Math.random() < 0.5) {
+      const around = Math.random() * Math.PI * 2;
+      particles.emit({
+        x: pos.x + Math.cos(around) * sweeper.radius * 0.8,
+        y: 0.3,
+        z: pos.z + Math.sin(around) * sweeper.radius * 0.8,
+        vx: -Math.sin(around) * 4,
+        vy: 3 + Math.random() * 2,
+        vz: Math.cos(around) * 4,
+        color: new THREE.Color(Math.random() < 0.5 ? '#7a6a52' : '#5f7a3a'),
+        life: 0.7,
+        size: 0.4,
+        shape: Math.random() < 0.6 ? 'smoke' : 'leaf',
+      });
+    }
     particles.emit({
       x: pos.x + Math.cos(angle) * sweeper.radius,
       y: 0.2 + Math.random() * 3,
@@ -726,11 +750,6 @@ export function createThornRing(ring: ThornRing): THREE.Object3D {
   glowRing.scale.setScalar(ring.radius);
   glowRing.position.y = 0.05;
   group.add(glowRing);
-  // El anillo de zarzas pintado, apoyado en el suelo, crece con las espinas.
-  const art = artSprite('espinas', glow(FIRE, 1), ring.radius * 2.3, [0.5, 0.3]);
-  art.userData.height = 1;
-  art.userData.art = ring.radius * 2.3;
-  group.add(art);
   return group;
 }
 
@@ -738,9 +757,7 @@ export function updateThornRing(view: THREE.Object3D, ring: ThornRing, particles
   const grow = fade(ring.ticksLeft, ring.durationTicks);
   for (const spike of view.children) {
     const height = spike.userData.height as number | undefined;
-    const art = spike.userData.art as number | undefined;
-    if (art) spike.scale.set(art, Math.max(0.01, art * grow), 1);
-    else if (height) spike.scale.y = Math.max(0.01, height * grow);
+    if (height) spike.scale.y = Math.max(0.01, height * grow);
   }
   if (Math.random() < 0.6) {
     const angle = Math.random() * Math.PI * 2;
@@ -753,6 +770,22 @@ export function updateThornRing(view: THREE.Object3D, ring: ThornRing, particles
       life: 0.45,
       size: 0.3,
       gravity: 1,
+      shape: 'ember',
+    });
+  }
+  // Zarzas que asoman entre las espinas del anillo y se secan.
+  if (Math.random() < 0.35) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = ring.radius * (0.85 + Math.random() * 0.3);
+    particles.emit({
+      x: ring.pos.x + Math.cos(angle) * r,
+      y: 0.4 + Math.random() * 0.5,
+      z: ring.pos.z + Math.sin(angle) * r,
+      vy: 0.3,
+      color: glow(new THREE.Color('#8a5a2a'), 1.3),
+      life: 0.9,
+      size: 0.8,
+      shape: 'thorns',
     });
   }
 }

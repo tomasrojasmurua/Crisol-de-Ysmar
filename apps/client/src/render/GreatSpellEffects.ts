@@ -118,8 +118,8 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       return true;
     case 'iceAge':
       fx.ring(x, z, ICE, r, 0.8);
-      // Un racimo de cristales que brota del suelo y la escarcha que queda.
-      fx.art('hielo', x, 0, z, ICE, r * 1.5, 1.6, [0.5, 0.02]);
+      // Esquirlas de hielo que saltan del suelo y la escarcha que queda.
+      particles.burst(x, 0.4, z, glow(ICE, 2), 45, 6, 0.5, 'shard');
       fx.scorch(x, z, r * 2.2, 6, 'escarcha');
       fountain(particles, x, z, r, glow(ICE, 1.8), 90, 4);
       return true;
@@ -194,8 +194,23 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       }
       return true;
     case 'nightmare':
-      // Una figura encapuchada de humo que sube y se deshace.
-      fx.art('pesadilla', x, 0.4, z, SHADOW, 3.2, 1.4, [0.5, 0], 0.8);
+      // Jirones de sombra y humo que suben y se deshacen.
+      for (let i = 0; i < 26; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const d = Math.random() * 0.9;
+        particles.emit({
+          x: x + Math.cos(angle) * d,
+          y: 0.3 + Math.random() * 1.2,
+          z: z + Math.sin(angle) * d,
+          vx: Math.cos(angle) * 0.4,
+          vy: 1.2 + Math.random() * 1.4,
+          vz: Math.sin(angle) * 0.4,
+          color: glow(SHADOW, 1.5),
+          life: 1.1,
+          size: 0.9,
+          shape: i % 2 === 0 ? 'shadow' : 'smoke',
+        });
+      }
       particles.burst(x, 1.8, z, glow(SHADOW, 1.6), 30, 1.5, 0.8);
       return true;
     default:
@@ -212,7 +227,7 @@ export function lineStrike(fx: EffectsView, particles: Particles, event: Line): 
   for (const t of [0.15, 0.5, 0.85]) {
     const px = from.x + (to.x - from.x) * t;
     const pz = from.z + (to.z - from.z) * t;
-    fx.art('lanza', px, 0, pz, LIGHTNING, 6, 0.6, [0.5, 0.04]);
+    particles.burst(px, 1, pz, glow(LIGHTNING, 2.2), 10, 7, 0.9, 'bolt');
     fx.scorch(px, pz, 2, 5, 'rayo');
   }
   const steps = 12;
