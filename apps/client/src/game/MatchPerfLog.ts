@@ -1,3 +1,5 @@
+import { gpuInfo } from '../platform/gpuTier';
+
 /** Sobre esto (menos de ~50 cuadros por segundo) un segundo cuenta como lento. */
 const SLOW_FRAME_MS = 20;
 /** Los cuadros se agrupan por milisegundo: alcanza para sacar promedios y percentiles. */
@@ -358,6 +360,8 @@ export class MatchPerfLog {
             .map((change) => `${QUALITY_LABEL[change.quality]} en ${clock(change.atMs)}`)
             .join(', ')}`;
     lines.push(quality);
+    const gpu = gpuInfo();
+    if (gpu.name) lines.push(`Tarjeta gráfica: ${gpu.name}${gpu.modest ? ' · perfil fluido' : ''}`);
     const screen = this.screenLine();
     if (screen) lines.push(screen);
     if (this.screenCapped) {

@@ -77,6 +77,20 @@ const CATCH_UP_SLACK = 2;
  * fuera menor.
  */
 const DRIFT_EVERY = 8;
+/**
+ * Si el colchón se vacía, los rivales, bestias y proyectiles siguen en la dirección que llevaban
+ * hasta este máximo de pasos (200 ms), en vez de quedarse congelados: así se juega en una red
+ * móvil con hipos, como en los juegos en línea grandes. Más allá ya sería inventar.
+ */
+const COAST_STEPS = 6;
+/** Más rápido que esto por paso (18 m/s) no es caminar: fue un salto o un teletransporte. */
+const COAST_MAX_STEP = 0.6;
+/**
+ * Al volver los estados, lo que se dibujó de más se corrige de a poco: en el doble de los pasos
+ * que se siguió de largo (y al menos estos), así el rival solo camina más lento un instante y
+ * nunca hacia atrás. Una diferencia mayor que `SNAP_DISTANCE` se corrige de golpe.
+ */
+const CORRECT_STEPS = 4;
 /** Si se juntan muchísimos (la pestaña estuvo en segundo plano), se salta directo. */
 const HARD_SKIP = 30;
 /**
@@ -307,6 +321,15 @@ export class NetMatch implements MatchView {
   /** Pasos seguidos con algo de sobra en el colchón. */
   private driftSteps = 0;
   private stalls = 0;
+  /**
+   * Mientras el colchón está vacío jugando: cuántos pasos lleva esperando y hacia dónde iba cada
+   * cosa (metros por paso). Ver `COAST_STEPS`.
+   */
+  private coast: { steps: number; velocity: Map<number, Vec2> } | null = null;
+  /** Dónde estaba cada cosa al empezar a seguir de largo. */
+  private coastFrom = new Map<number, Vec2>();
+  /** Lo que se dibujó de más al seguir de largo, que se va corrigiendo (ver `CORRECT_STEPS`). */
+  private correction: { left: number; total: number; offsets: Map<number, Vec2> } | null = null;
   private summary = new NetSummary();
   /** El último toque cuya confirmación ya se midió. */
   private ackMeasured = 0;
@@ -442,6 +465,8 @@ export class NetMatch implements MatchView {
       this.hold();
       return events;
     }
+    const coasted = this.coast;
+    this.coast = null;
     // Atrasado: se muestran dos pasos en este cuadro, un poco más rápido, hasta alcanzar.
     if (this.buffer.length > this.target + CATCH_UP_SLACK) {
       this.consume(events);
@@ -456,6 +481,8 @@ export class NetMatch implements MatchView {
       this.driftSteps = 0;
     }
     this.rememberPositions();
+    if (coasted) this.startCorrection(coasted);
+    else if (this.correction && --this.correction.left <= 0) this.correction = null;
     this.consume(events);
     this.calmLow = Math.min(this.calmLow, this.buffer.length);
     this.sinceShrink++;
@@ -552,12 +579,45 @@ export class NetMatch implements MatchView {
         z: from.z + (this.predicted.z - from.z) * alpha,
       };
     }
+    if (this.stage.kind !== 'playing') return current;
+    const coast = this.coast;
+    if (coast) {
+      // Sin estado nuevo: sigue de largo en la dirección que llevaba (ver `COAST_STEPS`).
+      const velocity = coast.velocity.get(id);
+      if (!velocity) return current;
+      const t = Math.min(coast.steps - 1 + alpha, COAST_STEPS);
+      return { x: current.x + velocity.x * t, z: current.z + velocity.z * t };
+    }
     const before = this.previous.get(id);
-    if (!before || this.stage.kind !== 'playing') return current;
-    return {
-      x: before.x + (current.x - before.x) * alpha,
-      z: before.z + (current.z - before.z) * alpha,
-    };
+    if (!before) return current;
+    const x = before.x + (current.x - before.x) * alpha;
+    const z = before.z + (current.z - before.z) * alpha;
+    const offset = this.correction?.offsets.get(id);
+    if (!offset || !this.correction) return { x, z };
+    // Lo dibujado de más al seguir de largo se absorbe en unos pasos, sin tirón hacia atrás.
+    const keep = Math.max(0, (this.correction.left - alpha) / this.correction.total);
+    return { x: x + offset.x * keep, z: z + offset.z * keep };
+  }
+
+  /**
+   * Al volver los estados tras seguir de largo: cuánto se adelantó (o desvió) lo dibujado
+   * respecto de donde parte este paso, para corregirlo de a poco en vez de saltar.
+   */
+  private startCorrection(coasted: { steps: number; velocity: Map<number, Vec2> }): void {
+    const t = Math.min(coasted.steps, COAST_STEPS);
+    const offsets = new Map<number, Vec2>();
+    for (const [id, velocity] of coasted.velocity) {
+      const from = this.coastFrom.get(id);
+      const start = this.previous.get(id);
+      if (!from || !start) continue;
+      const offset = {
+        x: from.x + velocity.x * t - start.x,
+        z: from.z + velocity.z * t - start.z,
+      };
+      if (Math.hypot(offset.x, offset.z) <= SNAP_DISTANCE) offsets.set(id, offset);
+    }
+    const total = Math.max(CORRECT_STEPS, 2 * t);
+    this.correction = offsets.size > 0 ? { left: total, total, offsets } : null;
   }
 
   /** Tu mago como se ve en este celular: con el tejido que acabas de tocar, sin esperar. */
@@ -852,6 +912,8 @@ export class NetMatch implements MatchView {
     this.buffer.length = 0;
     this.primed = false;
     this.previous.clear();
+    this.coast = null;
+    this.correction = null;
     this.sent.length = 0;
     this.pendingLock = null;
     this.resuming = true;
@@ -897,6 +959,8 @@ export class NetMatch implements MatchView {
         this.buffer.length = 0;
         this.primed = false;
         this.previous.clear();
+        this.coast = null;
+        this.correction = null;
         this.rematchAsked = false;
         this.recorder.reset();
         this.summary = new NetSummary();
@@ -1036,7 +1100,43 @@ export class NetMatch implements MatchView {
    * saltaban hacia atrás y adelante: caminaban "de a jalones".
    */
   private hold(): void {
+    if (this.netStage.kind === 'playing' && this.state.wizards.length > 0) {
+      if (!this.coast) this.coast = { steps: 0, velocity: this.velocities() };
+      this.coast.steps++;
+    } else {
+      this.coast = null;
+    }
+    this.correction = null;
     this.rememberPositions();
+    if (this.coast?.steps === 1) this.coastFrom = new Map(this.previous);
+  }
+
+  /** Hacia dónde iba cada cosa en el último paso mostrado (metros por paso). */
+  private velocities(): Map<number, Vec2> {
+    const velocity = new Map<number, Vec2>();
+    const add = (id: number, pos: Vec2): void => {
+      const before = this.previous.get(id);
+      if (!before) return;
+      const step = { x: pos.x - before.x, z: pos.z - before.z };
+      const length = Math.hypot(step.x, step.z);
+      if (length > 0 && length <= COAST_MAX_STEP) velocity.set(id, step);
+    };
+    for (const wizard of this.state.wizards) {
+      // Tu mago va predicho; quien está fuera de combate no camina.
+      if (wizard.id !== this.playerId && wizard.hp > 0) add(wizard.id, wizard.pos);
+    }
+    for (const beast of this.state.beasts) add(beast.id, beast.pos);
+    for (const spell of this.state.spells) {
+      if (
+        spell.kind === 'projectile' ||
+        spell.kind === 'summon' ||
+        spell.kind === 'sweeper' ||
+        spell.kind === 'guidedBolt'
+      ) {
+        add(spell.id, spell.pos);
+      }
+    }
+    return velocity;
   }
 
   private rememberPositions(): void {

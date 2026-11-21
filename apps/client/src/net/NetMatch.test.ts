@@ -190,28 +190,56 @@ describe('duelo en red: el celular', () => {
     expect(net.state.tick).toBe(3);
   });
 
-  it('si el colchón se vacía, los rivales se quedan quietos (no vuelven a recorrer el último paso)', () => {
+  it('si el colchón se vacía, los rivales siguen de largo y no vuelven a recorrer el último paso', () => {
     const { net, socket } = joined();
-    const moved = (tick: number, x: number): StateFrame => {
-      const frame = stateMessage(tick);
-      const rival = frame.state.wizards.find((w) => w.id === 1);
-      if (rival) rival.pos = { x, z: 0 };
-      return frame;
+    socket.receive(movedRival(1, 0));
+    socket.receive(movedRival(2, 0.2));
+    net.step();
+    net.step();
+    expect(rivalPos(net).x).toBe(0.2);
+    // Mitad del paso: va entre 0 y 0,2, como debe.
+    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.1);
+    net.step(); // vacío: sigue en la dirección que llevaba, sin volver atrás
+    expect(net.interpolated(1, rivalPos(net), 0).x).toBeCloseTo(0.2);
+    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.3);
+    net.step();
+    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.5);
+    // Más allá de 6 pasos (200 ms) ya no inventa: se queda donde llegó.
+    for (let i = 0; i < 10; i++) net.step();
+    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.2 + 6 * 0.2);
+  });
+
+  it('al volver los estados tras seguir de largo, se corrige sin saltos ni pasos atrás', () => {
+    const { net, socket } = joined();
+    socket.receive(movedRival(1, 0));
+    socket.receive(movedRival(2, 0.2));
+    net.step();
+    net.step();
+    net.step(); // vacío: sigue de largo
+    net.step();
+    net.step();
+    const drawn = net.interpolated(1, rivalPos(net), 1).x;
+    // Vuelven los estados, uno por paso, con el rival a la misma velocidad.
+    let tick = 2;
+    const arrive = (): void => {
+      tick++;
+      socket.receive(movedRival(tick, tick * 0.2 - 0.2));
     };
-    socket.receive(moved(1, 0));
-    socket.receive(moved(2, 1));
-    net.step();
-    net.step();
-    const rival = (): { x: number; z: number } =>
-      net.state.wizards.find((w) => w.id === 1)?.pos ?? { x: 0, z: 0 };
-    expect(rival().x).toBe(1);
-    // Mitad del paso: va entre 0 y 1, como debe.
-    expect(net.interpolated(1, rival(), 0.5).x).toBeCloseTo(0.5);
-    net.step(); // vacío: se espera
-    expect(net.interpolated(1, rival(), 0).x).toBe(1);
-    expect(net.interpolated(1, rival(), 0.5).x).toBe(1);
-    net.step(); // sigue esperando a juntar
-    expect(net.interpolated(1, rival(), 0.5).x).toBe(1);
+    for (let i = 0; i < 3; i++) arrive();
+    let last = drawn;
+    for (let i = 0; i < 20; i++) {
+      arrive();
+      net.step();
+      for (const alpha of [0, 0.5, 1]) {
+        const x = net.interpolated(1, rivalPos(net), alpha).x;
+        // Ni salto (más de un paso de golpe) ni marcha atrás.
+        expect(x).toBeGreaterThanOrEqual(last - 1e-9);
+        expect(x - last).toBeLessThan(0.25);
+        last = x;
+      }
+    }
+    // Terminada la corrección, va donde dice la Sala.
+    expect(net.interpolated(1, rivalPos(net), 1).x).toBeCloseTo(rivalPos(net).x);
   });
 
   it('tras un tirón, el colchón vuelve a achicarse a los 3 s si sobra', () => {
@@ -492,3 +520,14 @@ describe('duelo en red: el celular', () => {
     expect(JSON.parse(socket.sent.at(-1) ?? '{}')).toMatchObject({ type: 'settings' });
   });
 });
+
+function movedRival(tick: number, x: number): StateFrame {
+  const frame = stateMessage(tick);
+  const rival = frame.state.wizards.find((w) => w.id === 1);
+  if (rival) rival.pos = { x, z: 0 };
+  return frame;
+}
+
+function rivalPos(net: NetMatch): { x: number; z: number } {
+  return net.state.wizards.find((w) => w.id === 1)?.pos ?? { x: 0, z: 0 };
+}
