@@ -49,6 +49,8 @@ export class BeastView {
   private readonly farSkin: THREE.Mesh | null;
   private readonly nearSkin: THREE.Mesh[] = [];
   private far = false;
+  /** El anillo del suelo (se esconde de lejos). */
+  private ring: THREE.Mesh | null = null;
 
   constructor(
     readonly element: ElementId,
@@ -71,6 +73,7 @@ export class BeastView {
         if (role.body) body = object as THREE.Group;
         if (role.shards) shards = object as THREE.Group;
         if (role.far) farSkin = object as THREE.Mesh;
+        if (role.ring) this.ring = object as THREE.Mesh;
         if (role.leg) this.legs.push(object as THREE.Mesh);
         if (role.wing) this.wings.push(object as THREE.Mesh);
         if (role.near) this.nearSkin.push(object as THREE.Mesh);
@@ -235,6 +238,7 @@ export class BeastView {
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.03;
     this.group.add(ring);
+    this.ring = ring;
     this.keepAsTemplate(key);
   }
 
@@ -246,6 +250,7 @@ export class BeastView {
     mark(this.body, 'body');
     mark(this.shards, 'shards');
     if (this.farSkin) mark(this.farSkin, 'far');
+    if (this.ring) mark(this.ring, 'ring');
     for (const leg of this.legs) mark(leg, 'leg');
     for (const wing of this.wings) mark(wing, 'wing');
     for (const mesh of this.nearSkin) mark(mesh, 'near');
@@ -274,6 +279,8 @@ export class BeastView {
         this.far = far;
         this.farSkin.visible = far;
         for (const mesh of this.nearSkin) mesh.visible = !far;
+        // De lejos, entre la niebla, el anillo del suelo no se ve: una llamada de dibujo menos.
+        if (this.ring) this.ring.visible = !far;
       }
     }
     const speed = deltaSeconds > 0 ? Math.hypot(x - this.lastX, z - this.lastZ) / deltaSeconds : 0;
@@ -429,6 +436,7 @@ interface BeastRole {
   body?: boolean;
   shards?: boolean;
   far?: boolean;
+  ring?: boolean;
   leg?: boolean;
   wing?: boolean;
   near?: boolean;
