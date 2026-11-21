@@ -29,7 +29,10 @@ export function addRimLight(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         float rimFacing = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
-        totalEmissiveRadiance += rimColor * pow(1.0 - rimFacing, 3.0) * rimStrength;`,
+        #ifndef RIM_WEIGHT
+        #define RIM_WEIGHT 1.0
+        #endif
+        totalEmissiveRadiance += rimColor * pow(1.0 - rimFacing, 3.0) * rimStrength * RIM_WEIGHT;`,
       );
   };
   // Todos los magos comparten el mismo programa: solo cambian los valores.
@@ -67,4 +70,27 @@ export function addCapeWave(
       );
   };
   material.customProgramCacheKey = () => 'wizard-rim-cape';
+}
+
+/**
+ * El material de las piezas juntas (ver `ModelKit.surface`): lee de cada vértice la aspereza,
+ * el brillo metálico y cuánto contorno lleva, en vez de un valor para toda la malla.
+ */
+export function addSurfaceShading(material: THREE.MeshStandardMaterial): void {
+  const previous = material.onBeforeCompile;
+  material.defines = { ...material.defines, RIM_WEIGHT: 'vSurface.z' };
+  material.onBeforeCompile = (shader, renderer) => {
+    previous.call(material, shader, renderer);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute vec3 surface;\nvarying vec3 vSurface;',
+      )
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSurface = surface;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSurface;')
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vSurface.x;')
+      .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vSurface.y;');
+  };
+  material.customProgramCacheKey = () => 'wizard-rim-surface';
 }

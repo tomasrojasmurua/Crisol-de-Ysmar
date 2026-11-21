@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { buildArms, mergeStaff } from './arms';
 import { buildFace } from './faces';
 import { buildFocus } from './foci';
 import { buildHeadwear } from './headwear';
@@ -34,5 +35,7 @@ export function buildWizardModel(kit: ModelKit, pieces: ModelPieces): WizardMode
   const headTop = buildHeadwear(kit, pieces.headwear, face, pieces.face);
   buildMask(kit, pieces.mask, face, deepHood);
   buildFocus(kit, pieces.focus);
+  buildArms(kit, pieces.focus);
+  mergeStaff(kit);
   return { robe, headTop: Math.min(headTop, 2.3), mouthY: face.mouthY };
 }
