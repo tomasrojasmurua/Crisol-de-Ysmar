@@ -136,6 +136,20 @@ export function trailAtlas(): THREE.Texture {
   return load(trailsUrl, THREE.NoColorSpace);
 }
 
+/**
+ * La fila de estela de un elemento como textura propia que se repite a lo largo, para que
+ * corra sobre una superficie (el agua de la ola). Es otra vista del atlas de estelas: la
+ * tarjeta gráfica la guarda aparte porque se repite distinto, pero mide lo mismo (640 kB).
+ */
+export function flowTexture(element: ElementId): THREE.Texture {
+  const row = TRAIL_ORDER.indexOf(element);
+  const texture = textureView(trailAtlas());
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.repeat.set(1, 1 / TRAIL_ORDER.length);
+  texture.offset.set(0, 1 - (row + 1) / TRAIL_ORDER.length);
+  return texture;
+}
+
 /** Una forma del atlas de chispas, como textura suelta para un sprite (destellos, orbes). */
 export function shapeTexture(shape: ParticleShape): THREE.Texture {
   const texture = textureView(particleAtlas());

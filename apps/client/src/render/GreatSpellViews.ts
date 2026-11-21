@@ -15,7 +15,7 @@ import { createGlowTexture } from './arena/textures';
 import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
-import { type GreatArt, greatTexture } from './vfxTextures';
+import { flowTexture, type GreatArt, greatTexture } from './vfxTextures';
 
 const FIRE = elementColor('brasa');
 const STORM = elementColor('tormenta');
@@ -337,12 +337,16 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
     group.add(veil);
   } else {
     // Una ola ancha, curvada hacia adelante.
+    const flow = flowTexture('marea');
+    group.userData.flow = flow;
     const wave = new THREE.Mesh(
       new THREE.CylinderGeometry(1.2, 1.2, sweeper.halfWidth * 2, 16, 1, true, 0, Math.PI),
       new THREE.MeshStandardMaterial({
         color: '#1f5f8a',
         emissive: WATER,
-        emissiveIntensity: 0.25,
+        // Corrientes de agua que suben por la curva de la ola (la estela de marea).
+        emissiveMap: flow,
+        emissiveIntensity: 1.1,
         transparent: true,
         opacity: 0.4,
         depthWrite: false,
@@ -354,14 +358,6 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
     wave.rotation.z = Math.PI / 2;
     wave.position.y = 0.2;
     group.add(wave);
-    // La cresta pintada a lo ancho del frente: solo se ve, no cambia el largo de la ola.
-    const crests = Math.max(1, Math.round((sweeper.halfWidth * 2) / 2.4));
-    for (let i = 0; i < crests; i++) {
-      const crest = artSprite('ola', glow(WATER, 1.4), 3, [0.5, 0.05]);
-      crest.position.set(((i + 0.5) / crests - 0.5) * sweeper.halfWidth * 2, 0, 0.6);
-      crest.userData.sway = 3;
-      group.add(crest);
-    }
   }
   group.rotation.y = Math.atan2(sweeper.velocity.x, sweeper.velocity.z);
   return group;
@@ -498,21 +494,25 @@ export function updateSweeper(
       });
     }
   } else {
-    // Espuma a lo largo de la cresta.
+    // El agua corre por la curva de la ola.
+    const flow = view.userData.flow as THREE.Texture | undefined;
+    if (flow) flow.offset.x -= delta * 1.4;
+    // Espuma y salpicaduras que saltan de la cresta hacia adelante.
     const dir = { x: Math.sin(view.rotation.y), z: Math.cos(view.rotation.y) };
     for (let i = 0; i < 3; i++) {
       const t = (Math.random() * 2 - 1) * sweeper.halfWidth;
       particles.emit({
-        x: pos.x - dir.z * t,
-        y: 1.2 + Math.random() * 0.4,
-        z: pos.z + dir.x * t,
-        vx: dir.x * 3,
-        vy: 1,
-        vz: dir.z * 3,
+        x: pos.x - dir.z * t + dir.x * 0.6,
+        y: 1.2 + Math.random() * 0.5,
+        z: pos.z + dir.x * t + dir.z * 0.6,
+        vx: dir.x * (3 + Math.random() * 2),
+        vy: 1.5 + Math.random() * 2,
+        vz: dir.z * (3 + Math.random() * 2),
         color: glow(i === 0 ? ICE : WATER, 1.5),
-        life: 0.4,
-        size: 0.4,
-        gravity: -6,
+        life: 0.5,
+        size: i === 0 ? 0.6 : 0.4,
+        gravity: -9,
+        shape: i === 0 ? 'splash' : 'drop',
       });
     }
   }
