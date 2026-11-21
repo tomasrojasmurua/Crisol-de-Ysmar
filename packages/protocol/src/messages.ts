@@ -2,7 +2,7 @@ import type { ElementId, Highlight, Intent, MatchState, WizardMatchStats } from 
 import type { RoomSettings } from './settings';
 
 /** Se sube cuando cambia el formato de los mensajes; cliente y Sala deben coincidir. */
-export const PROTOCOL_VERSION = 23;
+export const PROTOCOL_VERSION = 24;
 
 /** Cómo se ve un hechicero: los ids de sus piezas del Vestidor. Solo cosmético. */
 export interface PlayerLook {
@@ -79,6 +79,8 @@ export type ClientMessage =
       readonly token?: string;
       /** Entra por Partida rápida: una sala vacía queda pública, con ajustes fijos. */
       readonly quick?: boolean;
+      /** El celular sabe abrir el canal que no espera (WebRTC): la Sala se lo ofrece si puede. */
+      readonly fast?: boolean;
     }
   /** Quien manda en la sala cambia los ajustes (modo, tiempo, rondas…) antes de empezar. */
   | { readonly type: 'settings'; readonly settings: RoomSettings }
@@ -89,7 +91,17 @@ export type ClientMessage =
   | { readonly type: 'rematch' }
   /** Saliste de la app (o volviste): mientras no miras, la IA juega por ti y no te llega estado. */
   | { readonly type: 'away'; readonly away: boolean }
-  | { readonly type: 'ping'; readonly sentAt: number };
+  | { readonly type: 'ping'; readonly sentAt: number }
+  /** La respuesta del celular para abrir el canal que no espera (ver `datagramCodec.ts`). */
+  | { readonly type: 'rtcAnswer'; readonly sdp: string }
+  /**
+   * Por el canal que no espera: los últimos toques sin confirmar, todos juntos. Si un paquete se
+   * pierde, sus toques llegan con el siguiente; la Sala ignora los que ya jugó.
+   */
+  | {
+      readonly type: 'intentsBatch';
+      readonly batches: readonly { readonly seq: number; readonly intents: readonly Intent[] }[];
+    };
 
 /** De la Sala al celular. */
 export type ServerMessage =
@@ -128,7 +140,9 @@ export type ServerMessage =
       readonly resume?: boolean;
     }
   | { readonly type: 'pong'; readonly sentAt: number }
-  | { readonly type: 'error'; readonly reason: string };
+  | { readonly type: 'error'; readonly reason: string }
+  /** La Sala ofrece el canal que no espera (WebRTC): el celular contesta con `rtcAnswer`. */
+  | { readonly type: 'rtcOffer'; readonly sdp: string };
 
 /**
  * Un paso de la simulación, visto por un jugador. Viaja en binario y solo con lo que cambió
@@ -154,6 +168,14 @@ export interface StateFrame {
    * dónde están ni qué tejen: llegan quietos donde los viste por última vez y no se dibujan.
    */
   readonly hidden: readonly number[];
+}
+
+/**
+ * Qué cuadro es (ronda y paso), igual en la Sala y en el celular. Con dos canales el mismo cuadro
+ * puede llegar dos veces: con esto se muestra una sola y sus eventos suenan una sola vez.
+ */
+export function frameKey(frame: StateFrame): number {
+  return frame.roundsPlayed * 1_000_000 + frame.state.tick;
 }
 
 /** Códigos de sala cortos y fáciles de dictar: sin 0/O ni 1/I. */

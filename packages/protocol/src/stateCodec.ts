@@ -23,25 +23,27 @@ const T_TRUE = 3;
 const T_INT = 4;
 const T_FLOAT = 5;
 const T_DOUBLE = 6;
-const T_STR_NEW = 7;
-const T_STR_REF = 8;
+export const T_STR_NEW = 7;
+export const T_STR_REF = 8;
 const T_ARRAY = 9;
 const T_OBJECT = 10;
 const T_OBJECT_DIFF = 11;
 const T_ARRAY_DIFF = 12;
 const T_ARRAY_ID_DIFF = 13;
 const T_UNDEFINED = 14;
+/** Texto con su número explícito (canal que no espera, ver `datagramCodec.ts`). */
+export const T_STR_DEF = 15;
 
 const FLOAT_SCALE = 1000;
 /** Más allá de esto, un entero no cabe exacto en un double de JavaScript. */
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 /** Con más textos distintos que esto, la tabla deja de crecer y se mandan enteros. */
-const MAX_STRINGS = 4096;
+export const MAX_STRINGS = 4096;
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json | undefined };
 
 /** Se reusa entre cuadros: la Sala no pide memoria nueva 30 veces por segundo por cada celular. */
-class Writer {
+export class Writer {
   private buffer = new Uint8Array(4096);
   private view = new DataView(this.buffer.buffer);
   length = 0;
@@ -115,7 +117,7 @@ class Writer {
   }
 }
 
-class Reader {
+export class Reader {
   private offset = 0;
   private readonly view: DataView;
   constructor(private readonly data: Uint8Array) {
@@ -157,8 +159,20 @@ class Reader {
   }
 }
 
+/** Cómo se escriben y leen los textos: la tabla de siempre o la del canal que no espera. */
+export interface Strings {
+  write(w: Writer, text: string): void;
+  /** El número del texto, si el otro lado ya lo conoce. */
+  idOf(text: string): number | undefined;
+  mark(): number;
+  rewind(mark: number): void;
+  readNew(r: Reader): string;
+  readDef(r: Reader): string;
+  ref(id: number): string;
+}
+
 /** La tabla de textos de una conexión: los dos lados la arman en el mismo orden. */
-class StringTable {
+class StringTable implements Strings {
   private readonly ids = new Map<string, number>();
   private readonly list: string[] = [];
 
@@ -206,10 +220,14 @@ class StringTable {
     if (text === undefined) throw new Error('Texto desconocido');
     return text;
   }
+
+  readDef(): string {
+    throw new Error('Texto con número en un WebSocket');
+  }
 }
 
 /** UTF-8 a mano: el núcleo y el protocolo no dependen de las APIs del navegador. */
-function utf8Encode(text: string): Uint8Array {
+export function utf8Encode(text: string): Uint8Array {
   const out: number[] = [];
   for (const char of text) {
     const code = char.codePointAt(0) ?? 0;
@@ -229,7 +247,7 @@ function utf8Encode(text: string): Uint8Array {
   return Uint8Array.from(out);
 }
 
-function utf8Decode(bytes: Uint8Array): string {
+export function utf8Decode(bytes: Uint8Array): string {
   let text = '';
   let i = 0;
   while (i < bytes.length) {
@@ -264,7 +282,7 @@ function keyedById(list: readonly unknown[]): boolean {
   return true;
 }
 
-function writeValue(w: Writer, strings: StringTable, value: unknown): void {
+export function writeValue(w: Writer, strings: Strings, value: unknown): void {
   if (value === undefined) {
     w.byte(T_UNDEFINED);
   } else if (value === null) {
@@ -315,7 +333,7 @@ function writeNumber(w: Writer, value: number): void {
  * igual que antes, se borra y queda un "igual". Antes se comparaba cada campo a fondo y después se
  * volvía a recorrer para escribirlo: el mismo árbol se visitaba una vez por cada nivel de hondura.
  */
-function writeDiff(w: Writer, strings: StringTable, prev: unknown, next: unknown): void {
+export function writeDiff(w: Writer, strings: Strings, prev: unknown, next: unknown): void {
   if (prev === next) {
     w.byte(T_SAME);
     return;
@@ -358,7 +376,7 @@ function writeDiff(w: Writer, strings: StringTable, prev: unknown, next: unknown
 /** Listas de entidades: se siguen por id aunque nazcan, mueran o cambien de orden. */
 function writeIdArrayDiff(
   w: Writer,
-  strings: StringTable,
+  strings: Strings,
   prev: readonly unknown[],
   next: readonly unknown[],
 ): void {
@@ -388,7 +406,7 @@ function writeIdArrayDiff(
 
 function writeObjectDiff(
   w: Writer,
-  strings: StringTable,
+  strings: Strings,
   prev: Record<string, Json | undefined>,
   next: Record<string, Json | undefined>,
 ): void {
@@ -438,12 +456,12 @@ function writeObjectDiff(
   if (changed === 0 && removed === 0) rewindToSame(w, strings, mark, stringsMark);
 }
 
-function rewindTo(w: Writer, strings: StringTable, mark: number, stringsMark: number): void {
+function rewindTo(w: Writer, strings: Strings, mark: number, stringsMark: number): void {
   w.length = mark;
   strings.rewind(stringsMark);
 }
 
-function rewindToSame(w: Writer, strings: StringTable, mark: number, stringsMark: number): void {
+function rewindToSame(w: Writer, strings: Strings, mark: number, stringsMark: number): void {
   rewindTo(w, strings, mark, stringsMark);
   w.byte(T_SAME);
 }
@@ -454,7 +472,7 @@ function sameNumber(a: number, b: number): boolean {
   return Math.round(a * FLOAT_SCALE) === Math.round(b * FLOAT_SCALE);
 }
 
-function readValue(r: Reader, strings: StringTable, tag: number = r.byte()): unknown {
+export function readValue(r: Reader, strings: Strings, tag: number = r.byte()): unknown {
   switch (tag) {
     case T_UNDEFINED:
       return undefined;
@@ -474,6 +492,8 @@ function readValue(r: Reader, strings: StringTable, tag: number = r.byte()): unk
       return strings.readNew(r);
     case T_STR_REF:
       return strings.ref(r.uint());
+    case T_STR_DEF:
+      return strings.readDef(r);
     case T_ARRAY: {
       const length = r.uint();
       const list: unknown[] = new Array(length);
@@ -494,14 +514,15 @@ function readValue(r: Reader, strings: StringTable, tag: number = r.byte()): unk
   }
 }
 
-function readString(r: Reader, strings: StringTable, tag: number = r.byte()): string {
+function readString(r: Reader, strings: Strings, tag: number = r.byte()): string {
   if (tag === T_STR_NEW) return strings.readNew(r);
   if (tag === T_STR_REF) return strings.ref(r.uint());
+  if (tag === T_STR_DEF) return strings.readDef(r);
   throw new Error('Se esperaba un texto');
 }
 
 /** Aplica una diferencia sobre `prev` sin modificarlo: lo que no cambió se comparte. */
-function readDiff(r: Reader, strings: StringTable, prev: unknown): unknown {
+export function readDiff(r: Reader, strings: Strings, prev: unknown): unknown {
   const tag = r.byte();
   switch (tag) {
     case T_SAME:

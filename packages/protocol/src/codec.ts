@@ -18,11 +18,20 @@ export function decodeClientMessage(raw: string): ClientMessage | null {
     'begin',
     'settings',
     'ping',
+    'rtcAnswer',
+    'intentsBatch',
   ]);
 }
 
 export function decodeServerMessage(raw: string): ServerMessage | null {
-  return parseWithType<ServerMessage>(raw, ['welcome', 'players', 'start', 'pong', 'error']);
+  return parseWithType<ServerMessage>(raw, [
+    'welcome',
+    'players',
+    'start',
+    'pong',
+    'error',
+    'rtcOffer',
+  ]);
 }
 
 function parseWithType<T extends { type: string }>(

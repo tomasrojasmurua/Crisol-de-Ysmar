@@ -24,6 +24,8 @@ import {
   DEFAULT_ROOM_SETTINGS,
   decodeServerMessage,
   encode,
+  frameKey,
+  type MissedEvents,
   type NetStage,
   type PlayerInfo,
   type PlayerLook,
@@ -37,6 +39,8 @@ import type { MatchOptions, MatchStage } from '../game/LocalMatch';
 import type { MatchSummary, MatchView, RematchStatus } from '../game/MatchView';
 import { type ReplayClip, ReplayRecorder } from '../game/ReplayRecorder';
 import { reportProblem } from '../platform/ErrorReporter';
+import { FastLink, fastLinkSupported } from './FastLink';
+import { framesBetween } from './fillGap';
 import { LagSimulator } from './LagSimulator';
 import { roomSocketUrl, roomsServerName } from './serverUrl';
 
@@ -123,6 +127,15 @@ const RETURN_CHECK_MS = 1500;
 const TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
 /** Si la predicción y el servidor difieren más que esto (un salto, un empujón), no se suaviza. */
 const SNAP_DISTANCE = 3;
+/** Pasos cuyos eventos se recuerdan (unos 15 s) para no repetirlos si llegan por los dos canales. */
+const EVENTS_REMEMBERED = 450;
+/** Como mucho se arman estos estados seguidos que faltan (unos 260 ms); más es un corte. */
+const MAX_FILLED = 8;
+/**
+ * Por el canal que no espera, cada mensaje de toques lleva también los anteriores sin confirmar
+ * (hasta este total): si uno se pierde, el siguiente lo trae.
+ */
+const FAST_INTENT_REPEATS = 3;
 /** Toques guardados a la espera de que el servidor los confirme (unos 4 s). */
 const MAX_PENDING = 120;
 /** Se lee al cargar la página, antes de que el menú limpie la dirección. */
@@ -151,6 +164,10 @@ export class NetSummary {
   /** Silencios de la Sala jugando: veces que pasó más de `HOLE_MS` sin estado, y el más largo. */
   holes = 0;
   longestHole = 0;
+  /** El canal que no espera: cuánto tardó en abrir (ms, -1 si no abrió) y qué estados llegaron por él. */
+  fastOpenMs = -1;
+  fastFrames = 0;
+  socketFrames = 0;
   /**
    * Cada 10 s desde que empezó la partida: el peor ping, cuántas veces se vació el colchón y
    * cuántos silencios hubo. Junto a la de los otros celulares y la de la Sala dice si se
@@ -178,6 +195,14 @@ export class NetSummary {
     else step.holes++;
   }
 
+  /** Por dónde llegaron los estados: el canal que no espera (WebRTC) o el WebSocket. */
+  fastLine(): string {
+    const total = this.fastFrames + this.socketFrames;
+    const share = total > 0 ? Math.round((this.fastFrames / total) * 100) : 0;
+    if (this.fastOpenMs < 0) return `Canal rápido: no abrió · todo por WebSocket`;
+    return `Canal rápido: abrió en ${this.fastOpenMs} ms · ${share}% de los estados por él`;
+  }
+
   lines(buffer: number): string[] {
     if (this.pings.length === 0) return [];
     const ping = percentiles(this.pings);
@@ -188,6 +213,7 @@ export class NetSummary {
       `Colchón final ${buffer} pasos · máx ${this.maxTarget} · vaciado ${this.stalls} veces · cortes ${this.cuts}`,
       `Llega hasta ${this.maxKbps} KB/s · estado más grande ${this.biggest} B`,
       `Silencios de más de ${HOLE_MS} ms: ${this.holes} · el más largo ${Math.round(this.longestHole)} ms`,
+      this.fastLine(),
       `Red cada 10 s (ping máx/vacíos/silencios): ${this.timeline
         .map((step) => `${step.ping}/${step.stalls}/${step.holes}`)
         .join(' ')}`,
@@ -362,6 +388,20 @@ export class NetMatch implements MatchView {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   /** Arma cada estado con lo que cambió; uno nuevo por conexión (el primero llega completo). */
   private decoder = new StateDecoder();
+  /** El canal que no espera (WebRTC) de la conexión actual, si la Sala lo ofreció. */
+  private fast: FastLink | null = null;
+  /**
+   * El último estado jugando que se aceptó (ronda y paso) y por dónde llegó: con dos canales, uno
+   * repetido o más viejo se descarta.
+   */
+  private lastFrameKey = -1;
+  private lastFrameFast = false;
+  /** El último estado jugando que entró al colchón: si falta alguno entre él y el próximo, se arma. */
+  private lastPlaying: StateFrame | null = null;
+  /** Eventos de estados perdidos que llegaron en uno viejo: van con el próximo. */
+  private pendingEvents: GameEvent[] = [];
+  /** Los pasos (`frameKey`) cuyos eventos ya se vieron, por si llegan de nuevo por el otro canal. */
+  private readonly eventsSeen = new Set<number>();
   /** Los últimos segundos recibidos y la mejor jugada, para repetirla al final. */
   private readonly recorder = new ReplayRecorder();
   /** Rivales que la Sala dice que no ves: no se dibujan aunque lleguen en el estado. */
@@ -421,6 +461,7 @@ export class NetMatch implements MatchView {
       if (intents.length > 0) {
         const seq = ++this.seq;
         this.send({ type: 'intents', seq, intents: [...intents] });
+        this.sendFastIntents(seq, intents);
         const move = intents.find((i) => i.kind === 'move');
         this.sent.push({
           seq,
@@ -737,6 +778,7 @@ export class NetMatch implements MatchView {
     if (this.connectTimer) clearTimeout(this.connectTimer);
     if (this.returnCheck) clearTimeout(this.returnCheck);
     if (this.pingTimer) clearInterval(this.pingTimer);
+    this.closeFast();
     this.socket?.close(1000, 'Salió');
     this.socket = null;
   }
@@ -751,6 +793,7 @@ export class NetMatch implements MatchView {
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
     this.decoder = new StateDecoder();
+    this.closeFast();
     if (this.connectTimer) clearTimeout(this.connectTimer);
     this.connectTimer = setTimeout(() => {
       this.connectTimer = null;
@@ -776,6 +819,8 @@ export class NetMatch implements MatchView {
         affinity: this.profile.affinity,
         ...(this.token ? { token: this.token } : {}),
         ...(this.profile.quick ? { quick: true } : {}),
+        // Con la red simulada (?lag=) todo va por el WebSocket, para que la prueba valga.
+        ...(fastLinkSupported() && !this.lag ? { fast: true } : {}),
       });
       if (document.hidden) this.send({ type: 'away', away: true });
       if (!this.pingTimer) this.pingTimer = setInterval(() => this.heartbeat(), PING_EVERY_MS);
@@ -802,6 +847,7 @@ export class NetMatch implements MatchView {
 
   private onClose(socket: WebSocket, code: number): void {
     if (this.closed || socket !== this.socket) return;
+    this.closeFast();
     if (code === 4001) {
       this.listener.problem(this.lastError || 'La sala está llena', true);
       this.close();
@@ -927,6 +973,9 @@ export class NetMatch implements MatchView {
     this.pendingLock = null;
     this.resuming = true;
     this.awaitingFirst = true;
+    this.lastFrameKey = -1;
+    this.lastPlaying = null;
+    this.pendingEvents = [];
   }
 
   private receive(message: ServerMessage): void {
@@ -974,6 +1023,10 @@ export class NetMatch implements MatchView {
         this.recorder.reset();
         this.summary = new NetSummary();
         this.summary.maxTarget = this.target;
+        // El canal suele abrir en la sala de espera: se cuenta en el resumen de la partida.
+        if (this.fast?.open) {
+          this.summary.fastOpenMs = Math.round(this.fast.openedAt - this.fast.startedAt);
+        }
         this.started = true;
         this.netStage = { kind: 'lobby' };
         this.stage = { kind: 'playing' };
@@ -984,6 +1037,13 @@ export class NetMatch implements MatchView {
         };
         this.state = emptyState();
         this.awaitingFirst = true;
+        this.lastFrameKey = -1;
+        this.lastPlaying = null;
+        this.pendingEvents = [];
+        this.eventsSeen.clear();
+        return;
+      case 'rtcOffer':
+        this.openFast(message.sdp);
         return;
       case 'pong':
         this.ping = Math.round(performance.now() - message.sentAt);
@@ -1026,7 +1086,41 @@ export class NetMatch implements MatchView {
       socket.close(4003, 'Estado ilegible');
       return;
     }
+    this.accept(frame, false);
+  }
+
+  /**
+   * Un estado armado, venga por el WebSocket o por el canal que no espera (con los eventos de los
+   * que se perdieron por él). Cada paso se muestra una vez y cada evento suena una vez, aunque
+   * llegue por los dos lados o desordenado.
+   */
+  private accept(frame: StateFrame, fast: boolean, missed: readonly MissedEvents[] = []): void {
     if (!this.started) return;
+    const key = frameKey(frame);
+    const fresh: GameEvent[] = [];
+    for (const group of missed) {
+      if (this.firstSeen(group.key)) fresh.push(...(group.events as GameEvent[]));
+    }
+    if (this.firstSeen(key)) fresh.push(...frame.state.events);
+    if (frame.stage.kind === 'playing') {
+      // Repetido (por el otro canal) o más viejo que el último: no se muestra, pero sus eventos sí.
+      if (key < this.lastFrameKey || (key === this.lastFrameKey && fast !== this.lastFrameFast)) {
+        this.pendingEvents.push(...fresh);
+        return;
+      }
+      this.lastFrameKey = key;
+      this.lastFrameFast = fast;
+    }
+    if (fast) this.summary.fastFrames++;
+    else this.summary.socketFrames++;
+    const events = this.pendingEvents.length > 0 ? [...this.pendingEvents, ...fresh] : fresh;
+    this.pendingEvents = [];
+    if (
+      events.length !== frame.state.events.length ||
+      events.some((e, i) => e !== frame.state.events[i])
+    ) {
+      frame = { ...frame, state: { ...frame.state, events } };
+    }
     this.measureHole(frame);
     // El primer estado de una partida se muestra en el acto: trae los magos que hay que dibujar.
     this.latest = frame;
@@ -1034,11 +1128,75 @@ export class NetMatch implements MatchView {
     if (this.awaitingFirst) {
       this.awaitingFirst = false;
       this.apply(frame);
+      this.lastPlaying = frame.stage.kind === 'playing' ? frame : null;
       if (this.resuming) this.resuming = false;
       else this.listener.start(this);
       return;
     }
+    // Faltan estados entre el anterior y este (se perdieron por el canal que no espera, o la Sala
+    // se atrasó y saltó pasos): se arman los del medio para que el colchón no se vacíe.
+    if (this.lastPlaying) this.buffer.push(...framesBetween(this.lastPlaying, frame, MAX_FILLED));
+    this.lastPlaying = frame.stage.kind === 'playing' ? frame : null;
     this.buffer.push(frame);
+  }
+
+  /** Si los eventos de ese paso (`frameKey`) no se habían visto todavía; desde ahora, sí. */
+  private firstSeen(key: number): boolean {
+    if (this.eventsSeen.has(key)) return false;
+    this.eventsSeen.add(key);
+    // Basta recordar los últimos segundos: los más viejos ya no vuelven.
+    if (this.eventsSeen.size > EVENTS_REMEMBERED) {
+      const oldest = this.eventsSeen.values().next().value;
+      if (oldest !== undefined) this.eventsSeen.delete(oldest);
+    }
+    return true;
+  }
+
+  /** La Sala ofreció el canal que no espera: se contesta y, si abre, los estados llegan por él. */
+  private openFast(offer: string): void {
+    this.closeFast();
+    const socket = this.socket;
+    if (!fastLinkSupported() || this.lag || !socket) return;
+    const link = new FastLink({
+      opened: () => {
+        if (this.fast !== link) return;
+        if (this.summary.fastOpenMs < 0) {
+          this.summary.fastOpenMs = Math.round(link.openedAt - link.startedAt);
+        }
+      },
+      frame: (raw, missed, bytes) => {
+        if (this.fast !== link || socket !== this.socket) return;
+        this.lastHeard = performance.now();
+        this.countBytes(bytes);
+        this.accept(raw as StateFrame, true, missed);
+      },
+    });
+    this.fast = link;
+    link
+      .answer(offer)
+      .then((sdp) => {
+        if (sdp && this.fast === link) this.send({ type: 'rtcAnswer', sdp });
+      })
+      .catch((error: unknown) => {
+        if (this.fast === link) this.closeFast();
+        reportProblem('red', 'Canal rápido no abrió', error instanceof Error ? error.message : '');
+      });
+  }
+
+  /** Los últimos toques sin confirmar, también por el canal que no espera (llegan sin esperas). */
+  private sendFastIntents(seq: number, intents: readonly Intent[]): void {
+    const fast = this.fast;
+    if (!fast?.open) return;
+    const batches = this.sent
+      .slice(-(FAST_INTENT_REPEATS - 1))
+      .map((s) => ({ seq: s.seq, intents: [...s.intents] }));
+    batches.push({ seq, intents: [...intents] });
+    fast.send(encode({ type: 'intentsBatch', batches }));
+  }
+
+  private closeFast(): void {
+    this.fast?.close();
+    this.fast = null;
   }
 
   /** Cuánto pasó desde el estado anterior, si se está jugando (entre rondas llegan de a ratos). */

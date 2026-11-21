@@ -8,6 +8,16 @@ export {
 } from './backup';
 export { decodeClientMessage, decodeServerMessage, encode } from './codec';
 export {
+  DATAGRAM_ACK,
+  DATAGRAM_FRAME,
+  type DatagramFrame,
+  DatagramStateDecoder,
+  DatagramStateEncoder,
+  decodeDatagramAck,
+  encodeDatagramAck,
+  type MissedEvents,
+} from './datagramCodec';
+export {
   describeDevice,
   type ErrorReport,
   parseReports,
@@ -16,6 +26,7 @@ export {
 } from './errorReport';
 export {
   type ClientMessage,
+  frameKey,
   isValidRoomCode,
   type NetStage,
   type PlayerInfo,

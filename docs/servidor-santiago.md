@@ -38,6 +38,7 @@ máquina se actualice.
    gcloud services enable compute.googleapis.com
    gcloud compute addresses create crisol-sala --region=southamerica-west1
    gcloud compute firewall-rules create crisol-web --allow=tcp:80,tcp:443 --target-tags=crisol-sala || true
+   gcloud compute firewall-rules create crisol-rtc --allow=udp:40000-40199 --target-tags=crisol-sala || true
    gcloud compute instances create crisol-sala \
      --zone=southamerica-west1-b --machine-type=e2-micro \
      --image-family=debian-12 --image-project=debian-cloud \
@@ -52,6 +53,18 @@ máquina se actualice.
 
 Costo aproximado: unos US$12 al mes (máquina e2-micro, disco e IP fija); el tráfico de una prueba
 con 6 amigos son centavos.
+
+## El canal que no espera (UDP)
+
+Además del WebSocket, la Sala abre con cada celular un canal WebRTC por UDP para los estados
+(`apps/server/node/rtc.ts`, ver "Canal que no espera" en [arquitectura.md](arquitectura.md)). Usa
+los puertos UDP 40000 a 40199, que deben estar abiertos en el firewall de Google Cloud (la regla
+`crisol-rtc` de arriba; en una máquina creada antes, pegar solo esa línea en Cloud Shell). Sin esa
+regla el juego anda igual, todo por WebSocket, y el resumen de red dice "Canal rápido: no abrió".
+
+- `SALA_RTC=0` lo apaga; `SALA_RTC_PUERTOS=40000-40199` cambia los puertos.
+- La IP pública se pide a los metadatos de Google Cloud; `SALA_IP` la fija a mano.
+- Solo para pruebas: `SALA_RTC_PERDIDA=0.15` pierde a propósito un 15% de los estados por el canal.
 
 ## Si algo falla
 
