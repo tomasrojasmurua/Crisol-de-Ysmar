@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import {
   ATLAS_COLUMNS,
   ATLAS_ROWS,
-  createParticleAtlas,
   ORIENTED_SHAPES,
   PARTICLE_SHAPES,
   type ParticleShape,
+  particleAtlas,
 } from './particleAtlas';
 
 export type { ParticleShape } from './particleAtlas';
@@ -28,6 +28,7 @@ export interface ParticleSpec {
 }
 
 const SMOKE = PARTICLE_SHAPES.smoke;
+const SHADOW = PARTICLE_SHAPES.shadow;
 
 /**
  * Cuánto más grande se dibuja cada forma: una raya o una hoja llena menos su casilla que un
@@ -36,12 +37,18 @@ const SMOKE = PARTICLE_SHAPES.smoke;
 const SHAPE_SCALE: Readonly<Record<number, number>> = {
   [PARTICLE_SHAPES.dot]: 1,
   [PARTICLE_SHAPES.spark]: 2.2,
-  [PARTICLE_SHAPES.ember]: 1.7,
-  [PARTICLE_SHAPES.smoke]: 1.6,
-  [PARTICLE_SHAPES.leaf]: 1.6,
-  [PARTICLE_SHAPES.drop]: 1.7,
-  [PARTICLE_SHAPES.star]: 2,
-  [PARTICLE_SHAPES.shard]: 1.7,
+  [PARTICLE_SHAPES.ember]: 1.6,
+  [PARTICLE_SHAPES.smoke]: 1.5,
+  [PARTICLE_SHAPES.leaf]: 1.4,
+  [PARTICLE_SHAPES.drop]: 1.6,
+  [PARTICLE_SHAPES.star]: 1.8,
+  [PARTICLE_SHAPES.shard]: 1.5,
+  [PARTICLE_SHAPES.bolt]: 2,
+  [PARTICLE_SHAPES.splash]: 1.8,
+  [PARTICLE_SHAPES.orb]: 1.4,
+  [PARTICLE_SHAPES.thorns]: 1.7,
+  [PARTICLE_SHAPES.shadow]: 1.7,
+  [PARTICLE_SHAPES.slash]: 1.8,
 };
 
 /**
@@ -97,7 +104,7 @@ const FRAGMENT = /* glsl */ `
     vec2 local = vec2(p.x * vTurn.x + p.y * vTurn.y, -p.x * vTurn.y + p.y * vTurn.x) + 0.5;
     if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) discard;
     vec2 uv = (vCell + vec2(local.x, 1.0 - local.y)) / vec2(${ATLAS_COLUMNS}.0, ${ATLAS_ROWS}.0);
-    float mask = texture2D(uAtlas, uv).a;
+    float mask = texture2D(uAtlas, uv).r;
     gl_FragColor = vec4(vColor * mask, mask * vAlpha);
   }
 `;
@@ -156,7 +163,7 @@ export class Particles {
     this.material = new THREE.ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      uniforms: { uScale: { value: 400 }, uAtlas: { value: createParticleAtlas() } },
+      uniforms: { uScale: { value: 400 }, uAtlas: { value: particleAtlas() } },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -246,7 +253,8 @@ export class Particles {
       }
       this.alphas[i] = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
       // El humo se abre al apagarse; lo demás se achica.
-      const grow = this.shapes[i] === SMOKE ? 1 + t * 1.2 : 1 - t * 0.5;
+      const shape = this.shapes[i];
+      const grow = shape === SMOKE || shape === SHADOW ? 1 + t * 1.2 : 1 - t * 0.5;
       this.sizes[i] = (this.baseSizes[i] ?? 0) * grow;
       const spin = this.spins[i] ?? 0;
       if (spin !== 0) this.angles[i] = (this.angles[i] ?? 0) + spin * deltaSeconds;

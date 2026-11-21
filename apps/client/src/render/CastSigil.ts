@@ -1,17 +1,23 @@
 import { SPELL_FAMILIES, type SpellFamily } from '@crisol/content';
 import { type ElementId, spellOf, type Vec2 } from '@crisol/core';
 import * as THREE from 'three';
+import { shared } from './dispose';
 import { elementColor, glow } from './palette';
+import { sealTexture } from './vfxTextures';
 
 /** Cuánto tarda en apagarse la silueta después de que el hechizo sale. */
 const FADE_SECONDS = 0.5;
 const PEAK_OPACITY = 0.85;
+/** El sello del elemento bajo los pies: ancho en metros y vueltas por segundo. */
+const SEAL_SIZE = 3.2;
+const SEAL_SPIN = 0.35;
 
 /**
  * La silueta de la familia del hechizo que se está lanzando, dibujada en el suelo bajo el mago
  * con el color de su primer elemento: cuña (ataque), anillos (zona), flechas (movimiento),
  * pentágono (invocación) o columna (aura). Se ve desde que empieza a canalizar y se apaga
  * medio segundo después de que sale, así hasta los hechizos rápidos se alcanzan a leer.
+ * Debajo gira el sello del primer elemento, que se enciende a medida que se teje.
  */
 export class CastSigil {
   readonly group = new THREE.Group();
@@ -26,6 +32,16 @@ export class CastSigil {
   private readonly shapes: Record<SpellFamily, THREE.Object3D>;
   private family: SpellFamily | null = null;
   private fade = 0;
+  private readonly sealMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  private readonly seal = new THREE.Mesh(SEAL_GEOMETRY, this.sealMaterial);
+  /** Una textura por elemento, pedida la primera vez que se teje con él. */
+  private readonly seals = new Map<ElementId, THREE.Texture>();
+  private sealElement: ElementId | null = null;
 
   constructor() {
     this.shapes = {
@@ -39,6 +55,9 @@ export class CastSigil {
       shape.visible = false;
       this.group.add(shape);
     }
+    this.seal.visible = false;
+    this.seal.renderOrder = -1;
+    this.group.add(this.seal);
     this.group.position.y = 0.06;
   }
 
@@ -61,11 +80,16 @@ export class CastSigil {
       this.material.color.copy(glow(elementColor(first), 2));
       if (aim.x !== 0 || aim.z !== 0) this.group.rotation.y = Math.atan2(aim.x, aim.z);
       this.material.opacity = PEAK_OPACITY * (0.45 + 0.55 * Math.min(1, progress * 1.5));
+      this.showSeal(first);
+      this.sealMaterial.opacity = 0.25 + 0.6 * Math.min(1, progress * 1.3);
     } else if (this.family) {
       this.fade = Math.max(0, this.fade - deltaSeconds / FADE_SECONDS);
       this.material.opacity = PEAK_OPACITY * this.fade;
+      this.sealMaterial.opacity = 0.85 * this.fade;
       if (this.fade <= 0) this.show(null);
     }
+    // El sello gira despacio y no sigue la puntería.
+    this.seal.rotation.y = timeSeconds * SEAL_SPIN * Math.PI * 2 - this.group.rotation.y;
     if (this.family === 'zone' || this.family === 'summon') {
       this.shapes[this.family].rotation.z = timeSeconds * 0.8;
     }
@@ -78,6 +102,21 @@ export class CastSigil {
     if (this.family) this.shapes[this.family].visible = false;
     this.family = family;
     if (family) this.shapes[family].visible = true;
+    else this.seal.visible = false;
+  }
+
+  private showSeal(element: ElementId): void {
+    this.seal.visible = true;
+    if (element === this.sealElement) return;
+    this.sealElement = element;
+    let texture = this.seals.get(element);
+    if (!texture) {
+      texture = sealTexture(element);
+      this.seals.set(element, texture);
+    }
+    this.sealMaterial.map = texture;
+    this.sealMaterial.color.copy(glow(elementColor(element), 1.5));
+    this.sealMaterial.needsUpdate = true;
   }
 }
 
@@ -160,6 +199,8 @@ function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   return merged;
 }
+
+const SEAL_GEOMETRY = shared(new THREE.PlaneGeometry(SEAL_SIZE, SEAL_SIZE).rotateX(-Math.PI / 2));
 
 const GEOMETRIES = {
   attack: attackGeometry(),

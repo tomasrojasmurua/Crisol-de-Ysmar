@@ -53,6 +53,7 @@ import { createSummon, updateSummon } from './SummonViews';
 import { createAura, createBubble, updateAura, updateBubble } from './SupportViews';
 import { TeamRings } from './TeamRings';
 import { Trails } from './Trails';
+import { shapeTexture } from './vfxTextures';
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
@@ -93,6 +94,8 @@ export class SpellViews {
   private readonly coreGeometry = shared(new THREE.IcosahedronGeometry(1, 2));
   private readonly sparkGeometry = shared(new THREE.SphereGeometry(0.08, 8, 6));
   private readonly glowTexture = shared(createGlowTexture());
+  /** El centro de los proyectiles: un remolino de energía que gira. */
+  private readonly orbTexture = shared(shapeTexture('orb'));
   private readonly decoys = new Map<number, WizardView>();
   private readonly trails: Trails;
   private readonly teamRings: TeamRings;
@@ -242,10 +245,10 @@ export class SpellViews {
       core.scale.setScalar(size * 0.8);
       group.add(core);
     } else {
-      // Un centro casi blanco que se funde con su color: la magia brilla, no es una bola sólida.
+      // Un remolino casi blanco que se funde con su color: la magia brilla, no es una bola.
       const core = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: this.glowTexture,
+          map: this.orbTexture,
           color: glow(color.clone().lerp(WHITE, 0.55), 2.6),
           blending: THREE.AdditiveBlending,
           depthWrite: false,
@@ -476,6 +479,7 @@ export class SpellViews {
         const beat =
           1 + 0.12 * Math.sin(timeSeconds * 31 + spell.id) + 0.06 * Math.sin(timeSeconds * 53);
         child.scale.setScalar(spell.radius * 2.6 * beat);
+        ((child as THREE.Sprite).material as THREE.SpriteMaterial).rotation = timeSeconds * 7;
         return;
       }
       const phase = child.userData.phase as number | undefined;

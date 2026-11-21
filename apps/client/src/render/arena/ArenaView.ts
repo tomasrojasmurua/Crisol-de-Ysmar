@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
 import { Ambience } from './Ambience';
+import { createGroundDecals } from './groundDecals';
 import { matte } from './matte';
 import {
   createFloorTexture,
@@ -123,6 +124,7 @@ export class ArenaView {
     this.layout.clear();
     if (paths) this.layout.add(createPaths(arenaRadius, this.groundTexture));
     this.layout.add(
+      createGroundDecals(arenaRadius),
       createLowWall(arenaRadius),
       createPillars(arenaRadius),
       createDistantRuins(arenaRadius),
