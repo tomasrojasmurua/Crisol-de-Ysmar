@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
+import { flowTexture } from './vfxTextures';
 
 const FIRE = elementColor('brasa');
 const STORM = elementColor('tormenta');
@@ -88,6 +89,13 @@ export function createField(field: Field): THREE.Object3D {
         new THREE.MeshBasicMaterial({ color: glow(FIRE, 2.4) }),
       );
       crater.position.y = r * 1.45;
+      // Vetas de lava que corren por las laderas: el trazo del fuego sobre el cono.
+      const lava = flowTexture('brasa');
+      lava.repeat.x = 3;
+      const material = cone.material as THREE.MeshStandardMaterial;
+      material.emissiveMap = lava;
+      material.emissiveIntensity = 1.2;
+      group.userData.lava = lava;
       group.add(cone, crater);
       group.userData.grows = cone;
       return group;
@@ -102,8 +110,14 @@ export function createField(field: Field): THREE.Object3D {
         new THREE.IcosahedronGeometry(r * 1.6, 1),
         additive(glow(FIRE, 1.4), 0.25),
       );
+      // El fuego corre por la cáscara del sol mientras gira.
+      const flare = flowTexture('brasa');
+      flare.repeat.x = 2;
+      (shell.material as THREE.MeshBasicMaterial).map = flare;
+      (shell.material as THREE.MeshBasicMaterial).opacity = 0.55;
       group.add(core, shell);
       group.userData.shell = shell;
+      group.userData.flare = flare;
       return group;
     }
     case 'iceTrack':
@@ -277,6 +291,24 @@ export function updateField(
           Math.min(1, field.ticksLeft / 10 + 0.2),
       );
       cone.rotation.y = time * 0.1;
+      (view.userData.lava as THREE.Texture).offset.x = -time * 0.3;
+      // Lenguas de fuego y humo que escupe el cráter.
+      if (Math.random() < 0.6) {
+        const angle = Math.random() * Math.PI * 2;
+        particles.emit({
+          x: field.pos.x + Math.cos(angle) * 0.2,
+          y: field.radius * 1.5,
+          z: field.pos.z + Math.sin(angle) * 0.2,
+          vx: Math.cos(angle) * 1.2,
+          vy: 4 + Math.random() * 3,
+          vz: Math.sin(angle) * 1.2,
+          color: glow(FIRE, 2 * strength),
+          life: 0.6,
+          size: 0.6,
+          gravity: -6,
+          shape: Math.random() < 0.7 ? 'ember' : 'smoke',
+        });
+      }
       if (Math.random() < 0.5) {
         particles.emit({
           x: field.pos.x + (Math.random() - 0.5) * 0.4,
@@ -348,7 +380,7 @@ export function updateField(
         });
       }
       return;
-    case 'deluge':
+    case 'deluge': {
       for (let i = 0; i < 4; i++) {
         const p = inside(field, 5);
         particles.emit({
@@ -356,10 +388,24 @@ export function updateField(
           vy: -14,
           color: glow(WATER, 1.1 * strength),
           life: 0.35,
-          size: 0.18,
+          size: 0.3,
+          shape: 'drop',
+        });
+      }
+      // Donde cae, el agua salpica.
+      if (Math.random() < 0.5) {
+        const p = inside(field, 0.1);
+        particles.emit({
+          ...p,
+          vy: 0.6,
+          color: glow(WATER, 1.2 * strength),
+          life: 0.3,
+          size: 0.45,
+          shape: 'splash',
         });
       }
       return;
+    }
     case 'growth':
       if (Math.random() < 0.6) {
         const p = inside(field, 0.1);
@@ -385,6 +431,7 @@ export function updateField(
       shell.rotation.y = time * 1.5;
       view.position.y = 0.9 + Math.sin(time * 3 + field.id) * 0.12;
       shell.scale.setScalar(1 + Math.sin(time * 6) * 0.08);
+      (view.userData.flare as THREE.Texture).offset.x = -time * 0.8;
       return;
     }
     case 'iceTrack': {

@@ -6,6 +6,7 @@ import {
   PARTICLE_SHAPES,
   type ParticleShape,
   particleAtlas,
+  SHAPE_VARIANTS,
 } from './particleAtlas';
 
 export type { ParticleShape } from './particleAtlas';
@@ -27,8 +28,13 @@ export interface ParticleSpec {
   readonly shape?: ParticleShape | undefined;
 }
 
-const SMOKE = PARTICLE_SHAPES.smoke;
-const SHADOW = PARTICLE_SHAPES.shadow;
+/** Las formas que se abren al apagarse, como el humo. */
+const GROWING: ReadonlySet<number> = new Set([
+  PARTICLE_SHAPES.smoke,
+  PARTICLE_SHAPES.smoke2,
+  PARTICLE_SHAPES.smoke3,
+  PARTICLE_SHAPES.shadow,
+]);
 
 /**
  * Cuánto más grande se dibuja cada forma: una raya o una hoja llena menos su casilla que un
@@ -49,6 +55,15 @@ const SHAPE_SCALE: Readonly<Record<number, number>> = {
   [PARTICLE_SHAPES.thorns]: 1.7,
   [PARTICLE_SHAPES.shadow]: 1.7,
   [PARTICLE_SHAPES.slash]: 1.8,
+  [PARTICLE_SHAPES.ember2]: 1.7,
+  [PARTICLE_SHAPES.ember3]: 1.6,
+  [PARTICLE_SHAPES.smoke2]: 1.6,
+  [PARTICLE_SHAPES.smoke3]: 1.5,
+  [PARTICLE_SHAPES.bolt2]: 2,
+  [PARTICLE_SHAPES.bolt3]: 1.5,
+  [PARTICLE_SHAPES.splash2]: 1.8,
+  [PARTICLE_SHAPES.star2]: 1.8,
+  [PARTICLE_SHAPES.star3]: 1.6,
 };
 
 /**
@@ -191,7 +206,11 @@ export class Particles {
     this.colorsDirty = true;
     this.ages[i] = 0;
     this.lives[i] = spec.life;
-    const shape = PARTICLE_SHAPES[spec.shape ?? autoShape(spec)];
+    const asked = PARTICLE_SHAPES[spec.shape ?? autoShape(spec)];
+    const variants = SHAPE_VARIANTS[asked];
+    const shape = variants
+      ? (variants[Math.floor(Math.random() * variants.length)] ?? asked)
+      : asked;
     this.baseSizes[i] = spec.size * (SHAPE_SCALE[shape] ?? 1);
     this.gravities[i] = spec.gravity ?? 0;
     if (this.shapes[i] !== shape) {
@@ -259,7 +278,7 @@ export class Particles {
       this.alphas[i] = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
       // El humo se abre al apagarse; lo demás se achica.
       const shape = this.shapes[i];
-      const grow = shape === SMOKE || shape === SHADOW ? 1 + t * 1.2 : 1 - t * 0.5;
+      const grow = shape !== undefined && GROWING.has(shape) ? 1 + t * 1.2 : 1 - t * 0.5;
       this.sizes[i] = (this.baseSizes[i] ?? 0) * grow;
       const spin = this.spins[i] ?? 0;
       if (spin !== 0) this.angles[i] = (this.angles[i] ?? 0) + spin * deltaSeconds;

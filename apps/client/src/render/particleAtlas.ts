@@ -3,8 +3,8 @@ import atlasUrl from '../assets/vfx/particulas.png';
 import { uploadEarly } from './earlyUpload';
 
 /**
- * Las formas que puede tener una chispa. Todas viven en una sola textura de 512 × 512 (un atlas
- * de 4 × 4 casillas, en gris sobre negro), así el sistema de partículas sigue dibujándose en
+ * Las formas que puede tener una chispa. Todas viven en una sola textura de 512 × 896 (un atlas
+ * de 4 × 7 casillas, en gris sobre negro), así el sistema de partículas sigue dibujándose en
  * una sola llamada. Las formas salen de ilustraciones hechas para el juego; el punto y la raya
  * se dibujaron aparte.
  */
@@ -37,7 +37,35 @@ export const PARTICLE_SHAPES = {
   shadow: 12,
   /** Tajo en media luna. */
   slash: 13,
+  // Variantes (de la casilla 16 en adelante): `emit` las sortea para que no se repita la forma.
+  /** Dos llamas trenzadas. */
+  ember2: 16,
+  /** Llamarada baja y ancha. */
+  ember3: 17,
+  /** Hilo de humo en S. */
+  smoke2: 18,
+  /** Nube de humo espesa. */
+  smoke3: 19,
+  /** Arco eléctrico corto. */
+  bolt2: 20,
+  /** Bola de electricidad. */
+  bolt3: 21,
+  /** Corona de agua vista de lado. */
+  splash2: 22,
+  /** Anillo de impacto con escombros. */
+  star2: 23,
+  /** Nube de explosión con centro brillante. */
+  star3: 24,
 } as const;
+
+/** Las formas que tienen variantes, y cuáles: al nacer, cada chispa elige una al azar. */
+export const SHAPE_VARIANTS: Readonly<Record<number, readonly number[]>> = {
+  [PARTICLE_SHAPES.ember]: [PARTICLE_SHAPES.ember, PARTICLE_SHAPES.ember2, PARTICLE_SHAPES.ember3],
+  [PARTICLE_SHAPES.smoke]: [PARTICLE_SHAPES.smoke, PARTICLE_SHAPES.smoke2, PARTICLE_SHAPES.smoke3],
+  [PARTICLE_SHAPES.bolt]: [PARTICLE_SHAPES.bolt, PARTICLE_SHAPES.bolt2, PARTICLE_SHAPES.bolt3],
+  [PARTICLE_SHAPES.splash]: [PARTICLE_SHAPES.splash, PARTICLE_SHAPES.splash2],
+  [PARTICLE_SHAPES.star]: [PARTICLE_SHAPES.star, PARTICLE_SHAPES.star2, PARTICLE_SHAPES.star3],
+};
 
 export type ParticleShape = keyof typeof PARTICLE_SHAPES;
 
@@ -47,16 +75,19 @@ export const ORIENTED_SHAPES: ReadonlySet<number> = new Set([
   PARTICLE_SHAPES.drop,
   PARTICLE_SHAPES.ember,
   PARTICLE_SHAPES.bolt,
+  PARTICLE_SHAPES.ember2,
+  PARTICLE_SHAPES.ember3,
+  PARTICLE_SHAPES.bolt2,
 ]);
 
 export const ATLAS_COLUMNS = 4;
-export const ATLAS_ROWS = 4;
+export const ATLAS_ROWS = 7;
 
 let atlas: THREE.Texture | null = null;
 
 /**
  * El atlas de las chispas, cargado una sola vez y compartido. Empieza a bajar al abrir el juego
- * (pesa ~70 kB), mucho antes de la primera partida. Se lee el canal rojo: blanco es opaco.
+ * (pesa ~110 kB), mucho antes de la primera partida. Se lee el canal rojo: blanco es opaco.
  */
 export function particleAtlas(): THREE.Texture {
   if (!atlas) {

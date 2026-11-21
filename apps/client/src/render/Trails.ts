@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { trailAtlas } from './vfxTextures';
 
 /** Cuántas estelas a la vez y cuántos puntos guarda cada una. */
 const MAX_TRAILS = 32;
@@ -16,6 +17,8 @@ interface Trail {
   readonly width: number;
   /** Tormenta: la estela tiembla como un rayo. */
   readonly jagged: boolean;
+  /** La fila del atlas de estelas (fuego, rayo, agua, hojas o sombra). */
+  readonly row: number;
   /** Segundos desde que se guardó el último punto. */
   since: number;
   seen: boolean;
@@ -23,20 +26,29 @@ interface Trail {
   life: number;
 }
 
+/** Filas del atlas de estelas, y cuánto se deja de borde arriba y abajo de cada una. */
+const TRAIL_ROWS = 5;
+const ROW_INSET = 0.04;
+
 /**
- * Estelas de los proyectiles: una cinta brillante que se afina y se apaga hacia la cola.
- * Todas comparten una sola malla (una llamada de dibujo) y se arman en cada cuadro con pocos
- * números; nada se crea ni se destruye mientras se juega.
+ * Estelas de los proyectiles: una cinta brillante que se afina y se apaga hacia la cola, con
+ * la textura de su elemento (llamas, agua, rayo, hojas o humo). Todas comparten una sola malla
+ * y un solo atlas (una llamada de dibujo) y se arman en cada cuadro con pocos números; nada se
+ * crea ni se destruye mientras se juega.
  */
 export class Trails {
   private readonly trails = new Map<number, Trail>();
   private readonly positions = new Float32Array(MAX_TRAILS * POINTS * 2 * 3);
   private readonly colors = new Float32Array(MAX_TRAILS * POINTS * 2 * 3);
+  private readonly uvs = new Float32Array(MAX_TRAILS * POINTS * 2 * 2);
   private readonly geometry = new THREE.BufferGeometry();
   private readonly positionAttribute = new THREE.BufferAttribute(this.positions, 3).setUsage(
     THREE.DynamicDrawUsage,
   );
   private readonly colorAttribute = new THREE.BufferAttribute(this.colors, 3).setUsage(
+    THREE.DynamicDrawUsage,
+  );
+  private readonly uvAttribute = new THREE.BufferAttribute(this.uvs, 2).setUsage(
     THREE.DynamicDrawUsage,
   );
   private readonly mesh: THREE.Mesh;
@@ -54,9 +66,11 @@ export class Trails {
     this.geometry.setIndex(index);
     this.geometry.setAttribute('position', this.positionAttribute);
     this.geometry.setAttribute('color', this.colorAttribute);
+    this.geometry.setAttribute('uv', this.uvAttribute);
     this.mesh = new THREE.Mesh(
       this.geometry,
       new THREE.MeshBasicMaterial({
+        map: trailAtlas(),
         vertexColors: true,
         blending: THREE.AdditiveBlending,
         transparent: true,
@@ -79,6 +93,8 @@ export class Trails {
     color: THREE.Color,
     width: number,
     jagged: boolean,
+    /** La fila del atlas de estelas (ver `TRAIL_ORDER`). */
+    row: number,
   ): void {
     if (!this.mesh.visible) return;
     let trail = this.trails.get(id);
@@ -91,6 +107,7 @@ export class Trails {
         color: color.clone(),
         width,
         jagged,
+        row,
         since: 0,
         seen: true,
         life: 1,
@@ -144,10 +161,14 @@ export class Trails {
     this.colors.fill(0, slot * POINTS * 6);
     this.positionAttribute.needsUpdate = true;
     this.colorAttribute.needsUpdate = true;
+    this.uvAttribute.needsUpdate = true;
   }
 
   private write(slot: number, trail: Trail): void {
     const base = slot * POINTS * 6;
+    // La fila de la imagen: la cabeza a la derecha (u = 1) y la cola a la izquierda.
+    const top = 1 - trail.row / TRAIL_ROWS - ROW_INSET / TRAIL_ROWS;
+    const bottom = 1 - (trail.row + 1) / TRAIL_ROWS + ROW_INSET / TRAIL_ROWS;
     for (let i = 0; i < POINTS; i++) {
       const p = trail.points[i];
       const next = trail.points[Math.min(POINTS - 1, i + 1)];
@@ -170,7 +191,13 @@ export class Trails {
       this.positions[o + 3] = cx - this.side.x * width;
       this.positions[o + 4] = p.y;
       this.positions[o + 5] = cz - this.side.z * width;
-      this.tint.copy(trail.color).multiplyScalar(along * along * trail.life);
+      // La imagen ya se apaga hacia la cola: el color baja más suave que sin textura.
+      this.tint.copy(trail.color).multiplyScalar(along * trail.life * 1.4);
+      const uv = (slot * POINTS + i) * 4;
+      this.uvs[uv] = along;
+      this.uvs[uv + 1] = top;
+      this.uvs[uv + 2] = along;
+      this.uvs[uv + 3] = bottom;
       for (const k of [0, 3]) {
         this.colors[o + k] = this.tint.r;
         this.colors[o + k + 1] = this.tint.g;

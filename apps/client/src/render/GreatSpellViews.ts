@@ -15,6 +15,7 @@ import { createGlowTexture } from './arena/textures';
 import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
+import { flowTexture, type GreatArt, greatTexture } from './vfxTextures';
 
 const FIRE = elementColor('brasa');
 const STORM = elementColor('tormenta');
@@ -33,6 +34,8 @@ const ringGeometry = new THREE.RingGeometry(0.9, 1, 56).rotateX(-Math.PI / 2);
 const planeGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
 const spikeGeometry = new THREE.ConeGeometry(0.16, 1, 5).translate(0, 0.5, 0);
 const glowTexture = createGlowTexture();
+/** Un cuadrado acostado en el suelo, para pintar una imagen de hechizo. */
+const artPlane = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 
 function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
@@ -56,6 +59,30 @@ function halo(color: THREE.Color, size: number): THREE.Sprite {
       transparent: true,
     }),
   );
+  sprite.scale.setScalar(size);
+  return sprite;
+}
+
+/**
+ * La imagen propia de un Gran hechizo como sprite aditivo de su color. `center` es el punto
+ * de la imagen que queda en la posición del sprite (0,5 / 0 = apoyada en el suelo).
+ */
+export function artSprite(
+  art: GreatArt,
+  color: THREE.Color,
+  size: number,
+  center: readonly [number, number] = [0.5, 0.5],
+): THREE.Sprite {
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: greatTexture(art),
+      color,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+    }),
+  );
+  sprite.center.set(center[0], center[1]);
   sprite.scale.setScalar(size);
   return sprite;
 }
@@ -106,6 +133,14 @@ export function createStrike(strike: Strike): THREE.Object3D {
   fill.scale.setScalar(strike.radius);
   group.add(ring, fill);
   group.userData.fill = fill;
+  if (strike.payload.spell === 'abyss') {
+    // El remolino del abismo pintado en el suelo; gira con el aviso y crece hasta el golpe.
+    const art = new THREE.Mesh(artPlane, additive(glow(SHADOW, 1.6), 0.3));
+    (art.material as THREE.MeshBasicMaterial).map = greatTexture('abismo');
+    art.position.y = 0.02;
+    group.add(art);
+    group.userData.art = art;
+  }
   if (strike.payload.spell === 'meteor') {
     // La roca que cae, cada vez más cerca y más brillante.
     const rock = new THREE.Mesh(
@@ -123,6 +158,8 @@ export function createStrike(strike: Strike): THREE.Object3D {
   }
   return group;
 }
+
+const rockAt = new THREE.Vector3();
 
 export function updateStrike(
   view: THREE.Object3D,
@@ -159,6 +196,25 @@ export function updateStrike(
   if (rock) {
     rock.position.set(-6 * (1 - progress), 0.6 + 22 * (1 - progress), 0);
     rock.rotation.set(time * 3, time * 2, 0);
+    // La cola de fuego: lenguas de llama que la roca va soltando al caer.
+    rock.getWorldPosition(rockAt);
+    for (let i = 0; i < 2; i++) {
+      particles.emit({
+        x: rockAt.x + (Math.random() - 0.5) * 0.8,
+        y: rockAt.y + (Math.random() - 0.5) * 0.8,
+        z: rockAt.z + (Math.random() - 0.5) * 0.8,
+        vy: 4,
+        color: glow(FIRE, 2),
+        life: 0.5,
+        size: 1.1,
+        shape: 'ember',
+      });
+    }
+  }
+  const art = view.userData.art as THREE.Mesh | undefined;
+  if (art) {
+    art.scale.setScalar(strike.radius * 2.3 * Math.max(0.1, progress));
+    (art.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.6 * progress;
   }
   const color = spell === 'cauldron' && Math.random() < 0.5 ? WATER : strikeColor(spell);
   if (Math.random() < 0.4 + progress) {
@@ -185,17 +241,22 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
   const group = new THREE.Group();
   if (sweeper.mode === 'tornado') {
     // Un embudo de viento que gira: anillos que se ensanchan hacia arriba, abiertos y tenues.
+    // Por cada anillo corre el trazo de la tormenta, así el viento se ve pasar.
+    const flow = flowTexture('tormenta');
+    group.userData.flow = flow;
     for (let i = 0; i < 7; i++) {
       const t = i / 6;
+      const material = additive(glow(i % 2 === 0 ? STORM : ICE, 1.6), 0.6 - t * 0.25);
+      material.map = flow;
       const band = new THREE.Mesh(
         new THREE.TorusGeometry(
           0.3 + t * sweeper.radius * 1.3,
-          0.05 + t * 0.06,
+          0.08 + t * 0.1,
           6,
           24,
           Math.PI * 1.4,
         ),
-        additive(glow(i % 2 === 0 ? STORM : ICE, 1.2), 0.45 - t * 0.2),
+        material,
       );
       band.rotation.x = Math.PI / 2;
       band.position.y = 0.2 + t * 3.6;
@@ -287,12 +348,16 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
     group.add(veil);
   } else {
     // Una ola ancha, curvada hacia adelante.
+    const flow = flowTexture('marea');
+    group.userData.flow = flow;
     const wave = new THREE.Mesh(
       new THREE.CylinderGeometry(1.2, 1.2, sweeper.halfWidth * 2, 16, 1, true, 0, Math.PI),
       new THREE.MeshStandardMaterial({
         color: '#1f5f8a',
         emissive: WATER,
-        emissiveIntensity: 0.25,
+        // Corrientes de agua que suben por la curva de la ola (la estela de marea).
+        emissiveMap: flow,
+        emissiveIntensity: 1.1,
         transparent: true,
         opacity: 0.4,
         depthWrite: false,
@@ -407,7 +472,25 @@ export function updateSweeper(
     return;
   }
   if (sweeper.mode === 'tornado') {
+    const flow = view.userData.flow as THREE.Texture | undefined;
+    if (flow) flow.offset.x -= delta * 2.2;
     const angle = time * 9;
+    // Polvo y hojas que el embudo levanta y hace girar.
+    if (Math.random() < 0.5) {
+      const around = Math.random() * Math.PI * 2;
+      particles.emit({
+        x: pos.x + Math.cos(around) * sweeper.radius * 0.8,
+        y: 0.3,
+        z: pos.z + Math.sin(around) * sweeper.radius * 0.8,
+        vx: -Math.sin(around) * 4,
+        vy: 3 + Math.random() * 2,
+        vz: Math.cos(around) * 4,
+        color: new THREE.Color(Math.random() < 0.5 ? '#7a6a52' : '#5f7a3a'),
+        life: 0.7,
+        size: 0.4,
+        shape: Math.random() < 0.6 ? 'smoke' : 'leaf',
+      });
+    }
     particles.emit({
       x: pos.x + Math.cos(angle) * sweeper.radius,
       y: 0.2 + Math.random() * 3,
@@ -435,21 +518,25 @@ export function updateSweeper(
       });
     }
   } else {
-    // Espuma a lo largo de la cresta.
+    // El agua corre por la curva de la ola.
+    const flow = view.userData.flow as THREE.Texture | undefined;
+    if (flow) flow.offset.x -= delta * 1.4;
+    // Espuma y salpicaduras que saltan de la cresta hacia adelante.
     const dir = { x: Math.sin(view.rotation.y), z: Math.cos(view.rotation.y) };
     for (let i = 0; i < 3; i++) {
       const t = (Math.random() * 2 - 1) * sweeper.halfWidth;
       particles.emit({
-        x: pos.x - dir.z * t,
-        y: 1.2 + Math.random() * 0.4,
-        z: pos.z + dir.x * t,
-        vx: dir.x * 3,
-        vy: 1,
-        vz: dir.z * 3,
+        x: pos.x - dir.z * t + dir.x * 0.6,
+        y: 1.2 + Math.random() * 0.5,
+        z: pos.z + dir.x * t + dir.z * 0.6,
+        vx: dir.x * (3 + Math.random() * 2),
+        vy: 1.5 + Math.random() * 2,
+        vz: dir.z * (3 + Math.random() * 2),
         color: glow(i === 0 ? ICE : WATER, 1.5),
-        life: 0.4,
-        size: 0.4,
-        gravity: -6,
+        life: 0.5,
+        size: i === 0 ? 0.6 : 0.4,
+        gravity: -9,
+        shape: i === 0 ? 'splash' : 'drop',
       });
     }
   }
@@ -586,7 +673,12 @@ function portalMouth(color: THREE.Color): THREE.Object3D {
     new THREE.MeshBasicMaterial({ color: glow(color, 2.4) }),
   );
   ring.position.y = 1.3;
-  const inside = new THREE.Mesh(new THREE.CircleGeometry(0.95, 32), additive(glow(SHADOW, 1), 0.5));
+  const inside = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.3, 2.3),
+    additive(glow(color, 1.3), 0.85),
+  );
+  // El remolino pintado del portal, del color de su boca.
+  (inside.material as THREE.MeshBasicMaterial).map = greatTexture('portal');
   inside.position.y = 1.3;
   const floor = new THREE.Mesh(ringGeometry, additive(glow(color, 1.4), 0.5));
   floor.position.y = 0.06;
@@ -678,6 +770,22 @@ export function updateThornRing(view: THREE.Object3D, ring: ThornRing, particles
       life: 0.45,
       size: 0.3,
       gravity: 1,
+      shape: 'ember',
+    });
+  }
+  // Zarzas que asoman entre las espinas del anillo y se secan.
+  if (Math.random() < 0.35) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = ring.radius * (0.85 + Math.random() * 0.3);
+    particles.emit({
+      x: ring.pos.x + Math.cos(angle) * r,
+      y: 0.4 + Math.random() * 0.5,
+      z: ring.pos.z + Math.sin(angle) * r,
+      vy: 0.3,
+      color: glow(new THREE.Color('#8a5a2a'), 1.3),
+      life: 0.9,
+      size: 0.8,
+      shape: 'thorns',
     });
   }
 }

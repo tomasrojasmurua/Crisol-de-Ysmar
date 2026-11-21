@@ -53,7 +53,7 @@ import { createSummon, updateSummon } from './SummonViews';
 import { createAura, createBubble, updateAura, updateBubble } from './SupportViews';
 import { TeamRings } from './TeamRings';
 import { Trails } from './Trails';
-import { shapeTexture } from './vfxTextures';
+import { projectileHead, TRAIL_ORDER } from './vfxTextures';
 import type { WizardView } from './WizardView';
 
 type Position = { x: number; z: number };
@@ -94,8 +94,6 @@ export class SpellViews {
   private readonly coreGeometry = shared(new THREE.IcosahedronGeometry(1, 2));
   private readonly sparkGeometry = shared(new THREE.SphereGeometry(0.08, 8, 6));
   private readonly glowTexture = shared(createGlowTexture());
-  /** El centro de los proyectiles: un remolino de energía que gira. */
-  private readonly orbTexture = shared(shapeTexture('orb'));
   private readonly decoys = new Map<number, WizardView>();
   private readonly trails: Trails;
   private readonly teamRings: TeamRings;
@@ -245,10 +243,11 @@ export class SpellViews {
       core.scale.setScalar(size * 0.8);
       group.add(core);
     } else {
-      // Un remolino casi blanco que se funde con su color: la magia brilla, no es una bola.
+      // La cabeza propia del elemento (bola de fuego, esfera de agua, rayo, semilla o sombra),
+      // casi blanca y fundida con su color: la magia brilla, no es una bola.
       const core = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: this.orbTexture,
+          map: projectileHead(elementOfForm(spell.payload.form)),
           color: glow(color.clone().lerp(WHITE, 0.55), 2.6),
           blending: THREE.AdditiveBlending,
           depthWrite: false,
@@ -447,8 +446,9 @@ export class SpellViews {
       1.3,
       pos.z,
       glow(color, 1.6),
-      Math.max(0.12, spell.radius * 0.75),
+      Math.max(0.14, spell.radius * 0.9),
       element === 'tormenta',
+      TRAIL_ORDER.indexOf(DARK_CORES.has(spell.payload.spell) ? 'umbra' : element),
     );
     // Estela con la chispa propia del elemento: el fuego deja lenguas que apuntan hacia
     // atrás, el agua gotea, el rayo chisporrotea, la raíz suelta hojas y la sombra humo.
@@ -479,7 +479,7 @@ export class SpellViews {
         const beat =
           1 + 0.12 * Math.sin(timeSeconds * 31 + spell.id) + 0.06 * Math.sin(timeSeconds * 53);
         child.scale.setScalar(spell.radius * 2.6 * beat);
-        ((child as THREE.Sprite).material as THREE.SpriteMaterial).rotation = timeSeconds * 7;
+        ((child as THREE.Sprite).material as THREE.SpriteMaterial).rotation = timeSeconds * 4;
         return;
       }
       const phase = child.userData.phase as number | undefined;
