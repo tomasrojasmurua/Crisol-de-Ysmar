@@ -204,9 +204,18 @@ describe('duelo en red: el celular', () => {
     expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.3);
     net.step();
     expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.5);
-    // Más allá de 6 pasos (200 ms) ya no inventa: se queda donde llegó.
+    // Pasados 4 pasos frena de a poco, sin parar en seco.
+    net.step();
+    net.step();
+    net.step();
+    const braking = net.interpolated(1, rivalPos(net), 0.5).x;
+    net.step();
+    const slower = net.interpolated(1, rivalPos(net), 0.5).x - braking;
+    expect(slower).toBeGreaterThan(0);
+    expect(slower).toBeLessThan(0.2);
+    // Más allá de 10 pasos (333 ms) ya no inventa: se queda donde llegó (7 pasos de camino).
     for (let i = 0; i < 10; i++) net.step();
-    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.2 + 6 * 0.2);
+    expect(net.interpolated(1, rivalPos(net), 0.5).x).toBeCloseTo(0.2 + 7 * 0.2);
   });
 
   it('al volver los estados tras seguir de largo, se corrige sin saltos ni pasos atrás', () => {
@@ -240,6 +249,26 @@ describe('duelo en red: el celular', () => {
     }
     // Terminada la corrección, va donde dice la Sala.
     expect(net.interpolated(1, rivalPos(net), 1).x).toBeCloseTo(rivalPos(net).x);
+  });
+
+  it('al volver tras seguir de largo, salta lo atrasado en vez de mostrarlo al doble', () => {
+    const { net, socket } = joined();
+    socket.receive(movedRival(1, 0));
+    socket.receive(movedRival(2, 0.2));
+    net.step();
+    net.step();
+    for (let i = 0; i < 6; i++) net.step(); // 200 ms sin nada: sigue de largo
+    // Llega todo junto: lo atrasado y lo nuevo.
+    for (let tick = 3; tick <= 10; tick++) socket.receive(movedRival(tick, tick * 0.2 - 0.2));
+    const before = net.interpolated(1, rivalPos(net), 1).x;
+    const events = net.step();
+    // Queda con el colchón buscado (3) y sigue de a un paso; sin salto en el dibujo.
+    expect(net.state.tick).toBe(8);
+    expect(events).toEqual([]);
+    const after = net.interpolated(1, rivalPos(net), 0).x;
+    expect(Math.abs(after - before)).toBeLessThan(0.25);
+    net.step();
+    expect(net.state.tick).toBe(9);
   });
 
   it('tras un tirón, el colchón vuelve a achicarse a los 3 s si sobra', () => {

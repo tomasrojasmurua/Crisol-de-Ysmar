@@ -179,12 +179,21 @@ sombras. Reglas que lo sostienen:
   eso, se avisa una vez en partida y el informe de rendimiento lo anota.
 - **Si el colchón de red se vacía, los rivales siguen de largo** (`NetMatch.hold` y `coast`),
   como en los juegos en línea grandes: magos, bestias y proyectiles siguen en la dirección que
-  llevaban hasta 200 ms (6 pasos) y después se quedan donde llegaron. Al volver los estados, lo
-  dibujado de más se absorbe en el doble de pasos (al menos 4): el rival solo camina más lento un
-  instante, nunca hacia atrás. Antes todo se congelaba en cada hipo de la red (en la prueba del 21
-  de noviembre, 83 veces en un iPhone con datos móviles); y antes de eso, el dibujo volvía a
-  recorrer el último paso y los rivales caminaban "de a jalones". El informe de red anota los
-  silencios de la Sala (más de 100 ms sin estado jugando y el más largo).
+  llevaban 133 ms (4 pasos) a la misma velocidad, luego frenan parejo y se detienen a los 333 ms
+  (`coastDistance`). Al volver los estados, lo atrasado se salta hasta el colchón buscado (sus
+  efectos y sonidos sí se juntan): los rivales ya se dibujaron más o menos ahí, y lo que quede de
+  diferencia se absorbe en unos pasos, nunca hacia atrás. Antes todo se congelaba en cada hipo
+  de la red (83 veces en un iPhone con datos móviles el 21 de noviembre); después paraban en seco
+  a los 200 ms y al volver se recorría lo atrasado al doble de rápido (se veían acelerones). El
+  informe de red anota los silencios de la Sala (más de 100 ms sin estado jugando y el más largo).
+- **Lo que se repite se arma una vez.** Cada tipo de bestia se arma una sola vez y las demás se
+  copian compartiendo sus mallas (`BeastView`, `TEMPLATES`); los anillos de estado de los magos
+  comparten la suya por tamaño. Antes cada ronda armaba unas 20 bestias de golpe y era un tirón
+  en cada cambio de ronda. En el juego publicado three.js no revisa los sombreadores al usarlos
+  (`checkShaderErrors`, solo en desarrollo): cada revisión esperaba a la tarjeta gráfica.
+- **Perfil fluido por tarjeta gráfica** (`platform/gpuTier.ts`): con Mali, PowerVR o Adreno
+  500/600 se parte en Liviana, nitidez 1 y la mitad de chispas. Se mira solo el nombre de la
+  tarjeta: Samsung Internet se presenta como Linux de escritorio.
 - **Los eventos de un paso se muestran una sola vez.** Entre rondas y en el resultado la Sala
   reenvía el estado quieto de a ratos: la Sala vacía sus eventos y `NetMatch` ignora los de un
   paso que ya mostró (antes el golpe final y sus sonidos se repetían detrás del resultado).

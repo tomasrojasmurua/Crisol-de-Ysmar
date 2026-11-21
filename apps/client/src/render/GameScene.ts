@@ -110,6 +110,10 @@ export class GameScene {
       antialias: false,
       powerPreference: 'high-performance',
     });
+    // Revisar cada sombreador al usarlo por primera vez pide sus mensajes a la tarjeta gráfica y
+    // espera la respuesta (tres esperas por sombreador): en un Android, varios milisegundos al
+    // empezar la partida. En el juego publicado no se revisa; en desarrollo sí.
+    this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
     this.renderer.shadowMap.enabled = true;

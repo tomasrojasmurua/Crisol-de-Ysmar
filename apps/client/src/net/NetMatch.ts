@@ -78,11 +78,14 @@ const CATCH_UP_SLACK = 2;
  */
 const DRIFT_EVERY = 8;
 /**
- * Si el colchón se vacía, los rivales, bestias y proyectiles siguen en la dirección que llevaban
- * hasta este máximo de pasos (200 ms), en vez de quedarse congelados: así se juega en una red
- * móvil con hipos, como en los juegos en línea grandes. Más allá ya sería inventar.
+ * Si el colchón se vacía, los rivales, bestias y proyectiles siguen en la dirección que llevaban,
+ * en vez de quedarse congelados: así se juega en una red móvil con hipos, como en los juegos en
+ * línea grandes. Los primeros `COAST_FULL` pasos (133 ms) van a la misma velocidad; después
+ * frenan de a poco hasta detenerse a los `COAST_STEPS` (333 ms). Antes paraban en seco a los
+ * 200 ms, y en la prueba del 21 de noviembre los silencios del iPhone con Entel llegaban a 275 ms.
  */
-const COAST_STEPS = 6;
+const COAST_FULL = 4;
+const COAST_STEPS = 10;
 /** Más rápido que esto por paso (18 m/s) no es caminar: fue un salto o un teletransporte. */
 const COAST_MAX_STEP = 0.6;
 /**
@@ -430,14 +433,20 @@ export class NetMatch implements MatchView {
         if (lock?.kind === 'lockTarget') this.pendingLock = { seq, target: lock.targetId };
       }
     }
+    let resumed = false;
     if (!this.primed) {
       if (this.buffer.length < this.target) {
         this.hold();
         return [];
       }
       this.primed = true;
+      resumed = this.coast !== null;
     }
     const events: GameEvent[] = [];
+    // Vuelven los estados tras seguir de largo: lo atrasado se salta hasta el colchón buscado
+    // (sus efectos y sonidos sí se juntan). Los rivales ya se dibujaron más o menos ahí; antes se
+    // volvía a recorrer todo al doble de rápido, y se notaba como un rival que se aceleraba.
+    if (resumed) while (this.buffer.length > this.target) this.consume(events);
     // La pestaña estuvo en segundo plano: se salta directo, sin perder lo que pasó.
     if (this.buffer.length > HARD_SKIP) {
       while (this.buffer.length > this.target) this.consume(events);
@@ -585,7 +594,7 @@ export class NetMatch implements MatchView {
       // Sin estado nuevo: sigue de largo en la dirección que llevaba (ver `COAST_STEPS`).
       const velocity = coast.velocity.get(id);
       if (!velocity) return current;
-      const t = Math.min(coast.steps - 1 + alpha, COAST_STEPS);
+      const t = coastDistance(coast.steps - 1 + alpha);
       return { x: current.x + velocity.x * t, z: current.z + velocity.z * t };
     }
     const before = this.previous.get(id);
@@ -604,7 +613,7 @@ export class NetMatch implements MatchView {
    * respecto de donde parte este paso, para corregirlo de a poco en vez de saltar.
    */
   private startCorrection(coasted: { steps: number; velocity: Map<number, Vec2> }): void {
-    const t = Math.min(coasted.steps, COAST_STEPS);
+    const t = coastDistance(coasted.steps);
     const offsets = new Map<number, Vec2>();
     for (const [id, velocity] of coasted.velocity) {
       const from = this.coastFrom.get(id);
@@ -616,7 +625,7 @@ export class NetMatch implements MatchView {
       };
       if (Math.hypot(offset.x, offset.z) <= SNAP_DISTANCE) offsets.set(id, offset);
     }
-    const total = Math.max(CORRECT_STEPS, 2 * t);
+    const total = Math.max(CORRECT_STEPS, Math.round(2 * t));
     this.correction = offsets.size > 0 ? { left: total, total, offsets } : null;
   }
 
@@ -1196,6 +1205,17 @@ export class NetMatch implements MatchView {
       // Sin almacenamiento: si se corta, entras como jugador nuevo.
     }
   }
+}
+
+/**
+ * Cuánto avanza (en pasos de su velocidad) lo que sigue de largo tras `t` pasos sin estados:
+ * igual que antes hasta `COAST_FULL`, luego frena parejo hasta quedarse quieto en `COAST_STEPS`.
+ */
+export function coastDistance(t: number): number {
+  if (t <= COAST_FULL) return Math.max(0, t);
+  const braking = COAST_STEPS - COAST_FULL;
+  const u = Math.min(t, COAST_STEPS) - COAST_FULL;
+  return COAST_FULL + u - (u * u) / (2 * braking);
 }
 
 function glyphById(id: string): Glyph | undefined {

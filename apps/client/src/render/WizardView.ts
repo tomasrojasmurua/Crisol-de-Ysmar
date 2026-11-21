@@ -2,7 +2,7 @@ import type { ElementId, GameRules, StatusId, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { AffinityLook } from './AffinityLook';
 import { CastSigil } from './CastSigil';
-import { disposeTree } from './dispose';
+import { disposeTree, shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 import { WeaveHalo } from './WeaveHalo';
@@ -463,11 +463,19 @@ const STATUS_MARKS: readonly {
   { status: 'kindled', color: '#ffb060', height: 0.1, size: 0.75, spin: 0 },
 ];
 
+/**
+ * Los anillos de estado de todos los magos (y señuelos) comparten su malla por tamaño: armar
+ * los doce de cada mago al aparecer era parte del tirón al empezar la partida.
+ */
+const RING_GEOMETRIES = new Map<number, THREE.TorusGeometry>();
+
 function statusRing(radius: number, color: THREE.Color, height: number): THREE.Mesh {
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(radius, 0.04, 6, 32),
-    new THREE.MeshBasicMaterial({ color }),
-  );
+  let geometry = RING_GEOMETRIES.get(radius);
+  if (!geometry) {
+    geometry = shared(new THREE.TorusGeometry(radius, 0.04, 6, 32));
+    RING_GEOMETRIES.set(radius, geometry);
+  }
+  const ring = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color }));
   ring.rotation.x = Math.PI / 2;
   ring.position.y = height;
   ring.visible = false;
