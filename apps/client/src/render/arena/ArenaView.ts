@@ -2,6 +2,7 @@ import { MAP_DECOR } from '@crisol/content';
 import * as THREE from 'three';
 import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
+import { textureView } from '../vfxTextures';
 import { Ambience } from './Ambience';
 import { createGroundDecals } from './groundDecals';
 import { matte } from './matte';
@@ -47,6 +48,8 @@ export class ArenaView {
   private readonly layout = new THREE.Group();
   private readonly groundTexture: THREE.Texture;
   private layoutKey = '';
+  /** Los bordes ya armados, por radio y senderos (ver `setLayout`). */
+  private readonly layouts = new Map<string, { group: THREE.Group; ambience: Ambience }>();
   private emberTimer = 0;
 
   constructor(
@@ -120,20 +123,27 @@ export class ArenaView {
     const key = `${arenaRadius}|${paths}`;
     if (key === this.layoutKey) return;
     this.layoutKey = key;
-    for (const child of [...this.layout.children]) disposeTree(child);
-    this.layout.clear();
-    if (paths) this.layout.add(createPaths(arenaRadius, this.groundTexture));
-    this.layout.add(
-      createGroundDecals(arenaRadius),
-      createLowWall(arenaRadius),
-      createPillars(arenaRadius),
-      createDistantRuins(arenaRadius),
-    );
-    if (this.ambience) {
-      this.scene.remove(this.ambience.group);
-      this.ambience.dispose();
+    // Cada borde se arma una sola vez y se guarda: el menú y la jungla usan uno y el 1v1 otro.
+    // Antes se tiraba y se rearmaba al cambiar de mapa (cada partida desde el menú): se liberaban
+    // los materiales y sus sombreadores, y el primer cuadro de la partida volvía a compilar unos
+    // diez y a subir las imágenes del suelo (un tirón de casi un segundo en Android).
+    let layout = this.layouts.get(key);
+    if (!layout) {
+      const group = new THREE.Group();
+      if (paths) group.add(createPaths(arenaRadius, this.groundTexture));
+      group.add(
+        createGroundDecals(arenaRadius),
+        createLowWall(arenaRadius),
+        createPillars(arenaRadius),
+        createDistantRuins(arenaRadius),
+      );
+      layout = { group, ambience: new Ambience(arenaRadius) };
+      this.layouts.set(key, layout);
     }
-    this.ambience = new Ambience(arenaRadius);
+    this.layout.clear();
+    this.layout.add(layout.group);
+    if (this.ambience) this.scene.remove(this.ambience.group);
+    this.ambience = layout.ambience;
     this.scene.add(this.ambience.group);
   }
 
@@ -357,21 +367,6 @@ function createMoon(): THREE.Sprite {
   return moon;
 }
 
-/** Libera geometrías y materiales de un objeto y sus hijos (las texturas compartidas quedan). */
-function disposeTree(root: THREE.Object3D): void {
-  root.traverse((node) => {
-    if (!(node instanceof THREE.Mesh)) return;
-    node.geometry.dispose();
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    for (const material of materials) {
-      if ('map' in material && material.map instanceof THREE.Texture) {
-        material.map.dispose();
-      }
-      material.dispose();
-    }
-  });
-}
-
 /** Un murete bajo marca el borde de la arena. */
 function createLowWall(arenaRadius: number): THREE.Group {
   const group = new THREE.Group();
@@ -464,7 +459,8 @@ function createPaths(arenaRadius: number, groundTexture: THREE.Texture): THREE.G
   const group = new THREE.Group();
   // Tierra más clara que la jungla; la textura se escala para que cada metro se vea igual.
   const dirt = (repeatX: number, repeatY: number): THREE.MeshLambertMaterial => {
-    const texture = groundTexture.clone();
+    // Sin volver a subir la imagen a la tarjeta gráfica (ver `textureView`).
+    const texture = textureView(groundTexture);
     texture.repeat.set(repeatX / 9, repeatY / 9);
     return matte({
       map: texture,

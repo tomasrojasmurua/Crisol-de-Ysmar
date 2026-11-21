@@ -25,7 +25,6 @@ export class Ambience {
   readonly group = new THREE.Group();
   private readonly flameMaterial: THREE.ShaderMaterial;
   private readonly time = { value: 0 };
-  private readonly glow: THREE.Texture;
   private readonly banners: THREE.InstancedMesh;
   private readonly bannerBase: THREE.Matrix4[] = [];
   private readonly matrix = new THREE.Matrix4();
@@ -33,7 +32,6 @@ export class Ambience {
 
   constructor(arenaRadius: number) {
     const glow = createGlowTexture();
-    this.glow = glow;
     const candles = candlePositions(arenaRadius);
     this.group.add(createWax(candles));
     this.flameMaterial = flameMaterial(glow, this.time);
@@ -53,18 +51,6 @@ export class Ambience {
       this.banners.setMatrixAt(i, this.matrix);
     });
     this.banners.instanceMatrix.needsUpdate = true;
-  }
-
-  dispose(): void {
-    this.group.traverse((node) => {
-      if (node instanceof THREE.Mesh || node instanceof THREE.Points) {
-        node.geometry.dispose();
-        const material = node.material as THREE.Material & { map?: THREE.Texture | null };
-        material.map?.dispose();
-        material.dispose();
-      }
-    });
-    this.glow.dispose();
   }
 }
 

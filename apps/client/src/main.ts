@@ -1128,5 +1128,7 @@ if (isValidRoomCode(invited)) {
 
 // Solo en desarrollo: acceso a la partida desde la consola para probar pantallas.
 if (import.meta.env.DEV) {
-  Object.assign(window, { crisol: { match: () => match, replay: () => replay, view } });
+  Object.assign(window, {
+    crisol: { match: () => match, replay: () => replay, view, start: startMatch, autoQuality },
+  });
 }

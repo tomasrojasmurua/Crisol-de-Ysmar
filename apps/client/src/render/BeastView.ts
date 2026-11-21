@@ -198,9 +198,16 @@ export class BeastView {
   }
 
   /** `viewer`: dónde está la cámara, para dibujarla con menos detalle si está lejos. */
-  update(beast: Beast, timeSeconds: number, deltaSeconds: number, viewer?: Vec2): void {
-    const x = beast.pos.x;
-    const z = beast.pos.z;
+  update(
+    beast: Beast,
+    timeSeconds: number,
+    deltaSeconds: number,
+    viewer?: Vec2,
+    /** Dónde se dibuja, entre un paso y el siguiente (si no, donde está en el paso). */
+    shownAt: Vec2 = beast.pos,
+  ): void {
+    const x = shownAt.x;
+    const z = shownAt.z;
     if (viewer && this.farSkin) {
       const distance = Math.hypot(viewer.x - x, viewer.z - z);
       const far = this.far ? distance > FAR_LEAVE_M : distance > FAR_ENTER_M;

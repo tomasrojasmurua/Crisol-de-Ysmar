@@ -250,18 +250,18 @@ export class MatchRenderer {
     const sightless = player.statuses.blind && !player.statuses.hunting;
     ui.minimap.show(!sightless && !(current instanceof TrainingMatch));
     view.zone.update(state.zoneRadius, time);
-    view.creatures.sync(state, teamColor, time, delta, view.camera.position);
+    view.creatures.sync(state, teamColor, time, delta, view.camera.position, (id, pos) =>
+      current.interpolated(id, pos, alpha),
+    );
 
     // La marca muestra a quién irá el disparo automático (lo mismo que calcula el núcleo).
     // Tu mago como se ve en este celular: en red, lo que fijaste cuenta antes de que el
     // servidor lo confirme, así la cámara entra en duelo en el acto.
     const me = current.present?.(player) ?? player;
     const aimed = autoTarget(state, watched ?? me, rules);
-    const targetPos = aimed
-      ? aimed.kind === 'wizard'
-        ? current.interpolated(aimed.id, aimed.pos, alpha)
-        : aimed.pos
-      : null;
+    // Interpolado también si es una bestia o una invocación: en duelo la cámara lo sigue, y con
+    // la posición del paso giraba a saltos de 30 por segundo.
+    const targetPos = aimed ? current.interpolated(aimed.id, aimed.pos, alpha) : null;
     // Duelo: lo que fijaste tú sigue siendo el blanco, y la cámara lo mantiene al frente. Si
     // caíste, la cámara se acomoda (sin duelo) hacia el blanco de quien miras.
     const duel = watched === null && me.hp > 0 && aimed !== null && aimed.id === me.lockTarget;

@@ -348,6 +348,8 @@ export class LocalMatch implements MatchView {
   private rememberPositions(): void {
     this.previous.clear();
     for (const wizard of this.state.wizards) this.previous.set(wizard.id, wizard.pos);
+    // Las bestias también: dibujadas paso a paso, a 60 cuadros avanzaban a saltos de 30.
+    for (const beast of this.state.beasts) this.previous.set(beast.id, beast.pos);
     for (const spell of this.state.spells) {
       if (
         spell.kind === 'projectile' ||

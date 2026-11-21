@@ -123,7 +123,8 @@ export class ReplayView implements MatchView {
     const before = this.before.state;
     const from =
       before.wizards.find((w) => w.id === id)?.pos ??
-      (before.spells.find((s) => s.id === id) as { pos?: Vec2 } | undefined)?.pos;
+      (before.spells.find((s) => s.id === id) as { pos?: Vec2 } | undefined)?.pos ??
+      before.beasts.find((b) => b.id === id)?.pos;
     // Un salto (Destello, Portal) no se recorre a medias.
     if (!from || Math.hypot(current.x - from.x, current.z - from.z) > SNAP_DISTANCE) return current;
     return { x: from.x + (current.x - from.x) * t, z: from.z + (current.z - from.z) * t };
