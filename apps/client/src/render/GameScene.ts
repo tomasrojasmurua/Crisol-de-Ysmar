@@ -2,6 +2,7 @@ import { createMatch, type GameRules, type Vec2, type Wizard } from '@crisol/cor
 import * as THREE from 'three';
 import { CameraRig } from '../camera/CameraRig';
 import type { QualityName, SceneLoad } from '../game/MatchPerfLog';
+import { gpuInfo } from '../platform/gpuTier';
 import { AdaptiveResolution } from './AdaptiveResolution';
 import { AimGuide } from './AimGuide';
 import { ArenaView } from './arena/ArenaView';
@@ -23,6 +24,14 @@ import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView
  * a 1,5 y el celular se calentaba; en una pantalla de 6 pulgadas la diferencia casi no se ve.
  */
 const PHONE_MAX_PIXEL_RATIO = 1.5;
+/**
+ * En un Android de gama media (ver `platform/gpuTier.ts`) se parte y se queda en 1: el Galaxy A35
+ * terminaba ahí en cada partida, y cada bajada de resolución en plena pelea era otro tirón.
+ */
+const MODEST_MAX_PIXEL_RATIO = 1;
+/** Chispas a la vez: la mitad en un Android de gama media (en las peleas pasaban de 800). */
+const PARTICLES = 1500;
+const MODEST_PARTICLES = 700;
 
 /** Lo más que se deja de dibujar esperando los sombreadores, por si el navegador no avisa. */
 const MAX_HOLD_MS = 3000;
@@ -54,7 +63,7 @@ const PREVIEW_FILL = 0.86;
  */
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
-  readonly particles = new Particles();
+  readonly particles = new Particles(gpuInfo().modest ? MODEST_PARTICLES : PARTICLES);
   readonly arena: ArenaView;
   readonly scene: THREE.Scene;
   readonly zone: ZoneView;
@@ -70,7 +79,11 @@ export class GameScene {
   /** Baja la resolución si el celular no alcanza los cuadros por segundo, y la sube si sobra. */
   readonly resolution = new AdaptiveResolution(
     window.devicePixelRatio,
-    window.matchMedia?.('(pointer: coarse)').matches ? PHONE_MAX_PIXEL_RATIO : undefined,
+    gpuInfo().modest
+      ? MODEST_MAX_PIXEL_RATIO
+      : window.matchMedia?.('(pointer: coarse)').matches
+        ? PHONE_MAX_PIXEL_RATIO
+        : undefined,
   );
   /** Compila de antemano los sombreadores de los hechizos (ver `ShaderWarmup`). */
   readonly warmup: ShaderWarmup;
