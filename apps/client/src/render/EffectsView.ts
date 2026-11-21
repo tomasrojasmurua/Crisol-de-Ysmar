@@ -1,6 +1,7 @@
 import type { ElementId, GameEvent, MatchState, SpellId, Vec2, Wizard } from '@crisol/core';
 import * as THREE from 'three';
 import { createGlowTexture } from './arena/textures';
+import { uploadEarly } from './earlyUpload';
 import {
   createColumnFadeTexture,
   createColumnTexture,
@@ -152,6 +153,15 @@ export class EffectsView {
     this.beamGeometry.translate(0, 0.5, 0);
     this.beamGeometry.rotateX(Math.PI / 2);
     this.ringGeometry.rotateX(-Math.PI / 2);
+    // Dibujadas en código, listas desde ya: se suben ahora y no con el primer golpe de la partida.
+    for (const texture of [
+      this.flashTexture,
+      this.ringTexture,
+      this.columnTexture,
+      this.columnFade,
+    ]) {
+      uploadEarly(texture);
+    }
   }
 
   /** `placeOf` dice dónde estaba una bestia o un santuario, aunque ya no exista. */
