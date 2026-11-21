@@ -1,5 +1,6 @@
 import { MAP_DECOR } from '@crisol/content';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Particles } from '../Particles';
 import { elementColor } from '../palette';
 import { textureView } from '../vfxTextures';
@@ -494,12 +495,16 @@ function createPaths(arenaRadius: number, groundTexture: THREE.Texture): THREE.G
   const material = dirt(length, width);
   strip.rotateX(-Math.PI / 2);
   strip.translate(from + length / 2, 0, 0);
-  for (const angle of MAP_DECOR.pathAngles) {
-    const path = new THREE.Mesh(strip, material);
-    path.rotation.y = -angle;
-    path.position.y = 0.006;
-    path.receiveShadow = true;
-    group.add(path);
+  // Todos los senderos en una sola malla: eran una llamada de dibujo cada uno (diez o más).
+  const strips = MAP_DECOR.pathAngles.map((angle) => strip.clone().rotateY(-angle));
+  const merged = mergeGeometries(strips, false);
+  strip.dispose();
+  for (const geometry of strips) geometry.dispose();
+  if (merged) {
+    const paths = new THREE.Mesh(merged, material);
+    paths.position.y = 0.006;
+    paths.receiveShadow = true;
+    group.add(paths);
   }
   return group;
 }
