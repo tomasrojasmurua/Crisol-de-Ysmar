@@ -442,6 +442,7 @@ const tapToLock = new TapToLock(
 controls.onDuelButton = () => tapToLock.cycle();
 controls.onTap = (x, y) => tapToLock.tapAt(x, y);
 controls.onLookStart = startLooking;
+controls.onLook = (radians) => rig.rotate(radians);
 
 // ---------- Reacciones a lo que toca el jugador ----------
 

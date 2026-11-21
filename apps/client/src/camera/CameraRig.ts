@@ -27,6 +27,13 @@ const DUEL_MIN_DISTANCE = 1.2;
 /** Qué tan rápido la cámara alcanza su lugar: en duelo más firme, para que el rival no se corra. */
 const FOLLOW_RATE = 6;
 const DUEL_FOLLOW_RATE = 10;
+/**
+ * Mientras el jugador gira a mano, la cámara llega casi en el acto: con el ritmo de siempre
+ * quedaba un sexto de segundo atrás del dedo y el giro se sentía retrasado.
+ */
+const MANUAL_FOLLOW_RATE = 22;
+/** Cuánto dura ese ritmo rápido después del último giro a mano, en segundos. */
+const MANUAL_FOLLOW_SECONDS = 0.25;
 const ORIGIN = new THREE.Vector2(0, 0);
 
 /** Lo que sigue la cámara este cuadro. */
@@ -62,6 +69,8 @@ export class CameraRig {
   private heading: THREE.Vector2 | null = null;
   /** Segundos que la cámara respeta el giro que hizo el jugador antes de volver a centrar. */
   private manualHold = 0;
+  /** Segundos que quedan de seguimiento rápido tras girar a mano. */
+  private manualFollow = 0;
   /** Lo que se está siguiendo, para notar cuando cambia. */
   private focusId: number | null = null;
   private turning = false;
@@ -92,6 +101,8 @@ export class CameraRig {
       this.heading.normalize();
     }
     this.manualHold = Math.max(0, this.manualHold - deltaSeconds);
+    const turningByHand = this.manualFollow > 0;
+    this.manualFollow = Math.max(0, this.manualFollow - deltaSeconds);
     const focusId = focus?.id ?? null;
     if (focusId !== this.focusId) {
       this.focusId = focusId;
@@ -109,7 +120,8 @@ export class CameraRig {
     this.desiredPosition.set(player.x - dir.x * BACK, HEIGHT, player.z - dir.y * BACK);
     this.desiredLook.set(player.x + dir.x * AHEAD, 1.2, player.z + dir.y * AHEAD);
 
-    this.blendTowards(deltaSeconds, this.dueling ? DUEL_FOLLOW_RATE : FOLLOW_RATE);
+    const rate = turningByHand ? MANUAL_FOLLOW_RATE : this.dueling ? DUEL_FOLLOW_RATE : FOLLOW_RATE;
+    this.blendTowards(deltaSeconds, rate);
     if (shake > 0) {
       const amount = shake * shake * 0.18;
       this.camera.position.x += (Math.random() - 0.5) * amount;
@@ -153,6 +165,7 @@ export class CameraRig {
     // Girar con el dedo sí cambia el "adelante" del joystick: es lo que el jugador quiere.
     this.moveBasis?.rotateAround(ORIGIN, radians);
     this.manualHold = MANUAL_HOLD_SECONDS;
+    this.manualFollow = MANUAL_FOLLOW_SECONDS;
     this.turning = false;
   }
 
@@ -161,6 +174,7 @@ export class CameraRig {
     this.initialized = false;
     this.heading = null;
     this.manualHold = 0;
+    this.manualFollow = 0;
     this.focusId = null;
     this.turning = false;
     this.dueling = false;
