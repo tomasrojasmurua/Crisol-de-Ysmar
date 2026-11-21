@@ -1,6 +1,7 @@
 import type { Field, GuidedBolt } from '@crisol/core';
 import * as THREE from 'three';
 import { shared } from './dispose';
+import { artSprite } from './GreatSpellViews';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
 
@@ -88,7 +89,11 @@ export function createField(field: Field): THREE.Object3D {
         new THREE.MeshBasicMaterial({ color: glow(FIRE, 2.4) }),
       );
       crater.position.y = r * 1.45;
-      group.add(cone, crater);
+      // La erupción pintada sale del cráter hacia arriba; el cono queda igual que siempre.
+      const eruption = artSprite('volcan', glow(FIRE, 1.5), r * 2.4, [0.5, 0.08]);
+      eruption.position.y = r * 1.4;
+      group.userData.eruption = eruption;
+      group.add(cone, crater, eruption);
       group.userData.grows = cone;
       return group;
     }
@@ -102,8 +107,11 @@ export function createField(field: Field): THREE.Object3D {
         new THREE.IcosahedronGeometry(r * 1.6, 1),
         additive(glow(FIRE, 1.4), 0.25),
       );
-      group.add(core, shell);
+      // La corona del sol pintada alrededor del núcleo.
+      const corona = artSprite('sol', glow(GOLD, 1.5), r * 4.2);
+      group.add(core, shell, corona);
       group.userData.shell = shell;
+      group.userData.corona = corona;
       return group;
     }
     case 'iceTrack':
@@ -211,6 +219,12 @@ export function createField(field: Field): THREE.Object3D {
     default: {
       group.position.set(x, 0.05, z);
       groundDisc(group, r, FIELD_COLOR[field.mode] ?? SMOKE, FIELD_OPACITY[field.mode] ?? 0.14);
+      if (field.mode === 'deluge') {
+        // La cortina de lluvia pintada sobre la zona.
+        const rain = artSprite('diluvio', glow(WATER, 0.9), r * 2.2, [0.5, 0.02]);
+        group.add(rain);
+        group.userData.rain = rain;
+      }
       return group;
     }
   }
@@ -277,6 +291,9 @@ export function updateField(
           Math.min(1, field.ticksLeft / 10 + 0.2),
       );
       cone.rotation.y = time * 0.1;
+      const eruption = view.userData.eruption as THREE.Sprite;
+      const beat = 1 + 0.08 * Math.sin(time * 9) + 0.04 * Math.sin(time * 23);
+      eruption.scale.set(field.radius * 2.4 * (2 - beat), field.radius * 2.4 * beat, 1);
       if (Math.random() < 0.5) {
         particles.emit({
           x: field.pos.x + (Math.random() - 0.5) * 0.4,
@@ -348,7 +365,10 @@ export function updateField(
         });
       }
       return;
-    case 'deluge':
+    case 'deluge': {
+      const rain = view.userData.rain as THREE.Sprite;
+      // La cortina parpadea un poco, como lluvia que cambia de densidad.
+      rain.material.opacity = strength * (0.8 + 0.2 * Math.sin(time * 13));
       for (let i = 0; i < 4; i++) {
         const p = inside(field, 5);
         particles.emit({
@@ -360,6 +380,7 @@ export function updateField(
         });
       }
       return;
+    }
     case 'growth':
       if (Math.random() < 0.6) {
         const p = inside(field, 0.1);
@@ -385,6 +406,7 @@ export function updateField(
       shell.rotation.y = time * 1.5;
       view.position.y = 0.9 + Math.sin(time * 3 + field.id) * 0.12;
       shell.scale.setScalar(1 + Math.sin(time * 6) * 0.08);
+      (view.userData.corona as THREE.Sprite).material.rotation = time * 0.4;
       return;
     }
     case 'iceTrack': {

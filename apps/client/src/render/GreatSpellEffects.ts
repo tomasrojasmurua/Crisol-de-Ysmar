@@ -118,10 +118,14 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       return true;
     case 'iceAge':
       fx.ring(x, z, ICE, r, 0.8);
+      // Un racimo de cristales que brota del suelo y la escarcha que queda.
+      fx.art('hielo', x, 0, z, ICE, r * 1.5, 1.6, [0.5, 0.02]);
+      fx.scorch(x, z, r * 2.2, 6, 'escarcha');
       fountain(particles, x, z, r, glow(ICE, 1.8), 90, 4);
       return true;
     case 'abyss':
       fx.ring(x, z, SHADOW, r * 1.1, 0.6);
+      fx.scorch(x, z, r * 2.2, 6, 'sombra');
       for (let i = 0; i < 70; i++) {
         const angle = Math.random() * Math.PI * 2;
         const d = r * (0.6 + Math.random() * 0.4);
@@ -143,6 +147,7 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       return true;
     case 'tempest':
       fx.ring(x, z, STORM, r * 1.2, 0.4);
+      fx.scorch(x, z, r * 1.6, 4, 'rayo');
       particles.burst(x, 1, z, glow(LIGHTNING, 2), 30, 5, 0.3);
       return true;
     case 'hurricane':
@@ -166,6 +171,7 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       return true;
     case 'rootCatapult':
       fx.ring(x, z, ROOT, r, 0.5);
+      fx.scorch(x, z, r * 2, 5, 'raices');
       fountain(particles, x, z, r, glow(ROOT, 1.4), 40, 4);
       particles.burst(x, 0.4, z, new THREE.Color('#6b4a2a'), 30, 4, 0.6);
       return true;
@@ -188,6 +194,8 @@ export function greatBurst(fx: EffectsView, particles: Particles, event: Burst):
       }
       return true;
     case 'nightmare':
+      // Una figura encapuchada de humo que sube y se deshace.
+      fx.art('pesadilla', x, 0.4, z, SHADOW, 3.2, 1.4, [0.5, 0], 0.8);
       particles.burst(x, 1.8, z, glow(SHADOW, 1.6), 30, 1.5, 0.8);
       return true;
     default:
@@ -200,6 +208,13 @@ export function lineStrike(fx: EffectsView, particles: Particles, event: Line): 
   const { from, to } = event;
   fx.beam(from, to, LIGHTNING, 0.35, 1.2);
   fx.beam(from, to, STORM, 0.5, 1.2);
+  // La lanza de luz cae en tres puntos de la franja y deja la piedra quemada.
+  for (const t of [0.15, 0.5, 0.85]) {
+    const px = from.x + (to.x - from.x) * t;
+    const pz = from.z + (to.z - from.z) * t;
+    fx.art('lanza', px, 0, pz, LIGHTNING, 6, 0.6, [0.5, 0.04]);
+    fx.scorch(px, pz, 2, 5, 'rayo');
+  }
   const steps = 12;
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;

@@ -1,6 +1,10 @@
 import type { ElementId } from '@crisol/core';
 import * as THREE from 'three';
+import trailsUrl from '../assets/vfx/estelas.webp';
+import greatsUrl from '../assets/vfx/grandes.webp';
 import decalsUrl from '../assets/vfx/marcas.webp';
+import marksUrl from '../assets/vfx/marcas-elementos.webp';
+import headsUrl from '../assets/vfx/proyectiles.webp';
 import sealsUrl from '../assets/vfx/sellos.webp';
 import { shared } from './dispose';
 import { uploadEarly } from './earlyUpload';
@@ -12,6 +16,34 @@ export type DecalName = (typeof DECALS)[number];
 
 /** Los sellos de los elementos, en gris sobre negro, en un atlas de 3 × 2 casillas. */
 const SEAL_ORDER: readonly ElementId[] = ['brasa', 'tormenta', 'marea', 'raiz', 'umbra'];
+
+/**
+ * Las marcas que deja un golpe fuerte de cada elemento, a color con transparencia. La ceniza
+ * (la de siempre, para el fuego) vive en el atlas de las marcas del suelo; las demás en otro
+ * atlas de 3 × 2 casillas.
+ */
+export const ELEMENT_MARKS = ['escarcha', 'charco', 'rayo', 'raices', 'sombra'] as const;
+export type MarkName = (typeof ELEMENT_MARKS)[number] | 'ceniza';
+
+/** La imagen propia de cada Gran hechizo, en gris sobre negro, en un atlas de 4 × 3 casillas. */
+export const GREAT_ART = [
+  'meteoro',
+  'huracan',
+  'ola',
+  'hielo',
+  'portal',
+  'volcan',
+  'lanza',
+  'abismo',
+  'sol',
+  'diluvio',
+  'espinas',
+  'pesadilla',
+] as const;
+export type GreatArt = (typeof GREAT_ART)[number];
+
+/** Las estelas, una por fila (de arriba abajo) y con la cabeza a la derecha. */
+export const TRAIL_ORDER: readonly ElementId[] = SEAL_ORDER;
 
 const loaded = new Map<string, THREE.Texture>();
 /** Cada casilla pedida, armada una sola vez y compartida por todas las vistas. */
@@ -54,11 +86,11 @@ function cell(
   colorSpace: THREE.ColorSpace,
   index: number,
   columns: number,
+  rows = 2,
 ): THREE.Texture {
   const key = `${url}#${index}`;
   let texture = cells.get(key);
   if (!texture) {
-    const rows = 2;
     // Compartida: liberarla al quitar un mago borraría la imagen de la tarjeta para todos.
     texture = shared(textureView(load(url, colorSpace)));
     texture.repeat.set(1 / columns, 1 / rows);
@@ -83,6 +115,27 @@ export function sealTexture(element: ElementId): THREE.Texture {
   return cell(sealsUrl, THREE.NoColorSpace, SEAL_ORDER.indexOf(element), 3);
 }
 
+/** La cabeza del proyectil de un elemento: se pinta de su color con mezcla aditiva. */
+export function projectileHead(element: ElementId): THREE.Texture {
+  return cell(headsUrl, THREE.NoColorSpace, SEAL_ORDER.indexOf(element), 3);
+}
+
+/** La marca que deja un golpe fuerte: ceniza, escarcha, charco, rayo, raíces o sombra. */
+export function markTexture(mark: MarkName): THREE.Texture {
+  if (mark === 'ceniza') return decalTexture('ceniza');
+  return cell(marksUrl, THREE.SRGBColorSpace, ELEMENT_MARKS.indexOf(mark), 3);
+}
+
+/** La imagen de un Gran hechizo, para un sprite o un plano aditivo. Compartida. */
+export function greatTexture(art: GreatArt): THREE.Texture {
+  return cell(greatsUrl, THREE.NoColorSpace, GREAT_ART.indexOf(art), 4, 3);
+}
+
+/** El atlas de las estelas: la malla de las cintas elige su fila con las coordenadas. */
+export function trailAtlas(): THREE.Texture {
+  return load(trailsUrl, THREE.NoColorSpace);
+}
+
 /** Una forma del atlas de chispas, como textura suelta para un sprite (destellos, orbes). */
 export function shapeTexture(shape: ParticleShape): THREE.Texture {
   const texture = textureView(particleAtlas());
@@ -97,4 +150,8 @@ export function preloadVfxTextures(): void {
   particleAtlas();
   decalAtlas();
   load(sealsUrl, THREE.NoColorSpace);
+  load(headsUrl, THREE.NoColorSpace);
+  load(greatsUrl, THREE.NoColorSpace);
+  load(marksUrl, THREE.SRGBColorSpace);
+  trailAtlas();
 }

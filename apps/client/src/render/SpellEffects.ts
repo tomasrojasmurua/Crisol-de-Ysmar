@@ -112,6 +112,7 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
     case 'geyser':
       fx.column(x, z, WATER, 0.9, r / 0.7);
       fx.ring(x, z, WATER, r * 1.2, 0.6);
+      fx.scorch(x, z, r * 1.8, 4, 'charco');
       for (let i = 0; i < 50; i++) {
         const angle = Math.random() * Math.PI * 2;
         const d = Math.random() * r;
@@ -132,6 +133,7 @@ export function spellBurst(fx: EffectsView, particles: Particles, event: Burst):
       break;
     case 'thornRush':
       fx.ring(x, z, ROOT, r, 0.35);
+      fx.scorch(x, z, r * 1.6, 4, 'raices');
       for (let i = 0; i < 18; i++) {
         const angle = Math.random() * Math.PI * 2;
         particles.emit({

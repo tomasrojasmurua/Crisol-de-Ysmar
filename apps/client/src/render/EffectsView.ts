@@ -21,7 +21,7 @@ import {
   vine,
   zap,
 } from './SpellEffects';
-import { decalTexture } from './vfxTextures';
+import { type GreatArt, greatTexture, type MarkName, markTexture } from './vfxTextures';
 
 interface Timed {
   readonly mesh: THREE.Mesh;
@@ -55,6 +55,15 @@ const SHAKERS: ReadonlySet<SpellId> = new Set([
 ]);
 
 const WHITE = new THREE.Color('#ffffff');
+/** Las marcas vienen con luz de día: se apagan hacia la noche (la escarcha, que es clara, más). */
+const MARK_TINT: Readonly<Record<MarkName, string>> = {
+  ceniza: '#7a7480',
+  escarcha: '#6e7a92',
+  charco: '#a0a6b8',
+  rayo: '#8a8898',
+  raices: '#8a8898',
+  sombra: '#a8a0c0',
+};
 /** Marcas en el suelo a la vez, como máximo. */
 const MAX_SCORCHES = 10;
 
@@ -87,7 +96,7 @@ export class EffectsView {
   private readonly scorches: Timed[] = [];
   private readonly scorchGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   private readonly scorchMaterial = new THREE.MeshBasicMaterial({
-    map: decalTexture('ceniza'),
+    map: markTexture('ceniza'),
     // Sin luz propia: se oscurece para no verse más clara que las losas.
     color: '#7a7480',
     transparent: true,
@@ -96,6 +105,17 @@ export class EffectsView {
     polygonOffsetFactor: -3,
     polygonOffsetUnits: -6,
   });
+  /**
+   * Las imágenes de los Grandes hechizos que aparecen un momento (cristales de hielo, la lanza,
+   * la pesadilla): sprites aditivos reciclados, cada uno con su imagen del atlas.
+   */
+  private readonly arts: {
+    sprite: THREE.Sprite;
+    age: number;
+    duration: number;
+    size: number;
+    rise: number;
+  }[] = [];
   private readonly beamGeometry: THREE.CylinderGeometry;
   private readonly columnGeometry = new THREE.CylinderGeometry(0.7, 0.7, 6, 24, 1, true);
   /** Sacudida de cámara pendiente, de 0 a 1. */
@@ -741,6 +761,20 @@ export class EffectsView {
       flash.sprite.scale.setScalar(flash.size * (0.5 + 0.5 * Math.sqrt(t)));
       flash.sprite.material.opacity = (1 - t) * (1 - t);
     }
+    for (const art of this.arts) {
+      if (!art.sprite.visible) continue;
+      art.age += deltaSeconds;
+      const t = art.age / art.duration;
+      if (t >= 1) {
+        art.sprite.visible = false;
+        continue;
+      }
+      // Brota rápido, se queda y se apaga en el último tercio.
+      const grow = Math.min(1, t * 6);
+      art.sprite.scale.set(art.size * (0.7 + 0.3 * grow), art.size * grow, 1);
+      art.sprite.position.y += art.rise * deltaSeconds;
+      art.sprite.material.opacity = t < 0.66 ? grow : (1 - t) / 0.34;
+    }
     for (const ring of this.rings) {
       if (!advance(ring, deltaSeconds)) continue;
       const t = ring.age / ring.duration;
@@ -804,8 +838,48 @@ export class EffectsView {
     flash.sprite.material.color.copy(glow(color.clone().lerp(WHITE, 0.35), 2.6));
   }
 
-  /** Una mancha quemada o mojada en el suelo, de `size` metros de ancho. */
-  scorch(x: number, z: number, size: number, duration = 4): void {
+  /**
+   * La imagen de un Gran hechizo, un momento: brota desde `center` (0,5 / 0 es apoyada en el
+   * suelo) y se apaga sola. `rise` la hace subir (metros por segundo).
+   */
+  art(
+    art: GreatArt,
+    x: number,
+    y: number,
+    z: number,
+    color: THREE.Color,
+    size: number,
+    duration: number,
+    center: readonly [number, number] = [0.5, 0.5],
+    rise = 0,
+  ): void {
+    let item = this.arts.find((a) => !a.sprite.visible);
+    if (!item) {
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+        }),
+      );
+      this.scene.add(sprite);
+      item = { sprite, age: 0, duration, size, rise };
+      this.arts.push(item);
+    }
+    item.age = 0;
+    item.duration = duration;
+    item.size = size;
+    item.rise = rise;
+    item.sprite.visible = true;
+    item.sprite.position.set(x, y, z);
+    item.sprite.center.set(center[0], center[1]);
+    item.sprite.scale.set(size, 0.01, 1);
+    item.sprite.material.map = greatTexture(art);
+    item.sprite.material.color.copy(glow(color, 1.6));
+  }
+
+  /** Una marca en el suelo (quemada, helada, mojada...), de `size` metros de ancho. */
+  scorch(x: number, z: number, size: number, duration = 4, mark: MarkName = 'ceniza'): void {
     let item = this.scorches.find((s) => !s.mesh.visible);
     if (!item) {
       if (this.scorches.length < MAX_SCORCHES) {
@@ -824,6 +898,11 @@ export class EffectsView {
     item.mesh.position.set(x, 0.035, z);
     item.mesh.rotation.y = Math.random() * Math.PI * 2;
     item.mesh.scale.set(size, 1, size);
+    const material = item.mesh.material as THREE.MeshBasicMaterial;
+    const map = markTexture(mark);
+    if (material.map !== map) material.map = map;
+    // La ceniza se apaga hacia la noche; las demás ya vienen oscuras.
+    material.color.set(MARK_TINT[mark]);
   }
 
   ring(x: number, z: number, color: THREE.Color, size: number, duration: number): void {

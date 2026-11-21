@@ -15,6 +15,7 @@ import { createGlowTexture } from './arena/textures';
 import { shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
+import { type GreatArt, greatTexture } from './vfxTextures';
 
 const FIRE = elementColor('brasa');
 const STORM = elementColor('tormenta');
@@ -33,6 +34,8 @@ const ringGeometry = new THREE.RingGeometry(0.9, 1, 56).rotateX(-Math.PI / 2);
 const planeGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
 const spikeGeometry = new THREE.ConeGeometry(0.16, 1, 5).translate(0, 0.5, 0);
 const glowTexture = createGlowTexture();
+/** Un cuadrado acostado en el suelo, para pintar una imagen de hechizo. */
+const artPlane = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 
 function additive(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
@@ -56,6 +59,30 @@ function halo(color: THREE.Color, size: number): THREE.Sprite {
       transparent: true,
     }),
   );
+  sprite.scale.setScalar(size);
+  return sprite;
+}
+
+/**
+ * La imagen propia de un Gran hechizo como sprite aditivo de su color. `center` es el punto
+ * de la imagen que queda en la posición del sprite (0,5 / 0 = apoyada en el suelo).
+ */
+export function artSprite(
+  art: GreatArt,
+  color: THREE.Color,
+  size: number,
+  center: readonly [number, number] = [0.5, 0.5],
+): THREE.Sprite {
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: greatTexture(art),
+      color,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+    }),
+  );
+  sprite.center.set(center[0], center[1]);
   sprite.scale.setScalar(size);
   return sprite;
 }
@@ -106,6 +133,14 @@ export function createStrike(strike: Strike): THREE.Object3D {
   fill.scale.setScalar(strike.radius);
   group.add(ring, fill);
   group.userData.fill = fill;
+  if (strike.payload.spell === 'abyss') {
+    // El remolino del abismo pintado en el suelo; gira con el aviso y crece hasta el golpe.
+    const art = new THREE.Mesh(artPlane, additive(glow(SHADOW, 1.6), 0.3));
+    (art.material as THREE.MeshBasicMaterial).map = greatTexture('abismo');
+    art.position.y = 0.02;
+    group.add(art);
+    group.userData.art = art;
+  }
   if (strike.payload.spell === 'meteor') {
     // La roca que cae, cada vez más cerca y más brillante.
     const rock = new THREE.Mesh(
@@ -118,6 +153,10 @@ export function createStrike(strike: Strike): THREE.Object3D {
       }),
     );
     rock.add(halo(glow(FIRE, 1.8), 4));
+    // La cola de fuego del meteoro: la cabeza de la imagen (abajo a la derecha) va en la roca.
+    const tail = artSprite('meteoro', glow(FIRE, 1.6), 7, [0.8, 0.2]);
+    group.add(tail);
+    group.userData.tail = tail;
     group.add(rock);
     group.userData.rock = rock;
   }
@@ -159,6 +198,13 @@ export function updateStrike(
   if (rock) {
     rock.position.set(-6 * (1 - progress), 0.6 + 22 * (1 - progress), 0);
     rock.rotation.set(time * 3, time * 2, 0);
+    // La cola sigue a la roca; como sprite, no gira con ella.
+    (view.userData.tail as THREE.Sprite).position.copy(rock.position);
+  }
+  const art = view.userData.art as THREE.Mesh | undefined;
+  if (art) {
+    art.scale.setScalar(strike.radius * 2.3 * Math.max(0.1, progress));
+    (art.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.6 * progress;
   }
   const color = spell === 'cauldron' && Math.random() < 0.5 ? WATER : strikeColor(spell);
   if (Math.random() < 0.4 + progress) {
@@ -202,6 +248,10 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
       band.userData.twist = 6 - t * 3;
       group.add(band);
     }
+    // El embudo pintado: un tornado que se apoya en el suelo y late.
+    const funnel = artSprite('huracan', glow(STORM, 1.3), sweeper.radius * 2.8, [0.5, 0.02]);
+    funnel.userData.sway = sweeper.radius * 2.8;
+    group.add(funnel);
   } else if (sweeper.mode === 'orb') {
     const core = new THREE.Mesh(
       new THREE.IcosahedronGeometry(sweeper.radius * 0.7, 2),
@@ -304,6 +354,14 @@ export function createSweeper(sweeper: Sweeper): THREE.Object3D {
     wave.rotation.z = Math.PI / 2;
     wave.position.y = 0.2;
     group.add(wave);
+    // La cresta pintada a lo ancho del frente: solo se ve, no cambia el largo de la ola.
+    const crests = Math.max(1, Math.round((sweeper.halfWidth * 2) / 2.4));
+    for (let i = 0; i < crests; i++) {
+      const crest = artSprite('ola', glow(WATER, 1.4), 3, [0.5, 0.05]);
+      crest.position.set(((i + 0.5) / crests - 0.5) * sweeper.halfWidth * 2, 0, 0.6);
+      crest.userData.sway = 3;
+      group.add(crest);
+    }
   }
   group.rotation.y = Math.atan2(sweeper.velocity.x, sweeper.velocity.z);
   return group;
@@ -330,6 +388,11 @@ export function updateSweeper(
     const flicker = child.userData.flicker as number | undefined;
     if (flicker !== undefined)
       child.scale.y = 0.8 + 0.5 * Math.abs(Math.sin(time * 9 + flicker * 1.3));
+    const sway = child.userData.sway as number | undefined;
+    if (sway !== undefined) {
+      const beat = 1 + 0.06 * Math.sin(time * 7 + child.position.x);
+      child.scale.set(sway * (2 - beat), sway * beat, 1);
+    }
     const gallop = child.userData.gallop as number | undefined;
     if (gallop !== undefined)
       child.position.y = Math.abs(Math.sin(time * 12 + gallop * 1.7)) * 0.25;
@@ -586,7 +649,12 @@ function portalMouth(color: THREE.Color): THREE.Object3D {
     new THREE.MeshBasicMaterial({ color: glow(color, 2.4) }),
   );
   ring.position.y = 1.3;
-  const inside = new THREE.Mesh(new THREE.CircleGeometry(0.95, 32), additive(glow(SHADOW, 1), 0.5));
+  const inside = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.3, 2.3),
+    additive(glow(color, 1.3), 0.85),
+  );
+  // El remolino pintado del portal, del color de su boca.
+  (inside.material as THREE.MeshBasicMaterial).map = greatTexture('portal');
   inside.position.y = 1.3;
   const floor = new THREE.Mesh(ringGeometry, additive(glow(color, 1.4), 0.5));
   floor.position.y = 0.06;
@@ -658,6 +726,11 @@ export function createThornRing(ring: ThornRing): THREE.Object3D {
   glowRing.scale.setScalar(ring.radius);
   glowRing.position.y = 0.05;
   group.add(glowRing);
+  // El anillo de zarzas pintado, apoyado en el suelo, crece con las espinas.
+  const art = artSprite('espinas', glow(FIRE, 1), ring.radius * 2.3, [0.5, 0.3]);
+  art.userData.height = 1;
+  art.userData.art = ring.radius * 2.3;
+  group.add(art);
   return group;
 }
 
@@ -665,7 +738,9 @@ export function updateThornRing(view: THREE.Object3D, ring: ThornRing, particles
   const grow = fade(ring.ticksLeft, ring.durationTicks);
   for (const spike of view.children) {
     const height = spike.userData.height as number | undefined;
-    if (height) spike.scale.y = Math.max(0.01, height * grow);
+    const art = spike.userData.art as number | undefined;
+    if (art) spike.scale.set(art, Math.max(0.01, art * grow), 1);
+    else if (height) spike.scale.y = Math.max(0.01, height * grow);
   }
   if (Math.random() < 0.6) {
     const angle = Math.random() * Math.PI * 2;
