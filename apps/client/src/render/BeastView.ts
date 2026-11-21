@@ -1,7 +1,7 @@
 import type { Beast, ElementId, Vec2 } from '@crisol/core';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { disposeTree } from './dispose';
+import { disposeTree, shared } from './dispose';
 import { ELEMENT_COLORS, elementColor, glow } from './palette';
 
 /** El Guardián es la misma criatura, mucho más grande. */
@@ -14,6 +14,20 @@ const GUARDIAN_SCALE = 2.2;
  */
 const FAR_ENTER_M = 26;
 const FAR_LEAVE_M = 22;
+
+/** Una bestia ya armada, de cada elemento (y Guardián o no), para copiarla en vez de rearmarla. */
+interface BeastTemplate {
+  readonly group: THREE.Group;
+  readonly skin: THREE.MeshStandardMaterial;
+}
+
+/**
+ * Armar una bestia (fundir sus piezas, pintarlas, subirlas a la tarjeta gráfica) cuesta varios
+ * milisegundos en un celular, y al empezar cada ronda aparecen unas 20 a la vez: un tirón que se
+ * veía en todas las pruebas ("Entre rondas", 21 de noviembre). Ahora cada tipo se arma una sola
+ * vez y las demás se copian compartiendo las mallas, que quedan en la tarjeta gráfica.
+ */
+const TEMPLATES = new Map<string, BeastTemplate>();
 
 /**
  * Una bestia neutral: cuerpo de piedra y sombra con un núcleo que brilla del color de su elemento,
@@ -40,6 +54,32 @@ export class BeastView {
     readonly element: ElementId,
     readonly guardian = false,
   ) {
+    const key = `${element}|${guardian}`;
+    const template = TEMPLATES.get(key);
+    if (template) {
+      // Copia: las mallas se comparten; la piel es propia (cada una brilla al recibir daño).
+      this.group = template.group.clone(true);
+      this.skin = template.skin.clone();
+      let body: THREE.Group | null = null;
+      let shards: THREE.Group | null = null;
+      let farSkin: THREE.Mesh | null = null;
+      this.group.traverse((object) => {
+        const role = object.userData as BeastRole;
+        if (object instanceof THREE.Mesh && object.material === template.skin) {
+          object.material = this.skin;
+        }
+        if (role.body) body = object as THREE.Group;
+        if (role.shards) shards = object as THREE.Group;
+        if (role.far) farSkin = object as THREE.Mesh;
+        if (role.leg) this.legs.push(object as THREE.Mesh);
+        if (role.wing) this.wings.push(object as THREE.Mesh);
+        if (role.near) this.nearSkin.push(object as THREE.Mesh);
+      });
+      this.body = body ?? this.body;
+      this.shards = shards ?? this.shards;
+      this.farSkin = farSkin;
+      return;
+    }
     const color = elementColor(element);
     this.skin = new THREE.MeshStandardMaterial({
       color: new THREE.Color('#4a453f').lerp(color, 0.2),
@@ -195,6 +235,25 @@ export class BeastView {
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.03;
     this.group.add(ring);
+    this.keepAsTemplate(key);
+  }
+
+  /** Marca qué es cada pieza y guarda una copia para las próximas de este tipo. */
+  private keepAsTemplate(key: string): void {
+    const mark = (object: THREE.Object3D, role: keyof BeastRole): void => {
+      (object.userData as BeastRole)[role] = true;
+    };
+    mark(this.body, 'body');
+    mark(this.shards, 'shards');
+    if (this.farSkin) mark(this.farSkin, 'far');
+    for (const leg of this.legs) mark(leg, 'leg');
+    for (const wing of this.wings) mark(wing, 'wing');
+    for (const mesh of this.nearSkin) mark(mesh, 'near');
+    // Las mallas quedan para siempre: al quitar una bestia no se liberan.
+    this.group.traverse((object) => {
+      if (object instanceof THREE.Mesh) shared(object.geometry);
+    });
+    TEMPLATES.set(key, { group: this.group.clone(true), skin: this.skin });
   }
 
   /** `viewer`: dónde está la cámara, para dibujarla con menos detalle si está lejos. */
@@ -363,6 +422,16 @@ export class BeastView {
       }
     }
   }
+}
+
+/** Qué es cada pieza de una bestia, para encontrarla en una copia. */
+interface BeastRole {
+  body?: boolean;
+  shards?: boolean;
+  far?: boolean;
+  leg?: boolean;
+  wing?: boolean;
+  near?: boolean;
 }
 
 /**

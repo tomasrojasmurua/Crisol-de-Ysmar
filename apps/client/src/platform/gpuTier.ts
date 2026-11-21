@@ -30,17 +30,17 @@ export function gpuInfo(): GpuInfo {
   } catch {
     // Sin WebGL el juego no arranca igual; aquí basta no romper.
   }
-  const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-  cached = { name, modest: isModestGpu(name, userAgent) };
+  cached = { name, modest: isModestGpu(name) };
   return cached;
 }
 
 /**
- * Android con tarjeta Mali, PowerVR o Adreno de las series 500 y 600 (la gama media y baja).
- * Los Adreno 700 y 800 (Galaxy S) y los iPhone siguen con el perfil completo.
+ * Tarjeta Mali, PowerVR o Adreno de las series 500 y 600 (la gama media y baja de los Android).
+ * Los Adreno 700 y 800 (Galaxy S) y los iPhone siguen con el perfil completo. No se mira si el
+ * navegador dice "Android": Samsung Internet se presenta como Linux de escritorio, y así el
+ * Galaxy con Mali-G68 de la prueba del 21 de noviembre (sala XGRH) quedó con el perfil completo.
  */
-export function isModestGpu(name: string, userAgent: string): boolean {
-  if (!/Android/i.test(userAgent)) return false;
+export function isModestGpu(name: string): boolean {
   if (/Mali|PowerVR|IMG/i.test(name)) return true;
   const adreno = /Adreno[^\d]*(\d{3})/i.exec(name);
   return adreno?.[1] !== undefined && Number(adreno[1]) < 700;
