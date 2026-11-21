@@ -29,6 +29,8 @@ export class CreatureViews {
     deltaSeconds: number,
     /** Dónde está la cámara: las bestias lejanas se dibujan con menos detalle. */
     viewer?: Vec2,
+    /** Dónde se dibuja cada bestia entre un paso y el siguiente (ver `MatchView.interpolated`). */
+    shownAt: (id: number, pos: Vec2) => Vec2 = (_id, pos) => pos,
   ): void {
     const alive = new Set<number>();
     for (const beast of state.beasts) {
@@ -39,8 +41,9 @@ export class CreatureViews {
         this.beasts.set(beast.id, view);
         this.scene.add(view.group);
       }
-      view.update(beast, timeSeconds, deltaSeconds, viewer);
-      this.lastPositions.set(beast.id, beast.pos);
+      const pos = shownAt(beast.id, beast.pos);
+      view.update(beast, timeSeconds, deltaSeconds, viewer, pos);
+      this.lastPositions.set(beast.id, pos);
     }
     for (const shrine of state.shrines) {
       alive.add(shrine.id);

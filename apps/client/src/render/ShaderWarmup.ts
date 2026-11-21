@@ -1,4 +1,15 @@
 import {
+  CAPES,
+  DEFAULT_LOOK,
+  FACES,
+  FOCI,
+  HEADWEAR,
+  type LookIds,
+  type LookOption,
+  MASKS,
+  OUTFITS,
+} from '@crisol/content';
+import {
   createMatch,
   type GameEvent,
   type GameRules,
@@ -10,9 +21,14 @@ import {
   type Weave,
 } from '@crisol/core';
 import * as THREE from 'three';
+import { AimGuide } from './AimGuide';
+import { BeastView } from './BeastView';
 import { EffectsView } from './EffectsView';
 import { Particles } from './Particles';
+import { ShrineView } from './ShrineView';
 import { SpellViews } from './SpellViews';
+import { TargetMarker } from './TargetMarker';
+import { type WizardLook, WizardView } from './WizardView';
 
 /** Pasos que se simula cada hechizo de muestra: alcanza para que salga y se abra entero. */
 const SAMPLE_TICKS = 75;
@@ -51,6 +67,8 @@ export class ShaderWarmup {
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly rules: GameRules,
+    /** Dónde se dibuja la escena ahora (ver `PostProcessing.sceneTarget`). */
+    private readonly target: () => THREE.WebGLRenderTarget | null,
   ) {}
 
   /**
@@ -104,7 +122,7 @@ export class ShaderWarmup {
     if (!this.ready || lights === this.compiledFor) return this.compiling;
     this.compiledFor = lights;
     this.compiling = this.compiling
-      .then(() => this.renderer.compileAsync(this.samples, camera, scene))
+      .then(() => compileFor(this.renderer, this.target(), this.samples, camera, scene))
       .then(
         () => undefined,
         () => undefined,
@@ -129,10 +147,48 @@ export class ShaderWarmup {
     effects.onEvents(events, state, () => RIVAL_AT);
     effects.update(1 / 30);
     particles.update(1 / 30);
+    this.buildCreatures(state, particles);
     // Todo a la vista de la cámara de compilación (se compila lo visible, no se dibuja nunca).
+    // También lo escondido: los anillos de estado, el bloque de hielo o la tumba de un mago se
+    // muestran recién cuando pasa algo, y compilarlos ahí era un tirón en plena pelea.
     this.samples.traverse((object) => {
       object.frustumCulled = false;
+      object.visible = true;
     });
+  }
+
+  /**
+   * Magos, bestias y santuarios. Antes se compilaban al empezar cada partida (y la primera vez
+   * que alguien quedaba con Velo, congelado o caído): unos cuatro sombreadores en el primer
+   * cuadro. Un mago por cada pieza del Vestidor y cada Afinidad, propio y rival, y uno con Velo
+   * (su túnica pasa a un material de humo).
+   */
+  private buildCreatures(state: MatchState, particles: Particles): void {
+    const wizard = state.wizards[0];
+    if (!wizard) return;
+    const veiled = {
+      ...wizard,
+      statuses: { ...wizard.statuses, veiled: wizard.statuses.veiled ?? { ticks: 30 } },
+    } as typeof wizard;
+    sampleLooks().forEach((look, i) => {
+      const view = new WizardView(look, this.rules, particles);
+      view.update(i === 0 ? veiled : wizard, 0, 0, 1, 1 / 30, this.rules);
+      this.samples.add(view.group);
+    });
+    for (const element of ELEMENTS) {
+      for (const guardian of [false, true]) {
+        const beast = new BeastView(element, guardian);
+        this.samples.add(beast.group);
+      }
+    }
+    // La marca del duelo y la guía de puntería, escondidas en el menú.
+    this.samples.add(new TargetMarker('#ffffff').group, new AimGuide().mesh);
+    const shrine = state.shrines[0];
+    if (shrine) {
+      const view = new ShrineView(shrine, this.rules);
+      view.update(shrine, () => '#ffffff', 1);
+      this.samples.add(view.group);
+    }
   }
 
   /**
@@ -162,6 +218,31 @@ export class ShaderWarmup {
       object.clear();
       this.samples.add(object);
     }
+  }
+}
+
+/**
+ * Compila sin bloquear como si se dibujara en `target`. Sin esto, con calidad Alta se compilaba
+ * para la pantalla (sRGB y con tono) pero la escena se dibuja en la textura del resplandor
+ * (lineal y sin tono): eran otros sombreadores y cada hechizo nuevo igual compilaba el suyo en
+ * plena pelea. three.js arma la clave del sombreador al llamar, así que basta apuntar al
+ * destino solo durante la llamada.
+ */
+export function compileFor(
+  renderer: THREE.WebGLRenderer,
+  target: THREE.WebGLRenderTarget | null,
+  object: THREE.Object3D,
+  camera: THREE.Camera,
+  scene?: THREE.Scene,
+): Promise<unknown> {
+  const previous = renderer.getRenderTarget();
+  renderer.setRenderTarget(target);
+  try {
+    return scene
+      ? renderer.compileAsync(object, camera, scene)
+      : renderer.compileAsync(object, camera);
+  } finally {
+    renderer.setRenderTarget(previous);
   }
 }
 
@@ -215,6 +296,39 @@ function programKey(renderer: THREE.WebGLRenderer, material: THREE.Material): st
     currentProgram?: { cacheKey?: string };
   };
   return properties.currentProgram?.cacheKey ?? null;
+}
+
+const ELEMENTS = ['brasa', 'tormenta', 'marea', 'raiz', 'umbra'] as const;
+
+/** Un aspecto por cada pieza del Vestidor y cada Afinidad (los colores no cambian el sombreador). */
+function sampleLooks(): WizardLook[] {
+  const base = (ids: LookIds, isPlayer: boolean, affinity: WizardLook['affinity']): WizardLook => ({
+    ...ids,
+    teamColor: '#e8d7a8',
+    isPlayer,
+    robe: '#5a4a6a',
+    trim: '#c8a050',
+    skin: '#c89878',
+    affinity,
+  });
+  const looks = [base(DEFAULT_LOOK, true, null), base(DEFAULT_LOOK, false, null)];
+  const slots: readonly [keyof LookIds, readonly LookOption[]][] = [
+    ['face', FACES],
+    ['outfit', OUTFITS],
+    ['headwear', HEADWEAR],
+    ['mask', MASKS],
+    ['cape', CAPES],
+    ['focus', FOCI],
+  ];
+  for (const [slot, options] of slots) {
+    for (const option of options) {
+      if (option.id !== DEFAULT_LOOK[slot]) {
+        looks.push(base({ ...DEFAULT_LOOK, [slot]: option.id }, false, null));
+      }
+    }
+  }
+  for (const element of ELEMENTS) looks.push(base(DEFAULT_LOOK, false, element));
+  return looks;
 }
 
 interface Deadline {

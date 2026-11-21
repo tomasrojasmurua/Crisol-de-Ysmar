@@ -32,15 +32,16 @@ export class CastSigil {
   private readonly shapes: Record<SpellFamily, THREE.Object3D>;
   private family: SpellFamily | null = null;
   private fade = 0;
+  // Con textura desde el principio: ponérsela recién al primer tejido cambiaba el sombreador
+  // del material (un tirón en plena pelea).
   private readonly sealMaterial = new THREE.MeshBasicMaterial({
+    map: sealTexture('brasa'),
     transparent: true,
     opacity: 0,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
   private readonly seal = new THREE.Mesh(SEAL_GEOMETRY, this.sealMaterial);
-  /** Una textura por elemento, pedida la primera vez que se teje con él. */
-  private readonly seals = new Map<ElementId, THREE.Texture>();
   private sealElement: ElementId | null = null;
 
   constructor() {
@@ -109,14 +110,9 @@ export class CastSigil {
     this.seal.visible = true;
     if (element === this.sealElement) return;
     this.sealElement = element;
-    let texture = this.seals.get(element);
-    if (!texture) {
-      texture = sealTexture(element);
-      this.seals.set(element, texture);
-    }
-    this.sealMaterial.map = texture;
+    // Cambiar de textura no cambia el sombreador: no hace falta `needsUpdate`.
+    this.sealMaterial.map = sealTexture(element);
     this.sealMaterial.color.copy(glow(elementColor(element), 1.5));
-    this.sealMaterial.needsUpdate = true;
   }
 }
 

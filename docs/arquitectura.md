@@ -189,6 +189,23 @@ sombras. Reglas que lo sostienen:
   efectos fuera de la escena y se compilan sin bloquear (`compileAsync`); queda una pieza por
   sombreador para sostenerlos. Medido en la jungla: de 6 a 12 compilaciones en los primeros 45 s
   de partida (cada una, un tirón en un Android de gama media) a ninguna.
+- **La preparación compila para donde se dibuja de verdad** (`compileFor` en
+  `render/ShaderWarmup.ts`). Con calidad Alta la escena va a la textura del resplandor (color lineal
+  y sin tono) y no a la pantalla: compilar para la pantalla daba otros sombreadores y cada hechizo
+  nuevo igual compilaba el suyo en plena pelea. Medido en el 1v1 con Alta: de 14 compilaciones en
+  los primeros 40 s de partida a 2 (en el primer cuadro). La preparación también arma un mago por
+  cada pieza del Vestidor y cada Afinidad, uno con Velo, las bestias, un santuario, la marca del
+  duelo y la guía, y muestra todo lo escondido (anillos de estado, hielo, tumba).
+- **Nunca `texture.clone()` de three.js en una textura ya subida**: marca la imagen compartida
+  como cambiada y la tarjeta la recibe entera otra vez (los atlas de 1152 × 768 de sellos y marcas,
+  15 a 30 ms en un celular, cada vez que un mago tejía un elemento por primera vez). Se usa
+  `textureView` (`render/vfxTextures.ts`) y las casillas de los atlas se arman una sola vez. Las
+  imágenes de efectos se suben apenas bajan, en el menú (`render/earlyUpload.ts`).
+- **Los bordes de la arena se arman una vez por mapa y se guardan** (`ArenaView.setLayout`):
+  rearmarlos liberaba materiales y sombreadores, y la primera partida desde el menú compilaba unos
+  diez en su primer cuadro.
+- **Sin chispas vivas, las partículas no se suben ni se dibujan**; el color se sube solo al nacer
+  una.
 - **No cambiar cuántas luces hay en escena**: eso recompila todos los materiales. La linterna se
   apaga con la intensidad, no escondiéndola. Al cambiar la calidad (las sombras sí cambian) se
   recompila sin bloquear y mientras tanto queda el último cuadro a la vista (hasta 3 s).

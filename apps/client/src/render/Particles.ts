@@ -134,6 +134,10 @@ export class Particles {
   private next = 0;
   /** Las formas solo cambian al nacer una chispa: se suben a la tarjeta solo entonces. */
   private shapesDirty = false;
+  /** El color solo cambia al nacer una chispa: se sube a la tarjeta solo entonces. */
+  private colorsDirty = false;
+  /** Si en el cuadro anterior quedaba alguna viva (para apagar la última del todo). */
+  private wasAlive = false;
   /** Partículas vivas en el último cuadro (para el informe de rendimiento). */
   alive = 0;
   private readonly material: THREE.ShaderMaterial;
@@ -184,6 +188,7 @@ export class Particles {
     this.positions.set([spec.x, spec.y, spec.z], i * 3);
     this.velocities.set([spec.vx ?? 0, spec.vy ?? 0, spec.vz ?? 0], i * 3);
     this.colors.set([spec.color.r, spec.color.g, spec.color.b], i * 3);
+    this.colorsDirty = true;
     this.ages[i] = 0;
     this.lives[i] = spec.life;
     const shape = PARTICLE_SHAPES[spec.shape ?? autoShape(spec)];
@@ -234,7 +239,6 @@ export class Particles {
     for (let i = 0; i < this.capacity; i++) {
       const life = this.lives[i] ?? 0;
       if (life <= 0) continue;
-      alive += 1;
       const age = (this.ages[i] ?? 0) + deltaSeconds;
       this.ages[i] = age;
       const t = age / life;
@@ -244,6 +248,7 @@ export class Particles {
         this.sizes[i] = 0;
         continue;
       }
+      alive += 1;
       const v = i * 3;
       this.velocities[v + 1] =
         (this.velocities[v + 1] ?? 0) + (this.gravities[i] ?? 0) * deltaSeconds;
@@ -260,14 +265,25 @@ export class Particles {
       if (spin !== 0) this.angles[i] = (this.angles[i] ?? 0) + spin * deltaSeconds;
     }
     this.alive = alive;
+    // Sin chispas vivas no hay nada que subir ni dibujar: antes se subían las 1500 (unos 70 kB)
+    // y se recorrían en la tarjeta en cada cuadro aunque no hubiera ninguna. El cuadro en que se
+    // apaga la última sí se sube, para que no quede dibujada.
+    const anyAlive = alive > 0;
+    this.points.visible = anyAlive || this.wasAlive;
+    const changed = anyAlive || this.wasAlive;
+    this.wasAlive = anyAlive;
+    if (!changed) return;
     const geometry = this.points.geometry;
     if (this.shapesDirty) {
       geometry.getAttribute('aShape').needsUpdate = true;
       this.shapesDirty = false;
     }
-    for (const name of ['position', 'aColor', 'aSize', 'aAlpha', 'aAngle', 'aVelocity']) {
-      const attribute = geometry.getAttribute(name);
-      attribute.needsUpdate = true;
+    if (this.colorsDirty) {
+      geometry.getAttribute('aColor').needsUpdate = true;
+      this.colorsDirty = false;
+    }
+    for (const name of ['position', 'aSize', 'aAlpha', 'aAngle', 'aVelocity']) {
+      geometry.getAttribute(name).needsUpdate = true;
     }
   }
 }

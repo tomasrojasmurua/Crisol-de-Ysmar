@@ -38,6 +38,15 @@ export class PostProcessing {
     this.bloom.resolution.set(width / 2, height / 2);
   }
 
+  /**
+   * Dónde se dibuja la escena: en Alta, en la textura intermedia del resplandor (color lineal y
+   * sin tono, que se aplica al final); en Liviana, directo en la pantalla. Los sombreadores
+   * dependen de eso, así que se compilan de antemano apuntando aquí (ver `ShaderWarmup`).
+   */
+  get sceneTarget(): THREE.WebGLRenderTarget | null {
+    return this.enabled ? this.composer.renderTarget1 : null;
+  }
+
   render(): void {
     if (this.enabled) this.composer.render();
     else this.renderer.render(this.scene, this.camera);

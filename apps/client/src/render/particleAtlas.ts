@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import atlasUrl from '../assets/vfx/particulas.png';
+import { uploadEarly } from './earlyUpload';
 
 /**
  * Las formas que puede tener una chispa. Todas viven en una sola textura de 512 × 512 (un atlas
@@ -59,7 +60,8 @@ let atlas: THREE.Texture | null = null;
  */
 export function particleAtlas(): THREE.Texture {
   if (!atlas) {
-    atlas = new THREE.TextureLoader().load(atlasUrl);
+    const created = new THREE.TextureLoader().load(atlasUrl, () => uploadEarly(created));
+    atlas = created;
     // Las casillas se cuentan desde arriba, como en la imagen.
     atlas.flipY = false;
   }

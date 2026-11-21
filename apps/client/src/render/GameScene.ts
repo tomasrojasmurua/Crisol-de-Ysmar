@@ -9,11 +9,13 @@ import { MapViews } from './arena/MapViews';
 import { ZoneView } from './arena/ZoneView';
 import { CreatureViews } from './CreatureViews';
 import { EffectsView } from './EffectsView';
+import { setEarlyUploader } from './earlyUpload';
 import { Particles } from './Particles';
 import { PostProcessing } from './postprocessing';
-import { ShaderWarmup } from './ShaderWarmup';
+import { compileFor, ShaderWarmup } from './ShaderWarmup';
 import { SpellViews, type SpellWorld } from './SpellViews';
 import { TargetMarker } from './TargetMarker';
+import { preloadVfxTextures } from './vfxTextures';
 import { PORTRAIT_RIM_STRENGTH, type WizardLook, WizardView } from './WizardView';
 
 /**
@@ -101,7 +103,10 @@ export class GameScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Las llamadas de dibujo se cuentan por cuadro completo (sombras y resplandor incluidos).
     this.renderer.info.autoReset = false;
-    this.warmup = new ShaderWarmup(this.renderer, rules);
+    this.warmup = new ShaderWarmup(this.renderer, rules, () => this.post.sceneTarget);
+    // Las imágenes de los efectos se suben a la tarjeta apenas bajan, no en plena pelea.
+    setEarlyUploader(this.renderer);
+    preloadVfxTextures();
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => {
         const { clientWidth, clientHeight } = canvas;
@@ -167,7 +172,7 @@ export class GameScene {
   warmUp(withScene = false): Promise<void> {
     const spells = this.warmup.compile(this.scene, this.camera, this.lightKey);
     if (!withScene) return spells;
-    const scene = this.renderer.compileAsync(this.scene, this.camera).then(
+    const scene = compileFor(this.renderer, this.post.sceneTarget, this.scene, this.camera).then(
       () => undefined,
       () => undefined,
     );
