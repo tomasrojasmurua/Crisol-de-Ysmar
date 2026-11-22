@@ -1,8 +1,8 @@
 # Traspaso del proyecto Crisol de Ysmar
 
 Este documento junta todo lo que una cuenta de Claude necesita para seguir el proyecto sin volver
-a preguntar. **Estado al 12 de noviembre de 2026, con `main` al día hasta el PR #78.** Reemplaza al
-traspaso del 9 de noviembre.
+a preguntar. **Estado al 22 de noviembre de 2026, con `main` al día hasta el PR #178 (protocolo 24).**
+Reemplaza a los traspasos del 9 y del 12 de noviembre.
 
 **Si eres Claude y estás empezando:** lee este archivo entero, luego `CLAUDE.md`,
 `CONTRIBUTING.md`, `docs/diseno.md` y `docs/arquitectura.md`. Lo que se decidió en otras cuentas de
@@ -22,6 +22,11 @@ amigos (de 1v1 a todos contra todos de 6) en
   los cambios en lenguaje simple, sin jerga de código.
 - **Un PR por frente, y Claude lo fusiona apenas el CI está en verde.** Ya no hace falta esperar su
   "merge" (eso era antes). Al terminar, cuéntale qué cambió con enlace al PR y en pocas líneas.
+  **Excepción:** si el PR sube `PROTOCOL_VERSION` o toca la Sala, pregúntale antes si hay alguien
+  jugando, porque al publicarse los celulares abiertos deben recargar. Él responde "fusiona" o
+  "fusiona el N, no hay nadie jugando".
+- Cuando algo requiere que él haga un paso (Google Cloud, Cloudflare, traer un archivo), dale la
+  línea exacta para pegar y dónde pegarla (por ejemplo, Cloud Shell con el ícono `>_`).
 - Le gusta conversar el diseño antes de construir: **opciones con una recomendación y preguntas
   numeradas al final.** Responde por número ("1. Si 2. No, prefiero…"). "Si", "Me parece" o
   "Confirmo" significan seguir con lo propuesto.
@@ -50,7 +55,7 @@ amigos (de 1v1 a todos contra todos de 6) en
 6. Todo entra por PR a `main`, que siempre se puede jugar. La plantilla está en
    `.github/pull_request_template.md`.
 7. **Si cambia la forma del estado, de los eventos o de los ajustes de sala, sube
-   `PROTOCOL_VERSION`** en `packages/protocol/src/messages.ts` (va en 19). Cliente y Sala deben
+   `PROTOCOL_VERSION`** en `packages/protocol/src/messages.ts` (va en 24). Cliente y Sala deben
    coincidir; quien tenga el juego abierto debe recargar.
 8. **Celular en horizontal y nada tapa los botones.** Toda pieza nueva de interfaz se revisa a
    844×390 (iPhone) y en pantallas más angostas.
@@ -67,7 +72,7 @@ amigos (de 1v1 a todos contra todos de 6) en
 | Tejido            | 1 a 3 elementos, el orden importa: 155 hechizos (5 básicos, 25 de dos, 125 Grandes). Visible para el rival. Fatiga por elemento (3 s), sin maná. Nada sale en menos de 0,17 s.                                                                                                                                                                          |
 | Partida           | Mejor de 3 rondas **sin reloj**: Caza, Convergencia y Duelo final (un minuto cada una) y después **muerte súbita** (la zona se cierra del todo en 20 s y quema cada vez más). Gana el último en pie.                                                                                                                                                    |
 | Al caer           | Quedas fuera de la ronda y miras a quien siga. **El Espectro se eliminó.** **Vidas** (3 por ronda) es opcional, apagada por defecto y no existe en 1v1 (el mejor de 3 ya es la segunda oportunidad).                                                                                                                                                    |
-| Modos             | 1v1 (en la plaza de 17 m, sin jungla), 2v2, 3v3 y todos contra todos de 4 y 6 (mapa de 40 m con jungla). Puestos vacíos los llena la IA.                                                                                                                                                                                                                |
+| Modos             | 1v1 (en la plaza de 17 m, sin jungla), 2v2, 3v3 y todos contra todos de 4 y 6 (mapa de 40 m con jungla). Puestos vacíos los llena la IA. Para un jugador: **Historia** (ver `docs/diseno.md`, "Historia").                                                                                                                                              |
 | IA                | Mismas reglas que un jugador. **Aprendiz / Duelista / Maestro.** Menú contra la IA: se elige (Duelista por defecto). Sala: se elige para los bots que llenan puestos. Entrenamiento y examen: Aprendiz.                                                                                                                                                 |
 | Invocaciones      | Ven con ojos propios: la ceguera de su dueño no las afecta (el Velo del rival sí). Tienen vida, atajan proyectiles y se pueden fijar tocándolas.                                                                                                                                                                                                        |
 | Choque de tejidos | Ver `docs/diseno.md`. Solo se desarman **proyectiles**; el Meteoro se esquiva. Los desarma un hechizo tuyo de elemento opuesto que los toque, **solo a mano**. Empate se anulan; el más fuerte sigue debilitado. No es reacción.                                                                                                                        |
@@ -97,35 +102,54 @@ amigos (de 1v1 a todos contra todos de 6) en
 | Combos y Grimorio                           | 89 combos detectados en partida; desbloqueo por aciertos; Mis combos.                                    |
 | Tutorial y Entrenamiento                    | Linajes, tutorial por linaje, números de daño; práctica libre sin cansancio.                             |
 | Interfaz                                    | HUD, menú, sala, Glifos, resultado, Grimorio y Pausa en metal arcano.                                    |
-| Gráficas                                    | Geometría hecha por código con resplandor, estelas y ambiente de velas y cristales. Sin modelos reales.  |
-| Audio                                       | Sintetizado en código ([docs/audio.md](../audio.md)).                                                    |
+| Gráficas                                    | Geometría por código más ilustraciones de ChatGPT: suelos, estelas, sellos, marcas, chispas (#164–#173). |
+| Historia                                    | Preludio y actos 1 y 2 (combates 1 a 9) con arte; faltan acto 3, Guardián jefe, mapa y finales.          |
+| Red                                         | Sala en Santiago (Google Cloud) con respaldo en Cloudflare; canal WebRTC por UDP desde el #178.          |
+| Telemetría                                  | Errores, rendimiento, opinión y servidor en D1 (`pnpm errores` o Actions → "Leer errores").              |
+| Audio                                       | Archivos de ElevenLabs con respaldo sintetizado ([docs/audio.md](../audio.md)).                          |
 | Guardián, familiares, maestría, rivalidades | Guardián en pausa (los bots no logran vencerlo); el resto no existe.                                     |
 
 Simulador (`pnpm balance`, 200 duelos de Duelistas): sur 47% / norte 53%, unos 34 s por serie al
 mejor de 3. Cruces: Maestro le gana a Duelista 76%, Duelista a Aprendiz 76% y Maestro a Aprendiz 96%.
-Hay 476 pruebas.
+Hay 476 pruebas. (Cifras del 12 de noviembre; desde entonces se rebalanceó en #146, #152 y #154:
+vuelve a correr `pnpm balance` y `pnpm escuelas` para tener las de hoy.)
 
 ### Historia de PRs
 
-| PR      | Qué trajo                                                                                             |
-| ------- | ----------------------------------------------------------------------------------------------------- |
-| #1–#20  | Monorepo y publicación, duelo contra la IA, modos, bestias, Vestidor, Grimorio, los 155 hechizos.     |
-| #21–#32 | Red: 1v1, predicción, estado binario, celular robusto, salas de 2 a 6 y sus ajustes.                  |
-| #33–#45 | Interfaz y arena según el mockup (metal arcano), Pausa con ajustes, rendimiento.                      |
-| #46–#57 | Cámara de duelo, apuntado automático, prueba con amigos, `main.ts` dividido en 4, diagnóstico oculto. |
-| #58–#59 | Glifos, resultado y Grimorio de vidrio y bronce.                                                      |
-| #60–#67 | Combos: catálogo, detector, tutorial con 3 combos, Apuntar (mantener y arrastrar ✦).                  |
-| #68–#70 | Botón "Jugar con amigos", círculo rúnico, red: llegar tarde y aviso de Sala reiniciada.               |
-| #71     | Invocaciones con ojos propios (la ceguera del dueño no las toca).                                     |
-| #72     | Se elimina el Espectro.                                                                               |
-| #73     | Ronda sin reloj y muerte súbita.                                                                      |
-| #74     | Vidas opcional, fuera del 1v1.                                                                        |
-| #75     | Fijar invocaciones rivales tocándolas.                                                                |
-| #76     | IA: no se congela, esquiva avisos de suelo, tres dificultades.                                        |
-| #77     | Choque de tejidos.                                                                                    |
-| #78     | Tutorial completo de 12 capítulos; el choque intercepta lo que viene en camino.                       |
-| #87     | Tutorial: guía en una línea, segundo muñeco, arreglos de cámara, esquivar y tejidos.                  |
-| #88     | Linajes, tutorial por linaje con barra progresiva, números de daño; la Afinidad entra al simulador.   |
+| PR              | Qué trajo                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| #1–#20          | Monorepo y publicación, duelo contra la IA, modos, bestias, Vestidor, Grimorio, los 155 hechizos.                     |
+| #21–#32         | Red: 1v1, predicción, estado binario, celular robusto, salas de 2 a 6 y sus ajustes.                                  |
+| #33–#45         | Interfaz y arena según el mockup (metal arcano), Pausa con ajustes, rendimiento.                                      |
+| #46–#57         | Cámara de duelo, apuntado automático, prueba con amigos, `main.ts` dividido en 4, diagnóstico oculto.                 |
+| #58–#59         | Glifos, resultado y Grimorio de vidrio y bronce.                                                                      |
+| #60–#67         | Combos: catálogo, detector, tutorial con 3 combos, Apuntar (mantener y arrastrar ✦).                                  |
+| #68–#70         | Botón "Jugar con amigos", círculo rúnico, red: llegar tarde y aviso de Sala reiniciada.                               |
+| #71             | Invocaciones con ojos propios (la ceguera del dueño no las toca).                                                     |
+| #72             | Se elimina el Espectro.                                                                                               |
+| #73             | Ronda sin reloj y muerte súbita.                                                                                      |
+| #74             | Vidas opcional, fuera del 1v1.                                                                                        |
+| #75             | Fijar invocaciones rivales tocándolas.                                                                                |
+| #76             | IA: no se congela, esquiva avisos de suelo, tres dificultades.                                                        |
+| #77             | Choque de tejidos.                                                                                                    |
+| #78             | Tutorial completo de 12 capítulos; el choque intercepta lo que viene en camino.                                       |
+| #87             | Tutorial: guía en una línea, segundo muñeco, arreglos de cámara, esquivar y tejidos.                                  |
+| #88             | Linajes, tutorial por linaje con barra progresiva, números de daño; la Afinidad entra al simulador.                   |
+| #79–#86         | Registro de errores en D1, "Agregar a inicio" en iPhone, 6 celulares con mala señal, prompts de ElevenLabs.           |
+| #89–#98         | Tutorial más claro, fijar sobre el joystick, logo nuevo, resumen de red y colchón más fino.                           |
+| #99–#100        | **Servidor de salas en Santiago** (Google Cloud).                                                                     |
+| #101–#109       | Prueba con 4, todos contra todos desde 3, rendimiento y memoria gráfica, recetas y bolsillo de 3 hechizos.            |
+| #110–#124       | Lore de Ysmar y Linajes, maestros, menú como campamento, efectos y música de ElevenLabs, letras propias, ícono nuevo. |
+| #125–#128       | Perfil respaldado con código, partida rápida pública de 4, carga medida y respaldo en Cloudflare.                     |
+| #129–#137       | Android de gama media y Galaxy A: menos trabajo gráfico, interfaz sin repintar, tope de 60 en 120 Hz.                 |
+| #138, #144      | Informe de partida mucho más rico (compañía de internet, Sala, líneas de tiempo, ritmo de pantalla).                  |
+| #139–#158       | Receta de dos elementos, mejor jugada y repetición, ver a otros al caer, balance, opinión al final.                   |
+| #147–#153, #163 | Modo **Historia** (preludio, actos 1 y 2) con ilustraciones y retratos; se quitó el Camino (#148).                    |
+| #159–#162       | A35 sin tirones a 120 Hz, ícono de inicio que se recarga solo, limpieza, Sala con 35% menos CPU.                      |
+| #164–#173       | Visuales: jungla, bestias depredadoras, magos con brazos, efectos y suelos ilustrados.                                |
+| #168, #170      | Cámara: el duelo aguanta hasta 30 m; ✦ sin tejido gira la cámara.                                                     |
+| #171, #174–#177 | Tirones: sombreadores y texturas preparados en el menú, perfil fluido en Samsung Internet, menos llamadas de dibujo.  |
+| #178            | **Canal que no espera:** estados por WebRTC/UDP en Santiago (protocolo 24).                                           |
 
 ## Lo que sigue: frente "Listo para los 5"
 
@@ -186,6 +210,21 @@ congelar contenido nuevo** y afinar lo que hay. Propuesta de entregas (confirmar
 6. **Lista para la prueba. Hecho:** la revisión del punto 5 como lista para el iPhone y el mensaje
    de WhatsApp para los amigos están en [docs/prueba-con-amigos.md](../prueba-con-amigos.md).
 
+### Dónde quedó el frente al 22 de noviembre
+
+- La última prueba real fue de 3 personas (iPhone de Tomás con Entel, un S25 y un Galaxy A35). Lo
+  que más se notó: tirones en el A35 (ya atacados en #159, #175–#177) y silencios de red en datos
+  móviles, que llevaron al canal WebRTC del #178.
+- **El #178 ya está publicado y la regla de firewall `crisol-rtc` ya está creada.** Santiago corre
+  protocolo 24. **Falta lo primero que hay que hacer en la cuenta nueva:** que Tomás juegue una
+  partida en red desde el celular (recargando antes) y leer en la telemetría la línea "Canal
+  rápido" de cada celular: si abrió, cuánto tardó y qué parte de los estados llegó por ahí.
+- Si con varias salas a la vez la Sala se atrasa (informe `servidor`: CPU "robada"), agrandar la
+  máquina a **e2-small** ([carga.md](../carga.md), sección 3). Verifica con Tomás qué tamaño tiene
+  hoy antes de asumirlo.
+- PR abierto viejo: **#108** ("Registro: rendimiento y opinión también contra la IA"). Revisar si
+  sigue teniendo sentido o cerrarlo.
+
 Tomás también aceptó, para después de la prueba: decidir con datos si las rondas son cortas (en el
 simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 
@@ -201,8 +240,10 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 - **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.
 - **Familiares, maestría por elemento, desafíos, rivalidades, hechizos secretos, lore dentro del
   juego:** no existen. Esperan a después de la prueba con amigos.
-- **Audio con ElevenLabs** (37 efectos, una pista por fase y un narrador opcional): prompts listos
-  en [audio-elevenlabs.md](../audio-elevenlabs.md); falta que Tomás traiga los archivos.
+- **Historia, acto 3:** faltan el acto 3, el Guardián como jefe, los gólems, el mapa del corazón y
+  los finales (las ilustraciones `corazon.png` y las escenas 12 a 20 ya existen en los archivos del
+  proyecto, `historia/arte`).
+- **Audio:** faltan el narrador opcional y los efectos sin archivo ([audio-voces.md](../audio-voces.md)).
 - **Personajes 3D** (Meshy + Mixamo): tercer paso del orden de arte, sin empezar.
 - **Apuntar:** a la guía visual de los hechizos de dirección le ha faltado cariño (lo dijo Tomás).
 - **IA:** el Maestro todavía no hace choques de tejidos ni combos del catálogo; podría ser el
@@ -250,6 +291,53 @@ Al agregar o cambiar un hechizo: efecto en `spells/kit/`, números en `content/s
 en `content/grimoire.ts`, visual en `apps/client/src/render/`, uso por los bots en
 `ai/spellPlans.ts`, pruebas junto al archivo, y `pnpm balance` buscando 45-55% por lado.
 
+## Infraestructura
+
+| Pieza                   | Dónde                                                                              | Notas                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Juego web               | Cloudflare Pages, [crisol-de-ysmar.pages.dev](https://crisol-de-ysmar.pages.dev)   | Se publica solo al fusionar a `main`.                                                                                                                                                                                       |
+| Salas de respaldo y API | Cloudflare Workers + Durable Objects                                               | `apps/server`, `wrangler.jsonc`.                                                                                                                                                                                            |
+| Registro (telemetría)   | Cloudflare D1, base `crisol-errores`                                               | Informes `error`, `promesa`, `red`, `sala`, `rendimiento`, `opinion`, `servidor`. Se borran a los 30 días. [errores.md](../errores.md).                                                                                     |
+| Respaldo de perfiles    | Cloudflare D1                                                                      | Código de 12 letras. [respaldo.md](../respaldo.md).                                                                                                                                                                         |
+| Sala de Santiago        | Google Cloud, VM `crisol-sala`, zona `southamerica-west1-b`, IP fija `crisol-sala` | Node + Caddy (HTTPS por sslip.io). Se actualiza sola desde la versión `sala` de GitHub Releases cuando no hay nadie. `SANTIAGO_URL` en `apps/client/src/net/serverUrl.ts`. [servidor-santiago.md](../servidor-santiago.md). |
+| Firewall                | Reglas `crisol-web` (TCP 80/443) y `crisol-rtc` (UDP 40000-40199)                  | Las dos creadas.                                                                                                                                                                                                            |
+| Capacidad               | [carga.md](../carga.md)                                                            | e2-micro aguanta ~2 salas; e2-small 5 a 6. Llena, las salas nuevas van a Cloudflare.                                                                                                                                        |
+
+La cuenta de Google Cloud y la de Cloudflare son de Tomás: Claude no entra directo; le pasa los
+comandos para Cloud Shell. Los secretos de Cloudflare ya están en GitHub (Actions), así que leer la
+telemetría con el flujo **Leer errores** funciona desde cualquier cuenta con acceso al repositorio.
+
+## Lo aprendido de los celulares
+
+- **Galaxy A34 y A35** (Mali, 120 Hz): los que más sufren. Frenaba la tarjeta gráfica y, sobre todo,
+  la interfaz HTML repintada en cada cuadro. Arreglos clave: tope de 60 bien calculado en 120 Hz,
+  sombreadores y texturas preparados en el menú (`ShaderWarmup`, `earlyUpload`), piezas fundidas,
+  nada de `texture.clone()`. Detalle en `docs/arquitectura.md`, "Presupuestos de rendimiento".
+- **Samsung Internet se presenta como Linux de escritorio:** el perfil fluido se decide por el
+  nombre de la tarjeta gráfica (`platform/gpuTier.ts`), nunca por el navegador. En Chrome para
+  Android el informe trae además wifi/datos y batería.
+- **iPhone con Entel (datos móviles):** el colchón de red se vaciaba decenas de veces por partida
+  por pérdidas de paquetes en TCP. Por eso los rivales "siguen de largo" al vaciarse el colchón y
+  por eso el canal WebRTC. En Modo de bajo consumo el iPhone va a 30 y eso no debe contar como lento.
+- **Medir sin celular:** Chrome sin pantalla con el procesador 4× más lento ≈ Galaxy A35. Revisar
+  siempre la interfaz a 844×390 (y 667×375).
+- **Leer la telemetría antes de adivinar:** `pnpm errores --horas 6 --sala ABCD` junta líneas de
+  tiempo de todos los celulares y de la Sala; si todos se trabaron a la vez fue la Sala o la red.
+
+## Arte y audio: cómo se hacen
+
+- **Imágenes:** Claude escribe los prompts en inglés; Tomás los pide a ChatGPT y sube los PNG. Guía
+  de estilo (pegar al inicio de cada pedido): cel-shaded, formas grandes, tres tonos, fondo negro
+  puro, chispas en gris para teñirlas en el juego. Luego `estilizar.py` deja los tres tonos parejos y
+  `armar-atlas*.py` arma los atlas que usa el juego. Los prompts y scripts están en los archivos del
+  proyecto (`graficos/`), copiados en el paquete de traspaso. Ilustraciones de la Historia: óleo en
+  claroscuro, originales en `historia/arte`, en el juego como webp de menos de 150 KB.
+- **Audio:** ya hay unos 50 mp3 de ElevenLabs en `apps/client/public/audio` (música por fase,
+  notas, golpes); lo que no tiene archivo suena sintetizado. Para cambiar un sonido basta poner el
+  archivo con su clave en `manifest.json` ([audio.md](../audio.md)). Prompts en
+  `docs/audio-elevenlabs.md`; voces del narrador (pendientes) en `docs/audio-voces.md`.
+- **3D (Meshy + Mixamo):** sin empezar; solo si no afecta la fluidez en red.
+
 ## Publicación y accesos
 
 - GitHub Actions corre `pnpm check` en cada PR y publica en Cloudflare al fusionar a `main` (juego
@@ -268,6 +356,7 @@ en `content/grimoire.ts`, visual en `apps/client/src/render/`, uso por los bots 
 | Archivo                                                                    | Qué es                                                                                  |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [prompt-inicial.md](prompt-inicial.md)                                     | El mensaje para pegar al empezar en otra cuenta.                                        |
+| [accesos.md](accesos.md)                                                   | Cómo darle a la cuenta nueva el repositorio, los archivos del proyecto y los servicios. |
 | [referencia/combos-grimorio.md](referencia/combos-grimorio.md)             | Combos: decisiones, cómo se detectan, reglas que dan forma al catálogo, lista completa. |
 | [referencia/ui-glifos.md](referencia/ui-glifos.md)                         | Los glifos SVG aprobados de los 5 elementos (dirección C).                              |
 | [referencia/diseno-original.md](referencia/diseno-original.md)             | Documento de diseño original (Hito 0). Parte quedó superada; `docs/diseno.md` manda.    |
