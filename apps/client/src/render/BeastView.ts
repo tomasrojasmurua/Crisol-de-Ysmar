@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { disposeTree, shared } from './dispose';
 import { ELEMENT_COLORS, elementColor, glow } from './palette';
+import { turnToward } from './turn';
 
 /** El Guardián es la misma criatura, mucho más grande. */
 const GUARDIAN_SCALE = 2.2;
@@ -44,6 +45,8 @@ export class BeastView {
   private stride = 0;
   private lastX = 0;
   private lastZ = 0;
+  /** Hacia dónde mira, girando suave (ver `turnToward`). */
+  private yaw = Number.NaN;
   private readonly shards = new THREE.Group();
   /** Lo quieto del cuerpo con las patas en reposo, para verla de lejos. */
   private readonly farSkin: THREE.Mesh | null;
@@ -287,7 +290,8 @@ export class BeastView {
     this.lastX = x;
     this.lastZ = z;
     this.group.position.set(x, 0, z);
-    this.body.rotation.y = Math.atan2(beast.facing.x, beast.facing.z);
+    this.yaw = turnToward(this.yaw, Math.atan2(beast.facing.x, beast.facing.z), deltaSeconds);
+    this.body.rotation.y = this.yaw;
 
     const moving = Math.min(1, speed / 3);
     this.stride += deltaSeconds * (3 + moving * 10);

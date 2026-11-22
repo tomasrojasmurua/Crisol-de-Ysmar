@@ -5,6 +5,7 @@ import { CastSigil } from './CastSigil';
 import { disposeTree, shared } from './dispose';
 import type { Particles } from './Particles';
 import { elementColor, glow } from './palette';
+import { turnToward } from './turn';
 import { WeaveHalo } from './WeaveHalo';
 import { SHOULDER_Y } from './wizard/arms';
 import { buildWizardModel } from './wizard/build';
@@ -83,6 +84,8 @@ export class WizardView {
   private flash = 0;
   private lastX = 0;
   private lastZ = 0;
+  /** Hacia dónde mira el cuerpo, girando suave (ver `turnToward`). */
+  private yaw = Number.NaN;
   private stride = 0;
   /** Movimiento de la capa, leído por su sombreado. */
   private readonly capeMotion = { time: { value: 0 }, move: { value: 0 } };
@@ -254,7 +257,8 @@ export class WizardView {
     const speed = deltaSeconds > 0 ? Math.hypot(x - this.lastX, z - this.lastZ) / deltaSeconds : 0;
     this.lastX = x;
     this.lastZ = z;
-    const facing = Math.atan2(wizard.facing.x, wizard.facing.z);
+    this.yaw = turnToward(this.yaw, Math.atan2(wizard.facing.x, wizard.facing.z), deltaSeconds);
+    const facing = this.yaw;
     this.body.rotation.y = facing;
 
     const alive = wizard.hp > 0;

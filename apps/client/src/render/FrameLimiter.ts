@@ -86,11 +86,19 @@ const HITCH_MS = 50;
  * cada dos cuadros daba 35 a 80 tirones por minuto, y en los ratos en que su pantalla bajaba sola
  * a 60 Hz iba perfecto (19-11). Sin tope, el 17-11, eran 23. Si con el tope el juego se traba,
  * se quita por el resto de la visita: la fluidez manda sobre el calor.
+ *
+ * Con perfil fluido (Mali y compañía, ver `platform/gpuTier.ts`) se parte sin tope: el A35
+ * pasaba los primeros 20 s de cada partida con 60 a 90 tirones por minuto hasta que se quitaba
+ * (21 de noviembre). En esos celulares sin tope anda mejor siempre.
  */
 export class CapGuard {
   private measuredMs = 0;
   private hitches = 0;
-  released = false;
+  released: boolean;
+
+  constructor(releasedFromStart = false) {
+    this.released = releasedFromStart;
+  }
 
   /** Un cuadro dibujado. `capped`: si se saltaron cuadros de pantalla para llegar a él. */
   sample(frameMs: number, capped: boolean): boolean {

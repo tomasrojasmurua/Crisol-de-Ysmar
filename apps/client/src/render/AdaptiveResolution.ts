@@ -1,11 +1,18 @@
-/** Resoluciones que se prueban, de la más nítida a la más liviana (en píxeles por punto CSS). */
-const STEPS = [2, 1.75, 1.5, 1.25, 1] as const;
+/**
+ * Resoluciones que se prueban, de la más nítida a la más liviana (en píxeles por punto CSS). Bajo
+ * 1 solo en los celulares con perfil fluido (ver `minRatio`): la interfaz es HTML y sigue nítida,
+ * solo la arena se ve un poco más suave, y a cambio un Galaxy A34 que iba a 52-55 llega a 60.
+ */
+const STEPS = [2, 1.75, 1.5, 1.25, 1, 0.85, 0.75] as const;
 /** Cuánto se mide antes de decidir. */
 const WINDOW_MS = 1000;
 /** Al empezar una partida se compilan sombreadores y hay tirones: no se cuentan. */
 const WARMUP_MS = 1500;
-/** Sobre esto (menos de ~50 cuadros por segundo) se baja la resolución. */
-const SLOW_FRAME_MS = 20;
+/**
+ * Sobre esto (menos de ~53 cuadros por segundo) se baja la resolución. Antes era 50: un Galaxy
+ * A34 a 52-55 nunca bajaba y pasaba la cuarta parte de la partida bajo 50 (21 de noviembre).
+ */
+const SLOW_FRAME_MS = 19;
 /**
  * Sobre esto (menos de 30 cuadros por segundo) se baja de a dos escalones: en un Android de
  * gama media con 6 magos, ir de a uno tardaba casi diez segundos en llegar a ir fluido.
@@ -77,10 +84,13 @@ export class AdaptiveResolution {
   private floorRetryMs = 0;
   private floorCooldownMs = FLOOR_RETRY_MS;
 
-  /** `maxRatio`: el tope de nitidez (en celulares se usa uno más bajo, ver `GameScene`). */
-  constructor(devicePixelRatio: number, maxRatio: number = STEPS[0]) {
+  /**
+   * `maxRatio`: el tope de nitidez (en celulares se usa uno más bajo, ver `GameScene`).
+   * `minRatio`: hasta dónde se puede bajar (1, salvo en los celulares con perfil fluido).
+   */
+  constructor(devicePixelRatio: number, maxRatio: number = STEPS[0], minRatio = 1) {
     const max = Math.max(1, Math.min(devicePixelRatio, maxRatio, STEPS[0]));
-    this.steps = [max, ...STEPS.filter((step) => step < max)];
+    this.steps = [max, ...STEPS.filter((step) => step < max && step >= minRatio)];
     this.floor = this.steps.length - 1;
   }
 

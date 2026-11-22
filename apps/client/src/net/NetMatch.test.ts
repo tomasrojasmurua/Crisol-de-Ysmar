@@ -338,13 +338,84 @@ describe('duelo en red: el celular', () => {
     }
   });
 
-  it('si llegan muchos de golpe, muestra dos por paso hasta alcanzar', () => {
+  it('si llegan muchos de golpe, alcanza reproduciendo más rápido, sin saltos', () => {
     const { net, socket } = joined();
-    for (let tick = 1; tick <= 8; tick++) socket.receive(stateMessage(tick));
+    // El rival camina 0,2 por paso; llegan 8 pasos juntos y después uno por paso.
+    let tick = 0;
+    const arrive = (): void => {
+      tick++;
+      socket.receive(movedRival(tick, tick * 0.2));
+    };
+    for (let i = 0; i < 8; i++) arrive();
+    let last = net.interpolated(1, rivalPos(net), 1).x;
+    let fastest = 0;
+    for (let i = 0; i < 60; i++) {
+      arrive();
+      net.step();
+      for (const alpha of [0.25, 0.5, 0.75, 1]) {
+        const x = net.interpolated(1, rivalPos(net), alpha).x;
+        fastest = Math.max(fastest, (x - last) / 0.25);
+        // Nunca hacia atrás.
+        expect(x).toBeGreaterThanOrEqual(last - 1e-9);
+        last = x;
+      }
+    }
+    // Más rápido que lo normal, pero nunca dos pasos de golpe (antes: 0,4 en un cuadro).
+    expect(fastest).toBeGreaterThan(0.2);
+    expect(fastest).toBeLessThanOrEqual(0.2 * 1.5 + 1e-9);
+    // Y alcanzó: queda con el colchón de dos pasos.
+    expect(tick - net.state.tick).toBeLessThanOrEqual(3);
+  });
+
+  it('reproduce parejo aunque los estados lleguen disparejos', () => {
+    const { net, socket } = joined();
+    let tick = 0;
+    const arrive = (): void => {
+      tick++;
+      socket.receive(movedRival(tick, tick * 0.2));
+    };
+    arrive();
+    arrive();
+    // Red con vaivén: a veces llegan dos juntos y a veces ninguno, sin vaciar el colchón.
+    const pattern = [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 2, 0, 1];
+    let last = net.interpolated(1, rivalPos(net), 1).x;
+    let fastest = 0;
+    for (let i = 0; i < 240; i++) {
+      for (let k = 0; k < (pattern[i % pattern.length] ?? 1); k++) arrive();
+      net.step();
+      for (const alpha of [0.5, 1]) {
+        const x = net.interpolated(1, rivalPos(net), alpha).x;
+        if (i > 0) fastest = Math.max(fastest, (x - last) / 0.5);
+        last = x;
+      }
+    }
+    // Antes, cada vez que sobraba uno se mostraban dos pasos juntos (0,4 de golpe).
+    expect(fastest).toBeLessThan(0.2 * 1.3);
+  });
+
+  it('si la Sala corrige a tu mago, se acomoda de a poco y no de un salto', () => {
+    const { net, socket } = joined();
+    socket.receive(stateMessage(1));
+    socket.receive(stateMessage(2));
+    for (let i = 0; i < 4; i++) net.step();
+    const mine = (): { x: number; z: number } =>
+      net.state.wizards.find((w) => w.id === 2)?.pos ?? { x: 0, z: 0 };
+    const before = net.interpolated(2, mine(), 1);
+    // La Sala dice que te empujaron 0,6 de lado (y todavía no jugó tus toques).
+    const pushed = stateMessage(3);
+    const me = pushed.state.wizards.find((w) => w.id === 2);
+    if (me) me.pos = { x: me.pos.x, z: me.pos.z + 0.6 };
+    socket.receive(pushed);
     net.step();
-    expect(net.state.tick).toBe(2);
-    net.step();
-    expect(net.state.tick).toBe(4);
+    const first = net.interpolated(2, mine(), 1);
+    // Antes saltaba los 0,6 de una vez.
+    expect(Math.abs(first.z - before.z)).toBeLessThan(0.25);
+    for (let i = 0; i < 20; i++) {
+      socket.receive(pushed);
+      net.step();
+    }
+    // Al rato, va donde dice la Sala.
+    expect(net.interpolated(2, mine(), 1).z - before.z).toBeCloseTo(0.6, 2);
   });
 
   it('predice tu mago: camina en el acto, antes de que conteste el servidor', () => {

@@ -29,6 +29,8 @@ const PHONE_MAX_PIXEL_RATIO = 1.5;
  * terminaba ahí en cada partida, y cada bajada de resolución en plena pelea era otro tirón.
  */
 const MODEST_MAX_PIXEL_RATIO = 1;
+/** Y si aun así no llega a 53 cuadros por segundo, puede bajar hasta aquí (ver `AdaptiveResolution`). */
+const MODEST_MIN_PIXEL_RATIO = 0.75;
 /** Chispas a la vez: la mitad en un Android de gama media (en las peleas pasaban de 800). */
 const PARTICLES = 1500;
 const MODEST_PARTICLES = 700;
@@ -84,6 +86,7 @@ export class GameScene {
       : window.matchMedia?.('(pointer: coarse)').matches
         ? PHONE_MAX_PIXEL_RATIO
         : undefined,
+    gpuInfo().modest ? MODEST_MIN_PIXEL_RATIO : 1,
   );
   /** Compila de antemano los sombreadores de los hechizos (ver `ShaderWarmup`). */
   readonly warmup: ShaderWarmup;
