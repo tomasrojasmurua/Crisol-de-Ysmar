@@ -117,6 +117,7 @@ export class Menu {
   private readonly affinityIcon: HTMLElement;
   private readonly portrait: HTMLElement;
   private readonly grimoireCount: HTMLElement;
+  private readonly grimoireNew: HTMLElement;
   /** Un desplegable de tamaño por pestaña (equipos y todos contra todos). */
   private readonly sizePickers = new Map<string, Dropdown>();
   private readonly rulesBox: HTMLElement;
@@ -192,6 +193,7 @@ export class Menu {
         <button type="button" class="menu-card menu-grimoire menu-book">
           ${MENU_ICONS.grimoire}
           <span class="menu-grimoire-text"><strong>Grimorio</strong><span class="menu-grimoire-count"></span></span>
+          <span class="menu-grimoire-new" hidden></span>
           ${MENU_ICONS.chevron}
         </button>
         <div class="menu-card menu-sound">
@@ -207,6 +209,7 @@ export class Menu {
     this.affinityIcon = query(this.root, '.menu-affinity-icon');
     this.portrait = query(this.root, '.menu-portrait');
     this.grimoireCount = query(this.root, '.menu-grimoire-count');
+    this.grimoireNew = query(this.root, '.menu-grimoire-new');
     this.camp = query(this.root, '.menu-camp');
     // El mago 3D se dibuja en el lienzo, detrás del menú: la ilustración le deja una ventana.
     new ResizeObserver(() => this.fitCampWindow()).observe(this.portrait);
@@ -327,6 +330,16 @@ export class Menu {
   get portraitRect(): DOMRect | null {
     if (this.root.hidden) return null;
     return this.portrait.getBoundingClientRect();
+  }
+
+  /** Cuántas páginas nuevas del Grimorio faltan por leer (0 esconde la marca). */
+  setGrimoireNew(count: number): void {
+    this.grimoireNew.hidden = count === 0;
+    this.grimoireNew.textContent = count > 99 ? '99+' : String(count);
+    this.grimoireNew.setAttribute(
+      'aria-label',
+      count === 1 ? '1 página nueva' : `${count} páginas nuevas`,
+    );
   }
 
   /** Muestra quién eres, tu Afinidad y cuánto llevas del Grimorio. */

@@ -1,6 +1,7 @@
 import type { Tutorial } from '../game/Tutorial';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
+import { MENU_ICONS } from './menuIcons';
 import { richText } from './richText';
 
 /** Recién aparecido un paso, jugar todavía no lo recoge: alcanza a leerse. */
@@ -48,7 +49,8 @@ export class TutorialCard {
   constructor(
     parent: HTMLElement,
     onFreePlay: () => void,
-    onMenu: () => void,
+    /** Terminado el tutorial: al Grimorio, donde quedó lo aprendido (y de ahí al menú). */
+    onGrimoire: () => void,
     /** Avisa que el tutorial avanzó con un botón (Siguiente o Saltar). */
     private readonly onAdvance: () => void = () => {},
   ) {
@@ -73,7 +75,7 @@ export class TutorialCard {
         </div>
         <div class="tutorial-finish" hidden>
           <button type="button" class="secondary tutorial-free">Práctica libre</button>
-          <button type="button" class="primary tutorial-menu">Menú</button>
+          <button type="button" class="primary tutorial-menu">${MENU_ICONS.grimoire}<span>Grimorio</span></button>
         </div>
       </div>`;
     this.check = el('span', 'tutorial-check', '✓');
@@ -115,7 +117,7 @@ export class TutorialCard {
       this.render();
     });
     query(this.root, '.tutorial-free').addEventListener('click', onFreePlay);
-    query(this.root, '.tutorial-menu').addEventListener('click', onMenu);
+    query(this.root, '.tutorial-menu').addEventListener('click', onGrimoire);
   }
 
   show(tutorial: Tutorial): void {
@@ -149,7 +151,8 @@ export class TutorialCard {
       this.dots.replaceChildren();
       this.fresh.hidden = true;
       this.text.textContent =
-        'Puedes repetir cualquier capítulo desde Entrenamiento. Los combos que faltan se descubren jugando.';
+        'Lo que aprendiste quedó en tu Grimorio, con tu combo. Ahí puedes leer cada hechizo y ' +
+        'pensar tu próxima partida. Los combos que faltan se descubren jugando.';
       this.progress.hidden = true;
       this.actions.hidden = true;
       this.finish.hidden = false;

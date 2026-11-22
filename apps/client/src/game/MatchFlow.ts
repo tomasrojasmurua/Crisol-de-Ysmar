@@ -8,6 +8,7 @@ import {
   SPELL_WEAVES,
   spellOf,
   TICK_RATE,
+  type Weave,
 } from '@crisol/core';
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
@@ -21,12 +22,19 @@ import type { HighlightView } from '../ui/HighlightCard';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import { intentTag } from '../ui/intentTag';
 import type { Minimap } from '../ui/Minimap';
-import type { Outcome, ResultPath, ResultPlayer, ResultTeam } from '../ui/ResultScreen';
+import type {
+  Outcome,
+  ResultGrimoire,
+  ResultPath,
+  ResultPlayer,
+  ResultTeam,
+} from '../ui/ResultScreen';
 import { ComboDetector } from './ComboDetector';
 import { ComboLog } from './ComboLog';
 import type { Diagnostics } from './Diagnostics';
 import type { Grimoire } from './Grimoire';
 import { highlightView } from './highlightView';
+import { LastBlow } from './LastBlow';
 import { MatchFeed } from './MatchFeed';
 import { MatchMoments } from './MatchMoments';
 import type { MatchRenderer } from './MatchRenderer';
@@ -86,6 +94,10 @@ export class MatchFlow {
   private readonly moments = new MatchMoments();
   /** El último paso visto de la ronda en curso, para medir cuánto duró. */
   private roundTick = 0;
+  /** Lo que la partida deja para tu Grimorio (va en el resultado). */
+  private discovered: Weave[] = [];
+  private newCombos: Combo[] = [];
+  private lastBlow: LastBlow | null = null;
 
   constructor(private readonly deps: MatchFlowDeps) {}
 
@@ -105,6 +117,9 @@ export class MatchFlow {
     this.feed.reset();
     this.moments.reset();
     this.roundTick = 0;
+    this.discovered = [];
+    this.newCombos = [];
+    this.lastBlow = null;
   }
 
   /** Avisos de la partida según lo que pasó en el paso. */
@@ -121,6 +136,13 @@ export class MatchFlow {
       if (current.stage.kind === 'playing' && current.roundNumber === this.shownRound)
         this.roundTick = current.state.tick;
       this.moments.onStep(events, me);
+      if (this.lastBlow?.playerId !== me) this.lastBlow = new LastBlow(me);
+      const myTeam = current.player.team;
+      this.lastBlow.onStep(
+        events,
+        current.state.tick,
+        (id) => id !== me && current.state.wizards.find((w) => w.id === id)?.team !== myTeam,
+      );
       const lines = this.feed.onStep(events, current.state, {
         playerId: me,
         nameOf: (id) => badges.get(id)?.name ?? 'Hechicero',
@@ -130,6 +152,7 @@ export class MatchFlow {
     for (const event of events) {
       if (event.type === 'cast' && event.wizardId === me) {
         if (this.deps.grimoire.discover(event.weave)) {
+          this.discovered.push(event.weave);
           this.moments.discovered();
           this.deps.audio.discover();
           this.deps.audio.say('voice.crisol.discover');
@@ -330,6 +353,7 @@ export class MatchFlow {
         path: story ? this.deps.story(winner === playerTeam) : undefined,
         highlight: best,
         replay: clip?.highlight != null,
+        grimoire: this.forGrimoire(),
       });
       this.addToProfile(current, outcome);
       this.deps.hud.showPerf(this.deps.diagnostics.report());
@@ -339,6 +363,17 @@ export class MatchFlow {
       if (clip) this.deps.replay(clip, clip.highlight ? (best ?? null) : null);
     }
     if (stage.kind === 'finished') this.deps.hud.setRematch(current.rematchStatus?.() ?? null);
+  }
+
+  /** Lo que la partida deja para tu Grimorio: quién te derribó, lo descubierto y los combos. */
+  private forGrimoire(): ResultGrimoire {
+    const spell = this.lastBlow?.spell ?? null;
+    const weave = spell ? SPELL_WEAVES[spell] : null;
+    return {
+      defeatedBy: weave ? { weave, name: spellName(weave) } : null,
+      discovered: this.discovered.map((w) => ({ weave: w, name: spellName(w) })),
+      combos: this.newCombos.map((c) => ({ id: c.id, name: c.name, steps: c.steps })),
+    };
   }
 
   /** La mejor jugada de toda la partida, para la pantalla final. */
@@ -412,6 +447,7 @@ export class MatchFlow {
     this.moments.combo();
     const unlocked = this.deps.comboLog.record(combo.id);
     if (!unlocked) return;
+    this.newCombos.push(unlocked);
     this.deps.audio.discover();
     this.deps.hud.celebrateDiscovery(
       unlocked.name,

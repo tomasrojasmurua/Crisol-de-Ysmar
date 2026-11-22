@@ -11,7 +11,7 @@ const SOUND_CHOICES: readonly { id: SoundChoice; label: string; icon: string }[]
 
 /**
  * Pausa: un botón chico arriba a la derecha y una ventana con Continuar, ajustes (sonido y
- * datos de rendimiento) y volver al menú. Contra la IA la partida se detiene de verdad; en
+ * datos de rendimiento), el Grimorio (fuera de línea) y volver al menú. Contra la IA la partida se detiene de verdad; en
  * red sigue corriendo (el servidor no espera a nadie) y la ventana lo avisa.
  */
 export class PauseMenu {
@@ -21,6 +21,7 @@ export class PauseMenu {
   private readonly diagnosticsToggle: HTMLInputElement;
   private readonly lightToggle: HTMLInputElement;
   private readonly damageToggle: HTMLInputElement;
+  private readonly grimoireButton: HTMLElement;
   private online = false;
 
   constructor(
@@ -29,6 +30,8 @@ export class PauseMenu {
     private readonly handlers: {
       readonly onPause: (paused: boolean) => void;
       readonly onMenu: () => void;
+      /** Abrir el Grimorio encima de la Pausa (contra la IA y en Entrenamiento). */
+      readonly onGrimoire: () => void;
       readonly onDiagnostics: (on: boolean) => void;
       readonly onLightGraphics: (on: boolean) => void;
       readonly onDamageNumbers: (on: boolean) => void;
@@ -72,11 +75,14 @@ export class PauseMenu {
         </div>
         <div class="pause-actions">
           <button type="button" class="secondary pause-menu">${MENU_ICONS.leave}<span>Salir al menú</span></button>
+          <button type="button" class="secondary pause-grimoire">${MENU_ICONS.grimoire}<span>Grimorio</span></button>
           <button type="button" class="primary pause-resume">Continuar</button>
         </div>
       </div>`;
     parent.append(this.button, this.overlay);
     this.onlineNote = query(this.overlay, '.pause-note');
+    this.grimoireButton = query(this.overlay, '.pause-grimoire');
+    this.grimoireButton.addEventListener('click', () => this.handlers.onGrimoire());
     this.diagnosticsToggle = query(this.overlay, '.pause-diagnostics') as HTMLInputElement;
     this.diagnosticsToggle.checked = diagnostics;
     this.lightToggle = query(this.overlay, '.pause-light') as HTMLInputElement;
@@ -138,6 +144,8 @@ export class PauseMenu {
   open(): void {
     if (this.isOpen || this.button.hidden) return;
     this.onlineNote.hidden = !this.online;
+    // En línea la partida sigue: leer el Grimorio ahí sería quedar quieto frente a un rival.
+    this.grimoireButton.hidden = this.online;
     this.refreshSound();
     this.overlay.hidden = false;
     this.handlers.onPause(true);

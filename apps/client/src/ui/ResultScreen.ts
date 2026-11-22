@@ -1,4 +1,5 @@
 import type { Weave } from '@crisol/core';
+import { comboStepsView } from './comboSteps';
 import { el, query } from './dom';
 import { weaveOrbs } from './GrimoireBook';
 import { type HighlightView, highlightCard } from './HighlightCard';
@@ -36,6 +37,28 @@ export interface ResultPlayer {
   readonly rounds?: { readonly wins: number; readonly winner: boolean } | undefined;
 }
 
+/** Una página del Grimorio que se abre desde el resultado. */
+export type ResultPage =
+  | { readonly kind: 'spell'; readonly weave: Weave }
+  | { readonly kind: 'combo'; readonly id: string };
+
+/** Lo que la partida deja para tu Grimorio, en una franja que lleva a cada página. */
+export interface ResultGrimoire {
+  /** El hechizo con que te derribaron la última vez (y si ya lo descubriste). */
+  readonly defeatedBy: { readonly weave: Weave; readonly name: string } | null;
+  /** Los hechizos que descubriste en la partida, en orden. */
+  readonly discovered: readonly { readonly weave: Weave; readonly name: string }[];
+  /** Los combos que aparecieron en el Grimorio con esta partida. */
+  readonly combos: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly steps: Parameters<typeof comboStepsView>[0]['steps'];
+  }[];
+}
+
+/** Cuántas tarjetas caben en la franja: lo demás se cuenta en un "+N". */
+const GRIMOIRE_CHIPS = 2;
+
 export interface ResultSummary {
   readonly outcome: Outcome;
   /** Debajo del título: quién ganó, o nada si ganaste tú. */
@@ -57,6 +80,8 @@ export interface ResultSummary {
   readonly highlight?: HighlightView | undefined;
   /** Si se puede volver a ver su repetición (un botón en la franja de la jugada). */
   readonly replay?: boolean | undefined;
+  /** Lo nuevo para tu Grimorio; sin nada que mostrar, la franja no aparece. */
+  readonly grimoire?: ResultGrimoire | undefined;
 }
 
 /** Cómo salió el combate de la Historia, bajo el título. */
@@ -158,6 +183,9 @@ export class ResultScreen {
   private rematchKey = '';
   /** Ver la repetición otra vez (lo conecta quien arma la partida). */
   onReplay: (() => void) | null = null;
+  /** Abrir una página del Grimorio (lo conecta quien arma la partida). */
+  onGrimoire: ((page: ResultPage) => void) | null = null;
+  private readonly grimoire: HTMLElement;
 
   constructor(parent: HTMLElement, onRematch: () => void, onMenu: () => void) {
     this.root = el('div', 'hud-result');
@@ -174,6 +202,7 @@ export class ResultScreen {
           <blockquote></blockquote>
           <figcaption></figcaption>
         </figure>
+        <nav class="hud-result-grimoire" aria-label="Para tu Grimorio" hidden></nav>
         <p class="hud-result-rematch" hidden></p>
         <div class="hud-result-actions">
           <button type="button" class="primary rematch">${MENU_ICONS.rematch}<span>Revancha</span></button>
@@ -218,6 +247,7 @@ export class ResultScreen {
     this.menuLabel = query(this.root, '.to-menu-label');
     this.path = query(this.root, '.hud-result-path');
     this.perf = query(this.root, '.hud-result-perf');
+    this.grimoire = query(this.root, '.hud-result-grimoire');
     this.rematchButton.addEventListener('click', () => {
       if (!this.opinionPending) onRematch();
     });
@@ -358,6 +388,7 @@ export class ResultScreen {
     this.card.classList.toggle('with-players', count > 0);
     // Por equipos el marcador va además a la izquierda: en celulares bajos se aprieta esa columna.
     this.card.classList.toggle('with-teams', count > 0 && summary.teams.length > 0);
+    this.renderGrimoire(summary.grimoire);
     const master = summary.master;
     this.master.hidden = !master;
     if (master) {
@@ -419,6 +450,74 @@ export class ResultScreen {
     this.rematchButton.classList.toggle('called', !waiting && othersAsked > 0);
     this.rematchNote.textContent = status ? rematchText(status, othersAsked) : '';
     this.rematchNote.hidden = this.rematchNote.textContent === '';
+  }
+
+  /**
+   * "Para tu Grimorio": el hechizo que te derribó, lo que descubriste y los combos nuevos. Cada
+   * tarjeta abre su página; lo que no cabe se cuenta en "+N" y abre la primera de esas.
+   */
+  private renderGrimoire(grimoire: ResultGrimoire | undefined): void {
+    const chips: { kicker: string; signs: HTMLElement; name: string; page: ResultPage }[] = [];
+    if (grimoire?.defeatedBy) {
+      const { weave, name } = grimoire.defeatedBy;
+      chips.push({
+        kicker: 'Te derribó',
+        signs: weaveOrbs(weave),
+        name,
+        page: { kind: 'spell', weave },
+      });
+    }
+    for (const combo of grimoire?.combos ?? []) {
+      chips.push({
+        kicker: 'Combo nuevo',
+        signs: comboStepsView(combo),
+        name: combo.name,
+        page: { kind: 'combo', id: combo.id },
+      });
+    }
+    for (const spell of grimoire?.discovered ?? []) {
+      chips.push({
+        kicker: 'Descubriste',
+        signs: weaveOrbs(spell.weave),
+        name: spell.name,
+        page: { kind: 'spell', weave: spell.weave },
+      });
+    }
+    this.grimoire.hidden = chips.length === 0;
+    this.card.classList.toggle('with-grimoire', chips.length > 0);
+    const shown = chips.length > GRIMOIRE_CHIPS ? chips.slice(0, GRIMOIRE_CHIPS - 1) : chips;
+    const items = shown.map((chip) => {
+      const button = el('button', 'hud-result-grimoire-chip') as HTMLButtonElement;
+      button.type = 'button';
+      button.classList.toggle('defeat', chip.kicker === 'Te derribó');
+      const text = el('span', 'hud-result-grimoire-text');
+      text.append(
+        el('span', 'hud-result-grimoire-kicker', chip.kicker),
+        el('span', 'hud-result-grimoire-name', chip.name),
+      );
+      button.append(chip.signs, text);
+      button.addEventListener('click', () => this.onGrimoire?.(chip.page));
+      return button;
+    });
+    const rest = chips.slice(shown.length);
+    const first = rest[0];
+    if (first) {
+      const more = el('button', 'hud-result-grimoire-chip more') as HTMLButtonElement;
+      more.type = 'button';
+      more.setAttribute('aria-label', `${rest.length} más en tu Grimorio`);
+      const text = el('span', 'hud-result-grimoire-text');
+      text.append(
+        el('span', 'hud-result-grimoire-kicker', 'Y además'),
+        el('span', 'hud-result-grimoire-name', `${rest.length} más`),
+      );
+      more.append(text);
+      more.addEventListener('click', () => this.onGrimoire?.(first.page));
+      items.push(more);
+    }
+    const title = el('span', 'hud-result-grimoire-title');
+    title.innerHTML = MENU_ICONS.grimoire;
+    title.append(el('span', '', 'Para tu Grimorio'));
+    this.grimoire.replaceChildren(...(chips.length > 0 ? [title, ...items] : []));
   }
 
   private teamScore(team: ResultTeam, roundsToWin: number): HTMLElement {
