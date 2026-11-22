@@ -112,6 +112,41 @@ const BACKDROP_CAST: Readonly<Record<string, readonly string[]>> = {
   '04-posada': ['cantor'],
   '05-arel-pajaro': ['arel'],
   '09-libros-rival': ['rival'],
+  '10-cuenta-pendiente': ['vesk', 'musgo'],
+  '21-plaza-duelo': ['rival'],
+  '22-luz-arel': ['arel'],
+  '25-cinta-mesa': ['rival'],
+  '26-vesk': ['vesk'],
+  '27-iskel': ['iskel'],
+  '28-dorn': ['dorn'],
+  '29-madre-musgo': ['musgo'],
+  '30-velado': ['velado'],
+  '32-cinta-arena': ['rival'],
+  '33-espera-jungla': ['rival'],
+  '34-cenizal': ['vesk'],
+  '35-velgar': ['iskel'],
+  '36-hondamar': ['dorn'],
+  '37-anvel': ['musgo'],
+  '38-ossel': ['velado'],
+  '40-vesk-se-va': ['vesk', 'musgo'],
+};
+
+/** El campamento de cada maestro afuera del Crisol, de fondo en sus duelos del acto 2. */
+const CAMP_BACKDROP: Readonly<Record<ElementId, string>> = {
+  brasa: '26-vesk',
+  tormenta: '27-iskel',
+  marea: '28-dorn',
+  raiz: '29-madre-musgo',
+  umbra: '30-velado',
+};
+
+/** La salida de tu aldea, con tu maestro esperándote en el camino (preludio). */
+const EXIT_BACKDROP: Readonly<Record<ElementId, string>> = {
+  brasa: '34-cenizal',
+  tormenta: '35-velgar',
+  marea: '36-hondamar',
+  raiz: '37-anvel',
+  umbra: '38-ossel',
 };
 
 const DUEL: GameMode = { kind: 'duel' };
@@ -241,12 +276,14 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
   });
 
   // Cada maestro del acto 2: antes, el reproche si eres de un Linaje rival, y su estrofa.
-  const duelBefore = (element: ElementId, rivalToYou: boolean): StoryLine[] => [
-    master(element, MASTER_STORIES[element].before),
+  const duelBefore = (element: ElementId, rivalToYou: boolean, inCamp = true): StoryLine[] => [
+    inCamp
+      ? at(CAMP_BACKDROP[element], master(element, MASTER_STORIES[element].before))
+      : master(element, MASTER_STORIES[element].before),
     ...(rivalToYou ? [master(element, MASTER_STORIES[element].grudge)] : []),
   ];
   const duelAfter = (element: ElementId): StoryLine[] => [
-    master(element, MASTER_STORIES[element].beaten),
+    at(CAMP_BACKDROP[element], master(element, MASTER_STORIES[element].beaten)),
     ...masterLines(element, MASTER_STORIES[element].verse),
   ];
 
@@ -303,7 +340,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       see('El cielo cruje. Uno de los hilos tiembla y se afloja.'),
       tell('Esta noche se aflojaron otra vez.'),
       tell('Es la tercera este año.'),
-      see('{maestro} te espera a la salida de la aldea.'),
+      at(EXIT_BACKDROP[school], see('{maestro} te espera a la salida de la aldea.')),
       master(school, own.farewell),
       you('¿Qué pasa con los que pierden?'),
       master(school, own.dodge),
@@ -320,8 +357,11 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
 
     // ---------- Acto 1 · El llamado ----------
     scene('combate-1-antes', 1, [
-      see(
-        'La plaza del Crisol. {rival} te espera al otro lado, jugando con una cinta {cinta} entre los dedos.',
+      at(
+        '21-plaza-duelo',
+        see(
+          'La plaza del Crisol. {rival} te espera al otro lado, jugando con una cinta {cinta} entre los dedos.',
+        ),
       ),
       crisol('Primer duelo. Que la Trama mire.'),
       rivalSays('¿De {aldea}? Allá todavía creen que esto es un honor.'),
@@ -331,7 +371,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
     ]),
     fight(1, 1, rival, DUEL, 'apprentice', { foes: [apprentice(rival, rival1)] }),
     scene('combate-1-despues', 1, [
-      rivalSays('Suerte de novato.'),
+      at('21-plaza-duelo', rivalSays('Suerte de novato.')),
       see('Se va. A medio camino se da vuelta, como si fuera a preguntar algo. No pregunta.'),
     ]),
     scene('la-posada', 1, [
@@ -364,16 +404,25 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
     ]),
     fight(2, 1, 'Arel', DUEL, 'apprentice', { foes: [apprentice('Arel', ally1)] }),
     scene('combate-2-despues', 1, [
-      see(
-        `Arel cae. Una luz ${arel.color} sube hacia el centro del Crisol, con el pájaro todavía en la mano, y se apaga.`,
+      at(
+        '22-luz-arel',
+        see(
+          `Arel cae. Una luz ${arel.color} sube hacia el centro del Crisol, con el pájaro todavía en la mano, y se apaga.`,
+        ),
       ),
       crisol('Uno menos.'),
-      see('Esa noche, en la posada, su lugar en la mesa queda vacío. Nadie pregunta por él.'),
+      at(
+        '23-lugar-vacio',
+        see('Esa noche, en la posada, su lugar en la mesa queda vacío. Nadie pregunta por él.'),
+      ),
       murmur('¿Le llegó el pájaro?'),
     ]),
     scene('combate-3-antes', 1, [
-      see(
-        `La jungla. Tu aliado, ${ally.from}, tararea la misma melodía que conoces, pero con otra letra.`,
+      at(
+        '24-jungla-bestia',
+        see(
+          `La jungla. Tu aliado, ${ally.from}, tararea la misma melodía que conoces, pero con otra letra.`,
+        ),
       ),
       sing(ally.stanza, 'Aliado', colorOf(ally2)),
       you('Esa canción la conozco distinta.'),
@@ -389,7 +438,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       foes: [nobody(), nobody()],
     }),
     scene('combate-3-despues', 1, [
-      you('El de la otra noche. Arel. ¿Lo conocías?'),
+      at('23-lugar-vacio', you('El de la otra noche. Arel. ¿Lo conocías?')),
       allySays('¿Quién?'),
       you('El del pájaro. Se sentaba contigo.'),
       allySays('…No sé de quién me hablas.'),
@@ -411,10 +460,16 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       foes: [apprentice(rival, rival1), nobody(), nobody()],
     }),
     scene('combate-4-despues', 1, [
-      see('Caen dos aprendices y sus luces suben. {rival} queda de pie, a duras penas.'),
+      at(
+        '06-criba',
+        see('Caen dos aprendices y sus luces suben. {rival} queda de pie, a duras penas.'),
+      ),
       rivalSays('Sigo aquí. No te acostumbres.'),
-      see(
-        'Esa noche, en la posada, {rival} se sienta a tu lado sin mirarte. Deja la cinta sobre la mesa.',
+      at(
+        '25-cinta-mesa',
+        see(
+          'Esa noche, en la posada, {rival} se sienta a tu lado sin mirarte. Deja la cinta sobre la mesa.',
+        ),
       ),
       rivalSays('Mi hermana entró el año pasado. Mara. Usaba una de estas.'),
       you('¿Y volvió?'),
@@ -520,7 +575,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       see('Se dan cuenta de que estás ahí. Se callan al mismo tiempo.'),
       you('¿De quién hablan?'),
       master(vesk, 'De nadie.'),
-      see('Se va.'),
+      at('40-vesk-se-va', see('Se va.')),
       master(musgo, 'De alguien que ya no está, mijo. Ve a dormir.'),
       murmur('Hermana, no tires más. Duele.'),
     ]),
@@ -528,25 +583,35 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
     fight(8, 2, shortName(ally2), DUEL, 'master', { foes: [masterSeat(ally2)] }, { foeGlyphs: 1 }),
     scene('combate-8-despues', 2, [
       ...duelAfter(ally2),
-      see(`Junto a la fogata, ${shortName(ally2)} habla sin mirarte, como para sí.`),
+      at(
+        '41-fogata-maestro',
+        see(`Junto a la fogata, ${shortName(ally2)} habla sin mirarte, como para sí.`),
+      ),
       master(ally2, 'La última vez que alguien llegó al centro éramos cinco.'),
       see('Se corrige, muy bajo:'),
       master(ally2, 'Seis.'),
       you('¿Seis?'),
       master(ally2, 'Duerme.'),
-      see(
-        'Esa noche, junto al muro del Crisol, crees oír algo. Como alguien que respira con esfuerzo.',
+      at(
+        '31-muro-respira',
+        see(
+          'Esa noche, junto al muro del Crisol, crees oír algo. Como alguien que respira con esfuerzo.',
+        ),
       ),
       murmur('No corran. No corran.'),
     ]),
     scene('combate-9-antes', 2, [
-      see(
-        '{rival} te espera en la entrada de la jungla. Trae los ojos rojos y la cinta amarrada en la muñeca.',
+      at(
+        '33-espera-jungla',
+        see(
+          '{rival} te espera en la entrada de la jungla. Trae los ojos rojos y la cinta amarrada en la muñeca.',
+        ),
       ),
       rivalSays('Encontré su nombre. En el último libro, casi borrado.'),
       rivalSays('Dicen que el que gana reteje la Trama. Si gano, la traigo de vuelta.'),
       rivalSays('Hoy peleo contigo.'),
-      ...duelBefore(rival2, true),
+      // Habla en la entrada de la jungla, no en su campamento.
+      ...duelBefore(rival2, true, false),
     ]),
     fight(
       9,
@@ -561,7 +626,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       { omenId: omenOf(rival2) },
     ),
     scene('combate-9-despues', 2, [
-      see('Ganan. {rival} se ríe por primera vez, una risa de niño.'),
+      at('32-cinta-arena', see('Ganan. {rival} se ríe por primera vez, una risa de niño.')),
       rivalSays('Ganamos. ¿Viste? Gana—'),
       see(
         `Una luz {cinta} sube desde su pecho. {rival} se mira las manos. Sube hacia el centro del Crisol y se apaga. La cinta cae en la arena.`,
@@ -576,7 +641,7 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       ...masterLines(rival2, MASTER_STORIES[rival2].verse),
       see('Recoges la cinta.'),
       murmur('¿Mara? ¿Eres tú?'),
-      title('Acto 3', 'El corazón'),
+      at('', title('Acto 3', 'El corazón')),
       tell('El acto 3 llega pronto.'),
     ]),
   ];
