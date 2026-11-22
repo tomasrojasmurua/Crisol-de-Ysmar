@@ -76,6 +76,14 @@ es lo vigente.
   - **En Pausa**, contra la IA y en Entrenamiento (en red no: la partida sigue).
   - **Probar**, en cada ficha y en cada combo (salvo los de equipo): lleva a Práctica libre con eso
     a la vista en lugar del bolsillo, rotulado "Probando", sin cambiar el bolsillo guardado.
+  - **Filtro por para qué sirve** (Daño, Control, Cura, Apoyo, Movimiento) en cada pestaña de
+    elemento. Filtrado se ve solo lo descubierto, sin contar lo que falta: no adelanta para qué
+    sirve un hechizo que no tienes.
+  - **Tocar un paso de un combo** abre la ficha de ese hechizo. Si no lo descubres (lo pone un
+    aliado, por ejemplo), la ficha muestra solo la receta, sin nombre.
+  - **Para leer mientras esperas:** un botón en la sala de espera, el resultado siempre trae una
+    entrada al libro (aunque no haya nada nuevo) y, al caer, un libro junto a las flechas de a
+    quién miras. Se cierra solo al empezar la partida o la ronda siguiente.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Dificultades de la IA:** Aprendiz, Duelista y Maestro (`packages/content/src/bots.ts`). Cambian
   qué tan rápido piensan, la puntería, cuánto esquivan proyectiles y avisos en el suelo, si se

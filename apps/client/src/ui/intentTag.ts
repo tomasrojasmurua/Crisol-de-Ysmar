@@ -15,7 +15,8 @@ const INTENT_PATHS: Record<SpellIntent, string> = {
   movement: '<path d="M6 8L13 16L6 24M16 8L23 16L16 24"/>',
 };
 
-function intentIcon(intent: SpellIntent): string {
+/** El ícono de una intención, para quien arma su propia etiqueta (el filtro del Grimorio). */
+export function intentIcon(intent: SpellIntent): string {
   return (
     `<svg class="icon icon-intent" viewBox="0 0 32 32" fill="none" stroke="currentColor" ` +
     `stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +

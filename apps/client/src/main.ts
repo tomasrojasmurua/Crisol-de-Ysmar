@@ -333,7 +333,9 @@ let replay: ReplayView | null = null;
 let lastReplay: { readonly clip: ReplayClip; readonly card: HighlightView | null } | null = null;
 const replayOverlay = new ReplayOverlay(uiRoot, () => stopReplay(true));
 hud.onGrimoire = (page) =>
-  openGrimoireOver(page.kind === 'spell' ? { spell: page.weave } : { tab: 'combos' });
+  openGrimoireOver(
+    page.kind === 'spell' ? { spell: page.weave } : page.kind === 'combo' ? { tab: 'combos' } : {},
+  );
 hud.onReplay = () => {
   if (lastReplay) playReplay(lastReplay.clip, lastReplay.card);
 };
@@ -641,9 +643,27 @@ function openGrimoireOver(opening: GrimoireOpening): void {
   grimoireBook.show(grimoire, comboLog, profile.school ? schoolOf(profile.school) : null, {
     ...opening,
     over: true,
-    onClose: () => grimoireBook.hide(),
+    onClose: opening.onClose ?? (() => grimoireBook.hide()),
   });
 }
+
+/** El Grimorio abierto mientras mirabas a los demás: se cierra solo cuando dejas de mirar. */
+let grimoireWhileOut = false;
+lobby.onGrimoire = () => openGrimoireOver({});
+matchRenderer.onGrimoire = () => {
+  grimoireWhileOut = true;
+  openGrimoireOver({
+    onClose: () => {
+      grimoireWhileOut = false;
+      grimoireBook.hide();
+    },
+  });
+};
+matchRenderer.onWatchEnd = () => {
+  if (!grimoireWhileOut) return;
+  grimoireWhileOut = false;
+  grimoireBook.hide();
+};
 
 /** Cuántas páginas nuevas del Grimorio faltan por leer, en el botón del menú. */
 function refreshGrimoireBadge(): void {

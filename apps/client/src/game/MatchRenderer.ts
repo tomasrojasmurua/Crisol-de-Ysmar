@@ -32,6 +32,7 @@ import { setHidden, setText } from '../ui/dom';
 import type { Hud, WizardBadge } from '../ui/Hud';
 import type { HurtEdge } from '../ui/HurtEdge';
 import type { Minimap } from '../ui/Minimap';
+import { MENU_ICONS } from '../ui/menuIcons';
 import type { PocketStrip } from '../ui/PocketStrip';
 import type { UiObstacles } from '../ui/UiObstacles';
 import type { WeaveName } from '../ui/WeaveName';
@@ -81,6 +82,12 @@ export class MatchRenderer {
   private watchedId = -1;
   /** Lo último que se dibujó, para pasar al siguiente mago con las flechas. */
   private lastView: MatchView | null = null;
+  /** Si en el cuadro anterior estabas mirando a otro (caído y sin nada tapando la arena). */
+  private wasWatching = false;
+  /** Abrir el Grimorio mientras miras a los demás (lo conecta quien arma el juego). */
+  onGrimoire: (() => void) | null = null;
+  /** Se acabó el mirar: volviste a jugar o la pantalla de Glifos o el resultado lo taparon. */
+  onWatchEnd: (() => void) | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -115,10 +122,25 @@ export class MatchRenderer {
     this.watchName = document.createElement('strong');
     this.watchName.className = 'watch-name';
     text.append(kicker, this.watchName);
+    // Fuera de la ronda es buen momento para leer qué te hicieron: el Grimorio a un toque.
+    const book = document.createElement('button');
+    book.type = 'button';
+    book.className = 'watch-grimoire';
+    book.innerHTML = MENU_ICONS.grimoire;
+    book.setAttribute('aria-label', 'Abrir el Grimorio');
+    book.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+    });
+    book.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.onGrimoire?.();
+    });
     this.watchBadge.append(
       arrow('Mirar al mago anterior', '‹', -1),
       text,
       arrow('Mirar al siguiente mago', '›', 1),
+      book,
     );
     parent.append(this.watchBadge);
   }
@@ -144,6 +166,8 @@ export class MatchRenderer {
     this.watchBadge.hidden = true;
     this.watchedId = -1;
     this.lastView = null;
+    if (this.wasWatching) this.onWatchEnd?.();
+    this.wasWatching = false;
   }
 
   /**
@@ -193,6 +217,9 @@ export class MatchRenderer {
     this.watchedId = watched?.id ?? -1;
     // Entre rondas y al final, la pantalla de Glifos o el resultado ocupan el centro.
     setHidden(this.watchBadge, watched === null || covered);
+    const watching = watched !== null && !covered;
+    if (this.wasWatching && !watching) this.onWatchEnd?.();
+    this.wasWatching = watching;
     if (watched) {
       const badge = badges.get(watched.id);
       const ally = watched.team === player.team;
