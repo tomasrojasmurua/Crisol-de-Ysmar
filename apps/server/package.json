@@ -15,6 +15,7 @@
     "@crisol/content": "workspace:*",
     "@crisol/core": "workspace:*",
     "@crisol/protocol": "workspace:*",
+    "werift": "0.26.0",
     "ws": "8.21.0"
   },
   "devDependencies": {

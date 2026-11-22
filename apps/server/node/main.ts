@@ -12,10 +12,11 @@ import { randomFillSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage } from 'node:http';
 import { monitorEventLoopDelay, PerformanceObserver } from 'node:perf_hooks';
-import { isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
+import { encode, isValidRoomCode, PROTOCOL_VERSION, REPORT_LIMITS } from '@crisol/protocol';
 import { WebSocket, WebSocketServer } from 'ws';
 import { generateRoomCode } from '../src/roomCode';
-import { type Peer, RoomHost } from '../src/roomHost';
+import { type FastLink, type Peer, RoomHost } from '../src/roomHost';
+import { RTC_ENABLED, RtcLink } from './rtc';
 
 const PORT = Number(process.env.PORT ?? 8080);
 /** Dónde se anotan los errores (el Worker de Cloudflare guarda en D1). */
@@ -38,6 +39,9 @@ const LAG_FULL_MS = Number(process.env.ATRASO_LLENA ?? 30);
 class WsPeer implements Peer {
   playerId: number | undefined = undefined;
   alive = true;
+  fast: FastLink | undefined = undefined;
+  /** El canal que no espera, mientras se arma o anda. */
+  rtc: RtcLink | null = null;
   constructor(readonly socket: WebSocket) {}
 
   send(data: string | Uint8Array): void {
@@ -180,6 +184,16 @@ function roomFor(code: string): Room {
         peers: () => [...peers],
         report: (where, error) => reportError(code, where, error),
         perf: (summary) => sendReport({ kind: 'servidor', room: code, ...summary }),
+        offerFast: (peer) => {
+          if (RTC_ENABLED) offerFast(code, peer as WsPeer);
+        },
+        answerFast: (peer, sdp) => {
+          const rtc = (peer as WsPeer).rtc;
+          rtc?.answer(sdp).catch((error) => {
+            rtc.close();
+            reportError(code, 'canal rápido (respuesta)', error);
+          });
+        },
         machine: () =>
           `Santiago · CPU ${load.cpu}% · atraso p99 ${load.lagP99} ms · máx ${load.lagMax} ms · ${activeRooms()} salas jugando · ${load.memoryMb} MB${recentWorst()}`,
       }),
@@ -187,6 +201,29 @@ function roomFor(code: string): Room {
     rooms.set(code, room);
   }
   return room;
+}
+
+/** Arma el canal que no espera de ese celular y le manda la oferta por el WebSocket. */
+function offerFast(code: string, peer: WsPeer): void {
+  peer.rtc?.close();
+  peer.rtc = null;
+  const room = rooms.get(code);
+  if (!room) return;
+  RtcLink.offer(peer, {
+    opened: () => room.host.fastOpened(peer),
+    message: (data) => room.host.fastMessage(peer, data),
+  })
+    .then((made) => {
+      if (!made) return;
+      // Se fue mientras se armaba la oferta: no sirve.
+      if (!room.peers.has(peer)) {
+        made.link.close();
+        return;
+      }
+      peer.rtc = made.link;
+      peer.send(encode({ type: 'rtcOffer', sdp: made.sdp }));
+    })
+    .catch((error) => reportError(code, 'canal rápido (oferta)', error));
 }
 
 /** Igual que la Sala de Cloudflare: el error va al registro con la sala y dónde pasó. */
@@ -319,6 +356,8 @@ function connect(code: string, ws: WebSocket): void {
     room.host.message(peer, raw);
   });
   ws.on('close', () => {
+    peer.rtc?.close();
+    peer.rtc = null;
     room.peers.delete(peer);
     if (room.peers.size === 0) room.emptySince = Date.now();
     room.host.closed(peer);

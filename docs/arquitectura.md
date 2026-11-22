@@ -70,6 +70,21 @@ tocas ✦.
   repetidos, por su número en una tabla. En un duelo entre bots: unos 6 KB por paso en JSON contra
   ~220 B de promedio y < 700 B de máximo. Si un estado no se puede leer, el celular reconecta y
   recibe uno completo. El resto de los mensajes (sala, Glifos, ping) siguen en JSON.
+- **Canal que no espera** (solo Santiago, desde el protocolo 24): por el WebSocket (TCP), un
+  paquete perdido en la red móvil detiene todo lo que viene detrás hasta reenviarse (silencios de
+  200 ms a más de 1 s, varias veces por minuto en la prueba del 21 de noviembre). Al conectar, el
+  celular dice `fast` en el `hello`; la Sala (`node/rtc.ts`, con werift) le ofrece un canal de
+  datos WebRTC sin reenvíos ni orden (`rtcOffer` / `rtcAnswer` por el WebSocket, sin STUN: la Sala
+  anuncia su IP pública). Por él van los estados (`datagramCodec.ts`): cada uno como diferencia con
+  el último que el celular **confirmó**, los textos con su número hasta que se confirman, y los
+  eventos de los no confirmados repetidos en cada uno. El celular confirma cada estado al llegar,
+  muestra cada paso una vez (`frameKey`: ronda y paso) aunque llegue por los dos canales o
+  desordenado, arma los pasos que faltan a medio camino (`net/fillGap.ts`) y no repite eventos.
+  Los toques van por los dos lados (por el canal, con los dos anteriores sin confirmar); la Sala
+  usa cada número una vez. Si el celular deja de confirmar 300 ms, los estados van también por el
+  WebSocket hasta que vuelva. Si el canal no abre (UDP bloqueado), todo sigue por el WebSocket
+  como antes. El resumen de red dice cuánto tardó en abrir y qué parte de los estados llegó por
+  él. Prueba en Chromium con 15% de estados perdidos: `apps/client/red/canal.test.ts`.
 - Rivales ocultos: si no ves a un rival (Velo, Bosque maldito, Sombra prestada o tu Ceguera), la
   Sala no manda dónde está ni qué teje (`DuelHost.frameFor`): llega quieto donde lo viste por
   última vez y en la lista `hidden`, y no se dibuja ni sale en el mapa. La lógica de visión vive en

@@ -191,6 +191,11 @@ simulador una serie dura ~34 s; a él en 1v1 se le sintió bien).
 
 ## Cosas pendientes o en pausa (no olvidarlas)
 
+- **Canal que no espera (WebRTC, protocolo 24):** los estados van por UDP en Santiago para que una
+  pérdida en la red móvil no frene todo. Necesita la regla de firewall `crisol-rtc` (UDP
+  40000-40199, ver [servidor-santiago.md](../servidor-santiago.md)); sin ella todo sigue por
+  WebSocket. Revisar en el resumen de red de cada celular la línea "Canal rápido".
+
 - **Camino del Linaje** se quitó: la Historia es el modo para un jugador. Su avance guardado
   (`crisol.camino`) se borra al abrir el juego.
 - **Guardián del Crisol** en pausa (`FEATURES.guardian`); los bots no logran vencerlo.

@@ -1,11 +1,15 @@
 import { type MatchState, TICK_MS } from '@crisol/core';
 import {
   type ClientMessage,
+  DatagramStateEncoder,
   decodeClientMessage,
+  decodeDatagramAck,
   encode,
+  frameKey,
   PROTOCOL_VERSION,
   type ServerMessage,
   StateEncoder,
+  type StateFrame,
 } from '@crisol/protocol';
 import { DuelHost } from './duel';
 import { RoomPerf, type RoomPerfReport } from './roomPerf';
@@ -18,6 +22,14 @@ export interface Peer {
   send(data: string | Uint8Array): void;
   close(code: number, reason: string): void;
   playerId: number | undefined;
+  /** El canal que no espera (WebRTC), si está abierto. Solo en el servidor de Santiago. */
+  fast?: FastLink | undefined;
+}
+
+/** El canal que no espera de un celular: lo que se manda puede perderse o llegar desordenado. */
+export interface FastLink {
+  readonly open: boolean;
+  send(data: Uint8Array): void;
 }
 
 /** Lo que la Sala necesita de su casa. */
@@ -32,12 +44,39 @@ export interface RoomHome {
   perf?(report: RoomPerfReport): void;
   /** Cómo va la máquina ahora ("CPU 6% · atraso p99 2 ms"), si se sabe. */
   machine?(): string;
+  /** Ofrece el canal que no espera a ese celular (manda `rtcOffer`), si la casa sabe hacerlo. */
+  offerFast?(peer: Peer): void;
+  /** La respuesta del celular a esa oferta. */
+  answerFast?(peer: Peer, sdp: string): void;
 }
 
 /** Mientras no se juega (sala de espera, final), el estado se manda cada tantos pasos. */
 const IDLE_SEND_EVERY = 10;
 /** Si el reloj se atrasa (la Sala estuvo ocupada), no se recuperan más de estos pasos de golpe. */
 const MAX_CATCH_UP = 4;
+/**
+ * Si el celular no confirma nada por el canal que no espera en este rato (normalmente confirma a
+ * los ~40 ms), los estados van también por el WebSocket hasta que vuelvan las confirmaciones. El
+ * celular muestra el primero que llegue de cada paso y descarta el repetido.
+ */
+const FAST_SILENCE_MS = 300;
+
+/** Lo que la Sala lleva del canal que no espera de cada celular. */
+interface FastState {
+  readonly encoder: DatagramStateEncoder;
+  /** Cuándo llegó la última confirmación (0: ninguna). */
+  ackedAt: number;
+  /** Cuándo se empezó a mandar por él (da un rato para la primera confirmación). */
+  since: number;
+  /** Si anda (si no, los estados van también por el WebSocket). */
+  active: boolean;
+  /** El toque más nuevo recibido de ese celular, por cualquier canal. */
+  intentsSeq: number;
+}
+
+const eventsOf = (frame: unknown): readonly unknown[] => (frame as StateFrame).state.events;
+/** Ronda y paso: el celular reconoce el mismo cuadro aunque le llegue por los dos canales. */
+const keyOf = (frame: unknown): number => frameKey(frame as StateFrame);
 
 /**
  * Una Sala es un pequeño servidor propio por partida: corre el núcleo a 30 pasos por segundo y
@@ -54,6 +93,8 @@ export class RoomHost {
   private lastAway = '';
   /** Lo último que se le mandó a cada conexión, para mandarle solo lo que cambió. */
   private readonly encoders = new Map<Peer, StateEncoder>();
+  /** El canal que no espera de cada celular que lo abrió. */
+  private readonly fast = new Map<Peer, FastState>();
   /** Cómo anda el reloj en la serie en curso: va al registro al terminar. */
   private readonly perf = new RoomPerf();
   /** Errores ya anotados: uno que se repite cada paso se guarda una sola vez. */
@@ -79,6 +120,65 @@ export class RoomHost {
       // Un mensaje que falla no tumba la sala: se anota y se sigue.
       this.report(`mensaje ${message.type}`, error);
     }
+  }
+
+  /**
+   * Llega algo por el canal que no espera: una confirmación (binaria) o los últimos toques. Lo
+   * demás (elegir Glifo, revancha) va siempre por el WebSocket, que no pierde nada.
+   */
+  fastMessage(peer: Peer, raw: string | Uint8Array): void {
+    try {
+      this.handleFast(peer, raw);
+    } catch (error) {
+      this.report('canal rápido', error);
+    }
+  }
+
+  private handleFast(peer: Peer, raw: string | Uint8Array): void {
+    const fast = this.fastOf(peer);
+    if (typeof raw !== 'string') {
+      const seq = decodeDatagramAck(raw);
+      if (seq === null) return;
+      fast.encoder.ack(seq);
+      fast.ackedAt = Date.now();
+      return;
+    }
+    const message = decodeClientMessage(raw);
+    const playerId = peer.playerId;
+    if (message?.type !== 'intentsBatch' || playerId === undefined || !this.host) return;
+    this.host.heard(playerId);
+    const batches = Array.isArray(message.batches) ? [...message.batches] : [];
+    batches.sort((a, b) => a.seq - b.seq);
+    for (const batch of batches) {
+      if (!Number.isFinite(batch.seq) || batch.seq <= fast.intentsSeq) continue;
+      if (!Array.isArray(batch.intents)) continue;
+      fast.intentsSeq = batch.seq;
+      this.host.intents(playerId, batch.intents, batch.seq);
+    }
+  }
+
+  /** Se abrió el canal que no espera de ese celular: los estados empiezan a ir por él. */
+  fastOpened(peer: Peer): void {
+    const fast = this.fastOf(peer);
+    fast.encoder.reset();
+    fast.since = Date.now();
+    fast.ackedAt = 0;
+    fast.active = true;
+  }
+
+  private fastOf(peer: Peer): FastState {
+    let fast = this.fast.get(peer);
+    if (!fast) {
+      fast = {
+        encoder: new DatagramStateEncoder(eventsOf, keyOf),
+        ackedAt: 0,
+        since: 0,
+        active: false,
+        intentsSeq: 0,
+      };
+      this.fast.set(peer, fast);
+    }
+    return fast;
   }
 
   /** Se cerró una conexión (o falló). */
@@ -153,6 +253,7 @@ export class RoomHost {
           lobby: this.duel.inLobby,
         });
         this.broadcastPlayers();
+        if (message.fast === true) this.home.offerFast?.(peer);
         // Si la partida ya iba (volvió alguien), se le presenta; si recién empieza, avisa el reloj.
         if (!this.duel.inLobby && !this.duel.startedNew) this.announceStart(peer, true);
         this.ensureClock();
@@ -162,7 +263,17 @@ export class RoomHost {
         send(peer, { type: 'pong', sentAt: message.sentAt });
         return;
       case 'intents':
-        if (playerId !== undefined) this.duel.intents(playerId, message.intents, message.seq);
+        if (playerId === undefined) return;
+        if (Number.isFinite(message.seq)) {
+          // Con canal que no espera, el mismo toque puede llegar por los dos lados: vale uno.
+          const fast = this.fastOf(peer);
+          if (message.seq <= fast.intentsSeq) return;
+          fast.intentsSeq = message.seq;
+        }
+        this.duel.intents(playerId, message.intents, message.seq);
+        return;
+      case 'rtcAnswer':
+        if (typeof message.sdp === 'string') this.home.answerFast?.(peer, message.sdp);
         return;
       case 'glyph':
         if (playerId !== undefined) this.duel.chooseGlyph(playerId, message.glyphId);
@@ -186,6 +297,7 @@ export class RoomHost {
         if (!message.away) {
           // Vuelve a la app: el próximo estado va completo, por si se perdió el hilo.
           this.encoders.set(peer, new StateEncoder());
+          this.fast.get(peer)?.encoder.reset();
         }
         if (this.duel.setAway(playerId, message.away === true)) this.broadcastPlayers();
         return;
@@ -208,6 +320,7 @@ export class RoomHost {
 
   private drop(peer: Peer): void {
     this.encoders.delete(peer);
+    this.fast.delete(peer);
     const playerId = peer.playerId;
     if (playerId === undefined || !this.host) return;
     // Si ese jugador ya volvió por otro socket, no se lo marca como ido.
@@ -352,14 +465,37 @@ export class RoomHost {
     for (const peer of this.home.peers()) {
       const playerId = peer.playerId;
       if (playerId === undefined || !duel.wantsState(playerId)) continue;
+      const frame = duel.frameFor(playerId, snapshot);
+      if (this.sendFast(peer, frame)) continue;
       let encoder = this.encoders.get(peer);
       if (!encoder) {
         // La Sala despertó sin recordar lo mandado: se parte de nuevo con un cuadro completo.
         encoder = new StateEncoder();
         this.encoders.set(peer, encoder);
       }
-      trySend(peer, encoder.encode(duel.frameFor(playerId, snapshot)));
+      trySend(peer, encoder.encode(frame));
     }
+  }
+
+  /**
+   * Manda el estado por el canal que no espera, si está abierto. Devuelve false si también hay que
+   * mandarlo por el WebSocket: el canal no está o el celular dejó de confirmar. Por el canal se
+   * sigue mandando igual, para notar en el acto cuando vuelve a andar.
+   */
+  private sendFast(peer: Peer, frame: StateFrame): boolean {
+    const link = peer.fast;
+    const fast = this.fast.get(peer);
+    if (!link?.open || !fast) return false;
+    try {
+      link.send(fast.encoder.encode(frame));
+    } catch {
+      // El canal se está cerrando: sigue el WebSocket.
+      return false;
+    }
+    const now = Date.now();
+    const heard = fast.ackedAt > 0 ? now - fast.ackedAt : now - fast.since;
+    fast.active = heard < FAST_SILENCE_MS;
+    return fast.active;
   }
 }
 
