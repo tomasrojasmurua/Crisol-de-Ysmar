@@ -65,9 +65,9 @@ export const SPELL_RULES: GameRules['spells'] = {
   spring: { range: 0, radius: 3, durationTicks: 150, healPerSecond: 6 },
   // Raíz → Tormenta · Liana: 9 m; enraíza 1 s al rival que toca.
   vine: { range: 9, speed: 24, rootTicks: 30 },
-  // Raíz → Marea · Guardián de musgo: 60 de vida por 10 s.
+  // Raíz → Marea · Guardián de musgo: 30 de vida por 10 s; cae con una Bola ígnea (mismo costo).
   mossGuardian: {
-    hp: 60,
+    hp: 30,
     radius: 0.7,
     durationTicks: 300,
     damage: 6,

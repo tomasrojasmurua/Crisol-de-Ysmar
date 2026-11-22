@@ -40,6 +40,11 @@ describe('reglas de combate', () => {
     check(numbers, 'GAME_RULES');
   });
 
+  it('una Bola ígnea (2 elementos) derriba al Guardián de musgo (2 elementos)', () => {
+    const { fireball, mossGuardian } = GAME_RULES.spells;
+    expect(fireball.damage).toBeGreaterThanOrEqual(mossGuardian.hp);
+  });
+
   it('un tejido más largo tarda más en salir', () => {
     const [one, two, three] = GAME_RULES.weave.castTicksByLength;
     expect(one).toBeLessThan(two);
