@@ -35,3 +35,18 @@ export function intentTag(spell: SpellId): HTMLElement {
   tag.append(el('span', 'intent-tag-name', INTENT_NAMES[intent]));
   return tag;
 }
+
+/**
+ * Solo el ícono de para qué sirve un hechizo, del color de su intención, para ir junto al nombre
+ * en las listas (el Grimorio). La palabra queda para quien lo mantiene apretado o lo lee en voz
+ * alta, y para la ficha completa.
+ */
+export function intentMark(spell: SpellId): HTMLElement {
+  const intent = SPELL_INTENTS[spell];
+  const mark = el('span', `intent-mark intent-${intent}`);
+  mark.title = `${INTENT_NAMES[intent]}: ${INTENT_HINTS[intent].toLowerCase()}`;
+  mark.setAttribute('role', 'img');
+  mark.setAttribute('aria-label', INTENT_NAMES[intent]);
+  mark.innerHTML = intentIcon(intent);
+  return mark;
+}

@@ -3921,6 +3921,25 @@ body {
   line-height: 1.2;
 }
 
+.grimoire-spell-name-tail {
+  white-space: nowrap;
+}
+
+/* Para qué sirve, solo el ícono, pegado al nombre en las listas del Grimorio. */
+.intent-mark {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 5px;
+  vertical-align: -0.18em;
+  color: var(--intent, #e8d7a8);
+}
+
+.intent-mark .icon-intent {
+  width: 1.05em;
+  height: 1.05em;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--intent) 45%, transparent));
+}
+
 .weave-glyphs {
   display: inline-flex;
   gap: 1px;

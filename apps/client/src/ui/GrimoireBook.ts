@@ -17,6 +17,7 @@ import { POCKET_SIZE, type Pocket } from '../game/Pocket';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
 import { BOOKMARK_ICON, elementIcon } from './icons';
+import { intentMark } from './intentTag';
 import { MENU_ICONS } from './menuIcons';
 import { OwnComboEditor } from './OwnComboEditor';
 import { spellCard } from './spellFacts';
@@ -67,6 +68,24 @@ export function weaveGlyphs(weave: Weave, className = 'weave-glyphs'): HTMLEleme
     glyphs.append(glyph);
   }
   return glyphs;
+}
+
+/**
+ * El nombre de un hechizo en las listas del Grimorio, con el ícono de para qué sirve a su lado
+ * (Daño, Control, Cura, Apoyo o Movimiento): así se elige de un vistazo sin abrir la ficha.
+ */
+function spellNameView(weave: Weave): HTMLElement {
+  const text = spellName(weave);
+  const id = spellOf(weave);
+  if (id === null) return el('span', 'grimoire-spell-name', text);
+  // El ícono va pegado a la última palabra: si el nombre no cabe, bajan juntos y nunca queda
+  // el ícono solo en una línea.
+  const cut = text.lastIndexOf(' ') + 1;
+  const name = el('span', 'grimoire-spell-name', text.slice(0, cut));
+  const tail = el('span', 'grimoire-spell-name-tail', text.slice(cut));
+  tail.append(intentMark(id));
+  name.append(tail);
+  return name;
 }
 
 /**
@@ -249,7 +268,7 @@ export class GrimoireBook {
         card.type = 'button';
         const id = spellOf(weave);
         card.classList.toggle('school', id !== null && highlighted.has(id));
-        card.append(weaveGlyphs(weave), el('span', 'grimoire-spell-name', spellName(weave)));
+        card.append(weaveGlyphs(weave), spellNameView(weave));
         if (this.pocket.has(weave)) card.append(pocketMark());
         card.addEventListener('click', () => this.openDetail(weave));
         grid.append(card);
@@ -291,7 +310,7 @@ export class GrimoireBook {
       const role = el('span', 'grimoire-recipe-role', SECOND_ELEMENT_ROLES[second].verb);
       role.style.setProperty('--second', colorOf(second));
       text.append(
-        el('span', 'grimoire-spell-name', known ? spellName(weave) : 'Por descubrir'),
+        known ? spellNameView(weave) : el('span', 'grimoire-spell-name', 'Por descubrir'),
         role,
       );
       card.append(weaveGlyphs(weave), text);
@@ -362,11 +381,7 @@ export class GrimoireBook {
       const card = el('button', 'grimoire-spell');
       card.type = 'button';
       card.style.setProperty('--element', colorOf(weave[0] ?? 'brasa'));
-      card.append(
-        weaveGlyphs(weave),
-        el('span', 'grimoire-spell-name', spellName(weave)),
-        pocketMark(),
-      );
+      card.append(weaveGlyphs(weave), spellNameView(weave), pocketMark());
       card.addEventListener('click', () => this.openDetail(weave));
       grid.append(card);
     }
@@ -394,7 +409,7 @@ export class GrimoireBook {
       card.type = 'button';
       const text = el('span', 'grimoire-school-text');
       text.append(
-        el('span', 'grimoire-spell-name', spellName(weave)),
+        spellNameView(weave),
         el('span', 'grimoire-school-role', school.roles[spell] ?? 'Para esquivar'),
       );
       card.append(weaveGlyphs(weave), text);
