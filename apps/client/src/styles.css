@@ -7099,3 +7099,317 @@ body {
     gap: 6px;
   }
 }
+
+/* ---------- El Grimorio como guía entre partidas ---------- */
+
+/* Páginas sin leer: un punto en el botón del menú y en la pestaña, y "Nuevo" en la tarjeta. */
+.menu-grimoire-new {
+  position: absolute;
+  top: 5px;
+  left: 28px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--trama);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--trama) 60%, transparent);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: #0b0a10;
+}
+
+.menu-grimoire-new[hidden] {
+  display: none;
+}
+
+#ui .menu-book {
+  position: relative;
+}
+
+#ui .grimoire-tab {
+  position: relative;
+}
+
+#ui .grimoire-tab.fresh::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--trama);
+  box-shadow: 0 0 6px var(--trama);
+}
+
+#ui .grimoire-spell.fresh {
+  border-color: color-mix(in srgb, var(--trama) 55%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--trama) 22%, transparent);
+}
+
+.grimoire-fresh-mark {
+  flex: none;
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--trama) 70%, transparent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--trama);
+}
+
+.grimoire-combo .grimoire-fresh-mark {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+#ui .grimoire-combo {
+  position: relative;
+}
+
+/* La guía de la primera vez, arriba del libro. */
+.grimoire-guide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 8px 10px 8px 12px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--trama) 45%, transparent);
+  background: color-mix(in srgb, var(--trama) 9%, rgba(14, 12, 20, 0.92));
+}
+
+.grimoire-guide p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.grimoire-guide strong {
+  color: var(--gold-bright);
+}
+
+#ui .grimoire-guide-ok {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+/* La ficha: el bolsillo y Probar lado a lado. */
+.grimoire-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#ui .grimoire-card-actions .grimoire-pocket-button {
+  margin-top: 0;
+}
+
+#ui .grimoire-try-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--trama) 70%, transparent);
+  background: color-mix(in srgb, var(--trama) 12%, transparent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--trama);
+  touch-action: manipulation;
+  --icon-size: 15px;
+}
+
+/* En la tarjeta de un combo, Probar va chico abajo a la derecha. */
+#ui .grimoire-combo .grimoire-try-button {
+  align-self: flex-end;
+  min-height: 30px;
+  margin-top: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.grimoire-card-foreign {
+  margin: 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--trama);
+}
+
+/* Abierto encima de la Pausa o del resultado. */
+.grimoire.over {
+  z-index: 60;
+  background: rgba(7, 7, 12, 0.94);
+}
+
+/* La Pausa con tres botones en una fila: Salir, Grimorio y Continuar. */
+.pause-actions {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+#ui .pause-actions > [hidden] {
+  display: none;
+}
+
+/* Probando desde el Grimorio: el bolsillo cambia de color para que se note. */
+.pocket-strip.practice .pocket-strip-head {
+  color: var(--trama);
+}
+
+.pocket-strip.practice .pocket-strip-row {
+  border-color: color-mix(in srgb, var(--trama) 45%, transparent);
+}
+
+.pocket-strip-row.combo .combo-steps,
+.pocket-strip-row.combo .combo-step {
+  --icon-size: 13px;
+}
+
+/* "Para tu Grimorio" en el resultado: tarjetas que abren cada página. */
+.hud-result-grimoire {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0 0 clamp(8px, 3vh, 14px);
+  animation: fade-in 0.6s ease 0.7s both;
+}
+
+.hud-result-grimoire[hidden] {
+  display: none;
+}
+
+.hud-result-grimoire-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  --icon-size: 13px;
+}
+
+#ui .hud-result-grimoire-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  max-width: 190px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(216, 191, 138, 0.3);
+  background: rgba(14, 12, 20, 0.88);
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  touch-action: manipulation;
+}
+
+#ui .hud-result-grimoire-chip:active {
+  border-color: var(--gold-bright);
+}
+
+#ui .hud-result-grimoire-chip.defeat {
+  border-color: rgba(214, 92, 92, 0.5);
+}
+
+#ui .hud-result-grimoire-chip.more {
+  flex: none;
+  padding: 4px 11px;
+}
+
+.hud-result-grimoire-chip .weave-orbs,
+.hud-result-grimoire-chip .combo-steps {
+  flex: none;
+  --icon-size: 12px;
+}
+
+.hud-result-grimoire-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hud-result-grimoire-kicker {
+  white-space: nowrap;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+
+.hud-result-grimoire-chip.defeat .hud-result-grimoire-kicker {
+  color: #e08a7f;
+}
+
+.hud-result-grimoire-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.hud-result-grimoire-chip.more .hud-result-grimoire-name {
+  color: var(--gold-bright);
+}
+
+/*
+ * En celulares bajos o angostos la franja va en una sola fila, sin título, y el emblema se
+ * guarda: así Revancha y Menú siguen a la vista sin deslizar.
+ */
+@media (max-height: 400px), (max-width: 760px) {
+  .hud-result-grimoire {
+    flex-wrap: nowrap;
+    margin-bottom: 8px;
+  }
+
+  .hud-result-grimoire-title {
+    display: none;
+  }
+
+  #ui .hud-result-grimoire-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 38px;
+    padding: 3px 9px 3px 7px;
+  }
+
+  #ui .hud-result-grimoire-chip.more {
+    flex: none;
+  }
+}
+
+/* Angosto: el nombre importa más que los signos (la receta está en la ficha). */
+@media (max-width: 760px) {
+  .hud-result-grimoire-chip .weave-orbs,
+  .hud-result-grimoire-chip .combo-steps {
+    display: none;
+  }
+}
+
+@media (max-height: 400px) {
+  .hud-result-card.with-grimoire .hud-result-crest {
+    display: none;
+  }
+}

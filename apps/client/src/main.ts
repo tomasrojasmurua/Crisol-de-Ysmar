@@ -33,6 +33,7 @@ import { castOf, type OtherWizard, ownLook } from './game/cast';
 import { Diagnostics } from './game/Diagnostics';
 import { readDamageNumbers, saveDamageNumbers } from './game/damageNumbers';
 import { Grimoire } from './game/Grimoire';
+import { GrimoireSeen, writtenPages } from './game/GrimoireSeen';
 import { HitFeedback } from './game/HitFeedback';
 import { LocalMatch, type MatchOptions, PLAYER_ID } from './game/LocalMatch';
 import { MatchFlow } from './game/MatchFlow';
@@ -75,7 +76,7 @@ import { BackupSheet } from './ui/BackupSheet';
 import { BlindVeil } from './ui/BlindVeil';
 import { ComboCallouts } from './ui/ComboCallouts';
 import { GlyphPicker } from './ui/GlyphPicker';
-import { GrimoireBook } from './ui/GrimoireBook';
+import { GrimoireBook, type GrimoireOpening } from './ui/GrimoireBook';
 import type { HighlightView } from './ui/HighlightCard';
 import { Hud, PHASE_NAMES, type WizardBadge } from './ui/Hud';
 import { HurtEdge } from './ui/HurtEdge';
@@ -83,7 +84,7 @@ import { Lobby } from './ui/Lobby';
 import { Menu } from './ui/Menu';
 import { Minimap } from './ui/Minimap';
 import { PauseMenu } from './ui/PauseMenu';
-import { PocketStrip } from './ui/PocketStrip';
+import { PocketStrip, type Practice } from './ui/PocketStrip';
 import { ProfileScreen } from './ui/ProfileScreen';
 import { ReplayOverlay } from './ui/ReplayOverlay';
 import type { ResultPath } from './ui/ResultScreen';
@@ -168,6 +169,7 @@ const grimoire = new Grimoire();
 const comboLog = new ComboLog();
 const playerStats = new PlayerStats();
 const pocket = new Pocket();
+const grimoireSeen = new GrimoireSeen(() => writtenPages(grimoire, comboLog));
 // El modo Camino ya no existe (lo reemplazó la Historia): su avance guardado se borra, también
 // del respaldo, que se sube sin él la próxima vez.
 try {
@@ -239,7 +241,11 @@ const grimoireBook = new GrimoireBook(
   () => closeOverlays(),
   () => rules,
   pocket,
+  grimoireSeen,
 );
+grimoireBook.onRead = () => refreshGrimoireBadge();
+grimoireBook.onTry = (practice) => tryFromGrimoire(practice);
+refreshGrimoireBadge();
 const glyphPicker = new GlyphPicker(uiRoot, (glyph) => match?.chooseGlyph(glyph));
 const trainingPanel = new TrainingPanel(
   uiRoot,
@@ -267,7 +273,11 @@ const schoolPicker = new SchoolPicker(
 const tutorialCard = new TutorialCard(
   uiRoot,
   () => freePlay(),
-  () => showMenu(),
+  () => {
+    // Al terminar el tutorial: al Grimorio, en la pestaña de combos donde quedó el regalo.
+    showMenu();
+    openGrimoire({ tab: 'combos' });
+  },
   () => afterTutorialAdvance(),
 );
 /** El tutorial en curso, si el entrenamiento es el tutorial. */
@@ -322,6 +332,8 @@ const flow = new MatchFlow({
 let replay: ReplayView | null = null;
 let lastReplay: { readonly clip: ReplayClip; readonly card: HighlightView | null } | null = null;
 const replayOverlay = new ReplayOverlay(uiRoot, () => stopReplay(true));
+hud.onGrimoire = (page) =>
+  openGrimoireOver(page.kind === 'spell' ? { spell: page.weave } : { tab: 'combos' });
 hud.onReplay = () => {
   if (lastReplay) playReplay(lastReplay.clip, lastReplay.card);
 };
@@ -382,6 +394,8 @@ const pauseMenu = new PauseMenu(
       if (value && match && match !== net) controls.visible = false;
     },
     onMenu: () => showMenu(),
+    onGrimoire: () =>
+      openGrimoireOver({ canTry: match instanceof TrainingMatch && tutorial === null }),
     onDiagnostics: (on) => {
       diagnostics.enabled = on;
     },
@@ -471,6 +485,11 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || !match) return;
+  // El Grimorio abierto encima se cierra primero (vuelve a la Pausa o al resultado).
+  if (grimoireBook.visible) {
+    grimoireBook.hide();
+    return;
+  }
   if (pauseMenu.isOpen) pauseMenu.close();
   else pauseMenu.open();
 });
@@ -505,6 +524,8 @@ function showMenu(): void {
   endTutorial();
   useRules(GAME_RULES);
   screens.menu(profile, grimoire);
+  pocketStrip.setPractice(null);
+  refreshGrimoireBadge();
   refreshStory();
   // De vuelta en el menú (al terminar una partida o el tutorial): se respalda lo nuevo.
   void backup.sync();
@@ -606,9 +627,41 @@ function openWardrobe(): void {
   view.showPreview(ownLook(profile), rules);
 }
 
-function openGrimoire(): void {
+/** El Grimorio desde el menú: ahí se puede ir a probar lo que leas. */
+function openGrimoire(opening: GrimoireOpening = {}): void {
   menu.visible = false;
-  grimoireBook.show(grimoire, comboLog, profile.school ? schoolOf(profile.school) : null);
+  grimoireBook.show(grimoire, comboLog, profile.school ? schoolOf(profile.school) : null, {
+    canTry: true,
+    ...opening,
+  });
+}
+
+/** El Grimorio encima de la Pausa o del resultado: Volver regresa ahí mismo. */
+function openGrimoireOver(opening: GrimoireOpening): void {
+  grimoireBook.show(grimoire, comboLog, profile.school ? schoolOf(profile.school) : null, {
+    ...opening,
+    over: true,
+    onClose: () => grimoireBook.hide(),
+  });
+}
+
+/** Cuántas páginas nuevas del Grimorio faltan por leer, en el botón del menú. */
+function refreshGrimoireBadge(): void {
+  menu.setGrimoireNew(grimoireSeen.unread(writtenPages(grimoire, comboLog)));
+}
+
+/**
+ * Probar desde el Grimorio: a Práctica libre con eso a la vista en vez del bolsillo. Si ya
+ * estabas practicando (el Grimorio abierto desde la Pausa), se sigue ahí mismo.
+ */
+function tryFromGrimoire(practice: Practice): void {
+  grimoireBook.hide();
+  if (match instanceof TrainingMatch && tutorial === null) {
+    pauseMenu.close();
+  } else {
+    startTraining();
+  }
+  pocketStrip.setPractice(practice);
 }
 
 function closeOverlays(): void {
@@ -616,6 +669,7 @@ function closeOverlays(): void {
   grimoireBook.hide();
   view.hidePreview();
   screens.refreshIdentity(profile, grimoire);
+  refreshGrimoireBadge();
   void backup.sync();
   // Recién creado el hechicero (o un perfil de antes): falta elegir linaje.
   if (profile.name && !profile.school) {
@@ -802,6 +856,7 @@ function startNetMatch(current: NetMatch): void {
 /** Prepara la pantalla para una partida: magos, nombres, colores y HUD. */
 function beginMatch(current: MatchView, other: OtherWizard): void {
   backGuard.arm();
+  pocketStrip.setPractice(null);
   stopReplay(false);
   lastReplay = null;
   match = current;

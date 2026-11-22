@@ -99,6 +99,8 @@ export class Screens {
     p.lobby.hide();
     p.hud.visible = true;
     p.hud.hideResult();
+    // El Grimorio abierto sobre el resultado no queda tapando la revancha.
+    p.grimoireBook.hide();
     p.labels.visible = true;
     p.controls.visible = true;
     p.minimap.show(true);

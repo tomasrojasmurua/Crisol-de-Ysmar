@@ -13,6 +13,7 @@ import { CAST_ICON, elementIcon } from './icons';
 import {
   type OpinionSink,
   type RematchView,
+  type ResultPage,
   ResultScreen,
   type ResultSummary,
 } from './ResultScreen';
@@ -371,6 +372,11 @@ export class Hud {
     this.banner.hidden = true;
     this.hideHighlight();
     this.result.show(summary);
+  }
+
+  /** Qué hace tocar una tarjeta de "Para tu Grimorio" en el resultado. */
+  set onGrimoire(handler: ((page: ResultPage) => void) | null) {
+    this.result.onGrimoire = handler;
   }
 
   /** Qué hace el botón "Ver repetición" del resultado. */

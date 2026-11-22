@@ -13,6 +13,7 @@ import {
 import { type ElementId, type GameRules, SPELL_WEAVES, spellOf, type Weave } from '@crisol/core';
 import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
+import { comboPage, type GrimoireSeen, spellPage } from '../game/GrimoireSeen';
 import { POCKET_SIZE, type Pocket } from '../game/Pocket';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
@@ -20,6 +21,7 @@ import { BOOKMARK_ICON, elementIcon } from './icons';
 import { intentMark } from './intentTag';
 import { MENU_ICONS } from './menuIcons';
 import { OwnComboEditor } from './OwnComboEditor';
+import type { Practice } from './PocketStrip';
 import { spellCard } from './spellFacts';
 
 const ELEMENT_NAMES: Record<ElementId, string> = {
@@ -45,7 +47,25 @@ const COMBO_TAB_ICON =
 
 const colorOf = (id: ElementId): string => ELEMENTS.find((e) => e.id === id)?.color ?? '#fff';
 
-type Tab = ElementId | 'combos';
+export type GrimoireTab = ElementId | 'combos';
+type Tab = GrimoireTab;
+
+/** Dónde y cómo se abre el Grimorio. */
+export interface GrimoireOpening {
+  /** La pestaña con que abre (sin ella: la del linaje, o la última que viste). */
+  readonly tab?: Tab | undefined;
+  /** Abre directo la ficha de este hechizo (aunque no lo hayas descubierto: ver `foreign`). */
+  readonly spell?: Weave | undefined;
+  /** Si se ofrece Probar (ir a practicarlo frente al muñeco). */
+  readonly canTry?: boolean | undefined;
+  /** Encima de otra pantalla (Pausa, resultado): Volver regresa a ella. */
+  readonly over?: boolean | undefined;
+  /** Qué hacer al tocar Volver (por defecto, lo que se dio al crearlo). */
+  readonly onClose?: (() => void) | undefined;
+}
+
+/** La guía de la primera vez ya se cerró. */
+const GUIDE_KEY = 'crisol.grimorioGuia';
 
 /** Las bolitas de un tejido, en orden: así se lee cómo se teje cada conjuro. */
 export function weaveOrbs(weave: Weave): HTMLElement {
@@ -107,13 +127,24 @@ export class GrimoireBook {
   /** Tu linaje: sus hechizos van destacados y arriba en la pestaña de su elemento. */
   private school: School | null = null;
   private readonly editor: OwnComboEditor;
+  /** Si en esta apertura se ofrece Probar. */
+  private canTry = false;
+  private closeHandler: () => void;
+  /** Lo nuevo de la pestaña de combos al abrirla: brilla esa vez y queda leído. */
+  private freshCombos = new Set<string>();
+  /** Ir a practicar un hechizo o un combo (lo conecta quien arma el juego). */
+  onTry: ((practice: Practice) => void) | null = null;
+  /** Se leyó una página: el menú vuelve a contar las nuevas. */
+  onRead: (() => void) | null = null;
 
   constructor(
     parent: HTMLElement,
-    onClose: () => void,
+    private readonly onCloseDefault: () => void,
     private readonly rules: () => GameRules,
     private readonly pocket: Pocket,
+    private readonly seen: GrimoireSeen,
   ) {
+    this.closeHandler = onCloseDefault;
     this.root = el('div', 'grimoire');
     this.root.hidden = true;
     this.root.innerHTML = `
@@ -141,7 +172,7 @@ export class GrimoireBook {
     this.detail.addEventListener('click', () => {
       this.detail.hidden = true;
     });
-    query(this.root, '.grimoire-close').addEventListener('click', onClose);
+    query(this.root, '.grimoire-close').addEventListener('click', () => this.closeHandler());
 
     for (const element of ELEMENTS) {
       const id = element.id as ElementId;
@@ -151,17 +182,35 @@ export class GrimoireBook {
     this.editor = new OwnComboEditor(this.root, () => this.render());
   }
 
-  show(grimoire: Grimoire, comboLog: ComboLog, school: School | null = null): void {
+  show(
+    grimoire: Grimoire,
+    comboLog: ComboLog,
+    school: School | null = null,
+    opening: GrimoireOpening = {},
+  ): void {
     this.grimoire = grimoire;
     this.comboLog = comboLog;
     if (school && school !== this.school) this.tab = school.element;
     this.school = school;
+    const spell = opening.spell;
+    if (opening.tab) this.tab = opening.tab;
+    else if (spell?.[0]) this.tab = spell[0];
+    this.canTry = opening.canTry ?? false;
+    this.closeHandler = opening.onClose ?? this.onCloseDefault;
+    this.root.classList.toggle('over', opening.over ?? false);
+    this.detail.hidden = true;
     this.render();
     this.root.hidden = false;
+    if (spell) this.openDetail(spell);
+  }
+
+  get visible(): boolean {
+    return !this.root.hidden;
   }
 
   hide(): void {
     this.root.hidden = true;
+    this.freshCombos.clear();
     this.detail.hidden = true;
     this.editor.hide();
   }
@@ -181,10 +230,20 @@ export class GrimoireBook {
     return tab;
   }
 
-  /** La ficha de un conjuro ya descubierto. */
+  /**
+   * La ficha de un conjuro. Si todavía no lo descubres (el que te derribó, abierto desde el
+   * resultado), lo dice y no se puede llevar en el bolsillo: queda en tu Grimorio al lanzarlo.
+   */
   private openDetail(weave: Weave): void {
     const spell = spellOf(weave);
     if (!spell) return;
+    const known = this.grimoire?.has(weave) ?? false;
+    if (known && this.seen.markRead([spellPage(weave)])) {
+      this.onRead?.();
+      const scroll = this.list.scrollTop;
+      this.render();
+      this.list.scrollTop = scroll;
+    }
     const card = spellCard(spell, this.rules());
     card.classList.add('grimoire-card');
     card.style.setProperty('--element', colorOf(weave[0] ?? 'brasa'));
@@ -203,7 +262,16 @@ export class GrimoireBook {
     close.type = 'button';
     close.setAttribute('aria-label', 'Cerrar');
     close.innerHTML = '×';
-    card.append(close, this.pocketButton(weave));
+    const actions = el('div', 'grimoire-card-actions');
+    if (known) actions.append(this.pocketButton(weave));
+    else {
+      card.classList.add('foreign');
+      actions.append(
+        el('p', 'grimoire-card-foreign', 'Aún no lo descubres: lánzalo y quedará en tu Grimorio.'),
+      );
+    }
+    if (this.canTry) actions.append(this.tryButton({ kind: 'spell', weave }));
+    card.append(close, actions);
     this.detail.replaceChildren(card);
     this.detail.hidden = false;
   }
@@ -220,19 +288,66 @@ export class GrimoireBook {
       tab.setAttribute('aria-pressed', String(id === this.tab));
       const count = query(tab, '.grimoire-tab-count');
       if (id === 'combos') {
-        count.textContent = this.comboLog
-          ? `${this.comboLog.unlockedCount}/${this.comboLog.total}`
-          : '';
+        const log = this.comboLog;
+        count.textContent = log ? `${log.unlockedCount}/${log.total}` : '';
+        const fresh =
+          id !== this.tab && log
+            ? COMBOS.some((c) => log.isUnlocked(c) && this.seen.isNew(comboPage(c.id)))
+            : false;
+        tab.classList.toggle('fresh', fresh);
         continue;
       }
       const weaves = ALL_WEAVES.filter((w) => w[0] === id);
-      count.textContent = `${weaves.filter((w) => grimoire.has(w)).length}/${weaves.length}`;
+      const known = weaves.filter((w) => grimoire.has(w));
+      count.textContent = `${known.length}/${weaves.length}`;
+      tab.classList.toggle(
+        'fresh',
+        known.some((w) => this.seen.isNew(spellPage(w))),
+      );
     }
 
     this.list.replaceChildren();
     if (this.tab === 'combos') this.renderCombos(grimoire);
     else this.renderElement(this.tab, grimoire);
+    this.renderGuide();
     this.list.scrollTop = 0;
+  }
+
+  /**
+   * La primera vez, arriba del libro: para qué sirve el Grimorio. Se va al tocar Entendido y
+   * no vuelve.
+   */
+  private renderGuide(): void {
+    if (loadFlag(GUIDE_KEY)) return;
+    const guide = el('aside', 'grimoire-guide');
+    const text = el('p', '');
+    text.append(
+      el('strong', '', 'Aquí queda todo lo que descubres. '),
+      'Cada hechizo que lanzas y cada combo que aciertas tiene su página: léela para pensar tu ' +
+        'próxima partida. Marca hasta 3 con el marcador y verás su receta mientras juegas.',
+    );
+    const ok = el('button', 'secondary grimoire-guide-ok', 'Entendido');
+    ok.type = 'button';
+    ok.addEventListener('click', () => {
+      saveFlag(GUIDE_KEY);
+      guide.remove();
+    });
+    guide.append(text, ok);
+    this.list.prepend(guide);
+  }
+
+  /** El botón de la ficha para ir a practicarlo frente al muñeco. */
+  private tryButton(practice: Practice): HTMLButtonElement {
+    const button = el('button', 'grimoire-try-button');
+    button.type = 'button';
+    button.innerHTML = MENU_ICONS.training;
+    button.append(el('span', '', 'Probar'));
+    button.setAttribute('aria-label', 'Probar frente al muñeco');
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.onTry?.(practice);
+    });
+    return button;
   }
 
   private renderElement(element: ElementId, grimoire: Grimoire): void {
@@ -270,6 +385,7 @@ export class GrimoireBook {
         card.classList.toggle('school', id !== null && highlighted.has(id));
         card.append(weaveGlyphs(weave), spellNameView(weave));
         if (this.pocket.has(weave)) card.append(pocketMark());
+        this.markFresh(card, spellPage(weave));
         card.addEventListener('click', () => this.openDetail(weave));
         grid.append(card);
       }
@@ -320,6 +436,7 @@ export class GrimoireBook {
         const id = spellOf(weave);
         card.classList.toggle('school', id !== null && (this.school?.spells ?? []).includes(id));
         if (this.pocket.has(weave)) card.append(pocketMark());
+        this.markFresh(card, spellPage(weave));
         card.addEventListener('click', () => this.openDetail(weave));
       }
       grid.append(card);
@@ -413,6 +530,7 @@ export class GrimoireBook {
         el('span', 'grimoire-school-role', school.roles[spell] ?? 'Para esquivar'),
       );
       card.append(weaveGlyphs(weave), text);
+      if (this.grimoire?.has(weave)) this.markFresh(card, spellPage(weave));
       card.addEventListener('click', () => this.openDetail(weave));
       grid.append(card);
     }
@@ -443,6 +561,10 @@ export class GrimoireBook {
       ),
     );
     const unlocked = COMBOS.filter((c) => log.isUnlocked(c));
+    // Lo nuevo brilla mientras la pestaña siga abierta y queda leído.
+    const pages = unlocked.map((c) => comboPage(c.id));
+    for (const c of unlocked) if (this.seen.isNew(comboPage(c.id))) this.freshCombos.add(c.id);
+    if (this.seen.markRead(pages)) this.onRead?.();
     this.comboGroup(
       'Reacciones',
       unlocked.filter((c) => c.reaction),
@@ -472,7 +594,14 @@ export class GrimoireBook {
     const title = el('h3', 'grimoire-group-title', name);
     title.append(el('span', 'grimoire-group-count', String(combos.length)));
     const grid = el('div', 'grimoire-grid wide');
-    for (const combo of combos) grid.append(comboCard(combo));
+    for (const combo of combos) {
+      const card = comboCard(combo);
+      if (this.freshCombos.has(combo.id)) card.append(freshMark());
+      card.classList.toggle('fresh', this.freshCombos.has(combo.id));
+      // En equipo no se puede probar: frente al muñeco no hay compañero.
+      if (this.canTry && !combo.team) card.append(this.tryButton({ kind: 'combo', combo }));
+      grid.append(card);
+    }
     if (left > 0) {
       grid.append(
         el(
@@ -495,6 +624,13 @@ export class GrimoireBook {
     if (combo.note) card.append(el('span', 'grimoire-combo-detail', combo.note));
     card.addEventListener('click', () => this.editor.open(log, grimoire, combo));
     return card;
+  }
+
+  /** Una página que todavía no lees: brilla y dice "Nuevo". */
+  private markFresh(card: HTMLElement, page: string): void {
+    if (!this.seen.isNew(page)) return;
+    card.classList.add('fresh');
+    card.append(freshMark());
   }
 
   private heading(
@@ -534,4 +670,25 @@ function pocketMark(): HTMLElement {
   mark.innerHTML = BOOKMARK_ICON;
   mark.setAttribute('aria-label', 'En tu bolsillo');
   return mark;
+}
+
+/** La marca "Nuevo" de una página sin leer. */
+function freshMark(): HTMLElement {
+  return el('span', 'grimoire-fresh-mark', 'Nuevo');
+}
+
+function loadFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveFlag(key: string): void {
+  try {
+    localStorage.setItem(key, '1');
+  } catch {
+    // Sin almacenamiento: la guía vuelve a salir la próxima vez.
+  }
 }

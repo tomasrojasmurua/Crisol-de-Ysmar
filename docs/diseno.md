@@ -61,6 +61,21 @@ es lo vigente.
     estorba, Raíz se queda en el campo y Umbra engaña o maldice. El Grimorio muestra siempre los
     cinco de cada pestaña con lo que hacen (los no descubiertos sin nombre) y, en partida, un
     hechizo nuevo de dos elementos dice "Nuevo · Te mueve". En los Grandes el tercero es sorpresa.
+- **El Grimorio como guía entre partidas** (leer qué hace cada hechizo y pensar la próxima es
+  parte de lo que da ganas de otra partida; el juego lo pone delante en vez de esperar a que el
+  jugador se acuerde de abrirlo):
+  - **Para tu Grimorio**, en el resultado: el hechizo que te derribó (aunque no lo conozcas: su
+    ficha lo dice y no se guarda hasta lanzarlo), lo que descubriste y los combos que
+    aparecieron. Cada tarjeta abre su página encima del resultado. El avance de un combo oculto
+    no se muestra: antes de desbloquearlo no aparece nada de él.
+  - **Páginas nuevas:** lo descubierto queda marcado "Nuevo" (en el botón del menú, su pestaña y
+    su tarjeta) hasta abrir su ficha; los combos, hasta abrir la pestaña. Quien ya jugaba parte
+    con todo leído (`game/GrimoireSeen.ts`).
+  - **La primera vez**, arriba del libro, una guía corta de para qué sirve y del bolsillo. El
+    tutorial termina con un botón al Grimorio, en la pestaña de combos donde quedó el regalo.
+  - **En Pausa**, contra la IA y en Entrenamiento (en red no: la partida sigue).
+  - **Probar**, en cada ficha y en cada combo (salvo los de equipo): lleva a Práctica libre con eso
+    a la vista en lugar del bolsillo, rotulado "Probando", sin cambiar el bolsillo guardado.
 - **PvE primero:** hechiceros de la IA con las mismas reglas que un jugador.
 - **Dificultades de la IA:** Aprendiz, Duelista y Maestro (`packages/content/src/bots.ts`). Cambian
   qué tan rápido piensan, la puntería, cuánto esquivan proyectiles y avisos en el suelo, si se
