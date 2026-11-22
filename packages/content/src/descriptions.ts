@@ -44,7 +44,7 @@ export const SPELL_DESCRIPTIONS: Readonly<Record<SpellId, string>> = {
   spring: 'Fuente de 3 m por 5 s que cura 6 por segundo a ti y a tus aliados.',
   vine: 'Lanzas una liana a 9 m. Si toca un árbol o una roca, vuelas hacia ahí; si toca a un rival, vas hacia él y lo enraízas 1 s.',
   mossGuardian:
-    'Invocas por 10 s una criatura de 60 de vida que te sigue, pega de cerca y se pone delante de los proyectiles.',
+    'Invocas por 10 s una criatura de 30 de vida que te sigue, pega de cerca y se pone delante de los proyectiles.',
   spores: 'Nube de 3 m por 4 s: los rivales dentro quedan Débiles, hacen 40% menos daño por 3 s.',
   decoy: 'Quedas invisible 1,5 s y un doble tuyo corre hacia donde apuntas.',
   blinding:
