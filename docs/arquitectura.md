@@ -63,6 +63,22 @@ tocas ✦.
   tuyo ya jugó (`ack`); el celular parte de tu mago en el estado más nuevo y repite encima lo que
   falta con `walkTarget`, la misma función con que camina el núcleo. Tu tejido también se ve al
   tocar. Los demás se ven un poco en el pasado, interpolados. El colchón se adapta a la red.
+- **Un mensaje de toques por paso** (`takeInputs` en `duel.ts`): la Sala juega los toques como
+  los jugó el celular, uno por paso; si la red trae dos juntos, el segundo espera al paso
+  siguiente (más de 2 esperando se juntan, para no atrasar). Antes se jugaban todos juntos: el
+  mago caminaba un paso donde el celular había caminado dos, y tu mago daba saltitos atrás y
+  adelante cada vez que la red se trababa. Mientras la IA juega por alguien, lo que llega se
+  descarta.
+- **Corrección suave de tu mago** (`smoothSelf` en `NetMatch`): si la Sala te pone en otro lado
+  (un empujón, un choque, un toque que llegó tarde), la diferencia se absorbe en unos pasos (la
+  mitad en ~70 ms) en vez de verse de golpe; más de 3 m (un salto de verdad) se ve de una vez.
+- **Reproducción sin saltos** (`playbackRate` y `lead` en `NetMatch`): cuando sobran estados en
+  el colchón, el paso de más ya no se muestra de golpe (dos estados en un cuadro): se reparte
+  reproduciendo un 12% más rápido (25% o 50% si llegó mucho junto) hasta que el dibujo vuelve a
+  calzar con un estado. Cada paso parte donde terminó el dibujo del anterior. Las animaciones usan
+  su propio reloj (`displayTick`), parejo y que nunca retrocede (antes, con el colchón vacío,
+  retrocedían un paso en cada cuadro de espera). En una simulación con la red del iPhone con datos
+  móviles: de 22 saltos de los rivales en 2 minutos a ninguno, y tu mago de 837 saltitos a 35.
 - Estado en binario y por diferencias (`packages/protocol/src/stateCodec.ts`): cada conexión tiene
   un codificador en la Sala y un decodificador en el celular. El primer cuadro va completo y los
   siguientes solo con lo que cambió respecto del anterior (el WebSocket entrega en orden y sin
@@ -186,8 +202,10 @@ sombras. Reglas que lo sostienen:
   (el Galaxy A35 iba entre 60 y 120, disparejo y con el doble de trabajo). En celulares la nitidez llega hasta 1,5 píxeles por punto,
   no 2. Las animaciones de interfaz que corren sin parar mueven `scale`, `opacity` o `transform`,
   nunca una sombra difusa (eso repinta la pantalla en cada cuadro).
-- La resolución adaptativa (`render/AdaptiveResolution.ts`) baja de a dos escalones bajo 30
-  cuadros por segundo y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
+- La resolución adaptativa (`render/AdaptiveResolution.ts`) baja un escalón bajo ~53 cuadros por
+  segundo, de a dos bajo 30, y también actúa bajo 10; si bajar no ayuda, vuelve atrás.
+- **Los cuerpos giran suave** (`render/turn.ts`): magos y bestias se acercan a donde mira el
+  estado (la mitad en ~25 ms) en vez de girar de golpe 30 veces por segundo.
 - **Celular frenado a 30** (Modo de bajo consumo del iPhone): `render/ScreenCap.ts` lo detecta
   en los menús (la pantalla llama cada 33 ms aunque el juego casi no trabaje). Con el freno, 30
   cuadros por segundo cuentan como ir a tope: la resolución y la calidad automáticas no bajan por
@@ -207,7 +225,11 @@ sombras. Reglas que lo sostienen:
   en cada cambio de ronda. En el juego publicado three.js no revisa los sombreadores al usarlos
   (`checkShaderErrors`, solo en desarrollo): cada revisión esperaba a la tarjeta gráfica.
 - **Perfil fluido por tarjeta gráfica** (`platform/gpuTier.ts`): con Mali, PowerVR o Adreno
-  500/600 se parte en Liviana, nitidez 1 y la mitad de chispas. Se mira solo el nombre de la
+  500/600 se parte en Liviana, nitidez 1, la mitad de chispas y **sin tope de 60** (en el A35 a
+  120 Hz, dibujar uno de cada dos cuadros daba 60 a 90 tirones por minuto los primeros 20 s, hasta
+  que `CapGuard` lo quitaba). Si aun así no llega a ~53 cuadros por segundo, la resolución puede
+  bajar de 1 hasta 0,75 (la interfaz es HTML y sigue nítida): el A34 pasaba la cuarta parte de la
+  partida bajo 50. Se mira solo el nombre de la
   tarjeta: Samsung Internet se presenta como Linux de escritorio.
 - **Los eventos de un paso se muestran una sola vez.** Entre rondas y en el resultado la Sala
   reenvía el estado quieto de a ratos: la Sala vacía sus eventos y `NetMatch` ignora los de un

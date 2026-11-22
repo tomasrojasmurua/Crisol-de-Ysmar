@@ -62,6 +62,7 @@ import { BackGuard } from './platform/BackGuard';
 import { ProfileBackup } from './platform/backup';
 import { confirmBoot } from './platform/bootGuard';
 import { reportProblem, startErrorReports } from './platform/ErrorReporter';
+import { gpuInfo } from './platform/gpuTier';
 import { adoptCarriedProgress } from './platform/homeScreen';
 import { enterImmersive, ScreenAwake } from './platform/mobile';
 import { AutoQuality } from './render/AutoQuality';
@@ -957,7 +958,7 @@ function describeMatch(): string {
 const clock = new FixedStepClock();
 /** Tope de cuadros por segundo: menos calor y batería sin que se note. */
 const limiter = new FrameLimiter();
-const capGuard = new CapGuard();
+const capGuard = new CapGuard(gpuInfo().modest);
 let lastFrame = performance.now();
 let elapsed = 0;
 let lastAlpha = 1;

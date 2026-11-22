@@ -233,6 +233,44 @@ describe('Sala de duelo: celular de fondo y sin señal', () => {
   });
 });
 
+describe('Sala: los toques, uno por paso', () => {
+  function playing(): DuelHost {
+    const duel = host();
+    duel.join({ name: 'A' });
+    duel.join({ name: 'B' });
+    duel.begin(1);
+    return duel;
+  }
+
+  it('si la red trae dos mensajes juntos, juega uno en cada paso (como los jugó el celular)', () => {
+    const duel = playing();
+    const x = (): number => duel.state?.wizards[0]?.pos.x ?? 0;
+    duel.intents(1, [{ kind: 'move', x: 1, z: 0 }], 1);
+    duel.tick();
+    const oneStep = x();
+    duel.intents(1, [{ kind: 'move', x: 1, z: 0 }], 2);
+    duel.intents(1, [{ kind: 'move', x: -1, z: 0 }], 3);
+    duel.tick();
+    // Jugó el 2 (sigue hacia +x), no el 3.
+    expect(duel.ackOf(1)).toBe(2);
+    expect(x()).toBeGreaterThan(oneStep);
+    duel.tick();
+    expect(duel.ackOf(1)).toBe(3);
+    expect(duel.state?.wizards[0]?.moveInput).toEqual({ x: -1, z: 0 });
+  });
+
+  it('si se juntan muchos, juega los atrasados juntos para no atrasar tus toques', () => {
+    const duel = playing();
+    for (let seq = 1; seq <= 6; seq++) duel.intents(1, [{ kind: 'move', x: 1, z: 0 }], seq);
+    duel.tick();
+    // Quedan a lo más 2 esperando.
+    expect(duel.ackOf(1)).toBe(4);
+    duel.tick();
+    duel.tick();
+    expect(duel.ackOf(1)).toBe(6);
+  });
+});
+
 describe('Salas de más de dos y ajustes', () => {
   function room(): DuelHost {
     const duel = host();

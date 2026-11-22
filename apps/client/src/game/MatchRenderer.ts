@@ -181,7 +181,7 @@ export class MatchRenderer {
     const { view, ui, audio } = this;
     const { rig, camera } = view;
     const state = current.state;
-    const time = ((state.tick + alpha) * TICK_MS) / 1000;
+    const time = ((current.displayTick?.(alpha) ?? state.tick + alpha) * TICK_MS) / 1000;
     const player = current.player;
     const teamColor = (team: number): string => {
       const member = state.wizards.find((w) => w.team === team);

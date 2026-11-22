@@ -66,8 +66,40 @@ export const INTERMISSION_TICKS = TICK_RATE * 4;
 export const CHOOSE_TICKS = TICK_RATE * 25;
 /** Glifos que se ofrecen entre rondas; quien perdió la ronda ve uno más. */
 const GLYPH_OPTIONS = 3;
-/** Intenciones que se guardan por jugador entre dos pasos: lo demás se descarta. */
-const MAX_PENDING = 64;
+/** Mensajes de toques que se guardan por jugador (2 s): lo más viejo se descarta. */
+const MAX_PENDING = 60;
+/**
+ * Mensajes que pueden quedar esperando después de jugar uno. Si hay más (la red los juntó), se
+ * juegan juntos para no atrasar tus toques: el camino de esos pasos se junta en uno.
+ */
+const INPUT_BACKLOG = 2;
+/** Un mensaje de toques: lo que tocó el celular en uno de sus pasos y su número. */
+interface PendingInput {
+  readonly seq: number;
+  readonly intents: readonly Intent[];
+}
+
+/**
+ * Lo que juega este paso un jugador: un mensaje de toques, como el celular los mandó, uno por
+ * paso. Antes se jugaban juntos todos los llegados desde el paso anterior: cuando la red traía dos
+ * a la vez, el mago caminaba un paso en vez de dos, el celular (que caminó dos) quedaba adelante
+ * y tu mago daba un saltito atrás y adelante. Si no llegó ninguno, sigue la última dirección.
+ */
+export function takeInputs(slot: { pending: PendingInput[]; acked: number }): Intent[] {
+  const first = slot.pending.shift();
+  if (!first) return [];
+  const intents = [...first.intents];
+  let seq = first.seq;
+  while (slot.pending.length > INPUT_BACKLOG) {
+    const next = slot.pending.shift();
+    if (!next) break;
+    intents.push(...next.intents);
+    seq = next.seq;
+  }
+  slot.acked = Math.max(slot.acked, seq);
+  return intents;
+}
+
 /** Jugando, si un jugador conectado no manda nada en este tiempo, la IA lo cubre (2 s). */
 export const SILENT_TICKS = TICK_RATE * 2;
 /**
@@ -135,7 +167,8 @@ interface Slot {
   heardAt: number;
   /** Paso en que llegó su último mensaje de cualquier tipo (también el ping). */
   aliveAt: number;
-  pending: Intent[];
+  /** Mensajes de toques que esperan su paso: se juega uno por paso (ver `takeInputs`). */
+  pending: PendingInput[];
   /** El número del último mensaje de toques recibido y el del último ya jugado. */
   received: number;
   acked: number;
@@ -568,10 +601,9 @@ export class DuelHost {
       slot.acked = slot.received;
       return;
     }
-    for (const intent of intents) {
-      if (slot.pending.length >= MAX_PENDING) break;
-      if (isIntent(intent)) slot.pending.push(intent);
-    }
+    // Lo muy atrasado se descarta (quedan los últimos): así no se juega un rato del pasado.
+    if (slot.pending.length >= MAX_PENDING) slot.pending.shift();
+    slot.pending.push({ seq: Number.isFinite(seq) ? seq : 0, intents: intents.filter(isIntent) });
   }
 
   /** El jugador eligió su Glifo entre los que le ofrecieron. */
@@ -806,10 +838,13 @@ export class DuelHost {
     for (const wizard of state.wizards) {
       const slot = this.slots.get(wizard.id);
       if (slot?.connected && !this.isAway(slot)) {
-        intents.set(wizard.id, slot.pending);
-        slot.pending = [];
-        slot.acked = slot.received;
+        intents.set(wizard.id, takeInputs(slot));
       } else {
+        // Mientras la IA juega por él, lo que llegue no se guarda para después.
+        if (slot) {
+          slot.pending.length = 0;
+          slot.acked = slot.received;
+        }
         const started = performance.now();
         intents.set(wizard.id, [...(this.bots.get(wizard.id)?.intentsFor(state, wizard) ?? [])]);
         this.botMs += performance.now() - started;

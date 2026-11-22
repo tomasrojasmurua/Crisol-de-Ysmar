@@ -10,6 +10,7 @@ import {
   liveRules,
   type MatchState,
   type SeriesState,
+  type SpellEntity,
   TICK_RATE,
   teamCount,
   type Vec2,
@@ -73,14 +74,22 @@ const MAX_SHRINK_AFTER = 4 * SHRINK_AFTER;
  * terminaron con el colchón lleno por tres cortes de medio segundo).
  */
 const LONG_HOLE_MS = 300;
-/** Si el colchón se pasa de su tamaño por más que esto, se muestran dos pasos por cuadro. */
+/** Si el colchón se pasa de su tamaño por más que esto, se alcanza más rápido (ver abajo). */
 const CATCH_UP_SLACK = 2;
 /**
- * Si hay apenas uno o dos pasos de más, se adelanta uno cada tantos pasos (un 12% más rápido, no
- * se nota). Sin esto el sobrante se quedaba para siempre como atraso, aunque el colchón buscado
- * fuera menor.
+ * Si hay uno o dos pasos de más por este rato (8 pasos), se adelanta uno. Sin esto el sobrante se
+ * quedaba para siempre como atraso, aunque el colchón buscado fuera menor.
  */
 const DRIFT_EVERY = 8;
+/**
+ * Cómo se adelanta: el paso de más no se muestra de golpe, se reparte reproduciendo un poco más
+ * rápido (un 12% para uno suelto, un 25% o un 50% si llegó mucho junto) hasta que el dibujo
+ * vuelve a calzar con un estado. Antes se mostraban dos estados en un cuadro: rivales, bestias y
+ * hechizos daban un saltito varias veces por minuto en una red con vaivén.
+ */
+const DRIFT_RATE = 1 + 1 / DRIFT_EVERY;
+const CATCH_UP_RATE = 1.25;
+const FAST_CATCH_UP_RATE = 1.5;
 /**
  * Si el colchón se vacía, los rivales, bestias y proyectiles siguen en la dirección que llevaban,
  * en vez de quedarse congelados: así se juega en una red móvil con hipos, como en los juegos en
@@ -127,6 +136,12 @@ const RETURN_CHECK_MS = 1500;
 const TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
 /** Si la predicción y el servidor difieren más que esto (un salto, un empujón), no se suaviza. */
 const SNAP_DISTANCE = 3;
+/**
+ * Cuando la Sala corrige a tu mago (te empujaron, chocaste, o un toque tuyo le llegó tarde), la
+ * diferencia no se ve de golpe: se absorbe en unos pasos (queda un 72% en cada uno, la mitad en
+ * ~70 ms). Antes tu mago daba un saltito adelante y atrás cada vez que la red se trababa un poco.
+ */
+const SELF_SMOOTH = 0.72;
 /** Pasos cuyos eventos se recuerdan (unos 15 s) para no repetirlos si llegan por los dos canales. */
 const EVENTS_REMEMBERED = 450;
 /** Como mucho se arman estos estados seguidos que faltan (unos 260 ms); más es un corte. */
@@ -348,7 +363,19 @@ export class NetMatch implements MatchView {
   /** Lo menos que tuvo el colchón (además del paso que se muestra) desde la última revisión. */
   private calmLow = Number.POSITIVE_INFINITY;
   /** Pasos seguidos con algo de sobra en el colchón. */
+  /**
+   * Cuánto va el dibujo pasado el estado mostrado, hacia el siguiente guardado (0 a 1). Es lo que
+   * permite reproducir más rápido o más lento sin saltos (ver `DRIFT_RATE`).
+   */
+  private lead = 0;
+  /** El ritmo del adelanto en curso (0: ninguno). */
+  private catchUp = 0;
   private driftSteps = 0;
+  /** Dónde queda cada cosa al terminar este paso (con `lead`); al empezar, en `previous`. */
+  private readonly ahead = new Map<number, Vec2>();
+  /** El reloj de las animaciones (en pasos), al empezar y al terminar el paso que se dibuja. */
+  private clockFrom = 0;
+  private clockTo = 0;
   private stalls = 0;
   /**
    * Mientras el colchón está vacío jugando: cuántos pasos lleva esperando y hacia dónde iba cada
@@ -368,7 +395,12 @@ export class NetMatch implements MatchView {
   private readonly sent: SentInput[] = [];
   /** Dónde se predice tu mago ahora y dónde estaba en el paso anterior. */
   private predicted: Vec2 | null = null;
-  private predictedBefore: Vec2 | null = null;
+  /** Tu mago como se dibuja (predicho más la corrección que se está absorbiendo). */
+  private shownSelf: Vec2 | null = null;
+  private shownSelfBefore: Vec2 | null = null;
+  private selfOffset: Vec2 = { x: 0, z: 0 };
+  /** El último toque que entró en la predicción anterior. */
+  private predictedSeq = 0;
   private predictedWeave: Wizard['weave'] = [];
   private predictedFacing: Vec2 | null = null;
   /** Tu conjuro en curso como se ve aquí: empieza al tocar ✦, sin esperar a la Sala. */
@@ -487,10 +519,11 @@ export class NetMatch implements MatchView {
     // Vuelven los estados tras seguir de largo: lo atrasado se salta hasta el colchón buscado
     // (sus efectos y sonidos sí se juntan). Los rivales ya se dibujaron más o menos ahí; antes se
     // volvía a recorrer todo al doble de rápido, y se notaba como un rival que se aceleraba.
-    if (resumed) while (this.buffer.length > this.target) this.consume(events);
-    // La pestaña estuvo en segundo plano: se salta directo, sin perder lo que pasó.
-    if (this.buffer.length > HARD_SKIP) {
+    // La pestaña estuvo en segundo plano: también se salta directo, sin perder lo que pasó.
+    if (resumed || this.buffer.length > HARD_SKIP) {
       while (this.buffer.length > this.target) this.consume(events);
+      this.lead = 0;
+      this.catchUp = 0;
     }
     if (this.buffer.length === 0) {
       // Se vació: se espera a juntar de nuevo y el colchón crece para la próxima.
@@ -517,23 +550,23 @@ export class NetMatch implements MatchView {
     }
     const coasted = this.coast;
     this.coast = null;
-    // Atrasado: se muestran dos pasos en este cuadro, un poco más rápido, hasta alcanzar.
-    if (this.buffer.length > this.target + CATCH_UP_SLACK) {
-      this.consume(events);
-      this.driftSteps = 0;
-    } else if (this.buffer.length > this.target) {
-      // Un poco de sobra: se adelanta de a poco hasta volver al colchón buscado.
-      if (++this.driftSteps >= DRIFT_EVERY) {
-        this.consume(events);
-        this.driftSteps = 0;
-      }
-    } else {
-      this.driftSteps = 0;
-    }
+    // El dibujo de este paso parte donde terminó el anterior, aunque se muestren dos estados:
+    // antes se guardaba después del primero y el rival saltaba un paso entero.
     this.rememberPositions();
+    const clockFrom = this.clockTo;
+    // Un estado por paso, más lo que se vaya adelantando de a poco (ver `DRIFT_RATE`).
+    this.lead += this.playbackRate() - 1;
+    this.consume(events);
+    while (this.lead >= 1 && this.buffer.length > 0) {
+      this.consume(events);
+      this.lead -= 1;
+    }
+    // No hay a qué acercarse: el dibujo llega al último estado y espera ahí.
+    if (this.buffer.length === 0) this.lead = 0;
+    this.aimAhead();
+    this.moveClock(clockFrom, this.state.tick + this.lead);
     if (coasted) this.startCorrection(coasted);
     else if (this.correction && --this.correction.left <= 0) this.correction = null;
-    this.consume(events);
     this.calmLow = Math.min(this.calmLow, this.buffer.length);
     this.sinceShrink++;
     if (++this.calmSteps >= this.shrinkAfter) {
@@ -547,6 +580,70 @@ export class NetMatch implements MatchView {
       this.calmLow = Number.POSITIVE_INFINITY;
     }
     return events;
+  }
+
+  /**
+   * A qué ritmo se reproduce este paso (1: normal). Un adelanto empezado se termina hasta calzar
+   * con un estado, así el ritmo cambia pocas veces y nunca a medias.
+   */
+  private playbackRate(): number {
+    const over = this.buffer.length - this.target;
+    if (over > CATCH_UP_SLACK) {
+      this.catchUp = over > CATCH_UP_SLACK + 1 ? FAST_CATCH_UP_RATE : CATCH_UP_RATE;
+      this.driftSteps = 0;
+    } else if (over > 0) {
+      if (this.catchUp === 0 && ++this.driftSteps >= DRIFT_EVERY) {
+        this.catchUp = DRIFT_RATE;
+        this.driftSteps = 0;
+      }
+    } else {
+      this.driftSteps = 0;
+      if (this.lead === 0) this.catchUp = 0;
+    }
+    if (this.catchUp === 0 && this.lead > 0) this.catchUp = DRIFT_RATE;
+    return this.catchUp || 1;
+  }
+
+  /**
+   * Dónde termina cada cosa en este paso: entre el estado mostrado y el siguiente guardado, según
+   * `lead`. Lo que no está en los dos (recién aparecido o por desaparecer) se queda donde está.
+   */
+  private aimAhead(): void {
+    this.ahead.clear();
+    const next = this.buffer[0]?.state;
+    if (!next || this.lead <= 0) return;
+    const t = this.lead;
+    const target = new Map<number, Vec2>();
+    for (const wizard of next.wizards) target.set(wizard.id, wizard.pos);
+    for (const beast of next.beasts) target.set(beast.id, beast.pos);
+    for (const spell of next.spells) if (movesSmoothly(spell)) target.set(spell.id, spell.pos);
+    const add = (id: number, from: Vec2): void => {
+      const to = target.get(id);
+      // Un salto (teletransporte, Sombra) no se reparte: se ve al mostrarse su estado.
+      if (!to || distance(from, to) > SNAP_DISTANCE) return;
+      this.ahead.set(id, { x: from.x + (to.x - from.x) * t, z: from.z + (to.z - from.z) * t });
+    };
+    for (const wizard of this.state.wizards) add(wizard.id, wizard.pos);
+    for (const beast of this.state.beasts) add(beast.id, beast.pos);
+    for (const spell of this.state.spells) if (movesSmoothly(spell)) add(spell.id, spell.pos);
+  }
+
+  /**
+   * El reloj de las animaciones avanza parejo, nunca hacia atrás: antes era el paso del estado
+   * mostrado, que con el colchón vacío se repetía (las animaciones retrocedían un paso en cada
+   * cuadro de espera) y al mostrar dos estados saltaba.
+   */
+  private moveClock(from: number, to: number): void {
+    // Otra ronda (el reloj vuelve a cero) o un salto grande: se toma el nuevo de una vez.
+    const fresh = to < from - 30 || to > from + HARD_SKIP;
+    this.clockFrom = fresh ? to : from;
+    this.clockTo = fresh ? to : Math.max(from, to);
+  }
+
+  /** El paso (con decimales) que muestran las animaciones a esa altura del cuadro. */
+  displayTick(alpha: number): number {
+    if (this.stage.kind !== 'playing') return this.state.tick + alpha;
+    return this.clockFrom + (this.clockTo - this.clockFrom) * alpha;
   }
 
   /** Muestra el siguiente estado guardado y junta lo que pasó en él. */
@@ -621,13 +718,11 @@ export class NetMatch implements MatchView {
 
   /** Posición entre el paso anterior y el actual, según `alpha` (0 a 1). Tu mago va predicho. */
   interpolated(id: number, current: Vec2, alpha: number): Vec2 {
-    if (id === this.playerId && this.predicted) {
-      const from = this.predictedBefore;
-      if (!from || distance(from, this.predicted) > SNAP_DISTANCE) return this.predicted;
-      return {
-        x: from.x + (this.predicted.x - from.x) * alpha,
-        z: from.z + (this.predicted.z - from.z) * alpha,
-      };
+    if (id === this.playerId && this.shownSelf) {
+      const from = this.shownSelfBefore;
+      const to = this.shownSelf;
+      if (!from || distance(from, to) > SNAP_DISTANCE) return to;
+      return { x: from.x + (to.x - from.x) * alpha, z: from.z + (to.z - from.z) * alpha };
     }
     if (this.stage.kind !== 'playing') return current;
     const coast = this.coast;
@@ -640,8 +735,9 @@ export class NetMatch implements MatchView {
     }
     const before = this.previous.get(id);
     if (!before) return current;
-    const x = before.x + (current.x - before.x) * alpha;
-    const z = before.z + (current.z - before.z) * alpha;
+    const end = this.ahead.get(id) ?? current;
+    const x = before.x + (end.x - before.x) * alpha;
+    const z = before.z + (end.z - before.z) * alpha;
     const offset = this.correction?.offsets.get(id);
     if (!offset || !this.correction) return { x, z };
     // Lo dibujado de más al seguir de largo se absorbe en unos pasos, sin tirón hacia atrás.
@@ -709,7 +805,9 @@ export class NetMatch implements MatchView {
    * por los aires, saltando) o no se está jugando, se usa lo que dice el servidor.
    */
   private predict(): void {
-    this.predictedBefore = this.predicted;
+    const believed = this.predicted;
+    const believedSeq = this.predictedSeq;
+    this.shownSelfBefore = this.shownSelf;
     const latest = this.latest;
     const me = latest?.state.wizards.find((w) => w.id === this.playerId);
     if (
@@ -723,12 +821,18 @@ export class NetMatch implements MatchView {
     ) {
       this.predicted = null;
       this.predictedChannel = null;
+      this.shownSelf = null;
+      this.shownSelfBefore = null;
+      this.selfOffset = { x: 0, z: 0 };
       this.sent.length = 0;
       return;
     }
     while (this.sent.length > 0 && (this.sent[0]?.seq ?? 0) <= latest.ack) this.sent.shift();
     const rules = liveRules(latest.state, this.rules);
     let pos = me.pos;
+    // Dónde te pone ahora la Sala en el mismo momento que la predicción anterior (con los mismos
+    // toques jugados): la diferencia con lo que se creía es lo que corrigió.
+    let posThen = me.pos;
     let weave = [...me.weave];
     let facing: Vec2 | null = null;
     let channel: Wizard['channel'] = me.channel;
@@ -736,6 +840,7 @@ export class NetMatch implements MatchView {
     let channelSteps = 0;
     for (const input of this.sent) {
       pos = walkTarget(latest.state, { ...me, pos }, input.move, rules);
+      if (input.seq <= believedSeq) posThen = pos;
       if (input.move.x !== 0 || input.move.z !== 0) facing = normalize(input.move, me.facing);
       if (channel && channel !== me.channel) channelSteps++;
       for (const intent of input.intents) {
@@ -759,6 +864,8 @@ export class NetMatch implements MatchView {
       channel = { ...channel, ticksLeft: Math.max(1, channel.ticksLeft - channelSteps) };
     }
     this.predicted = pos;
+    this.predictedSeq = this.sent.at(-1)?.seq ?? latest.ack;
+    this.smoothSelf(believed, posThen, pos);
     this.predictedWeave = weave;
     this.predictedFacing = facing;
     // Cuando la Sala confirma el conjuro va algo más atrás que lo que ya se vio: no retrocede.
@@ -767,6 +874,37 @@ export class NetMatch implements MatchView {
       channel = { ...channel, ticksLeft: Math.min(channel.ticksLeft, before.ticksLeft) };
     }
     this.predictedChannel = channel;
+  }
+
+  /**
+   * Tu mago dibujado: lo predicho más lo que queda de la última corrección. `believed` es dónde
+   * se creía que estabas y `posThen` dónde dice ahora la Sala para ese mismo momento.
+   */
+  private smoothSelf(believed: Vec2 | null, posThen: Vec2, pos: Vec2): void {
+    let { x, z } = this.selfOffset;
+    if (believed && this.shownSelf) {
+      const dx = believed.x - posThen.x;
+      const dz = believed.z - posThen.z;
+      // Un salto de verdad (teletransporte, Sombra) se ve de golpe.
+      if (Math.hypot(x + dx, z + dz) <= SNAP_DISTANCE) {
+        x += dx;
+        z += dz;
+      } else {
+        x = 0;
+        z = 0;
+      }
+    } else {
+      x = 0;
+      z = 0;
+    }
+    x *= SELF_SMOOTH;
+    z *= SELF_SMOOTH;
+    if (Math.abs(x) < 0.002 && Math.abs(z) < 0.002) {
+      x = 0;
+      z = 0;
+    }
+    this.selfOffset = { x, z };
+    this.shownSelf = x === 0 && z === 0 ? pos : { x: pos.x + x, z: pos.z + z };
   }
 
   /** Te vas de la sala: la IA juega por ti. */
@@ -967,6 +1105,9 @@ export class NetMatch implements MatchView {
     this.buffer.length = 0;
     this.primed = false;
     this.previous.clear();
+    this.ahead.clear();
+    this.lead = 0;
+    this.catchUp = 0;
     this.coast = null;
     this.correction = null;
     this.sent.length = 0;
@@ -1017,6 +1158,9 @@ export class NetMatch implements MatchView {
         this.buffer.length = 0;
         this.primed = false;
         this.previous.clear();
+        this.ahead.clear();
+        this.lead = 0;
+        this.catchUp = 0;
         this.coast = null;
         this.correction = null;
         this.rematchAsked = false;
@@ -1275,6 +1419,11 @@ export class NetMatch implements MatchView {
     }
     this.correction = null;
     this.rememberPositions();
+    this.lead = 0;
+    this.catchUp = 0;
+    this.ahead.clear();
+    // Las animaciones siguen corriendo mientras se espera (ver `moveClock`).
+    this.moveClock(this.clockTo, this.clockTo + (this.coast ? 1 : 0));
     if (this.coast?.steps === 1) this.coastFrom = new Map(this.previous);
   }
 
@@ -1293,34 +1442,20 @@ export class NetMatch implements MatchView {
       if (wizard.id !== this.playerId && wizard.hp > 0) add(wizard.id, wizard.pos);
     }
     for (const beast of this.state.beasts) add(beast.id, beast.pos);
-    for (const spell of this.state.spells) {
-      if (
-        spell.kind === 'projectile' ||
-        spell.kind === 'summon' ||
-        spell.kind === 'sweeper' ||
-        spell.kind === 'guidedBolt'
-      ) {
-        add(spell.id, spell.pos);
-      }
-    }
+    for (const spell of this.state.spells) if (movesSmoothly(spell)) add(spell.id, spell.pos);
     return velocity;
   }
 
+  /** Dónde empieza el dibujo del paso: donde terminó el anterior (con `lead`, si iba adelantado). */
   private rememberPositions(): void {
     this.previous.clear();
-    for (const wizard of this.state.wizards) this.previous.set(wizard.id, wizard.pos);
+    const remember = (id: number, pos: Vec2): void => {
+      this.previous.set(id, this.ahead.get(id) ?? pos);
+    };
+    for (const wizard of this.state.wizards) remember(wizard.id, wizard.pos);
     // Las bestias también: dibujadas paso a paso, a 60 cuadros avanzaban a saltos de 30.
-    for (const beast of this.state.beasts) this.previous.set(beast.id, beast.pos);
-    for (const spell of this.state.spells) {
-      if (
-        spell.kind === 'projectile' ||
-        spell.kind === 'summon' ||
-        spell.kind === 'sweeper' ||
-        spell.kind === 'guidedBolt'
-      ) {
-        this.previous.set(spell.id, spell.pos);
-      }
-    }
+    for (const beast of this.state.beasts) remember(beast.id, beast.pos);
+    for (const spell of this.state.spells) if (movesSmoothly(spell)) remember(spell.id, spell.pos);
   }
 
   private send(message: Parameters<typeof encode>[0]): void {
@@ -1363,6 +1498,20 @@ export class NetMatch implements MatchView {
       // Sin almacenamiento: si se corta, entras como jugador nuevo.
     }
   }
+}
+
+/** Los hechizos que se mueven solos y se dibujan entre pasos (los demás quedan fijos). */
+type MovingSpell = Extract<
+  SpellEntity,
+  { kind: 'projectile' | 'summon' | 'sweeper' | 'guidedBolt' }
+>;
+function movesSmoothly(spell: SpellEntity): spell is MovingSpell {
+  return (
+    spell.kind === 'projectile' ||
+    spell.kind === 'summon' ||
+    spell.kind === 'sweeper' ||
+    spell.kind === 'guidedBolt'
+  );
 }
 
 /**

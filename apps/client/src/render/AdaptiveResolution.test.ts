@@ -55,6 +55,18 @@ describe('AdaptiveResolution', () => {
     expect(run(adaptive, gpuBound(160), 20)).toEqual([1.5, 1]);
   });
 
+  it('con perfil fluido puede bajar de 1 si la tarjeta gráfica no llega a 60', () => {
+    const adaptive = new AdaptiveResolution(2.6, 1, 0.75);
+    expect(adaptive.pixelRatio).toBe(1);
+    // Un Galaxy A34: 18,5 a 19,5 ms por cuadro en 1 (52-54 cuadros por segundo).
+    expect(run(adaptive, (ratio) => 19.5 * ratio * ratio, 10)).toEqual([0.85]);
+  });
+
+  it('sin perfil fluido no baja de 1', () => {
+    const adaptive = new AdaptiveResolution(1);
+    expect(run(adaptive, (ratio) => 19.5 * ratio * ratio, 10)).toEqual([]);
+  });
+
   it('un tirón aislado no baja la resolución', () => {
     const adaptive = new AdaptiveResolution(2);
     const changes = run(

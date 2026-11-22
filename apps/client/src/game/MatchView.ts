@@ -51,6 +51,11 @@ export interface MatchView {
   chooseGlyph(glyph: Glyph): void;
   glyphsOf(id: number): readonly Glyph[];
   interpolated(id: number, current: Vec2, alpha: number): Vec2;
+  /**
+   * En red: el paso (con decimales) que muestran las animaciones a esa altura del cuadro. Parejo
+   * aunque lo de la Sala se reproduzca más rápido o más lento. Sin esto, `state.tick + alpha`.
+   */
+  displayTick?(alpha: number): number;
   /** Cómo se ve un mago en este celular, si difiere del estado (en red, tu tejido predicho). */
   present?(wizard: Wizard): Wizard;
   /** Al terminar la serie: la mejor jugada para repetir (o el desenlace); null si no hay. */
