@@ -19,10 +19,21 @@ function glyph(element: ElementId): HTMLElement {
   return span;
 }
 
-function step(item: ComboStep): HTMLElement {
-  const group = el('span', 'combo-step');
+function step(item: ComboStep, onSpell?: (spell: SpellId) => void): HTMLElement {
+  const group = el(onSpell && 'spell' in item ? 'button' : 'span', 'combo-step');
   if ('spell' in item) {
     for (const element of SPELL_WEAVES[item.spell]) group.append(glyph(element));
+    if (onSpell) {
+      // Un paso que se toca: abre la ficha de ese hechizo sin tocar lo que hay debajo.
+      const button = group as HTMLButtonElement;
+      button.type = 'button';
+      button.classList.add('tappable');
+      button.setAttribute('aria-label', 'Ver este hechizo');
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onSpell(item.spell);
+      });
+    }
   } else {
     // Círculo punteado: cualquier hechizo (vacío) o cualquiera de ese elemento (con su signo).
     const free = el('span', 'combo-free');
@@ -48,18 +59,25 @@ function step(item: ComboStep): HTMLElement {
 
 /**
  * Los pasos de un combo como se leen en el Grimorio: los signos de cada hechizo, separados por
- * una flecha. Sirve igual para los combos propios (solo hechizos).
+ * una flecha. Sirve igual para los combos propios (solo hechizos). Con `onSpell`, cada paso que
+ * es un hechizo justo se puede tocar (en el Grimorio, para abrir su ficha).
  */
-export function comboStepsView(combo: { readonly steps: readonly ComboStep[] }): HTMLElement {
+export function comboStepsView(
+  combo: { readonly steps: readonly ComboStep[] },
+  onSpell?: (spell: SpellId) => void,
+): HTMLElement {
   const row = el('span', 'combo-steps');
   combo.steps.forEach((item, index) => {
     if (index > 0) row.append(el('span', 'combo-arrow', '→'));
-    row.append(step(item));
+    row.append(step(item, onSpell));
   });
   return row;
 }
 
 /** Los pasos de un combo propio, que son siempre hechizos justos. */
-export function spellStepsView(spells: readonly SpellId[]): HTMLElement {
-  return comboStepsView({ steps: spells.map((spell) => ({ spell })) });
+export function spellStepsView(
+  spells: readonly SpellId[],
+  onSpell?: (spell: SpellId) => void,
+): HTMLElement {
+  return comboStepsView({ steps: spells.map((spell) => ({ spell })) }, onSpell);
 }

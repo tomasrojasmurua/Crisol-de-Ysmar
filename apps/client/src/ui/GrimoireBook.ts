@@ -3,14 +3,24 @@ import {
   COMBOS,
   type Combo,
   ELEMENTS,
+  INTENT_NAMES,
   masterOf,
   RECIPE_RULE,
   type School,
   SECOND_ELEMENT_ROLES,
+  SPELL_INTENTS,
   SPELL_LORE,
+  type SpellIntent,
   spellName,
 } from '@crisol/content';
-import { type ElementId, type GameRules, SPELL_WEAVES, spellOf, type Weave } from '@crisol/core';
+import {
+  type ElementId,
+  type GameRules,
+  SPELL_WEAVES,
+  type SpellId,
+  spellOf,
+  type Weave,
+} from '@crisol/core';
 import type { ComboLog, OwnCombo } from '../game/ComboLog';
 import type { Grimoire } from '../game/Grimoire';
 import { comboPage, type GrimoireSeen, spellPage } from '../game/GrimoireSeen';
@@ -18,7 +28,7 @@ import { POCKET_SIZE, type Pocket } from '../game/Pocket';
 import { comboStepsView, spellStepsView } from './comboSteps';
 import { el, query } from './dom';
 import { BOOKMARK_ICON, elementIcon } from './icons';
-import { intentMark } from './intentTag';
+import { intentIcon, intentMark } from './intentTag';
 import { MENU_ICONS } from './menuIcons';
 import { OwnComboEditor } from './OwnComboEditor';
 import type { Practice } from './PocketStrip';
@@ -130,6 +140,10 @@ export class GrimoireBook {
   /** Si en esta apertura se ofrece Probar. */
   private canTry = false;
   private closeHandler: () => void;
+  /** El filtro por para qué sirve (Daño, Control…), o null para ver todo. */
+  private intent: SpellIntent | null = null;
+  /** Tocar un paso de un combo abre la ficha de ese hechizo. */
+  private readonly openStep = (spell: SpellId): void => this.openDetail(SPELL_WEAVES[spell], true);
   /** Lo nuevo de la pestaña de combos al abrirla: brilla esa vez y queda leído. */
   private freshCombos = new Set<string>();
   /** Ir a practicar un hechizo o un combo (lo conecta quien arma el juego). */
@@ -196,6 +210,7 @@ export class GrimoireBook {
     if (opening.tab) this.tab = opening.tab;
     else if (spell?.[0]) this.tab = spell[0];
     this.canTry = opening.canTry ?? false;
+    this.intent = null;
     this.closeHandler = opening.onClose ?? this.onCloseDefault;
     this.root.classList.toggle('over', opening.over ?? false);
     this.detail.hidden = true;
@@ -234,10 +249,14 @@ export class GrimoireBook {
    * La ficha de un conjuro. Si todavía no lo descubres (el que te derribó, abierto desde el
    * resultado), lo dice y no se puede llevar en el bolsillo: queda en tu Grimorio al lanzarlo.
    */
-  private openDetail(weave: Weave): void {
+  private openDetail(weave: Weave, anonymous = false): void {
     const spell = spellOf(weave);
     if (!spell) return;
     const known = this.grimoire?.has(weave) ?? false;
+    if (anonymous && !known) {
+      this.openUnknown(weave);
+      return;
+    }
     if (known && this.seen.markRead([spellPage(weave)])) {
       this.onRead?.();
       const scroll = this.list.scrollTop;
@@ -274,6 +293,67 @@ export class GrimoireBook {
     card.append(close, actions);
     this.detail.replaceChildren(card);
     this.detail.hidden = false;
+  }
+
+  /**
+   * Un paso de combo que todavía no descubres (lo pone un aliado, por ejemplo): solo su receta.
+   * El nombre y lo que hace se ganan lanzándolo, como en las pestañas.
+   */
+  private openUnknown(weave: Weave): void {
+    const card = el('div', 'spell-card grimoire-card unknown');
+    card.style.setProperty('--element', colorOf(weave[0] ?? 'brasa'));
+    const close = el('button', 'grimoire-card-close');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Cerrar');
+    close.innerHTML = '×';
+    card.append(
+      weaveGlyphs(weave, 'weave-glyphs large'),
+      el('h3', 'spell-card-name', 'Por descubrir'),
+      el('p', 'spell-card-text', 'Tejido así. Lánzalo para conocer su nombre y qué hace.'),
+      close,
+    );
+    this.detail.replaceChildren(card);
+    this.detail.hidden = false;
+  }
+
+  /**
+   * Los botones para filtrar la pestaña por para qué sirve. Cada uno cuenta cuántos de esos
+   * ya descubriste con este elemento; los que no tienen ninguno quedan apagados.
+   */
+  private renderIntentFilter(known: readonly Weave[]): void {
+    const intents = Object.keys(INTENT_NAMES) as SpellIntent[];
+    const counts = new Map<SpellIntent, number>();
+    for (const weave of known) {
+      const id = spellOf(weave);
+      if (id) counts.set(SPELL_INTENTS[id], (counts.get(SPELL_INTENTS[id]) ?? 0) + 1);
+    }
+    const bar = el('div', 'grimoire-filter');
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Filtrar por para qué sirve');
+    const chip = (intent: SpellIntent | null): HTMLButtonElement => {
+      const button = el('button', `grimoire-filter-chip${intent ? ` intent-${intent}` : ''}`);
+      button.type = 'button';
+      const selected = this.intent === intent;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+      if (intent) {
+        button.innerHTML = intentIcon(intent);
+        button.append(
+          el('span', 'grimoire-filter-name', INTENT_NAMES[intent]),
+          el('span', 'grimoire-filter-count', String(counts.get(intent) ?? 0)),
+        );
+        button.disabled = !counts.get(intent) && !selected;
+      } else {
+        button.append(el('span', 'grimoire-filter-name', 'Todos'));
+      }
+      button.addEventListener('click', () => {
+        this.intent = selected ? null : intent;
+        this.render();
+      });
+      return button;
+    };
+    bar.append(chip(null), ...intents.map(chip));
+    this.list.append(bar);
   }
 
   private render(): void {
@@ -364,19 +444,45 @@ export class GrimoireBook {
           : 'Conjuros que empiezan con este elemento',
       ),
     );
+    if (known.length > 0) this.renderIntentFilter(known);
     this.renderPocket();
-    if (this.school?.element === element) this.renderSchool(this.school);
+    // Con un filtro puesto se ve solo lo descubierto que sirve para eso, sin el linaje, sin la
+    // receta de dos elementos y sin contar lo que falta (no se adelanta para qué sirve).
+    const intent = this.intent;
+    const fits = (w: Weave): boolean => {
+      const id = spellOf(w);
+      return intent === null || (id !== null && SPELL_INTENTS[id] === intent);
+    };
+    if (intent !== null) {
+      if (!known.some(fits)) {
+        this.list.append(
+          el(
+            'p',
+            'grimoire-filter-empty',
+            `Aún no descubres hechizos de ${INTENT_NAMES[intent]} que empiecen con ${ELEMENT_NAMES[element]}.`,
+          ),
+        );
+        return;
+      }
+    } else if (this.school?.element === element) this.renderSchool(this.school);
     const highlighted = new Set(this.school?.spells ?? []);
     for (const group of GROUPS) {
-      if (group.length === 2) {
+      if (group.length === 2 && intent === null) {
         this.renderRecipe(element, grimoire);
         continue;
       }
       const inGroup = weaves.filter((w) => w.length === group.length);
-      const found = inGroup.filter((w) => grimoire.has(w));
+      const found = inGroup.filter((w) => grimoire.has(w) && fits(w));
+      if (intent !== null && found.length === 0) continue;
       const section = el('section', 'grimoire-group');
       const title = el('h3', 'grimoire-group-title', group.name);
-      title.append(el('span', 'grimoire-group-count', `${found.length}/${inGroup.length}`));
+      title.append(
+        el(
+          'span',
+          'grimoire-group-count',
+          intent === null ? `${found.length}/${inGroup.length}` : String(found.length),
+        ),
+      );
       const grid = el('div', 'grimoire-grid');
       for (const weave of found) {
         const card = el('button', 'grimoire-spell');
@@ -390,7 +496,7 @@ export class GrimoireBook {
         grid.append(card);
       }
       const left = inGroup.length - found.length;
-      if (left > 0) {
+      if (left > 0 && intent === null) {
         grid.append(
           el(
             'span',
@@ -595,7 +701,7 @@ export class GrimoireBook {
     title.append(el('span', 'grimoire-group-count', String(combos.length)));
     const grid = el('div', 'grimoire-grid wide');
     for (const combo of combos) {
-      const card = comboCard(combo);
+      const card = comboCard(combo, this.openStep);
       if (this.freshCombos.has(combo.id)) card.append(freshMark());
       card.classList.toggle('fresh', this.freshCombos.has(combo.id));
       // En equipo no se puede probar: frente al muñeco no hay compañero.
@@ -653,12 +759,12 @@ export class GrimoireBook {
 }
 
 /** Una ficha de combo: nombre y nivel, los signos de sus pasos y qué pasa. */
-function comboCard(combo: Combo): HTMLElement {
+function comboCard(combo: Combo, onSpell: (spell: SpellId) => void): HTMLElement {
   const card = el('div', 'grimoire-spell grimoire-combo');
   const head = el('span', 'grimoire-combo-head');
   const name = el('span', 'grimoire-spell-name', combo.name);
   name.append(el('span', 'grimoire-combo-level', '★'.repeat(combo.level)));
-  head.append(name, comboStepsView(combo));
+  head.append(name, comboStepsView(combo, onSpell));
   card.append(head, el('span', 'grimoire-combo-detail', combo.detail));
   if (combo.team) card.append(el('span', 'grimoire-combo-tag', 'En equipo'));
   return card;

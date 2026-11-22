@@ -150,6 +150,8 @@ export class Lobby {
   private startsAt: number | null = null;
   private countdown: ReturnType<typeof setInterval> | null = null;
   private modeName = 'Duelo 1 contra 1';
+  /** Leer el Grimorio mientras esperas (se cierra solo al empezar la partida). */
+  onGrimoire: (() => void) | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -185,6 +187,7 @@ export class Lobby {
             <p class="lobby-mode"></p>
             <ul class="lobby-roster"></ul>
             <button type="button" class="secondary lobby-leave">${MENU_ICONS.leave}<span>Salir de la sala</span></button>
+            <button type="button" class="secondary lobby-grimoire">${MENU_ICONS.grimoire}<span>Grimorio</span></button>
           </div>
           <div class="lobby-people">
             <div class="lobby-settings"></div>
@@ -251,6 +254,7 @@ export class Lobby {
         },
       );
     });
+    query(this.root, '.lobby-grimoire').addEventListener('click', () => this.onGrimoire?.());
     query(this.root, '.lobby-cancel').addEventListener('click', () => this.onCancel());
     query(this.root, '.lobby-leave').addEventListener('click', () => this.onCancel());
   }

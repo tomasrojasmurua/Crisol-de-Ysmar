@@ -40,7 +40,8 @@ export interface ResultPlayer {
 /** Una página del Grimorio que se abre desde el resultado. */
 export type ResultPage =
   | { readonly kind: 'spell'; readonly weave: Weave }
-  | { readonly kind: 'combo'; readonly id: string };
+  | { readonly kind: 'combo'; readonly id: string }
+  | { readonly kind: 'book' };
 
 /** Lo que la partida deja para tu Grimorio, en una franja que lleva a cada página. */
 export interface ResultGrimoire {
@@ -483,8 +484,23 @@ export class ResultScreen {
         page: { kind: 'spell', weave: spell.weave },
       });
     }
-    this.grimoire.hidden = chips.length === 0;
-    this.card.classList.toggle('with-grimoire', chips.length > 0);
+    // Sin nada nuevo queda igual una puerta al libro: para leer mientras esperas la revancha.
+    this.grimoire.hidden = grimoire === undefined;
+    this.card.classList.toggle('with-grimoire', grimoire !== undefined);
+    if (grimoire && chips.length === 0) {
+      const open = el('button', 'hud-result-grimoire-chip open') as HTMLButtonElement;
+      open.type = 'button';
+      open.innerHTML = MENU_ICONS.grimoire;
+      const text = el('span', 'hud-result-grimoire-text');
+      text.append(
+        el('span', 'hud-result-grimoire-kicker', 'Nada nuevo esta vez'),
+        el('span', 'hud-result-grimoire-name', 'Abrir el Grimorio'),
+      );
+      open.append(text);
+      open.addEventListener('click', () => this.onGrimoire?.({ kind: 'book' }));
+      this.grimoire.replaceChildren(open);
+      return;
+    }
     const shown = chips.length > GRIMOIRE_CHIPS ? chips.slice(0, GRIMOIRE_CHIPS - 1) : chips;
     const items = shown.map((chip) => {
       const button = el('button', 'hud-result-grimoire-chip') as HTMLButtonElement;
