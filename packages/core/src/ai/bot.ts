@@ -27,7 +27,8 @@ import {
   sub,
   type Vec2,
 } from '../math/vec2';
-import type { GameRules } from '../rules';
+import type { GameRules, StatusId } from '../rules';
+import { TICK_RATE } from '../sim/fixedStep';
 import { SeededRng } from '../sim/rng';
 import { type SpellId, spellOf } from '../spells/catalog';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
@@ -635,7 +636,8 @@ export class BotController implements Controller {
   /**
    * Empieza a probar sus mejores opciones (`lookahead` de ellas, más esperar). Cada una se
    * juega en una copia del duelo durante `LOOKAHEAD_TICKS` pasos, con el rival manejado por
-   * una IA sencilla, y gana la que deja mejor la cuenta: daño hecho menos daño recibido.
+   * una IA sencilla, y gana la que deja mejor la cuenta: daño hecho menos daño recibido,
+   * más cómo quedan parados los dos (`standing`: control, escudos, invocaciones).
    */
   private startTrial(
     state: Readonly<MatchState>,
@@ -652,7 +654,7 @@ export class BotController implements Controller {
         return true;
       })
       .slice(0, this.profile.lookahead ?? 0);
-    // Lo que le gusta pesa también: entre dos parecidas elige la que elegiría una persona.
+    // Las reglas a mano solo desempatan: entre dos parecidas, la que ellas prefieren.
     const top = Math.max(...ranked.map((o) => this.weightOf(o)), 1e-6);
     const prior = (weight: number): number =>
       TASTE_IN_SCORE * Math.log(Math.max(weight, 1e-3) / top);
@@ -736,7 +738,14 @@ export class BotController implements Controller {
     }
     const dealt = foeStart - Math.max(0, foe.hp);
     const taken = myStart - Math.max(0, me.hp);
-    return dealt - 1.2 * taken + (foe.hp <= 0 ? 100 : 0) - (me.hp <= 0 ? 150 : 0);
+    return (
+      dealt -
+      1.2 * taken +
+      (foe.hp <= 0 ? 100 : 0) -
+      (me.hp <= 0 ? 150 : 0) +
+      standing(sim, me, foe) -
+      standing(state, startOf(state, selfId), startOf(state, targetId))
+    );
   }
 
   private pick<T>(options: readonly T[]): T {
@@ -791,8 +800,8 @@ interface Trial {
  * en un todos contra todos, se turnan en vez de probar todos a la vez en el mismo cuadro.
  */
 const ROLLOUTS_PER_TICK = 1;
-/** Cuántos puntos de vida vale preferir lo que le gusta: por cada vez que pesa e veces más. */
-const TASTE_IN_SCORE = 8;
+/** Cuántos puntos de vida vale lo que prefieren las reglas: por cada vez que pesa e veces más. */
+const TASTE_IN_SCORE = 4;
 const rolloutBudget = new WeakMap<object, { tick: number; used: number }>();
 
 /** Si queda presupuesto de pruebas en este paso de esta partida (y lo gasta). */
@@ -812,6 +821,94 @@ const LOOKAHEAD_TICKS = 45;
 
 /** El rival imaginado al probar opciones: un Duelista que no prueba nada (sin recursión). */
 const ROLLOUT_RIVAL: BotProfile = { ...DEFAULT_BOT, improvise: 0 };
+
+/** Estados que dejan mal a quien los tiene: controlado, debilitado o marcado. */
+const HARMFUL: readonly StatusId[] = [
+  'burn',
+  'slow',
+  'root',
+  'curse',
+  'airborne',
+  'silenced',
+  'weak',
+  'blind',
+  'frozen',
+  'asleep',
+  'soaked',
+  'sluggish',
+  'exposed',
+  'combusting',
+  'plague',
+  'tracked',
+  'stunned',
+  'halted',
+  'scalded',
+  'withered',
+  'grounded',
+  'hexed',
+  'rotting',
+];
+/** Estados que ayudan a quien los tiene. */
+const HELPFUL: readonly StatusId[] = [
+  'empowered',
+  'veiled',
+  'regen',
+  'haste',
+  'phased',
+  'quickened',
+  'warded',
+  'insight',
+  'hunting',
+  'unseen',
+  'shrouded',
+  'disguised',
+  'untouchable',
+  'kindled',
+  'deepRooted',
+  'magma',
+  'surfing',
+  'panther',
+  'thorny',
+  'vengeful',
+  'leeching',
+];
+
+/**
+ * Cómo queda parado un mago frente a otro más allá de la vida, en puntos de vida: estados
+ * (cada segundo de control o de ayuda que le queda), escudo, invocaciones en pie y elementos
+ * libres para responder. Así la IA valora un Muro, una invocación o una Pesadilla, no solo
+ * el daño inmediato.
+ */
+function standing(
+  state: Readonly<MatchState>,
+  me: Wizard | undefined,
+  foe: Wizard | undefined,
+): number {
+  if (!me || !foe) return 0;
+  const seconds = (w: Wizard, ids: readonly StatusId[]): number =>
+    ids.reduce((sum, id) => sum + Math.min(3, (w.statuses[id]?.ticks ?? 0) / TICK_RATE), 0);
+  let summons = 0;
+  for (const spell of state.spells) {
+    if (spell.kind !== 'summon' || spell.hp <= 0) continue;
+    if (spell.ownerId === me.id) summons += Math.min(spell.hp, 60);
+    else if (spell.ownerId === foe.id) summons -= Math.min(spell.hp, 60);
+  }
+  const free = (w: Wizard): number => ELEMENT_IDS.filter((e) => w.fatigue[e] === 0).length;
+  return (
+    STANDING.status * (seconds(foe, HARMFUL) - seconds(me, HARMFUL)) +
+    STANDING.status * 0.6 * (seconds(me, HELPFUL) - seconds(foe, HELPFUL)) +
+    STANDING.shield * (me.shield - foe.shield) +
+    STANDING.summon * summons +
+    STANDING.free * (free(me) - free(foe))
+  );
+}
+
+/** Cuántos puntos de vida vale cada cosa de `standing`. */
+const STANDING = { status: 4, shield: 0.8, summon: 0.3, free: 2 };
+
+function startOf(state: Readonly<MatchState>, id: EntityId): Wizard | undefined {
+  return state.wizards.find((w) => w.id === id);
+}
 
 /** Apuntar sin error, adelantando a un rival que se mueve si el proyectil tiene velocidad. */
 function cleanAim(

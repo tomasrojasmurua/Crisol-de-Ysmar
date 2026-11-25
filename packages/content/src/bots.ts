@@ -1,5 +1,4 @@
 import type { BotLevel, BotProfile } from '@crisol/core';
-import { BOT_TASTE } from './botTaste';
 
 /**
  * Las tres dificultades de la IA. Juegan con las mismas reglas que una persona; cambia qué tan
@@ -21,7 +20,6 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     tapTicks: 6,
     dodgeDelayTicks: 12,
     patience: 0.3,
-    taste: BOT_TASTE,
   },
   // Duelista: el rival de siempre, ahora sin quedarse quieto ciego y saliendo de los avisos.
   duelist: {
@@ -40,7 +38,6 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     patience: 0.6,
     // Antes de elegir prueba sus 2 mejores opciones jugando 1,5 s hacia adelante.
     lookahead: 2,
-    taste: BOT_TASTE,
   },
   // Maestro: rápido, certero, casi siempre esquiva y se corre al ver un Gran hechizo.
   master: {
@@ -59,7 +56,6 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     patience: 0.8,
     // Prueba sus 4 mejores opciones: así gana por pensar mejor, no por tocar más rápido.
     lookahead: 4,
-    taste: BOT_TASTE,
   },
 };
 
