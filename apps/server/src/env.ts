@@ -6,4 +6,6 @@ export interface Env {
   ERRORS?: D1Database;
   /** Base D1 `crisol-perfiles` con los respaldos (ver profiles.ts). */
   PROFILES?: D1Database;
+  /** Base D1 `crisol-partidas` con el registro de cada partida (ver matchLog.ts). */
+  MATCHES?: D1Database;
 }

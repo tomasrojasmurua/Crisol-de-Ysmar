@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { PROTOCOL_VERSION } from '@crisol/protocol';
 import type { Env } from './env';
 import { reportRoomError, saveReports } from './errorLog';
+import { saveMatchLog } from './matchLog';
 import { type Peer, RoomHost } from './roomHost';
 
 /** Lo que la Sala recuerda de cada socket (sobrevive a que la Sala se duerma). */
@@ -58,6 +59,10 @@ export class Room extends DurableObject<Env> {
         uptime: 0,
       };
       this.ctx.waitUntil(saveReports(db, [report], 'sala', new Date()).catch(() => undefined));
+    },
+    matchLog: (log) => {
+      const db = this.env.MATCHES;
+      if (db) this.ctx.waitUntil(saveMatchLog(db, log, new Date()).catch(() => undefined));
     },
   });
 

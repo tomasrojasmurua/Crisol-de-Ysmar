@@ -1,6 +1,7 @@
 import { isValidRoomCode } from '@crisol/protocol';
 import type { Env } from './env';
 import { receiveReports } from './errorLog';
+import { receiveMatchLog } from './matchLog';
 import { handleProfile } from './profiles';
 import { generateRoomCode } from './roomCode';
 
@@ -22,6 +23,10 @@ export default {
       (request.method === 'POST' || request.method === 'OPTIONS')
     ) {
       return receiveReports(request, env.ERRORS, (task) => ctx.waitUntil(task));
+    }
+
+    if (url.pathname === '/api/partida') {
+      return receiveMatchLog(request, env.MATCHES, (task) => ctx.waitUntil(task));
     }
 
     if (url.pathname === '/api/perfil' || url.pathname === '/api/perfil/leer') {

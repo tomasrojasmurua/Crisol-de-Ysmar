@@ -25,6 +25,13 @@ export {
   type ReportKind,
 } from './errorReport';
 export {
+  MATCH_LOG_LIMITS,
+  type MatchLog,
+  type MatchLogWizard,
+  modeKey,
+  parseMatchLog,
+} from './matchLog';
+export {
   type ClientMessage,
   frameKey,
   isValidRoomCode,

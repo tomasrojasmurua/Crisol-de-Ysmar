@@ -1,4 +1,5 @@
 import type { MatchState } from '@crisol/core';
+import type { MatchLog } from '@crisol/protocol';
 import { describe, expect, it } from 'vitest';
 import {
   CHOOSE_TICKS,
@@ -463,6 +464,22 @@ describe('Salas de más de dos y ajustes', () => {
     for (let i = 0; i < 30 * 60 * 10 && duel.stageFor(1).kind !== 'finished'; i++) duel.tick();
     expect(duel.stageFor(1).kind).toBe('finished');
     expect(duel.seriesInfo().roundsPlayed).toBeGreaterThanOrEqual(1);
+  });
+
+  it('al terminar, entrega el registro de la serie con quién jugó en persona', () => {
+    const duel = room();
+    duel.configure(1, { minutes: 2, bestOf: 1, glyphs: false, omen: false });
+    const logs: MatchLog[] = [];
+    duel.onMatchLog = (log) => logs.push(log);
+    duel.begin(1);
+    duel.tick();
+    duel.leave(1);
+    for (let i = 0; i < 30 * 60 * 10 && duel.stageFor(1).kind !== 'finished'; i++) duel.tick();
+    expect(logs).toHaveLength(1);
+    const log = logs[0] as MatchLog;
+    expect(log).toMatchObject({ format: 1, source: 'red', mode: 'duel' });
+    expect(log.wizards.map((w) => w.human)).toEqual([true, false]);
+    expect(log.rounds[0]?.casts.length).toBeGreaterThan(0);
   });
 
   it('a mejor de 3 sin Glifos, entre rondas no se elige nada', () => {

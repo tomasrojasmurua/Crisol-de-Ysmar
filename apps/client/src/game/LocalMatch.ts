@@ -12,6 +12,7 @@ import {
   type StorySeat,
   schoolSpellbook,
 } from '@crisol/content';
+import type { MatchLogRound } from '@crisol/core';
 import {
   affinityPatch,
   BotController,
@@ -20,6 +21,7 @@ import {
   type Controller,
   combineMods,
   createHighlightTracker,
+  createLogRound,
   createMatch,
   createMatchStats,
   createSeries,
@@ -36,6 +38,7 @@ import {
   modeSetup,
   playerCount,
   recordHighlights,
+  recordLogRound,
   recordMatchStats,
   recordRound,
   SeededRng,
@@ -46,6 +49,7 @@ import {
   type Vec2,
   type Wizard,
 } from '@crisol/core';
+import { type MatchLog, modeKey } from '@crisol/protocol';
 import type { MatchSummary, MatchView } from './MatchView';
 import { type ReplayClip, ReplayRecorder, snapshotState } from './ReplayRecorder';
 
@@ -114,6 +118,8 @@ export class LocalMatch implements MatchView {
   private readonly highlights = createHighlightTracker(HIGHLIGHT_RULES);
   /** Los últimos segundos y la mejor jugada, para repetirla al final. */
   private readonly recorder = new ReplayRecorder();
+  /** Qué lanzó cada mago y qué pasó, ronda por ronda (ver docs/partidas.md). */
+  private readonly logRounds: MatchLogRound[] = [];
 
   constructor(
     readonly options: MatchOptions,
@@ -169,6 +175,25 @@ export class LocalMatch implements MatchView {
     return { id: `ia-${this.seed}`, stats: this.stats, highlight: this.highlights.matchBest };
   }
 
+  /** El registro de la serie para aprender combinaciones; null mientras no termina. */
+  matchLog(version: string): MatchLog | null {
+    if (this.stage.kind !== 'finished') return null;
+    return {
+      format: 1,
+      source: 'ia',
+      mode: modeKey(this.options.mode),
+      botLevel: this.options.botLevel,
+      wizards: this.state.wizards.map((w) => ({
+        id: w.id,
+        team: w.team,
+        human: w.id === PLAYER_ID,
+      })),
+      rounds: this.logRounds,
+      winnerTeam: this.series.winnerTeam ?? -1,
+      version,
+    };
+  }
+
   get player(): Wizard {
     const found = this.state.wizards.find((w) => w.id === PLAYER_ID);
     if (!found) throw new Error('No existe el jugador');
@@ -201,6 +226,8 @@ export class LocalMatch implements MatchView {
     stepMatch(this.state, intents, this.rules);
     recordMatchStats(this.stats, this.state);
     recordHighlights(this.highlights, this.state);
+    const logRound = this.logRounds[this.logRounds.length - 1];
+    if (logRound) recordLogRound(logRound, this.state);
 
     const roundWinner = this.state.winnerTeam;
     if (roundWinner !== null) {
@@ -295,6 +322,7 @@ export class LocalMatch implements MatchView {
       return { ...w, affinity, mods: combineMods(this.omen.mods, ...patches) };
     });
     const state = createMatch({ ...setup, wizards }, this.rules);
+    this.logRounds.push(createLogRound());
     this.bots = new Map(
       state.wizards
         .filter((w) => w.id !== PLAYER_ID)
