@@ -567,7 +567,9 @@ export function storyFor(school: ElementId): readonly StoryBeat[] {
       { feud: true, arena: 'plaza' },
     ),
     scene('combate-7-despues', 2, [
-      at('10-cuenta-pendiente', see('Las dos quedan de rodillas, sin aire.')),
+      // Sobre negro, con los retratos grandes de las dos: la ilustración 10 salió igual que la
+      // criba y está por rehacerse.
+      at('', see('Las dos quedan de rodillas, sin aire.')),
       master(musgo, 'Tú cortaste.'),
       master(vesk, 'Y tú no hiciste nada.'),
       master(musgo, 'Tiré de él hasta que me sangraron las manos.'),

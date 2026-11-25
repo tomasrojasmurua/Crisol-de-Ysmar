@@ -24,36 +24,46 @@ type Particles = 'embers' | 'dust' | 'motes';
  * partículas siguen su luz (el fuego de la posada, el polvo del atardecer, los hilos).
  * Lo que no esté aquí se acerca despacio, sin partículas.
  */
-const BACKDROP_MOTION: Readonly<Record<string, { drift: Drift; particles?: Particles }>> = {
+interface BackdropMotion {
+  readonly drift: Drift;
+  readonly particles?: Particles;
+  /**
+   * A qué altura de la imagen está lo importante (0 arriba, 100 abajo; 50 si no se dice). En
+   * horizontal el celular corta arriba y abajo de la ilustración: sin esto se perdían cabezas.
+   */
+  readonly focus?: number;
+}
+
+const BACKDROP_MOTION: Readonly<Record<string, BackdropMotion>> = {
   '01-huida': { drift: 'in', particles: 'motes' },
   '02-ronda': { drift: 'right', particles: 'dust' },
   '03-crisol-afuera': { drift: 'in', particles: 'embers' },
-  '04-posada': { drift: 'left', particles: 'embers' },
-  '05-arel-pajaro': { drift: 'in', particles: 'dust' },
+  '04-posada': { drift: 'left', particles: 'embers', focus: 10 },
+  '05-arel-pajaro': { drift: 'in', particles: 'dust', focus: 35 },
   '06-criba': { drift: 'out', particles: 'dust' },
   '07-libro': { drift: 'in', particles: 'motes' },
-  '08-maestros': { drift: 'out', particles: 'embers' },
-  '09-libros-rival': { drift: 'left', particles: 'motes' },
+  '08-maestros': { drift: 'out', particles: 'embers', focus: 10 },
+  '09-libros-rival': { drift: 'left', particles: 'motes', focus: 30 },
   '10-cuenta-pendiente': { drift: 'in', particles: 'embers' },
-  '21-plaza-duelo': { drift: 'right', particles: 'embers' },
+  '21-plaza-duelo': { drift: 'right', particles: 'embers', focus: 30 },
   '22-luz-arel': { drift: 'in', particles: 'motes' },
   '23-lugar-vacio': { drift: 'in', particles: 'embers' },
   '24-jungla-bestia': { drift: 'in', particles: 'motes' },
   '25-cinta-mesa': { drift: 'in', particles: 'dust' },
-  '26-vesk': { drift: 'left', particles: 'embers' },
-  '27-iskel': { drift: 'out', particles: 'dust' },
-  '28-dorn': { drift: 'in', particles: 'motes' },
-  '29-madre-musgo': { drift: 'right', particles: 'embers' },
-  '30-velado': { drift: 'in', particles: 'motes' },
+  '26-vesk': { drift: 'left', particles: 'embers', focus: 8 },
+  '27-iskel': { drift: 'out', particles: 'dust', focus: 0 },
+  '28-dorn': { drift: 'in', particles: 'motes', focus: 20 },
+  '29-madre-musgo': { drift: 'right', particles: 'embers', focus: 5 },
+  '30-velado': { drift: 'in', particles: 'motes', focus: 0 },
   '31-muro-respira': { drift: 'right', particles: 'motes' },
-  '32-cinta-arena': { drift: 'in', particles: 'motes' },
-  '33-espera-jungla': { drift: 'out', particles: 'dust' },
+  '32-cinta-arena': { drift: 'in', particles: 'motes', focus: 15 },
+  '33-espera-jungla': { drift: 'out', particles: 'dust', focus: 0 },
   '34-cenizal': { drift: 'right', particles: 'embers' },
-  '35-velgar': { drift: 'right', particles: 'dust' },
-  '36-hondamar': { drift: 'right', particles: 'dust' },
-  '37-anvel': { drift: 'right', particles: 'dust' },
+  '35-velgar': { drift: 'right', particles: 'dust', focus: 10 },
+  '36-hondamar': { drift: 'right', particles: 'dust', focus: 20 },
+  '37-anvel': { drift: 'right', particles: 'dust', focus: 25 },
   '38-ossel': { drift: 'out', particles: 'motes' },
-  '40-vesk-se-va': { drift: 'right', particles: 'embers' },
+  '40-vesk-se-va': { drift: 'right', particles: 'embers', focus: 25 },
   '41-fogata-maestro': { drift: 'in', particles: 'embers' },
 };
 
@@ -243,6 +253,10 @@ export class StoryScreen {
     this.particles.dataset.kind = motion?.particles ?? '';
     if (!name) return;
     this.backdrop.dataset.drift = motion?.drift ?? 'in';
+    // La cámara se acerca hacia la altura de lo importante, para no sacarlo de cuadro.
+    const focus = `50% ${motion?.focus ?? 50}%`;
+    this.backdrop.style.backgroundPosition = focus;
+    this.backdrop.style.transformOrigin = focus;
     this.backdrop.style.backgroundImage = `url("${backdropUrl(name)}")`;
     // Se fuerza el dibujo sin la clase para que el fundido vuelva a empezar.
     void this.backdrop.offsetWidth;
