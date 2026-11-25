@@ -20,6 +20,7 @@ export {
   TRIM_COLORS,
 } from './appearance';
 export { BOT_LEVEL_NAMES, BOT_PROFILES } from './bots';
+export { BOT_TASTE } from './botTaste';
 export {
   COMBO_DETECT,
   COMBO_TIMING,

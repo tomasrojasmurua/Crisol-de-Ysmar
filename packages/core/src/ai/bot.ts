@@ -58,6 +58,26 @@ export interface BotProfile {
   /** Cuánto recuerda dónde vio al rival si lo pierde de vista (ceguera, Velo), en pasos. */
   readonly memoryTicks: number;
   /**
+   * Pasos entre un toque y el siguiente al tejer (y antes de ✦), como un pulgar: una persona
+   * no toca tres elementos en el mismo instante.
+   */
+  readonly tapTicks: number;
+  /**
+   * Pasos que tarda en reaccionar a un proyectil o a un aviso de suelo antes de empezar a
+   * esquivar. Sin esto esquiva en el mismo instante en que aparece, cosa que nadie puede.
+   */
+  readonly dodgeDelayTicks: number;
+  /**
+   * Cuánto le gusta cada hechizo (1 si no se dice). Multiplica el peso de cada opción pensada
+   * para que la IA elija en proporciones parecidas a las de las personas.
+   */
+  readonly taste?: Readonly<Partial<Record<SpellId, number>>>;
+  /**
+   * Peso de esperar en vez de lanzar algo que no le convence (con el mismo peso que una opción
+   * pensada). Sin esto, con un solo elemento libre lanza lo que sea y se queda sin nada.
+   */
+  readonly patience?: number;
+  /**
    * Si está, solo teje estos hechizos (los de un linaje) y nunca improvisa. Sirve para medir
    * el balance de los sets de principiante.
    */
@@ -80,6 +100,8 @@ export const DEFAULT_BOT: BotProfile = {
   repeatPenalty: 0.45,
   improvise: 0.2,
   memoryTicks: 90,
+  tapTicks: 4,
+  dodgeDelayTicks: 8,
 };
 
 /** Las invocaciones rivales que el bot rompe si las tiene cerca, y a cuántos metros. */
@@ -106,6 +128,12 @@ export class BotController implements Controller {
     null;
   /** Qué decidió ante cada amenaza (esquivar o no), para no volver a tirar el dado cada paso. */
   private readonly decisions = new Map<EntityId, boolean>();
+  /** En qué paso vio por primera vez cada amenaza, para reaccionar con retraso. */
+  private readonly firstSeen = new Map<EntityId, number>();
+  /** Pasos que faltan para el próximo toque (tejer o lanzar). */
+  private tapWait = 0;
+  /** Velocidad del proyectil que va a lanzar, para adelantar bien la puntería. */
+  private aimSpeed = 0;
   private readonly recent: string[] = [];
 
   constructor(
@@ -221,10 +249,17 @@ export class BotController implements Controller {
       }
     }
 
+    // Entre toque y toque pasa lo que tarda un pulgar.
+    if (this.tapWait > 0) {
+      this.tapWait--;
+      return null;
+    }
+    this.tapWait = this.profile.tapTicks;
     const next = this.plan?.elements.shift();
     if (next !== undefined) {
       if (this.plan && this.plan.elements.length === 0) {
         this.aimMode = this.plan.aimMode;
+        this.aimSpeed = projectileSpeed(this.rules, [...self.weave, next]);
         this.plan = null;
       }
       return { kind: 'weave', element: next };
@@ -255,8 +290,11 @@ export class BotController implements Controller {
     const book = this.profile.spellbook;
     if (book) return this.chooseFromBook(book, spells);
     if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
-      return this.remember(this.pickWeighted(spells));
+      const plan = this.pickWeighted(spells, this.profile.patience ?? 0);
+      return plan ? this.remember(plan) : null;
     }
+    // Si nada cuadra, casi siempre espera a que descanse algo; solo a veces improvisa.
+    if (spells.length === 0 && this.rng.next() >= this.profile.improvise) return null;
 
     let first: ElementId;
     let aimMode: AimMode = 'target';
@@ -337,6 +375,7 @@ export class BotController implements Controller {
   private dodge(state: Readonly<MatchState>, self: Readonly<Wizard>): Vec2 {
     let move: Vec2 = { x: 0, z: 0 };
     for (const projectile of incomingProjectiles(state, self)) {
+      if (!this.noticed(state, projectile.id)) continue;
       if (!this.decide(projectile.id, this.profile.dodgeProjectiles)) continue;
       const side = perpendicular(normalize(projectile.velocity));
       const away = dot(side, sub(self.pos, projectile.pos)) >= 0 ? 1 : -1;
@@ -347,11 +386,26 @@ export class BotController implements Controller {
     for (const strike of state.spells) {
       if (strike.kind !== 'strike' || strike.team === self.team || strike.ticksLeft <= 0) continue;
       const out = outOfStrike(strike, self.pos, margin);
-      if (out && this.decide(strike.id, this.profile.dodgeStrikes)) {
+      if (
+        out &&
+        this.noticed(state, strike.id) &&
+        this.decide(strike.id, this.profile.dodgeStrikes)
+      ) {
         move = add(move, scale(out, 3));
       }
     }
     return move;
+  }
+
+  /** Si ya pasó su tiempo de reacción desde que vio esta amenaza por primera vez. */
+  private noticed(state: Readonly<MatchState>, id: EntityId): boolean {
+    const seen = this.firstSeen.get(id);
+    if (seen === undefined) {
+      if (this.firstSeen.size > 64) this.firstSeen.clear();
+      this.firstSeen.set(id, state.tick);
+      return this.profile.dodgeDelayTicks <= 0;
+    }
+    return state.tick - seen >= this.profile.dodgeDelayTicks;
   }
 
   /** Tira el dado una sola vez por amenaza y recuerda lo que salió. */
@@ -503,7 +557,8 @@ export class BotController implements Controller {
   private aimFor(self: Readonly<Wizard>, target: Wizard, mode: AimMode): Vec2 {
     let aimPoint = target.pos;
     if (mode === 'lead') {
-      const speed = this.rules.spells.spark.speed;
+      // Adelanta según la velocidad del proyectil que lanza; si no es uno, la de la Chispa.
+      const speed = this.aimSpeed > 0 ? this.aimSpeed : this.rules.spells.spark.speed;
       const time = distance(self.pos, target.pos) / speed;
       aimPoint = add(target.pos, scale(target.moveInput, this.rules.wizard.moveSpeed * time));
     }
@@ -527,18 +582,27 @@ export class BotController implements Controller {
       return id !== null && book.includes(id);
     });
     // Si ninguno de su set cuadra ahora, espera: lanzar al azar gasta el elemento.
-    return inBook.length > 0 ? this.remember(this.pickWeighted(inBook)) : null;
+    const plan = inBook.length > 0 ? this.pickWeighted(inBook, 0) : null;
+    return plan ? this.remember(plan) : null;
   }
 
-  private pickWeighted(options: readonly (Plan & { readonly weight: number })[]): Plan {
+  private pickWeighted(
+    options: readonly (Plan & { readonly weight: number })[],
+    waitWeight: number,
+  ): Plan | null {
     // Lo que usó hace poco pesa menos: así no repite el mismo hechizo una y otra vez.
     const weightOf = (option: Plan & { readonly weight: number }): number => {
       const key = option.elements.join('>');
       const times = this.recent.filter((k) => k === key).length;
-      return option.weight * this.profile.repeatPenalty ** times;
+      // Con un set cerrado (los linajes, el valor de un hechizo) no hay gusto: se mide el set.
+      const spell = this.profile.spellbook ? null : spellOf(option.elements);
+      const taste = spell === null ? 1 : (this.profile.taste?.[spell] ?? 1);
+      return option.weight * taste * this.profile.repeatPenalty ** times;
     };
     const total = options.reduce((sum, o) => sum + weightOf(o), 0);
-    let roll = this.rng.next() * total;
+    let roll = this.rng.next() * (total + waitWeight);
+    // Le tocó esperar: vuelve a pensar en un rato.
+    if (roll >= total) return null;
     for (const option of options) {
       roll -= weightOf(option);
       if (roll <= 0) return { elements: [...option.elements], aimMode: option.aimMode };
@@ -569,6 +633,15 @@ function suits(element: ElementId, d: number): boolean {
     case 'tormenta':
       return d < 4 || d > 10;
   }
+}
+
+/** La velocidad del proyectil de ese tejido, o 0 si no lanza uno con velocidad propia. */
+function projectileSpeed(rules: GameRules, weave: readonly ElementId[]): number {
+  const spell = spellOf(weave);
+  if (spell === null) return 0;
+  const speed = (rules.spells as unknown as Record<string, { readonly speed?: unknown }>)[spell]
+    ?.speed;
+  return typeof speed === 'number' && speed > 0 ? speed : 0;
 }
 
 function incomingProjectiles(state: Readonly<MatchState>, self: Readonly<Wizard>): Projectile[] {
