@@ -15,6 +15,7 @@ import type {
   SummonKind,
   Wizard,
 } from '../match/state';
+import { stepMatch } from '../match/step';
 import {
   add,
   distance,
@@ -26,7 +27,8 @@ import {
   sub,
   type Vec2,
 } from '../math/vec2';
-import type { GameRules } from '../rules';
+import type { GameRules, StatusId } from '../rules';
+import { TICK_RATE } from '../sim/fixedStep';
 import { SeededRng } from '../sim/rng';
 import { type SpellId, spellOf } from '../spells/catalog';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
@@ -77,6 +79,12 @@ export interface BotProfile {
    * pensada). Sin esto, con un solo elemento libre lanza lo que sea y se queda sin nada.
    */
   readonly patience?: number;
+  /**
+   * Cuántas de sus mejores opciones prueba antes de elegir: copia el duelo, juega unos
+   * segundos con cada una (y con esperar) y se queda con la que deja mejor la cuenta de vida.
+   * 0 elige sin probar.
+   */
+  readonly lookahead?: number;
   /**
    * Si está, solo teje estos hechizos (los de un linaje) y nunca improvisa. Sirve para medir
    * el balance de los sets de principiante.
@@ -134,6 +142,8 @@ export class BotController implements Controller {
   private tapWait = 0;
   /** Velocidad del proyectil que va a lanzar, para adelantar bien la puntería. */
   private aimSpeed = 0;
+  /** Las opciones que está probando, una por paso, antes de decidir (ver `lookahead`). */
+  private trial: Trial | null = null;
   private readonly recent: string[] = [];
 
   constructor(
@@ -148,6 +158,7 @@ export class BotController implements Controller {
   intentsFor(state: Readonly<MatchState>, self: Readonly<Wizard>): readonly Intent[] {
     if (!isAlive(self as Wizard)) {
       this.plan = null;
+      this.trial = null;
       return [];
     }
     const seen =
@@ -238,7 +249,11 @@ export class BotController implements Controller {
     target: Wizard,
   ): Intent | null {
     if (!this.plan && self.weave.length === 0) {
-      if (--this.thinkTicks > 0) {
+      // Probando opciones: una por paso, para no trabar el cuadro.
+      if (this.trial) return this.continueTrial(state, self);
+      // Si va a probar opciones, empieza antes: termina de pensar a la misma hora de siempre.
+      const look = this.profile.lookahead ?? 0;
+      if (--this.thinkTicks > (look > 0 ? look + 1 : 0)) {
         return null;
       }
       this.plan = this.choosePlan(state, self, target);
@@ -289,6 +304,10 @@ export class BotController implements Controller {
     const spells = spellOptions({ state, self, target, available, threatened });
     const book = this.profile.spellbook;
     if (book) return this.chooseFromBook(book, spells);
+    if (spells.length > 0 && (this.profile.lookahead ?? 0) > 0) {
+      this.trial = this.startTrial(state, target, spells);
+      return null;
+    }
     if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
       const plan = this.pickWeighted(spells, this.profile.patience ?? 0);
       return plan ? this.remember(plan) : null;
@@ -590,15 +609,7 @@ export class BotController implements Controller {
     options: readonly (Plan & { readonly weight: number })[],
     waitWeight: number,
   ): Plan | null {
-    // Lo que usó hace poco pesa menos: así no repite el mismo hechizo una y otra vez.
-    const weightOf = (option: Plan & { readonly weight: number }): number => {
-      const key = option.elements.join('>');
-      const times = this.recent.filter((k) => k === key).length;
-      // Con un set cerrado (los linajes, el valor de un hechizo) no hay gusto: se mide el set.
-      const spell = this.profile.spellbook ? null : spellOf(option.elements);
-      const taste = spell === null ? 1 : (this.profile.taste?.[spell] ?? 1);
-      return option.weight * taste * this.profile.repeatPenalty ** times;
-    };
+    const weightOf = (option: Plan & { readonly weight: number }): number => this.weightOf(option);
     const total = options.reduce((sum, o) => sum + weightOf(o), 0);
     let roll = this.rng.next() * (total + waitWeight);
     // Le tocó esperar: vuelve a pensar en un rato.
@@ -609,6 +620,132 @@ export class BotController implements Controller {
     }
     const last = this.pick(options);
     return { elements: [...last.elements], aimMode: last.aimMode };
+  }
+
+  /** Cuánto pesa una opción: su peso pensado, el gusto y no repetirse. */
+  private weightOf(option: Plan & { readonly weight: number }): number {
+    // Lo que usó hace poco pesa menos: así no repite el mismo hechizo una y otra vez.
+    const key = option.elements.join('>');
+    const times = this.recent.filter((k) => k === key).length;
+    // Con un set cerrado (los linajes, el valor de un hechizo) no hay gusto: se mide el set.
+    const spell = this.profile.spellbook ? null : spellOf(option.elements);
+    const taste = spell === null ? 1 : (this.profile.taste?.[spell] ?? 1);
+    return option.weight * taste * this.profile.repeatPenalty ** times;
+  }
+
+  /**
+   * Empieza a probar sus mejores opciones (`lookahead` de ellas, más esperar). Cada una se
+   * juega en una copia del duelo durante `LOOKAHEAD_TICKS` pasos, con el rival manejado por
+   * una IA sencilla, y gana la que deja mejor la cuenta: daño hecho menos daño recibido,
+   * más cómo quedan parados los dos (`standing`: control, escudos, invocaciones).
+   */
+  private startTrial(
+    state: Readonly<MatchState>,
+    target: Wizard,
+    options: readonly (Plan & { readonly weight: number })[],
+  ): Trial {
+    const seen = new Set<string>();
+    const ranked = [...options]
+      .sort((a, b) => this.weightOf(b) - this.weightOf(a))
+      .filter((o) => {
+        const key = o.elements.join('>');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, this.profile.lookahead ?? 0);
+    // Las reglas a mano solo desempatan: entre dos parecidas, la que ellas prefieren.
+    const top = Math.max(...ranked.map((o) => this.weightOf(o)), 1e-6);
+    const prior = (weight: number): number =>
+      TASTE_IN_SCORE * Math.log(Math.max(weight, 1e-3) / top);
+    // Todas se prueban sobre la misma foto del duelo, para compararlas parejo.
+    const snapshot = copyOf(state) as MatchState;
+    return {
+      snapshot,
+      targetId: target.id,
+      options: [null, ...ranked.map((o) => ({ elements: [...o.elements], aimMode: o.aimMode }))],
+      priors: [prior(this.profile.patience ?? 0), ...ranked.map((o) => prior(this.weightOf(o)))],
+      next: 0,
+      best: null,
+      bestScore: -Infinity,
+    };
+  }
+
+  /** Prueba la siguiente opción; al terminar, se queda con la mejor (o espera). */
+  private continueTrial(state: Readonly<MatchState>, self: Readonly<Wizard>): Intent | null {
+    const trial = this.trial;
+    if (!trial) return null;
+    // Entre todos los bots de la partida, pocas pruebas por paso: el cuadro no se traba.
+    if (!takeRollout(state)) return null;
+    const option = trial.options[trial.next] ?? null;
+    // El plan elegido empieza cuando termine de probar: en la copia también.
+    const delay = trial.options.length;
+    const score =
+      this.rollout(trial.snapshot, self.id, trial.targetId, option, delay) +
+      (trial.priors[trial.next] ?? 0);
+    // Ante un empate, la primera probada (esperar va primero): no gasta por gastar.
+    if (score > trial.bestScore) {
+      trial.bestScore = score;
+      trial.best = option;
+    }
+    trial.next++;
+    if (trial.next < trial.options.length) return null;
+    this.trial = null;
+    if (trial.best) this.plan = this.remember(trial.best);
+    return null;
+  }
+
+  /** Juega unos segundos en una copia del duelo con ese plan (o esperando) y da su cuenta. */
+  private rollout(
+    state: Readonly<MatchState>,
+    selfId: EntityId,
+    targetId: EntityId,
+    plan: Plan | null,
+    delay: number,
+  ): number {
+    const sim = copyOf(state) as MatchState;
+    const me = sim.wizards.find((w) => w.id === selfId);
+    const foe = sim.wizards.find((w) => w.id === targetId);
+    if (!me || !foe) return 0;
+    const rival = new BotController(sim.tick * 7 + foe.id, this.rules, ROLLOUT_RIVAL);
+    const queue = plan ? [...plan.elements] : [];
+    const speed = plan ? projectileSpeed(this.rules, plan.elements) : 0;
+    let pending = plan !== null;
+    let wait = delay;
+    const myStart = me.hp;
+    const foeStart = foe.hp;
+    for (let t = 0; t < LOOKAHEAD_TICKS && sim.winnerTeam === null; t++) {
+      const mine: Intent[] = [{ kind: 'move', x: me.moveInput.x, z: me.moveInput.z }];
+      if (!me.channel && wait-- <= 0) {
+        const next = queue.shift();
+        if (next !== undefined) {
+          mine.push({ kind: 'weave', element: next });
+          wait = this.profile.tapTicks;
+        } else if (pending && me.weave.length > 0) {
+          const aim = cleanAim(me, foe, plan?.aimMode ?? 'target', speed, this.rules);
+          mine.push({ kind: 'cast', dirX: aim.x, dirZ: aim.z });
+          pending = false;
+        }
+      }
+      stepMatch(
+        sim,
+        new Map([
+          [me.id, mine],
+          [foe.id, rival.intentsFor(sim, foe)],
+        ]),
+        this.rules,
+      );
+    }
+    const dealt = foeStart - Math.max(0, foe.hp);
+    const taken = myStart - Math.max(0, me.hp);
+    return (
+      dealt -
+      1.2 * taken +
+      (foe.hp <= 0 ? 100 : 0) -
+      (me.hp <= 0 ? 150 : 0) +
+      standing(sim, me, foe) -
+      standing(state, startOf(state, selfId), startOf(state, targetId))
+    );
   }
 
   private pick<T>(options: readonly T[]): T {
@@ -633,6 +770,161 @@ function suits(element: ElementId, d: number): boolean {
     case 'tormenta':
       return d < 4 || d > 10;
   }
+}
+
+/** Copia profunda de datos simples (el estado del duelo no guarda clases ni funciones). */
+function copyOf<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => copyOf(item)) as T;
+  if (value !== null && typeof value === 'object') {
+    const copy: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) copy[key] = copyOf(item);
+    return copy as T;
+  }
+  return value;
+}
+
+/** Lo que lleva probado antes de decidir. `null` es esperar. */
+interface Trial {
+  readonly snapshot: Readonly<MatchState>;
+  readonly targetId: EntityId;
+  readonly options: readonly (Plan | null)[];
+  /** Lo que suma a la cuenta de cada opción cuánto le gusta (0 a la favorita, menos al resto). */
+  readonly priors: readonly number[];
+  next: number;
+  best: Plan | null;
+  bestScore: number;
+}
+
+/**
+ * Cuántas pruebas hacen entre todos los bots de una partida en un mismo paso. Con 5 Maestros
+ * en un todos contra todos, se turnan en vez de probar todos a la vez en el mismo cuadro.
+ */
+const ROLLOUTS_PER_TICK = 1;
+/** Cuántos puntos de vida vale lo que prefieren las reglas: por cada vez que pesa e veces más. */
+const TASTE_IN_SCORE = 4;
+const rolloutBudget = new WeakMap<object, { tick: number; used: number }>();
+
+/** Si queda presupuesto de pruebas en este paso de esta partida (y lo gasta). */
+function takeRollout(state: Readonly<MatchState>): boolean {
+  const budget = rolloutBudget.get(state);
+  if (!budget || budget.tick !== state.tick) {
+    rolloutBudget.set(state, { tick: state.tick, used: 1 });
+    return true;
+  }
+  if (budget.used >= ROLLOUTS_PER_TICK) return false;
+  budget.used++;
+  return true;
+}
+
+/** Cuántos pasos juega hacia adelante al probar una opción: 1,5 segundos. */
+const LOOKAHEAD_TICKS = 45;
+
+/** El rival imaginado al probar opciones: un Duelista que no prueba nada (sin recursión). */
+const ROLLOUT_RIVAL: BotProfile = { ...DEFAULT_BOT, improvise: 0 };
+
+/** Estados que dejan mal a quien los tiene: controlado, debilitado o marcado. */
+const HARMFUL: readonly StatusId[] = [
+  'burn',
+  'slow',
+  'root',
+  'curse',
+  'airborne',
+  'silenced',
+  'weak',
+  'blind',
+  'frozen',
+  'asleep',
+  'soaked',
+  'sluggish',
+  'exposed',
+  'combusting',
+  'plague',
+  'tracked',
+  'stunned',
+  'halted',
+  'scalded',
+  'withered',
+  'grounded',
+  'hexed',
+  'rotting',
+];
+/** Estados que ayudan a quien los tiene. */
+const HELPFUL: readonly StatusId[] = [
+  'empowered',
+  'veiled',
+  'regen',
+  'haste',
+  'phased',
+  'quickened',
+  'warded',
+  'insight',
+  'hunting',
+  'unseen',
+  'shrouded',
+  'disguised',
+  'untouchable',
+  'kindled',
+  'deepRooted',
+  'magma',
+  'surfing',
+  'panther',
+  'thorny',
+  'vengeful',
+  'leeching',
+];
+
+/**
+ * Cómo queda parado un mago frente a otro más allá de la vida, en puntos de vida: estados
+ * (cada segundo de control o de ayuda que le queda), escudo, invocaciones en pie y elementos
+ * libres para responder. Así la IA valora un Muro, una invocación o una Pesadilla, no solo
+ * el daño inmediato.
+ */
+function standing(
+  state: Readonly<MatchState>,
+  me: Wizard | undefined,
+  foe: Wizard | undefined,
+): number {
+  if (!me || !foe) return 0;
+  const seconds = (w: Wizard, ids: readonly StatusId[]): number =>
+    ids.reduce((sum, id) => sum + Math.min(3, (w.statuses[id]?.ticks ?? 0) / TICK_RATE), 0);
+  let summons = 0;
+  for (const spell of state.spells) {
+    if (spell.kind !== 'summon' || spell.hp <= 0) continue;
+    if (spell.ownerId === me.id) summons += Math.min(spell.hp, 60);
+    else if (spell.ownerId === foe.id) summons -= Math.min(spell.hp, 60);
+  }
+  const free = (w: Wizard): number => ELEMENT_IDS.filter((e) => w.fatigue[e] === 0).length;
+  return (
+    STANDING.status * (seconds(foe, HARMFUL) - seconds(me, HARMFUL)) +
+    STANDING.status * 0.6 * (seconds(me, HELPFUL) - seconds(foe, HELPFUL)) +
+    STANDING.shield * (me.shield - foe.shield) +
+    STANDING.summon * summons +
+    STANDING.free * (free(me) - free(foe))
+  );
+}
+
+/** Cuántos puntos de vida vale cada cosa de `standing`. */
+const STANDING = { status: 4, shield: 0.8, summon: 0.3, free: 2 };
+
+function startOf(state: Readonly<MatchState>, id: EntityId): Wizard | undefined {
+  return state.wizards.find((w) => w.id === id);
+}
+
+/** Apuntar sin error, adelantando a un rival que se mueve si el proyectil tiene velocidad. */
+function cleanAim(
+  self: Readonly<Wizard>,
+  target: Readonly<Wizard>,
+  mode: AimMode,
+  speed: number,
+  rules: GameRules,
+): Vec2 {
+  let point = target.pos;
+  if (mode === 'lead' && speed > 0) {
+    const time = distance(self.pos, target.pos) / speed;
+    point = add(target.pos, scale(target.moveInput, rules.wizard.moveSpeed * time));
+  }
+  const aim = normalize(sub(point, self.pos), self.facing);
+  return mode === 'away' ? scale(aim, -1) : aim;
 }
 
 /** La velocidad del proyectil de ese tejido, o 0 si no lanza uno con velocidad propia. */

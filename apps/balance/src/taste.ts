@@ -79,7 +79,8 @@ writeFileSync(
 
 /**
  * Cuánto le gusta a la IA cada hechizo (1 si no aparece): multiplica el peso de cada opción
- * pensada, para que elija en proporciones parecidas a las de las personas. Lo escribe
+ * pensada, para que elija en proporciones parecidas a las de las personas. Solo lo usa el
+ * simulador (para parecerse a una partida real); la IA del juego no lo usa. Lo escribe
  * \`pnpm --filter @crisol/balance gusto\` a partir de \`apps/balance/data/uso-humano.json\`
  * (hoy: 6 jugadores y 72 partidas, al 24 de noviembre de 2026). No se edita a mano.
  */

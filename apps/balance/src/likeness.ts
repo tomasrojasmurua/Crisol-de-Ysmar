@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { BOT_PROFILES, rulesForMode, SPELL_NAMES } from '@crisol/content';
+import { BOT_PROFILES, BOT_TASTE, rulesForMode, SPELL_NAMES } from '@crisol/content';
 import {
   BotController,
   type BotLevel,
@@ -18,10 +18,12 @@ import {
  * compara qué lanza con el uso real de `data/uso-humano.json` (los totales del informe
  * `uso`, sin nadie en particular). El parecido es la parte del uso que coincide: 100% sería
  * lanzar cada hechizo en la misma proporción que la gente.
- * Uso: pnpm --filter @crisol/balance parecido [duelos] [dificultad]
+ * Uso: pnpm --filter @crisol/balance parecido [duelos] [dificultad] [sin]
  */
 const matches = Number(process.argv[2] ?? 200);
 const level = (process.argv[3] ?? 'duelist') as BotLevel;
+/** La IA del juego no usa el gusto; acá se prueba con y sin él (`sin` como tercer argumento). */
+const taste = process.argv[4] === 'sin' ? {} : BOT_TASTE;
 const RULES = rulesForMode({ kind: 'duel' });
 const MAX_TICKS = TICK_RATE * 60 * 6;
 
@@ -35,7 +37,7 @@ for (let seed = 1; seed <= matches; seed++) {
   const bots = new Map(
     state.wizards.map((w) => [
       w.id,
-      new BotController(seed * 31 + w.id, RULES, BOT_PROFILES[level]),
+      new BotController(seed * 31 + w.id, RULES, { ...BOT_PROFILES[level], taste }),
     ]),
   );
   while (state.winnerTeam === null && state.tick < MAX_TICKS) {
