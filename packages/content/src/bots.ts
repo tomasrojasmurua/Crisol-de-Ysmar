@@ -38,6 +38,8 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     tapTicks: 4,
     dodgeDelayTicks: 8,
     patience: 0.6,
+    // Antes de elegir prueba sus 2 mejores opciones jugando 1,5 s hacia adelante.
+    lookahead: 2,
     taste: BOT_TASTE,
   },
   // Maestro: rápido, certero, casi siempre esquiva y se corre al ver un Gran hechizo.
@@ -55,6 +57,8 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     tapTicks: 3,
     dodgeDelayTicks: 5,
     patience: 0.8,
+    // Prueba sus 4 mejores opciones: así gana por pensar mejor, no por tocar más rápido.
+    lookahead: 4,
     taste: BOT_TASTE,
   },
 };
