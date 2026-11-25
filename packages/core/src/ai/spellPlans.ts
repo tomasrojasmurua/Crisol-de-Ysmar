@@ -198,7 +198,8 @@ function greatOptions(
   add(['marea', 'brasa', 'raiz'], 'target', fallenAlly ? 4 : 0);
   add(['marea', 'marea', 'raiz'], 'target', health < 0.5 || hurtAlly ? 1.5 : 0);
   add(['marea', 'umbra', 'raiz'], 'target', hurtAlly && health > 0.6 ? 2 : 0);
-  add(['raiz', 'raiz', 'marea'], 'target', health < 0.6 && d > 6 ? 0.8 : 0);
+  // Las personas lo plantan antes de necesitarlo: también con buena vida, si hay distancia.
+  add(['raiz', 'raiz', 'marea'], 'target', d > 5 ? (health < 0.6 ? 0.8 : 0.3) : 0);
   add(['umbra', 'brasa', 'raiz'], 'target', allies.length > 0 && hurtAlly ? 1.5 : 0);
 
   // Refuerzo.

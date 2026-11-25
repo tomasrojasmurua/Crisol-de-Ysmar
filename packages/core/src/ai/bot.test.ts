@@ -83,6 +83,8 @@ describe('IA: no se congela, esquiva y tiene dificultades', () => {
     dodgeProjectiles: 1,
     dodgeStrikes: 1,
     readWeave: 1,
+    // Reacciona al instante: estas pruebas miden si esquiva, no cuánto tarda.
+    dodgeDelayTicks: 0,
   };
 
   function duel(): MatchState {

@@ -9,6 +9,8 @@
     "schools": "tsx src/schools.ts",
     "uso": "tsx src/usage.ts",
     "valor": "tsx src/spellValue.ts",
+    "parecido": "tsx src/likeness.ts",
+    "gusto": "tsx src/taste.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
 import type { BotLevel, BotProfile } from '@crisol/core';
+import { BOT_TASTE } from './botTaste';
 
 /**
  * Las tres dificultades de la IA. Juegan con las mismas reglas que una persona; cambia qué tan
@@ -14,8 +15,13 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     dodgeStrikes: 0.3,
     readWeave: 0,
     repeatPenalty: 0.7,
-    improvise: 0.35,
+    improvise: 0.25,
     memoryTicks: 30,
+    // Toca un elemento cada 0,2 s y tarda 0,4 s en reaccionar a lo que viene.
+    tapTicks: 6,
+    dodgeDelayTicks: 12,
+    patience: 0.3,
+    taste: BOT_TASTE,
   },
   // Duelista: el rival de siempre, ahora sin quedarse quieto ciego y saliendo de los avisos.
   duelist: {
@@ -26,8 +32,13 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     dodgeStrikes: 0.75,
     readWeave: 0.4,
     repeatPenalty: 0.45,
-    improvise: 0.2,
+    improvise: 0.1,
     memoryTicks: 90,
+    // Un toque cada 0,13 s y 0,27 s para reaccionar: lo de una persona atenta.
+    tapTicks: 4,
+    dodgeDelayTicks: 8,
+    patience: 0.6,
+    taste: BOT_TASTE,
   },
   // Maestro: rápido, certero, casi siempre esquiva y se corre al ver un Gran hechizo.
   master: {
@@ -38,8 +49,13 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     dodgeStrikes: 0.95,
     readWeave: 0.85,
     repeatPenalty: 0.3,
-    improvise: 0.06,
+    improvise: 0.04,
     memoryTicks: 150,
+    // Un toque cada 0,1 s y 0,17 s para reaccionar: lo mejor que hace una persona.
+    tapTicks: 3,
+    dodgeDelayTicks: 5,
+    patience: 0.8,
+    taste: BOT_TASTE,
   },
 };
 
