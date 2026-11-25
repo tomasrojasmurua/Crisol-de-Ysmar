@@ -13,6 +13,7 @@ import {
 import type { GameAudio } from '../audio/GameAudio';
 import type { TouchControls } from '../input/TouchControls';
 import { reportProblem } from '../platform/ErrorReporter';
+import { sendMatchLog } from '../platform/matchLog';
 import type { GameScene } from '../render/GameScene';
 import type { ComboCallouts } from '../ui/ComboCallouts';
 import { comboStepsView } from '../ui/comboSteps';
@@ -503,6 +504,8 @@ export class MatchFlow {
   private addToProfile(current: MatchView, outcome: Outcome): void {
     const summary = current.matchSummary();
     if (!summary) return;
+    const log = current.matchLog?.(__APP_VERSION__);
+    if (log) sendMatchLog(summary.id, log);
     const kind = current.options.mode.kind;
     const mode: ModeGroup = kind === 'duel' ? 'duel' : kind === 'teams' ? 'teams' : 'ffa';
     this.deps.stats.add({

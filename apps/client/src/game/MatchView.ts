@@ -9,6 +9,7 @@ import type {
   Wizard,
   WizardMatchStats,
 } from '@crisol/core';
+import type { MatchLog } from '@crisol/protocol';
 import type { MatchOptions, MatchStage } from './LocalMatch';
 import type { ReplayClip } from './ReplayRecorder';
 
@@ -46,6 +47,8 @@ export interface MatchView {
   readonly roundNumber: number;
   /** Lo que hizo cada mago en la serie; `null` mientras no termina (o en el entrenamiento). */
   matchSummary(): MatchSummary | null;
+  /** El registro de la serie para aprender combinaciones (solo contra la IA; ver docs/partidas.md). */
+  matchLog?(version: string): MatchLog | null;
   /** Avanza un paso y devuelve lo que pasó. */
   step(): readonly GameEvent[];
   chooseGlyph(glyph: Glyph): void;

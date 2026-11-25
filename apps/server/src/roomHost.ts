@@ -6,6 +6,7 @@ import {
   decodeDatagramAck,
   encode,
   frameKey,
+  type MatchLog,
   PROTOCOL_VERSION,
   type ServerMessage,
   StateEncoder,
@@ -42,6 +43,8 @@ export interface RoomHome {
   report(where: string, error: unknown): void;
   /** Anota cómo anduvo la Sala en una serie (ver `RoomPerf`). */
   perf?(report: RoomPerfReport): void;
+  /** Guarda el registro de una partida en red que terminó (ver docs/partidas.md). */
+  matchLog?(log: MatchLog): void;
   /** Cómo va la máquina ahora ("CPU 6% · atraso p99 2 ms"), si se sabe. */
   machine?(): string;
   /** Ofrece el canal que no espera a ese celular (manda `rtcOffer`), si la casa sabe hacerlo. */
@@ -205,6 +208,8 @@ export class RoomHost {
     if (!this.host) {
       const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
       this.host = new DuelHost(seed, () => crypto.randomUUID());
+      const save = this.home.matchLog;
+      if (save) this.host.onMatchLog = (log) => save.call(this.home, log);
     }
     return this.host;
   }

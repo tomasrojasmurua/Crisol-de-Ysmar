@@ -24,6 +24,12 @@ export {
 } from './match/highlights';
 export { isBurned, liveRules } from './match/liveMap';
 export {
+  createLogRound,
+  MATCH_LOG_ROW_LIMIT,
+  type MatchLogRound,
+  recordLogRound,
+} from './match/matchLog';
+export {
   createMatchStats,
   favoriteSpell,
   type MatchStats,

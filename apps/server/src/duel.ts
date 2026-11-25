@@ -19,6 +19,7 @@ import {
   BotController,
   combineMods,
   createHighlightTracker,
+  createLogRound,
   createMatch,
   createMatchStats,
   createSeries,
@@ -32,11 +33,13 @@ import {
   type HighlightTracker,
   type Intent,
   isElementId,
+  type MatchLogRound,
   type MatchState,
   type MatchStats,
   modeSetup,
   playerCount,
   recordHighlights,
+  recordLogRound,
   recordMatchStats,
   recordRound,
   SeededRng,
@@ -51,9 +54,12 @@ import {
 import {
   cleanRoomSettings,
   DEFAULT_ROOM_SETTINGS,
+  type MatchLog,
+  modeKey,
   type NetStage,
   type PlayerInfo,
   type PlayerLook,
+  PROTOCOL_VERSION,
   QUICK_ROOM_SETTINGS,
   type RoomSettings,
   type StateFrame,
@@ -209,6 +215,11 @@ export class DuelHost {
   private series: SeriesState = createSeries(2);
   /** Lo que hizo cada mago en la serie en curso: sale en el resumen del final. */
   private stats: MatchStats = [];
+  /** El registro de cada ronda de la serie en curso y quiénes jugaron alguna vez en persona. */
+  private logRounds: MatchLogRound[] = [];
+  private readonly humans = new Set<number>();
+  /** Recibe el registro de la serie al terminar (ver docs/partidas.md). */
+  onMatchLog: ((log: MatchLog) => void) | null = null;
   /** La mejor jugada de cada ronda y de la partida: la Sala la elige y la manda a todos. */
   private highlights: HighlightTracker = createHighlightTracker(HIGHLIGHT_RULES);
   private roundHighlight: Highlight | null = null;
@@ -822,6 +833,8 @@ export class DuelHost {
       slot.rematch = false;
       slot.pending = [];
     }
+    this.logRounds = [];
+    this.humans.clear();
     this.state = this.startRound();
     this.stats = createMatchStats(this.state.wizards.map((w) => w.id));
     this.highlights = createHighlightTracker(HIGHLIGHT_RULES);
@@ -838,6 +851,7 @@ export class DuelHost {
     for (const wizard of state.wizards) {
       const slot = this.slots.get(wizard.id);
       if (slot?.connected && !this.isAway(slot)) {
+        this.humans.add(wizard.id);
         intents.set(wizard.id, takeInputs(slot));
       } else {
         // Mientras la IA juega por él, lo que llegue no se guarda para después.
@@ -853,6 +867,8 @@ export class DuelHost {
     stepMatch(state, intents, this.rules);
     recordMatchStats(this.stats, state);
     recordHighlights(this.highlights, state);
+    const logRound = this.logRounds[this.logRounds.length - 1];
+    if (logRound) recordLogRound(logRound, state);
     const roundWinner = state.winnerTeam;
     if (roundWinner !== null) {
       this.roundHighlight = finishHighlightRound(this.highlights);
@@ -861,6 +877,7 @@ export class DuelHost {
         this.series.winnerTeam === null
           ? { kind: 'intermission', roundWinner, ticksLeft: INTERMISSION_TICKS }
           : { kind: 'finished' };
+      if (this.series.winnerTeam !== null) this.sendMatchLog(state, this.series.winnerTeam);
     }
   }
 
@@ -905,6 +922,22 @@ export class DuelHost {
     return options;
   }
 
+  /** Arma el registro de la serie que terminó y se lo pasa a quien lo guarda. */
+  private sendMatchLog(state: Readonly<MatchState>, winnerTeam: number): void {
+    // Sin nadie en persona no hay nada que aprender de la gente.
+    if (!this.onMatchLog || this.humans.size === 0) return;
+    this.onMatchLog({
+      format: 1,
+      source: 'red',
+      mode: modeKey(this.settings.mode),
+      botLevel: this.settings.botLevel,
+      wizards: state.wizards.map((w) => ({ id: w.id, team: w.team, human: this.humans.has(w.id) })),
+      rounds: this.logRounds,
+      winnerTeam,
+      version: `protocolo ${PROTOCOL_VERSION}`,
+    });
+  }
+
   private startRound(): MatchState {
     this.lastSeen.clear();
     // Entre rondas nadie manda toques: se cuenta desde ahora. Si no, al empezar cada ronda todos
@@ -933,6 +966,7 @@ export class DuelHost {
       return { ...w, affinity, mods: combineMods(this.omen.mods, ...patches) };
     });
     const state = createMatch({ ...setup, wizards }, this.rules);
+    this.logRounds.push(createLogRound());
     this.bots = new Map(
       state.wizards.map((w) => [
         w.id,

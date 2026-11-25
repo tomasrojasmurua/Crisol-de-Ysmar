@@ -22,6 +22,9 @@ const PORT = Number(process.env.PORT ?? 8080);
 /** Dónde se anotan los errores (el Worker de Cloudflare guarda en D1). */
 const ERRORS_URL =
   process.env.ERRORS_URL ?? 'https://crisol-server.tomasrojasmurua.workers.dev/api/errors';
+/** Dónde se guarda el registro de cada partida (el Worker lo guarda en D1, ver docs/partidas.md). */
+const MATCHES_URL =
+  process.env.PARTIDAS_URL ?? ERRORS_URL.replace(/\/api\/errors$/, '/api/partida');
 /** Una sala sin nadie se borra después de esto (igual se puede volver con el código antes). */
 const EMPTY_ROOM_MS = 10 * 60_000;
 /** Cada cuánto se mandan pings del protocolo WebSocket para notar sockets muertos. */
@@ -184,6 +187,13 @@ function roomFor(code: string): Room {
         peers: () => [...peers],
         report: (where, error) => reportError(code, where, error),
         perf: (summary) => sendReport({ kind: 'servidor', room: code, ...summary }),
+        matchLog: (log) => {
+          fetch(MATCHES_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(log),
+          }).catch(() => {});
+        },
         offerFast: (peer) => {
           if (RTC_ENABLED) offerFast(code, peer as WsPeer);
         },

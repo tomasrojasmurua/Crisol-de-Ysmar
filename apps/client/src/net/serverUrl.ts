@@ -123,6 +123,11 @@ export function profileBackupUrl(): string {
   return `${SERVER_URL}/api/perfil`;
 }
 
+/** Dónde se manda el registro de cada partida contra la IA (ver platform/matchLog.ts). */
+export function matchLogUrl(): string {
+  return `${SERVER_URL}/api/partida`;
+}
+
 /** Dónde se mandan los informes de errores (ver platform/ErrorReporter.ts). */
 export function errorReportUrl(): string {
   return `${SERVER_URL}/api/errors`;
