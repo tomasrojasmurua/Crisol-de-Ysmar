@@ -11,6 +11,7 @@
     "valor": "tsx src/spellValue.ts",
     "parecido": "tsx src/likeness.ts",
     "gusto": "tsx src/taste.ts",
+    "combinaciones": "tsx src/combos.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

@@ -1,0 +1,38 @@
+name: Combinaciones
+
+# Busca combinaciones de hechizos que rinden más juntos, en las partidas registradas en D1
+# (`crisol-partidas`, ver docs/partidas.md) y en duelos de autojuego. Se corre a mano: Actions →
+# Combinaciones → Run workflow. La lista queda en el resumen y el archivo para la IA
+# (`botCombos.ts`) queda como adjunto de la ejecución, para revisarlo y subirlo en un PR.
+on:
+  workflow_dispatch:
+    inputs:
+      autojuego:
+        description: "Duelos de IA contra IA que se suman a las partidas registradas"
+        default: "1500"
+
+permissions:
+  contents: read
+
+jobs:
+  buscar:
+    name: Buscar combinaciones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Buscar
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AUTOJUEGO: ${{ inputs.autojuego }}
+        run: pnpm --filter @crisol/balance combinaciones --d1 --autojuego "$AUTOJUEGO" --guardar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: botCombos
+          path: packages/content/src/botCombos.ts

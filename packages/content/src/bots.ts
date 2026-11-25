@@ -1,4 +1,5 @@
 import type { BotLevel, BotProfile } from '@crisol/core';
+import { BOT_COMBOS } from './botCombos';
 
 /**
  * Las tres dificultades de la IA. Juegan con las mismas reglas que una persona; cambia qué tan
@@ -38,6 +39,7 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     patience: 0.6,
     // Antes de elegir prueba sus 2 mejores opciones jugando 1,5 s hacia adelante.
     lookahead: 2,
+    combos: BOT_COMBOS,
   },
   // Maestro: rápido, certero, casi siempre esquiva y se corre al ver un Gran hechizo.
   master: {
@@ -56,6 +58,7 @@ export const BOT_PROFILES: Readonly<Record<BotLevel, BotProfile>> = {
     patience: 0.8,
     // Prueba sus 4 mejores opciones: así gana por pensar mejor, no por tocar más rápido.
     lookahead: 4,
+    combos: BOT_COMBOS,
   },
 };
 
