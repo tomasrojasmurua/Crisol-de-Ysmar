@@ -30,7 +30,7 @@ import {
 import type { GameRules, StatusId } from '../rules';
 import { TICK_RATE } from '../sim/fixedStep';
 import { SeededRng } from '../sim/rng';
-import { type SpellId, spellOf } from '../spells/catalog';
+import { SPELL_WEAVES, type SpellId, spellOf } from '../spells/catalog';
 import { MAX_WEAVE_LENGTH } from '../weaving/weave';
 import { Navigator } from './navigation';
 import { type AimMode, type Plan, spellOptions } from './spellPlans';
@@ -86,6 +86,12 @@ export interface BotProfile {
    */
   readonly lookahead?: number;
   /**
+   * Combinaciones para probar: después de cada hechizo, cuáles conviene probar justo después
+   * (las encuentra `pnpm --filter @crisol/balance combinaciones`). Solo con `lookahead`: entran
+   * como una opción más a la prueba y se usan solo si resultan.
+   */
+  readonly combos?: Readonly<Partial<Record<SpellId, readonly SpellId[]>>>;
+  /**
    * Si está, solo teje estos hechizos (los de un linaje) y nunca improvisa. Sirve para medir
    * el balance de los sets de principiante.
    */
@@ -127,6 +133,8 @@ export class BotController implements Controller {
   private readonly rng: SeededRng;
   private plan: Plan | null = null;
   private aimMode: AimMode = 'target';
+  /** Lo último que lanzó y cuándo, para probar la combinación que le sigue. */
+  private lastCast: { readonly spell: SpellId; readonly tick: number } | null = null;
   private thinkTicks = 20;
   private strafeSign = 1;
   private strafeTicks = 0;
@@ -160,6 +168,11 @@ export class BotController implements Controller {
       this.plan = null;
       this.trial = null;
       return [];
+    }
+    for (const event of state.events) {
+      if (event.type === 'release' && event.wizardId === self.id) {
+        this.lastCast = { spell: event.spell, tick: state.tick };
+      }
     }
     const seen =
       this.focusTarget(state, self) ??
@@ -305,7 +318,7 @@ export class BotController implements Controller {
     const book = this.profile.spellbook;
     if (book) return this.chooseFromBook(book, spells);
     if (spells.length > 0 && (this.profile.lookahead ?? 0) > 0) {
-      this.trial = this.startTrial(state, target, spells);
+      this.trial = this.startTrial(state, target, spells, available);
       return null;
     }
     if (spells.length > 0 && this.rng.next() >= this.profile.improvise) {
@@ -643,6 +656,7 @@ export class BotController implements Controller {
     state: Readonly<MatchState>,
     target: Wizard,
     options: readonly (Plan & { readonly weight: number })[],
+    available: readonly ElementId[],
   ): Trial {
     const seen = new Set<string>();
     const ranked = [...options]
@@ -658,17 +672,50 @@ export class BotController implements Controller {
     const top = Math.max(...ranked.map((o) => this.weightOf(o)), 1e-6);
     const prior = (weight: number): number =>
       TASTE_IN_SCORE * Math.log(Math.max(weight, 1e-3) / top);
+    // La combinación que sigue a lo último que lanzó entra a la prueba como la mejor de las
+    // reglas: si le resulta en la copia, la usa.
+    const follow = this.comboFollowUp(state.tick, available, ranked, options);
     // Todas se prueban sobre la misma foto del duelo, para compararlas parejo.
     const snapshot = copyOf(state) as MatchState;
     return {
       snapshot,
       targetId: target.id,
-      options: [null, ...ranked.map((o) => ({ elements: [...o.elements], aimMode: o.aimMode }))],
-      priors: [prior(this.profile.patience ?? 0), ...ranked.map((o) => prior(this.weightOf(o)))],
+      options: [
+        null,
+        ...ranked.map((o) => ({ elements: [...o.elements], aimMode: o.aimMode })),
+        ...(follow ? [follow] : []),
+      ],
+      priors: [
+        prior(this.profile.patience ?? 0),
+        ...ranked.map((o) => prior(this.weightOf(o))),
+        ...(follow ? [0] : []),
+      ],
       next: 0,
       best: null,
       bestScore: -Infinity,
     };
+  }
+
+  /** El hechizo que sigue a lo último que lanzó según `combos`, si se puede tejer ahora. */
+  private comboFollowUp(
+    tick: number,
+    available: readonly ElementId[],
+    ranked: readonly Plan[],
+    options: readonly Plan[],
+  ): Plan | null {
+    const last = this.lastCast;
+    if (!last || tick - last.tick > COMBO_WINDOW_TICKS) return null;
+    const key = (elements: readonly ElementId[]): string => elements.join('>');
+    const tried = new Set(ranked.map((o) => key(o.elements)));
+    for (const id of this.profile.combos?.[last.spell] ?? []) {
+      const weave = SPELL_WEAVES[id];
+      if (tried.has(key(weave))) return null;
+      if (!weave.every((e) => available.includes(e))) continue;
+      const known = options.find((o) => key(o.elements) === key(weave));
+      if (known) return { elements: [...known.elements], aimMode: known.aimMode };
+      return { elements: [...weave], aimMode: weave[0] === 'brasa' ? 'lead' : 'target' };
+    }
+    return null;
   }
 
   /** Prueba la siguiente opción; al terminar, se queda con la mejor (o espera). */
@@ -802,6 +849,8 @@ interface Trial {
 const ROLLOUTS_PER_TICK = 1;
 /** Cuántos puntos de vida vale lo que prefieren las reglas: por cada vez que pesa e veces más. */
 const TASTE_IN_SCORE = 4;
+/** Hasta cuánto después de un hechizo se prueba la combinación que le sigue: 3 s. */
+const COMBO_WINDOW_TICKS = 90;
 const rolloutBudget = new WeakMap<object, { tick: number; used: number }>();
 
 /** Si queda presupuesto de pruebas en este paso de esta partida (y lo gasta). */

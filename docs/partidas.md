@@ -49,3 +49,23 @@ Los registros de hace más de 6 meses se borran solos.
 
 `POST /api/partida` recibe el registro en texto plano con JSON (hasta 400 kB) y responde 204, o
 400 si no tiene la forma esperada (`protocol/matchLog.ts`, `parseMatchLog`).
+
+## Cómo se usa: combinaciones
+
+`pnpm --filter @crisol/balance combinaciones` busca pares de hechizos de un mismo mago, el
+segundo a menos de 3 s del primero, que rinden más que el segundo solo: daño a rivales en los 3 s
+siguientes, más 8 por reacción y 40 por caída. Desconfía de lo que se vio pocas veces (al menos 15
+veces, y la diferencia se achica cuanto menos se vio).
+
+- `--d1` lee las partidas registradas (solo lo que hicieron personas). Necesita
+  `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
+- `--autojuego N` suma N duelos de un Maestro contra un Maestro que improvisa seguido, para que
+  aparezcan combinaciones que nadie ha probado todavía (300 si no se pide `--d1`).
+- `--guardar` escribe `packages/content/src/botCombos.ts`.
+
+También se corre desde Actions → **Combinaciones** (deja el archivo como adjunto para subirlo en
+un PR).
+
+La IA (Duelista y Maestro) no las sigue como receta: después de lanzar un hechizo, si una
+combinación lo sigue y la puede tejer, la suma a las opciones que prueba en su copia del duelo,
+con el mismo peso que la mejor de las reglas. Solo la usa si le resulta mejor que lo demás.

@@ -19,6 +19,7 @@ export {
   SKIN_TONES,
   TRIM_COLORS,
 } from './appearance';
+export { BOT_COMBOS } from './botCombos';
 export { BOT_LEVEL_NAMES, BOT_PROFILES } from './bots';
 export { BOT_TASTE } from './botTaste';
 export {
